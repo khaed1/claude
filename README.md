@@ -111,11 +111,11 @@ Keep the command open. On your own computer, open the URL it prints and sign in 
 
 ```bash
 runuser -l imd-worker -c 'claude auth status'
-runuser -l imd-worker -c 'cd && claude -p --model claude-sonnet-5 --effort medium --tools "" --output-format json "Reply exactly READY."' \
-  | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s);console.log(r.result, Object.keys(r.modelUsage??{}))})'
+runuser -l imd-worker -c 'claude -p "Reply exactly READY." --model claude-sonnet-5 --effort medium --tools ""'
+runuser -l imd-worker -c 'claude -p "Reply exactly READY." --model claude-sonnet-5 --effort medium --tools "" --output-format json | grep -o "claude-sonnet-5" | head -1'
 ```
 
-`claude auth status` should show `"loggedIn": true` with an OAuth (subscription) login, not an API key. The second command makes a small model request and consumes allowance; it should print `READY` followed by a model list containing `claude-sonnet-5`. If your plan cannot use this model, choose an available one in both the wrapper and step 5's inference configuration before continuing.
+`claude auth status` should show `"loggedIn": true` and `"authMethod": "claude.ai"` (a subscription login, not an API key). The other two commands each make a small model request and consume allowance: the first should print `READY`, the second `claude-sonnet-5`. Keep the prompt right after `-p`; `--tools` takes several values and would otherwise swallow it. If your plan cannot use this model, choose an available one in both the wrapper and step 5's inference configuration before continuing.
 
 Authentication is stored in `/home/imd-worker/.claude/.credentials.json`, and Claude Code keeps its state in `/home/imd-worker/.claude.json`. Do not copy these files, login codes, or API keys into this manual or a Git repository.
 
