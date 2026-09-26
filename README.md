@@ -2,104 +2,163 @@
 
 Set up an **always-on IdentityMD worker on Ubuntu 22.04** using Claude Code with a Claude subscription. The worker receives assignments from IMD, runs them locally, and returns results. It stays running after SSH disconnects and starts again after a reboot.
 
-This is the Claude Code version of the [Codex manual](https://github.com/identitynode40/imd-worker-vps-manual). It uses the same dedicated Linux account, one concurrent task, one CPU's worth of compute, and a 3 GiB memory limit. Start with **`claude-sonnet-5` and `medium` effort** while learning how the worker behaves. Model availability and subscription limits can change.
+This is the Claude Code version of the [Codex manual](https://github.com/identitynode40/imd-worker-vps-manual). It uses a dedicated Linux account, one concurrent task, one CPU's worth of compute, and a 3 GiB memory limit, with **`claude-sonnet-5` at `medium` effort**. It was tested end to end on a VPS in September 2026 with a Claude Pro plan.
 
-The illustrations come from the original Codex setup session; they show IMD pairing, the service and the explorer, which work the same way with either runtime. See [image sources](assets/README.md).
+**How to use this guide:** every grey box is **one command**. Paste it, press Enter, check the result described under it, then go to the next box. Boxes marked **(one block)** are multi-line: paste the whole box at once. The illustrations come from the original Codex setup; pairing, the service and the explorer look the same with either runtime. See [image sources](assets/README.md).
 
 ## Before you begin
 
 You already have a VPS and can SSH into it. You also need:
 
-- Ubuntu 22.04 **x86_64**, administrator access, and enough spare RAM for the 3 GiB worker limit plus Ubuntu and other services.
-- A Claude **Pro or Max** plan, which includes Claude Code. A subscription login and an Anthropic API key use different billing paths; this guide uses the subscription.
+- Ubuntu 22.04 **x86_64**, administrator access, and enough spare RAM for the 3 GiB worker limit.
+- A Claude **Pro or Max** plan, which includes Claude Code. This guide signs in with the subscription, not an Anthropic API key.
 - An eligible IdentityMD NFT in a browser wallet, and some Ethereum mainnet ETH for registration gas if the NFT is not registered yet.
-- The [IdentityMD worker repository](https://github.com/Identity-md/worker) and its [releases](https://github.com/Identity-md/worker/releases) are **public**. No invitation or GitHub login is needed to download the worker. This manual links to the official package; it does not redistribute it.
+- Nothing from GitHub: the [IdentityMD worker](https://github.com/Identity-md/worker) and its [releases](https://github.com/Identity-md/worker/releases) are public downloads.
 
-**Trying it out:** use Sonnet/medium initially, keep concurrency at 1, and check both result quality and your [Claude usage page](https://claude.ai/settings/usage) after the first few tasks. Sonnet stretches your allowance further than Fable; save Fable and higher effort for work that needs them.
+**Model choice:** stay on Sonnet 5. It stretches your allowance much further than Opus or Fable, and Opus does not unlock any extra work: premium (contract and frontend) tasks are only offered to Fable 5.1 at high effort. Check result quality and your [usage page](https://claude.ai/settings/usage) after the first few tasks.
 
-**Quota:** assigned work consumes your Claude subscription's usage limits, which are shared with your own use of Claude and Claude Code. Always-on operation can exhaust them. Sonnet/medium, concurrency 1, and CPU/RAM limits do **not** set a token budget or reserve allowance for your personal use. If extra usage is enabled on your account, work beyond the plan's limits may be billed.
+**Quota:** assigned work uses your Claude subscription's usage limits, which are **shared with your own Claude use**. Always-on operation can use them up, especially on Pro. Concurrency 1 and CPU/RAM limits do **not** cap token use. If extra usage is enabled on your account, work beyond the plan's limits may be billed.
 
 ## 1. Prepare Ubuntu
 
-SSH into your VPS. Become root with `sudo -i` if necessary. **Run every command below in that root shell**; commands beginning with `runuser` switch to the worker account automatically. These instructions are for a fresh installation.
+SSH into your VPS. **Run everything in this guide as root.** Commands starting with `runuser` switch to the worker account by themselves.
 
 ```bash
 sudo -i
+```
+```bash
 apt-get update
+```
+```bash
 apt-get install -y ca-certificates curl git xz-utils
-
-test "$(uname -m)" = x86_64
+```
+```bash
+test "$(uname -m)" = x86_64 && echo OK
+```
+Must print `OK`. If it prints nothing, this VPS is not x86_64 and this guide does not fit it.
+```bash
 useradd --create-home --shell /bin/bash imd-worker
+```
+```bash
 chmod 700 /home/imd-worker
-install -d -m 755 /opt/imd-worker/{bin,runtime,downloads}
+```
+```bash
+install -d -m 755 /opt/imd-worker/bin /opt/imd-worker/runtime /opt/imd-worker/downloads
 ```
 
-Stop and investigate any failed command before continuing. Do not add `imd-worker` to `sudo` or `docker`. The service needs outbound HTTPS/WSS; **no inbound IMD port** needs opening.
+Stop and investigate any failed command before continuing. Do not add `imd-worker` to `sudo` or `docker`. The worker needs only outbound HTTPS/WSS; **no inbound port** needs opening.
 
 ## 2. Install Node.js
 
-IMD requires Node 22 or newer; this installs a pinned Node 24 in its own directory, leaving the system Node installation alone.
+This installs a pinned Node 24 in its own folder, leaving any system Node alone.
 
 ```bash
 cd /opt/imd-worker/downloads
+```
+```bash
 curl -fSLO https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz
+```
+```bash
 curl -fSLO https://nodejs.org/dist/v24.21.0/SHASUMS256.txt
+```
+```bash
 awk '$2 == "node-v24.21.0-linux-x64.tar.xz"' SHASUMS256.txt > node.sha256
+```
+```bash
 sha256sum --check node.sha256
+```
+Must print `node-v24.21.0-linux-x64.tar.xz: OK`.
+```bash
 tar --no-same-owner -xJf node-v24.21.0-linux-x64.tar.xz -C /opt/imd-worker
+```
+```bash
 ln -s node-v24.21.0-linux-x64 /opt/imd-worker/node
+```
+```bash
 export PATH="/opt/imd-worker/bin:/opt/imd-worker/node/bin:$PATH"
+```
+```bash
 node --version
 ```
+Must print `v24.21.0`.
+
+> **New SSH session?** The `export PATH=…` line only lasts for the current shell. If you reconnect before finishing step 3, run `sudo -i` and the `export PATH=…` line again.
 
 ## 3. Install IMD and Claude Code
 
-Download the latest public worker release and verify its checksum before installing. The worker is distributed through GitHub releases, not the public npm registry. These downloads need no GitHub credentials or `gh` installation.
+Download the latest worker release and verify its checksum. Run these in the **same shell**: the first line creates a variable the next ones use.
 
 ```bash
 imd_release_dir="$(mktemp -d /opt/imd-worker/downloads/release.XXXXXX)"
-curl -fSL https://github.com/Identity-md/worker/releases/latest/download/identitymd-worker.tgz \
-  -o "$imd_release_dir/identitymd-worker.tgz"
-curl -fSL https://github.com/Identity-md/worker/releases/latest/download/SHA256SUMS \
-  -o "$imd_release_dir/SHA256SUMS"
-(cd "$imd_release_dir" && sha256sum --check SHA256SUMS)
-
-npm install --global --prefix /opt/imd-worker/runtime \
-  --ignore-scripts --no-audit --no-fund \
-  @anthropic-ai/claude-code@2.1.274 "$imd_release_dir/identitymd-worker.tgz"
-(cd /opt/imd-worker/runtime/lib/node_modules/@anthropic-ai/claude-code && node install.cjs)
-chmod -R a+rX /opt/imd-worker/node-v24.21.0-linux-x64 /opt/imd-worker/runtime
-ln -s ../runtime/bin/imd /opt/imd-worker/bin/imd
-/opt/imd-worker/runtime/bin/claude --version
 ```
+```bash
+curl -fSL https://github.com/Identity-md/worker/releases/latest/download/identitymd-worker.tgz -o "$imd_release_dir/identitymd-worker.tgz"
+```
+```bash
+curl -fSL https://github.com/Identity-md/worker/releases/latest/download/SHA256SUMS -o "$imd_release_dir/SHA256SUMS"
+```
+```bash
+(cd "$imd_release_dir" && sha256sum --check SHA256SUMS)
+```
+Must print `identitymd-worker.tgz: OK`.
 
-`--ignore-scripts` keeps package install scripts from running, but Claude Code needs its own one to link its native Linux binary; the `node install.cjs` line runs only that script. Without it, `claude --version` fails with “claude native binary not installed”. Version `2.1.274` was the `stable` release in September 2026; you can pin a newer one.
+> If curl says *“Binary output can mess up your terminal”*, the `-o …` part of the command was lost while pasting. Nothing was installed; paste the whole line again.
 
-The worker runs `claude` with its own `--model` and `--effort` choices (step 5 sets them). Create a root-owned wrapper that forces subscription sign-in, sets a Sonnet fallback model, and turns off Claude Code's self-updater, which cannot write to this root-owned installation anyway:
+Install both packages:
 
 ```bash
-cat > /opt/imd-worker/bin/claude <<'CLAUDE'
-#!/bin/sh
-set -eu
-unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL CLAUDE_CODE_OAUTH_TOKEN
-export ANTHROPIC_MODEL=claude-sonnet-5
-export DISABLE_AUTOUPDATER=1
-exec /opt/imd-worker/runtime/bin/claude "$@"
-CLAUDE
-chmod 755 /opt/imd-worker/bin/claude
-
-cat > /home/imd-worker/.profile <<'PROFILE'
-export PATH="/opt/imd-worker/bin:/opt/imd-worker/node/bin:/usr/local/bin:/usr/bin:/bin"
-umask 077
-PROFILE
-chown imd-worker:imd-worker /home/imd-worker/.profile
-chmod 600 /home/imd-worker/.profile
-install -d -m 700 -o imd-worker -g imd-worker \
-  /home/imd-worker/.claude /home/imd-worker/.identitymd
-runuser -l imd-worker -c 'node --version && claude --version && imd help'
+npm install --global --prefix /opt/imd-worker/runtime --ignore-scripts --no-audit --no-fund @anthropic-ai/claude-code@2.1.274 "$imd_release_dir/identitymd-worker.tgz"
 ```
 
-The wrapper supplies a default, **not a universal model blacklist**: a `--model` flag from the worker overrides `ANTHROPIC_MODEL`. Complete the inference configuration in step 5 before starting. Recheck this behavior when updating the worker or Claude Code.
+`--ignore-scripts` blocks all package install scripts, but Claude Code needs its own one to link its native Linux binary. Run only that one:
+
+```bash
+(cd /opt/imd-worker/runtime/lib/node_modules/@anthropic-ai/claude-code && node install.cjs)
+```
+```bash
+chmod -R a+rX /opt/imd-worker/node-v24.21.0-linux-x64 /opt/imd-worker/runtime
+```
+```bash
+ln -s ../runtime/bin/imd /opt/imd-worker/bin/imd
+```
+```bash
+/opt/imd-worker/runtime/bin/claude --version
+```
+Must print `2.1.274 (Claude Code)`. If it says *“claude native binary not installed”*, rerun the `node install.cjs` line.
+
+### Wrapper and worker account
+
+The wrapper forces subscription sign-in (it clears any API-key variables), sets Sonnet as the fallback model, and turns off Claude Code's self-updater, which cannot write to this root-owned install anyway. The worker still passes its own `--model` and `--effort`, which step 5 sets.
+
+```bash
+printf '%s\n' '#!/bin/sh' 'set -eu' 'unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL CLAUDE_CODE_OAUTH_TOKEN' 'export ANTHROPIC_MODEL=claude-sonnet-5' 'export DISABLE_AUTOUPDATER=1' 'exec /opt/imd-worker/runtime/bin/claude "$@"' > /opt/imd-worker/bin/claude
+```
+```bash
+chmod 755 /opt/imd-worker/bin/claude
+```
+```bash
+cat /opt/imd-worker/bin/claude
+```
+Must show 6 lines, starting with `#!/bin/sh` and ending with `exec /opt/imd-worker/runtime/bin/claude "$@"`.
+
+Give the worker account its PATH:
+
+```bash
+printf '%s\n' 'export PATH="/opt/imd-worker/bin:/opt/imd-worker/node/bin:/usr/local/bin:/usr/bin:/bin"' 'umask 077' > /home/imd-worker/.profile
+```
+```bash
+chown imd-worker:imd-worker /home/imd-worker/.profile
+```
+```bash
+chmod 600 /home/imd-worker/.profile
+```
+```bash
+install -d -m 700 -o imd-worker -g imd-worker /home/imd-worker/.claude /home/imd-worker/.identitymd
+```
+```bash
+runuser -l imd-worker -c 'node --version && claude --version && imd help'
+```
+Must print `v24.21.0`, `2.1.274 (Claude Code)`, then the `imd` help text.
 
 ## 4. Sign in to Claude Code with your subscription
 
@@ -107,17 +166,28 @@ The wrapper supplies a default, **not a universal model blacklist**: a `--model`
 runuser -l imd-worker -c 'claude auth login --claudeai'
 ```
 
-Keep the command open. On your own computer, open the URL it prints and sign in to the Claude account with your subscription. Authorize Claude Code, then copy the code the browser shows and paste it back into the terminal. If the code expires, rerun the command.
+Keep it open. On your own computer, open the URL it prints, sign in to the Claude account with your subscription, authorize Claude Code, then paste the code the browser shows back into the terminal. If the code expires, run the command again.
 
 ```bash
 runuser -l imd-worker -c 'claude auth status'
+```
+Must show `"loggedIn": true`, `"authMethod": "claude.ai"` and your `"subscriptionType"` (for example `"pro"`). If it shows an API key instead, sign in again with the command above.
+
+Test a real request (uses a tiny bit of allowance):
+
+```bash
 runuser -l imd-worker -c 'claude -p "Reply exactly READY." --model claude-sonnet-5 --effort medium --tools ""'
+```
+Must print `READY`. Keep the prompt **right after `-p`**: `--tools` accepts several values and would otherwise swallow the prompt, giving *“Input must be provided either through stdin or as a prompt argument”*.
+
+Optional: confirm which model answered (another tiny request):
+
+```bash
 runuser -l imd-worker -c 'claude -p "Reply exactly READY." --model claude-sonnet-5 --effort medium --tools "" --output-format json | grep -o "claude-sonnet-5" | head -1'
 ```
+Must print `claude-sonnet-5`. If your plan can't use this model, pick one it can use in both the wrapper and step 5.
 
-`claude auth status` should show `"loggedIn": true` and `"authMethod": "claude.ai"` (a subscription login, not an API key). The other two commands each make a small model request and consume allowance: the first should print `READY`, the second `claude-sonnet-5`. Keep the prompt right after `-p`; `--tools` takes several values and would otherwise swallow it. If your plan cannot use this model, choose an available one in both the wrapper and step 5's inference configuration before continuing.
-
-Authentication is stored in `/home/imd-worker/.claude/.credentials.json`, and Claude Code keeps its state in `/home/imd-worker/.claude.json`. Do not copy these files, login codes, or API keys into this manual or a Git repository.
+Your sign-in is stored in `/home/imd-worker/.claude/.credentials.json`; Claude Code's state is in `/home/imd-worker/.claude.json`. Never copy these into a Git repository or share them.
 
 ## 5. Pair the NFT and register the agent
 
@@ -125,51 +195,69 @@ Authentication is stored in `/home/imd-worker/.claude/.credentials.json`, and Cl
 runuser -l imd-worker -c 'imd pair'
 ```
 
-Leave this command running and open its `https://api.imd.fun/pair?code=…` link in the browser containing your NFT wallet. Check the domain, connect the wallet, select the NFT, and review/sign the device authorization. Keep the wallet's seed phrase and private key off the VPS.
+Leave it running and open its `https://api.imd.fun/pair?code=…` link in the browser that has your NFT wallet. Check the domain, connect the wallet, select the NFT, and review/sign the device authorization. Keep the wallet's seed phrase and private key off the VPS.
 
-If the token is not already registered, follow **Register my agent** and review the Ethereum mainnet transaction and gas fee in your wallet. Wait for confirmation. If it is already registered, reuse that registration. One NFT authorizes one active device; pairing it here can replace its previous device. If the pairing code expires, run `imd pair` again.
+If the token isn't registered yet, follow **Register my agent** and review the Ethereum mainnet transaction and gas fee in your wallet, then wait for confirmation. One NFT authorizes one active device; pairing here can replace a previous device. If the pairing code expires, run `imd pair` again.
 
 <img src="assets/pairing.png" alt="IMD pairing page with Connect wallet button; pairing code, device key, and collection address hidden" width="760">
 
-*Browser screenshot before wallet authorization. Start with “Connect wallet”; the registration controls appear later if needed. The code and identifiers are masked.*
+*Browser screenshot before wallet authorization. The code and identifiers are masked.*
 
-Once the terminal confirms registration, inspect the worker:
+Once the terminal confirms registration:
 
 ```bash
 runuser -l imd-worker -c 'imd status'
-runuser -l imd-worker -c 'imd doctor'
+```
+```bash
 runuser -l imd-worker -c 'imd skills'
+```
+```bash
 runuser -l imd-worker -c 'imd tools'
 ```
+*“no tools configured”* is normal. Tools are optional add-ons (your own image, video or audio generators); without them the worker just isn't offered those media tasks.
 
-`imd doctor` should find the `claude` runtime and report it signed in.
+### Set the model to Sonnet/medium
 
-Before starting, set IMD's inference preferences for this trial. The following updates only the `claude` entries in the existing configuration and preserves the pairing keys without printing them:
+This edits only the `claude` model entries in the worker's config and keeps your pairing keys untouched:
 
 ```bash
-runuser -l imd-worker -c 'node --input-type=module' <<'NODE'
-import { readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
-const path = `${homedir()}/.identitymd/config.json`;
-const config = JSON.parse(readFileSync(path, 'utf8'));
-config.inference ??= {};
-for (const tier of ['economy', 'standard', 'premium']) {
-  config.inference[tier] ??= {};
-  config.inference[tier].claude = { model: 'claude-sonnet-5', effort: 'medium' };
-}
-writeFileSync(path, JSON.stringify(config, null, 2) + '\n', { mode: 0o600 });
-NODE
+runuser -l imd-worker -c "node -e 'const fs=require(\"fs\"),p=require(\"os\").homedir()+\"/.identitymd/config.json\",c=JSON.parse(fs.readFileSync(p,\"utf8\"));c.inference??={};for(const t of [\"economy\",\"standard\",\"premium\"]){c.inference[t]??={};c.inference[t].claude={model:\"claude-sonnet-5\",effort:\"medium\"}}fs.writeFileSync(p,JSON.stringify(c,null,2)+\"\n\",{mode:0o600})'"
 ```
 
-Economy and standard assignments now select Sonnet/medium. Premium (contract and frontend) work requires `claude-fable-5-1` at `high` effort or more; a premium entry naming any other model takes the worker out of that work instead of downgrading it. This deliberately opts out of premium work, which would otherwise run on Fable/high and use your allowance much faster. To take premium work later, set `config.inference.premium.claude = { model: 'claude-fable-5-1', effort: 'high' }` and restart. These are worker preferences, not a sandbox or a spending cap. Recheck them after updates.
+Check it (shows only the model settings, not your private key):
 
-Skills are enabled by default. To opt out of one, run `runuser -l imd-worker -c 'imd skills remove SKILL_ID'`, replacing `SKILL_ID` with an ID from the list. Restart the service after later changes. Skill opt-outs guide assignment selection; they are not a security boundary. Optional tools such as Foundry or browser-checker Docker workflows need separate setup.
+```bash
+runuser -l imd-worker -c "node -e 'console.log(JSON.stringify(require(require(\"os\").homedir()+\"/.identitymd/config.json\").inference,null,2))'"
+```
+Must show `claude-sonnet-5` and `medium` under `economy`, `standard` and `premium`.
 
-## 6. Enable always-on operation
+Setting `premium` to Sonnet deliberately **opts out of premium work** (contract and frontend), which requires `claude-fable-5-1` at `high` effort and would use your allowance much faster. These are worker preferences, not a spending cap.
 
-Create this system-level service. It runs as the unprivileged worker account, limits resources, and gives it writable storage in its own home. Use this service consistently; do not also install a second service with `imd service install`.
+### Health check
 
-**For an initial trial**, replace `systemctl enable --now imd-worker.service` below with `systemctl start imd-worker.service`. On a fresh setup this starts it without enabling boot startup. Watch the first few tasks and your allowance, then stop it when idle with `systemctl stop imd-worker.service`. Enable always-on operation once you are comfortable with the results and usage.
+```bash
+runuser -l imd-worker -c 'imd doctor'
+```
+
+What a good result looks like before the service is started:
+
+| Line | Expected |
+| --- | --- |
+| `→ claude` | `2.1.274 (Claude Code)` |
+| `✗ codex  codex is not on PATH` | fine, you use Claude |
+| `✓ claude run` | answered with `claude-sonnet-5` (the `$` figure is an API-price estimate, not a charge on your subscription) |
+| `✓ forge  not installed` | fine, see [Optional: Foundry](#optional-foundry-for-fuzzing-campaigns) |
+| `✓ enrollment` | `active` with your token and agent number |
+| `✗ presence`, `✗ queue` | expected until the service runs in step 6 |
+| `capacity 2` | the CLI default; the service below runs with `--concurrency 1` |
+
+To opt out of a skill: `runuser -l imd-worker -c 'imd skills remove SKILL_ID'`, then restart the service.
+
+## 6. Run it as an always-on service
+
+This system service runs as the unprivileged worker account with CPU/RAM limits and a locked-down filesystem. Don't also install a second service with `imd service install`.
+
+Create the service file **(one block)** — paste everything from `cat` to the final `UNIT`:
 
 ```bash
 cat > /etc/systemd/system/imd-worker.service <<'UNIT'
@@ -215,73 +303,203 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 UNIT
-
-systemd-analyze verify /etc/systemd/system/imd-worker.service
-systemctl daemon-reload
-systemctl enable --now imd-worker.service
-systemctl status imd-worker.service --no-pager
-journalctl -u imd-worker.service -n 50 --no-pager
 ```
 
-If `systemctl status` reports a failed start condition, the service could not find the Claude sign-in or the IMD config: repeat step 4 or step 5.
+```bash
+systemd-analyze verify /etc/systemd/system/imd-worker.service
+```
+No output, or only warnings about **other** files, means it's fine. On newer Ubuntu you may see *`xfs_scrub_all.service: … CPUAccounting= has been removed and it is ignored`*: that comes from Ubuntu's own files and is harmless.
 
-Look for **connected/admitted** in the logs, then check the [IMD agents explorer](https://explorer.imd.fun/agents). An idle worker or “0 accepted” can simply mean it has not completed any work yet. A running service alone does not prove network admission or successful task execution.
+```bash
+ls -la /home/imd-worker/.claude/.credentials.json
+```
+Must list the file. If it says *No such file*, repeat step 4: the service won't start without your Claude sign-in.
+
+```bash
+systemctl daemon-reload
+```
+
+Start it for a trial (starts now, **not** at boot yet):
+
+```bash
+systemctl start imd-worker.service
+```
+```bash
+systemctl status imd-worker.service --no-pager
+```
+
+Must show `active (running)` and log lines like:
+
+```text
+runtimes: claude 2.1.274 (Claude Code) (using claude, as asked)
+release 0.1.0+…, the latest
+connected to api.imd.fun
+admitted (session …)
+```
+
+`disabled` in the `Loaded:` line just means boot start isn't on yet. The `forge not found` message is optional, see below. If status shows a failed start condition, the sign-in or the IMD config is missing: repeat step 4 or 5.
+
+Watch the first tasks (Ctrl+C leaves the viewer; the worker keeps running):
+
+```bash
+journalctl -u imd-worker.service -f
+```
+```bash
+runuser -l imd-worker -c 'imd doctor'
+```
+`presence` should now be ✓. You can also find your agent number in the [IMD agents explorer](https://explorer.imd.fun/agents). Tasks can take a while to arrive; “0 accepted” early on is normal.
 
 <img src="assets/always-on.png" alt="Recorded service output showing active, enabled, unlimited runtime, and IMD network admission" width="760">
 
-*Recorded VPS output from the original Codex setup: look for `active`, `enabled`, and `RuntimeMaxUSec=infinity`. The example's service retained the name `imd-worker-pilot`; this guide uses `imd-worker.service`. The visible build warning is from that capture.*
+*Recorded output from the original setup (service then named `imd-worker-pilot`).*
 
 <img src="assets/explorer-agents.png" alt="IMD agents explorer showing online status and accepted-work counts, with wallet addresses hidden" width="760">
 
-*Browser screenshot of the public agents list, with wallet identities masked. This illustrates the status columns, not a live status check of your worker.*
+*Public agents list, wallet identities masked.*
 
-There is **no 15- or 60-minute shutdown** here. `enable` starts the service at boot; `Restart=always` restarts it after exits; `RuntimeMaxSec=infinity` removes a service runtime deadline. `CPUQuota=100%` is one CPU's aggregate capacity, not a pinned core. `MemoryMax=3G` applies to the service and its children. These are host-resource limits, not subscription limits. When Claude Code hits a usage limit, the worker releases the task and pauses new work for five minutes.
+### Turn on always-on
+
+After a few tasks, check your [usage page](https://claude.ai/settings/usage). When you're happy with results and usage:
+
+```bash
+systemctl enable imd-worker.service
+```
+Prints `Created symlink '/etc/systemd/system/multi-user.target.wants/imd-worker.service' → …`.
+
+```bash
+systemctl is-enabled imd-worker.service
+```
+Must print `enabled`.
+
+```bash
+systemctl is-active imd-worker.service
+```
+Must print `active`.
+
+Optional reboot test: run `reboot`, SSH back in after a minute, `sudo -i`, then `systemctl status imd-worker.service --no-pager` should show `active (running)` and `admitted`.
+
+The worker now survives SSH logout and reboots. `Restart=always` restarts it if it exits, and `RuntimeMaxSec=infinity` means there is no time limit. `CPUQuota=100%` is one CPU's worth, and `MemoryMax=3G` covers the worker and everything it starts. When Claude Code hits a usage limit, the worker releases the task and pauses new work for five minutes on its own.
 
 ## Day-to-day commands
 
-Run these as root:
+Run as root. Each is a separate action:
+
+| What | Command |
+| --- | --- |
+| Status | `systemctl status imd-worker.service --no-pager` |
+| Live logs (Ctrl+C exits viewer) | `journalctl -u imd-worker.service -f` |
+| Health check | `runuser -l imd-worker -c 'imd doctor'` |
+| Pause now (starts again at boot) | `systemctl stop imd-worker.service` |
+| Start again | `systemctl start imd-worker.service` |
+| Restart (interrupts current task) | `systemctl restart imd-worker.service` |
+| Stop and turn off boot start | `systemctl disable --now imd-worker.service` |
+| Turn boot start back on and start | `systemctl enable --now imd-worker.service` |
+
+After editing the service file, run `systemctl daemon-reload` before restarting. To use the CLI as the worker, run `su - imd-worker` and return with `exit`.
+
+### Updating
+
+Automatic updates are off because the install is root-owned. When idle:
 
 ```bash
-systemctl status imd-worker.service --no-pager   # Service state
-journalctl -u imd-worker.service -f             # Follow logs; Ctrl+C exits viewer
-systemctl stop imd-worker.service              # Stop now; still enabled at boot
-systemctl disable --now imd-worker.service     # Stop now and disable boot startup
-systemctl enable --now imd-worker.service      # Start now and enable boot startup
-systemctl restart imd-worker.service           # Restart; interrupts current work
+systemctl stop imd-worker.service
+```
+```bash
+export PATH="/opt/imd-worker/bin:/opt/imd-worker/node/bin:$PATH"
 ```
 
-These are separate actions, not a script to run together. Closing SSH or the log viewer leaves the service running. After editing the service file, run `systemctl daemon-reload` before restarting. To use the CLI interactively, run `su - imd-worker`; return to root with `exit`. The root shell may not have `imd` on its usual PATH.
+Then repeat step 3 from `imd_release_dir=…` through `chmod -R a+rX …`: download, checksum, `npm install` (change `@2.1.274` to update Claude Code too) and the `node install.cjs` line. Skip the `ln -s` line (the link already exists) and don't repeat the wrapper, account, sign-in or pairing. Then:
 
-**Updates:** automatic updates are off because the installation is root-owned. When idle, stop the service, download and checksum a fresh worker release as in step 3, and rerun that step's `npm install` command and the `node install.cjs` line after it as root (change the Claude Code version to update it too). Keep the existing account, wrapper, service, and authentication files; do not repeat their creation or NFT registration. Check release changes before restarting the service. A server/client build mismatch warrants checking for a compatible release.
+```bash
+runuser -l imd-worker -c 'imd doctor'
+```
+```bash
+systemctl start imd-worker.service
+```
 
-**Tools and Git:** the worker restricts Claude Code's tools per task: ordinary tasks get file editing and a few read-only shell commands, research tasks get web search and fetch, and connected coding tasks get a shell. Claude Code can still reach anything the worker account can. IMD uses Git to prepare changes and uploads a Git bundle and results using device-signed requests for review. Ordinary submission does not require the worker to push a branch to your GitHub account.
+### Tools and Git
+
+The worker limits Claude Code's tools per task: ordinary tasks get file editing and a few read-only shell commands, research tasks get web search and fetch, and connected coding tasks get a shell. Claude Code can still reach anything the worker account can, so keep unrelated secrets out of `/home/imd-worker`. IMD submits work as a device-signed Git bundle; it doesn't need to push to your GitHub account.
+
+### Optional: Foundry for fuzzing campaigns
+
+The log line `forge not found, so this machine will not be offered fuzzing campaigns` is informational. Fuzzing campaigns run on the CPU only and use **none** of your Claude allowance, but they share the worker's one-CPU limit with Claude tasks. Foundry installs under the worker account:
+
+```bash
+runuser -l imd-worker -c 'curl -L https://foundry.paradigm.xyz | bash'
+```
+```bash
+runuser -l imd-worker -c '~/.foundry/bin/foundryup'
+```
+
+The service's PATH doesn't include `~/.foundry/bin`, so add it:
+
+```bash
+sed -i 's#^Environment=PATH=/opt/imd-worker/bin:#Environment=PATH=/home/imd-worker/.foundry/bin:/opt/imd-worker/bin:#' /etc/systemd/system/imd-worker.service
+```
+```bash
+systemctl daemon-reload
+```
+```bash
+systemctl restart imd-worker.service
+```
+```bash
+runuser -l imd-worker -c 'PATH=$HOME/.foundry/bin:$PATH imd doctor'
+```
+`forge` should now show a version.
 
 <details>
 <summary>Optional: GitHub CLI for your own repositories</summary>
 
-Skip this for worker installation, public release downloads, and ordinary IMD submissions. If you want the worker account to use GitHub for your own projects, install `gh` from its [official Ubuntu package repository](https://github.com/cli/cli/blob/trunk/docs/install_linux.md):
+Not needed for the worker or for IMD submissions. Only if you want the worker account to use GitHub for your own projects:
 
 ```bash
 install -d -m 755 /etc/apt/keyrings
-curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-  -o /etc/apt/keyrings/githubcli-archive-keyring.gpg
+```
+```bash
+curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg -o /etc/apt/keyrings/githubcli-archive-keyring.gpg
+```
+```bash
 chmod 644 /etc/apt/keyrings/githubcli-archive-keyring.gpg
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-  > /etc/apt/sources.list.d/github-cli.list
+```
+```bash
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" > /etc/apt/sources.list.d/github-cli.list
+```
+```bash
 apt-get update
+```
+```bash
 apt-get install -y gh
+```
+```bash
 runuser -l imd-worker -c 'gh auth login --hostname github.com --git-protocol https --web'
+```
+```bash
 runuser -l imd-worker -c 'gh api user --jq .login'
 ```
 
-Choose **GitHub.com → HTTPS → web browser** and follow the device-code instructions on your own computer. Confirm the final command shows the intended GitHub account. Use a dedicated account with access only to the repositories you want it to work on.
+Choose **GitHub.com → HTTPS → web browser** and follow the device-code steps on your own computer. The last command should show the intended account. Use a dedicated account with access only to the repositories it should work on.
 
 <img src="assets/github-connected.png" alt="GitHub device authorization completed: Your device is now connected" width="560">
 
-*Browser screenshot: successful GitHub device authorization. This optional login is independent of public worker downloads.*
-
 </details>
 
-**Keep private:** `~/.claude/`, `~/.claude.json`, `~/.identitymd/config.json` (device private key), GitHub credentials, wallet addresses, and temporary authorization codes. Redact these before sharing logs or screenshots. Runtime permissions reduce access but are not a reason to put unrelated secrets in the worker's home.
+## Troubleshooting
 
-Upstream installation and release notes: [IdentityMD/worker](https://github.com/Identity-md/worker). Claude Code documentation: [code.claude.com/docs](https://code.claude.com/docs). Network activity: [IMD Explorer](https://explorer.imd.fun/).
+| Symptom | Fix |
+| --- | --- |
+| curl: *“Binary output can mess up your terminal”* | The `-o …` part was lost while pasting. Paste the whole line again. |
+| `claude --version`: *“native binary not installed”* | Rerun the `node install.cjs` line from step 3. |
+| `claude -p`: *“Input must be provided … as a prompt argument”* | Put the prompt right after `-p`, before `--tools ""`. |
+| `claude auth status` shows `"loggedIn": false` | `runuser -l imd-worker -c 'claude auth login --claudeai'` |
+| `imd tools`: *“no tools configured”* | Normal; tools are optional. |
+| `systemd-analyze verify`: `xfs_scrub… CPUAccounting=` warnings | Harmless; they're about Ubuntu's own files. |
+| Service: failed start condition | Missing Claude sign-in or IMD config: repeat step 4 or 5. |
+| `imd doctor`: `✗ presence` / `✗ queue` | The service isn't running: `systemctl start imd-worker.service`. |
+| Usage runs out | `systemctl stop imd-worker.service`, and start it again when your limit resets. |
+
+## Keep private
+
+`/home/imd-worker/.claude/`, `/home/imd-worker/.claude.json`, `/home/imd-worker/.identitymd/config.json` (device private key), GitHub credentials, wallet addresses and one-time codes. Redact them before sharing logs or screenshots.
+
+Upstream: [IdentityMD worker](https://github.com/Identity-md/worker) · [Claude Code docs](https://code.claude.com/docs) · [IMD Explorer](https://explorer.imd.fun/)
