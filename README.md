@@ -380,6 +380,117 @@ Optional reboot test: run `reboot`, SSH back in after a minute, `sudo -i`, then 
 
 The worker now survives SSH logout and reboots. `Restart=always` restarts it if it exits, and `RuntimeMaxSec=infinity` means there is no time limit. `CPUQuota=100%` is one CPU's worth, and `MemoryMax=3G` covers the worker and everything it starts. When Claude Code hits a usage limit, the worker releases the task and pauses new work for five minutes on its own.
 
+## 7. Optional: add another NFT (second agent) on the same VPS
+
+Each worker identity (device) holds exactly **one** NFT. To contribute a second NFT, give it its own profile folder and its own service; both workers then run side by side on this VPS. They share the Claude sign-in from step 4 and the wrapper, so there is nothing to reinstall.
+
+> **Usage warning:** every worker draws from the **same Claude subscription**. Two workers use your allowance about twice as fast. On Pro, check the [usage page](https://claude.ai/settings/usage) often. Each worker has its own 3 GiB memory and one-CPU limit, so make sure the VPS has room (two workers fit comfortably in 8 GB).
+
+The commands below use the suffix `-2`. For a third NFT, repeat them with `-3` everywhere, and so on.
+
+Create the second profile folder:
+
+```bash
+install -d -m 700 -o imd-worker -g imd-worker /home/imd-worker/.identitymd-2
+```
+Prints nothing when it works.
+
+Pair the second NFT to it. Open the printed link in the browser with your wallet and choose the **other** NFT (not the one worker 1 uses); register it if needed:
+
+```bash
+runuser -l imd-worker -c 'IDENTITYMD_HOME=$HOME/.identitymd-2 imd pair'
+```
+
+Set Sonnet/medium for this profile:
+
+```bash
+runuser -l imd-worker -c "IDENTITYMD_HOME=\$HOME/.identitymd-2 node -e 'const fs=require(\"fs\"),p=process.env.IDENTITYMD_HOME+\"/config.json\",c=JSON.parse(fs.readFileSync(p,\"utf8\"));c.inference??={};for(const t of [\"economy\",\"standard\",\"premium\"]){c.inference[t]??={};c.inference[t].claude={model:\"claude-sonnet-5\",effort:\"medium\"}}fs.writeFileSync(p,JSON.stringify(c,null,2)+\"\n\",{mode:0o600})'"
+```
+
+Check it:
+
+```bash
+runuser -l imd-worker -c "IDENTITYMD_HOME=\$HOME/.identitymd-2 node -e 'console.log(JSON.stringify(require(process.env.IDENTITYMD_HOME+\"/config.json\").inference,null,2))'"
+```
+Must show `claude-sonnet-5` and `medium` under `economy`, `standard` and `premium`.
+
+```bash
+runuser -l imd-worker -c 'IDENTITYMD_HOME=$HOME/.identitymd-2 imd doctor'
+```
+Check that `config` points to `.identitymd-2`, that `device` differs from worker 1's, and that `token` and the `enrollment` line show the **new** NFT and its agent number. `✗ presence` is expected until the service runs.
+
+Create the second service by copying the first and pointing it at the new profile:
+
+```bash
+sed -e 's#/home/imd-worker/.identitymd/config.json#/home/imd-worker/.identitymd-2/config.json#' -e 's#^Description=.*#Description=IMD worker 2 (Claude Code, always on)#' -e '/^Environment=HOME=/a Environment=IDENTITYMD_HOME=/home/imd-worker/.identitymd-2' /etc/systemd/system/imd-worker.service > /etc/systemd/system/imd-worker-2.service
+```
+```bash
+grep -E 'Description|IDENTITYMD_HOME|config.json' /etc/systemd/system/imd-worker-2.service
+```
+Must show these 3 lines:
+
+```text
+Description=IMD worker 2 (Claude Code, always on)
+ConditionPathExists=/home/imd-worker/.identitymd-2/config.json
+Environment=IDENTITYMD_HOME=/home/imd-worker/.identitymd-2
+```
+
+```bash
+systemctl daemon-reload
+```
+```bash
+systemctl start imd-worker-2.service
+```
+```bash
+systemctl status imd-worker-2.service --no-pager
+```
+Must show `active (running)`, then `connected to api.imd.fun` and `admitted (session …)`.
+
+```bash
+runuser -l imd-worker -c 'IDENTITYMD_HOME=$HOME/.identitymd-2 imd doctor'
+```
+`presence` should now be ✓.
+
+When you're happy with it, start it at boot too:
+
+```bash
+systemctl enable imd-worker-2.service
+```
+
+Check both workers at once:
+
+```bash
+systemctl is-active imd-worker.service imd-worker-2.service
+```
+Must print `active` twice.
+
+```bash
+systemctl is-enabled imd-worker.service imd-worker-2.service
+```
+Must print `enabled` twice.
+
+**Using worker 2:** put `imd-worker-2.service` in every `systemctl`/`journalctl` command, and put `IDENTITYMD_HOME=$HOME/.identitymd-2` inside the quotes of any `imd` command, as above. Worker 1 is unaffected.
+
+### Swap the NFT instead
+
+To move this VPS to a different NFT rather than add one, retire the current device (this frees its NFT to be paired elsewhere) and pair again:
+
+```bash
+systemctl stop imd-worker.service
+```
+```bash
+runuser -l imd-worker -c 'imd unlink'
+```
+```bash
+runuser -l imd-worker -c 'imd pair'
+```
+
+Then rerun the Sonnet/medium command from [step 5](#set-the-model-to-sonnetmedium) and start the service again:
+
+```bash
+systemctl start imd-worker.service
+```
+
 ## Day-to-day commands
 
 Run as root. Each is a separate action:
@@ -395,14 +506,24 @@ Run as root. Each is a separate action:
 | Stop and turn off boot start | `systemctl disable --now imd-worker.service` |
 | Turn boot start back on and start | `systemctl enable --now imd-worker.service` |
 
-After editing the service file, run `systemctl daemon-reload` before restarting. To use the CLI as the worker, run `su - imd-worker` and return with `exit`.
+With a second worker ([step 7](#7-optional-add-another-nft-second-agent-on-the-same-vps)), several services can go in one command:
+
+| What | Command |
+| --- | --- |
+| Both states | `systemctl is-active imd-worker.service imd-worker-2.service` |
+| Both logs together | `journalctl -u imd-worker.service -u imd-worker-2.service -f` |
+| Pause both | `systemctl stop imd-worker.service imd-worker-2.service` |
+| Start both | `systemctl start imd-worker.service imd-worker-2.service` |
+| Worker 2 health check | `runuser -l imd-worker -c 'IDENTITYMD_HOME=$HOME/.identitymd-2 imd doctor'` |
+
+After editing a service file, run `systemctl daemon-reload` before restarting. To use the CLI as the worker, run `su - imd-worker` and return with `exit`.
 
 ### Updating
 
-Automatic updates are off because the install is root-owned. When idle:
+Automatic updates are off because the install is root-owned. When idle, stop every worker (leave out `imd-worker-2.service` if you only have one):
 
 ```bash
-systemctl stop imd-worker.service
+systemctl stop imd-worker.service imd-worker-2.service
 ```
 ```bash
 export PATH="/opt/imd-worker/bin:/opt/imd-worker/node/bin:$PATH"
@@ -414,8 +535,10 @@ Then repeat step 3 from `imd_release_dir=…` through `chmod -R a+rX …`: downl
 runuser -l imd-worker -c 'imd doctor'
 ```
 ```bash
-systemctl start imd-worker.service
+systemctl start imd-worker.service imd-worker-2.service
 ```
+
+All workers share one installation, so one update covers them all.
 
 ### Tools and Git
 
@@ -446,7 +569,7 @@ systemctl restart imd-worker.service
 ```bash
 runuser -l imd-worker -c 'PATH=$HOME/.foundry/bin:$PATH imd doctor'
 ```
-`forge` should now show a version.
+`forge` should now show a version. With a second worker, run the same `sed` on `/etc/systemd/system/imd-worker-2.service`, then `systemctl daemon-reload` and `systemctl restart imd-worker-2.service`. Remember that fuzzing shares each worker's one-CPU limit.
 
 <details>
 <summary>Optional: GitHub CLI for your own repositories</summary>
@@ -496,10 +619,12 @@ Choose **GitHub.com → HTTPS → web browser** and follow the device-code steps
 | `systemd-analyze verify`: `xfs_scrub… CPUAccounting=` warnings | Harmless; they're about Ubuntu's own files. |
 | Service: failed start condition | Missing Claude sign-in or IMD config: repeat step 4 or 5. |
 | `imd doctor`: `✗ presence` / `✗ queue` | The service isn't running: `systemctl start imd-worker.service`. |
+| Worker 2's `imd doctor` shows worker 1's token | `IDENTITYMD_HOME=$HOME/.identitymd-2` is missing inside the quotes. |
+| Worker 2 service: failed start condition | `/home/imd-worker/.identitymd-2/config.json` is missing: pair it first. |
 | Usage runs out | `systemctl stop imd-worker.service`, and start it again when your limit resets. |
 
 ## Keep private
 
-`/home/imd-worker/.claude/`, `/home/imd-worker/.claude.json`, `/home/imd-worker/.identitymd/config.json` (device private key), GitHub credentials, wallet addresses and one-time codes. Redact them before sharing logs or screenshots.
+`/home/imd-worker/.claude/`, `/home/imd-worker/.claude.json`, `/home/imd-worker/.identitymd/config.json` and any `.identitymd-2`, `-3`… profiles (device private keys), GitHub credentials, wallet addresses and one-time codes. Redact them before sharing logs or screenshots.
 
 Upstream: [IdentityMD worker](https://github.com/Identity-md/worker) · [Claude Code docs](https://code.claude.com/docs) · [IMD Explorer](https://explorer.imd.fun/)
