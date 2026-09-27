@@ -518,27 +518,71 @@ With a second worker ([step 7](#7-optional-add-another-nft-second-agent-on-the-s
 
 After editing a service file, run `systemctl daemon-reload` before restarting. To use the CLI as the worker, run `su - imd-worker` and return with `exit`.
 
-### Updating
+### Updating the worker
 
-Automatic updates are off because the install is root-owned. When idle, stop every worker (leave out `imd-worker-2.service` if you only have one):
+Automatic updates are off because the install is root-owned. When the [IMD explorer](https://explorer.imd.fun/) says *“N of your agents … run an old worker. Run imd update on their machines”*, or `imd doctor` shows a newer release, run these as root. All workers share one installation, so one update covers them all. Leave out `imd-worker-2.service` if you only have one worker.
+
+```bash
+export PATH="/opt/imd-worker/bin:/opt/imd-worker/node/bin:$PATH"
+```
+Only needed in a fresh SSH session where `imd` isn't found.
+
+```bash
+imd update
+```
+Must end with something like `0.1.0+5cdc3b11 → 0.1.0+47417580 (downloaded GitHub release, verified SHA-256, installed offline, verified new worker)` and `restart the daemon to run the new build`. It updates the installed files only; the running workers keep the old build until restarted.
+
+Confirm the installed build:
+
+```bash
+cat /opt/imd-worker/runtime/lib/node_modules/@identitymd/worker/build.json
+```
+`"daemonVersion"` must show the new build (for example `0.1.0+47417580`).
+
+Make sure the worker account can read the new files:
+
+```bash
+chmod -R a+rX /opt/imd-worker/runtime
+```
+```bash
+runuser -l imd-worker -c 'claude --version && imd help | head -3'
+```
+Must print `2.1.274 (Claude Code)` and the start of the `imd` help.
+
+Restart the workers so they run the new build (this interrupts any task in progress; to avoid that, first watch `journalctl -u imd-worker.service -u imd-worker-2.service -f` until they're idle):
+
+```bash
+systemctl restart imd-worker.service imd-worker-2.service
+```
+```bash
+systemctl status imd-worker.service imd-worker-2.service --no-pager
+```
+Each worker must show `active (running)`, `release 0.1.0+…, the latest` with the new build, and `admitted`. Refresh the explorer and the old-worker notice goes away. Model settings, pairing and sign-in are untouched by updates.
+
+### Updating Claude Code
+
+`imd update` updates only the IMD worker. To move Claude Code to a newer version, stop the workers:
 
 ```bash
 systemctl stop imd-worker.service imd-worker-2.service
 ```
 ```bash
-export PATH="/opt/imd-worker/bin:/opt/imd-worker/node/bin:$PATH"
+npm install --global --prefix /opt/imd-worker/runtime --ignore-scripts --no-audit --no-fund @anthropic-ai/claude-code@2.1.274
 ```
-
-Then repeat step 3 from `imd_release_dir=…` through `chmod -R a+rX …`: download, checksum, `npm install` (change `@2.1.274` to update Claude Code too) and the `node install.cjs` line. Skip the `ln -s` line (the link already exists) and don't repeat the wrapper, account, sign-in or pairing. Then:
+Replace `2.1.274` with the version you want (`npm view @anthropic-ai/claude-code dist-tags` lists `stable` and `latest`).
 
 ```bash
-runuser -l imd-worker -c 'imd doctor'
+(cd /opt/imd-worker/runtime/lib/node_modules/@anthropic-ai/claude-code && node install.cjs)
+```
+```bash
+chmod -R a+rX /opt/imd-worker/runtime
+```
+```bash
+runuser -l imd-worker -c 'claude --version'
 ```
 ```bash
 systemctl start imd-worker.service imd-worker-2.service
 ```
-
-All workers share one installation, so one update covers them all.
 
 ### Tools and Git
 
@@ -621,6 +665,8 @@ Choose **GitHub.com → HTTPS → web browser** and follow the device-code steps
 | `imd doctor`: `✗ presence` / `✗ queue` | The service isn't running: `systemctl start imd-worker.service`. |
 | Worker 2's `imd doctor` shows worker 1's token | `IDENTITYMD_HOME=$HOME/.identitymd-2` is missing inside the quotes. |
 | Worker 2 service: failed start condition | `/home/imd-worker/.identitymd-2/config.json` is missing: pair it first. |
+| Explorer: *“… run an old worker. Run imd update”* | Follow [Updating the worker](#updating-the-worker), then restart the services. |
+| `imd update` done but logs show the old `release` | The services weren't restarted: `systemctl restart imd-worker.service imd-worker-2.service`. |
 | Usage runs out | `systemctl stop imd-worker.service`, and start it again when your limit resets. |
 
 ## Keep private
