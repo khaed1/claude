@@ -118,8 +118,29 @@ Panels start on **checkable** questions with tight caps. They move toward judgme
 
 Later: agent-originated proposals (the swarm spots a bug and proposes a fix version), reputation from IMD's registry, futarchy for large spends, outside clients.
 
-## 8. Next steps
+## 8. Beyond onchain: website, content and socials (draft)
+
+Real project management also means a website, articles, explainer and how-to videos, and an X account. These happen off-chain, so no contract can stop a bad post. Rule (DK-7): **no posting relay**. Nothing outside the project's own people holds the project's X login or tokens.
+
+| Output | How it's made | How it's approved | How it goes out |
+|---|---|---|---|
+| **Website** | IMD job (IMD already builds sites on IPFS under ENS names) | Panel: "does the site at ipfs://… follow the charter?" | **Onchain:** a Docket mandate sets the ENS content hash. Fully enforced, no key |
+| **Articles** | IMD job or a paid writing service | Panel against the charter's Voice section | Published on the website (same mandate) |
+| **Videos and images** | IMD job, or paid generation services (video, voiceover, images) | Panel against the Voice section | Stored on IPFS, shown on the website |
+| **X posts** | Drafted with the content above | Panel; then recorded in an onchain post queue (content hash + IPFS link), with a short veto window | **The project's own people post them by hand.** No API token leaves the team |
+
+Why no automation on X:
+- X API is pay-per-use since February 2026: about $0.015 per post, $0.20 per post with a link, $0.005 per post read ([X docs](https://docs.x.com/x-api/getting-started/pricing)). Cheap, but every automated account must carry the "Automated" label and say who runs it, may not mention, DM, like or follow unprompted, and **AI-generated replies need X's prior approval** ([X developer guidelines](https://docs.x.com/developer-guidelines)). Accounts using AI replies are being suspended (2026 reports).
+- Automating posts needs someone to hold a token, which is the relay we don't want.
+
+Checking afterwards: an IMD panel can be asked "did the project's X account post anything that is not in the post queue, between dates A and B?", using paid X read services as evidence. That keeps the team honest without giving anyone a key.
+
+**Paying for services (Paybox):** many useful services are paid per call over x402 with no account (IPFS pinning, video generation, text to speech, image generation, X search and post lookup). Paybox, the user's agent wallet, can pay them. For a project, the payer is a small capped wallet topped up weekly by a Docket mandate (like PondPad's Swarm Relay cap, launchpad D-47), so a leaked key costs at most one week's budget. Who holds that wallet is open (P-9).
+
+Replies and DMs: not at first. Mentions are where prompt injection and scam links come in.
+
+## 9. Next steps
 
 Done: name and home chain agreed (DK-1, DK-3); IMD dev questions written (`IMD-QUESTIONS.md`); `OracleGovernor` interface, mandate spec (`SPEC.md`) and Foundry prototype with fork tests.
 
-Next: the user decides P-1 to P-8; send the IMD questions; settle the PondPad timelock wiring; charter template; `WorkEscrow`; `CharterRegistry`. Full list in [`HANDOFF.md`](HANDOFF.md) §5.
+Next: the user decides P-1 to P-9; send the IMD questions; settle the PondPad timelock wiring; charter template; `WorkEscrow`; `CharterRegistry`. Full list in [`HANDOFF.md`](HANDOFF.md) §5.

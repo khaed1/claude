@@ -12,6 +12,8 @@ Numbered `DK-n` so they don't mix with PondPad's `D-n` (`../launchpad/DECISIONS.
 | DK-4 | **Mandate changes: the project's Safe proposes, a config timelock follows with the same veto (guardian or locked holder tokens), then anyone executes.** Switching a mandate off is instant. Mandates can't be edited; a change is a new mandate plus switching off the old one | User's choice. The team can't quietly widen Docket's powers; narrowing is always safe |
 | DK-5 | **Holder veto by locking tokens** (lock-to-veto): holders lock the base token or an ERC-4626 vault of it (for PondPad: $PONDPAD, sPONDPAD) against a queued action; at the quorum it is cancelled. Locks return only after the timelock would have ended | User's choice. sPONDPAD has no vote snapshots; locking needs no change to the client's token and a flash loan can't stay locked across blocks |
 | DK-6 | Foundry project in `swarm-steward/contracts`: Solidity 0.8.26, cancun, via-IR, no proxies; its own forge-std v1.9.7, solady v0.1.9 and v4-core `46c6834` (same versions as PondPad). PondPad's sources are only read by the tests (`pondpad/` remapping), never changed | User's rules: same stack as PondPad, no changes to PondPad |
+| DK-7 | **No posting relay.** Docket never holds a project's X login or API tokens. Approved posts go into an onchain post queue and the project's own people post them; a panel can check afterwards that nothing else was posted. Websites go out onchain (ENS content hash mandate) | User's choice. X requires automated accounts to be labelled and AI replies to be pre-approved, and any automated poster would hold a key that can post scam links |
+| DK-8 | **Paid services over x402 (via Paybox or any x402 wallet) are a tool, not a dependency**: content generation, IPFS pinning, X data for evidence | User: "Paybox is good for other targets" |
 
 ## Waiting for your decision
 
@@ -27,5 +29,6 @@ These are in the prototype so it can run, but they decide fees, thresholds or po
 | P-6 | **The Safe can withdraw its own config changes** during their timelock | Narrowing only | Only the guardian cancels |
 | P-7 | **Proposers can only supply numbers, addresses, hashes and booleans**; the module fills the proposal id and the evidence link into the call | No free text reaches the panel or the target contract | Allow bounded text arguments |
 | P-8 | No Docket fee in the prototype | Business model is open (DESIGN.md §6.8) | Fee on managed budgets, subscription, share of work escrow |
+| P-9 | (Not built) A small **capped spending wallet** per project pays x402 services, topped up weekly by a mandate | Bounds a leaked key to one week's budget | The project's team pays; IMD jobs only; who holds the wallet is open |
 
 Test fixtures, **not decisions** (`contracts/test/Base.t.sol`): grants 1 to 1,000 IMD, cap 1,000 IMD per 7 days; cap decay 300k to 700k $PONDPAD, once per 30 days; panel ≥ 51 at 2/3; answer window 7 days; timelock 3 days; execution window 3 days; bond 10 IMD; holder veto 5% of $PONDPAD supply; config timelock 2 days, config veto 10%.

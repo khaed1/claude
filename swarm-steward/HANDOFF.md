@@ -62,19 +62,20 @@ Notes:
 
 ## 5. Next steps
 
-1. **User:** decide the prototype choices P-1 to P-8 in `DECISIONS.md`.
+1. **User:** decide the prototype choices P-1 to P-9 in `DECISIONS.md`.
 2. **User:** send `IMD-QUESTIONS.md` to the IMD dev (signing, panels, consumer chain 4663 are the blockers).
 3. **User + PondPad:** how Docket reaches PondPad settings owned by PondPad's 48 h timelock (open item below).
 4. Write a charter template (mission, Grants and Market settings sections, evidence rules), modelled on PondPad's `CTO-RULES.md`.
 5. `WorkEscrow` (pay an IMD job after a second panel's delivery "yes"), then `CharterRegistry`.
 6. Deploy scripts and a full fork rehearsal for client 1.
 7. Check the name "Docket" (domain, X handle, trademark conflicts).
+8. Content and socials (DESIGN.md §8): website mandate (ENS content hash) first, then a `PostQueue` contract for approved X posts, then a "Voice" charter section.
 
 ## 6. Open items
 
 | Item | Waiting on |
 |---|---|
-| Prototype choices P-1 to P-8 (bond policy, guardian powers, verifier per module, fee) | User |
+| Prototype choices P-1 to P-9 (bond policy, guardian powers, verifier per module, fee, service wallet) | User |
 | Threshold signing, panel draw, seat caps, consumer chain 4663, payments on Robinhood (`IMD-QUESTIONS.md`) | IMD dev |
 | **PondPad wiring:** `MarketController` (and other policy settings) are owned by PondPad's 48 h timelock, not the Safe, so a Docket mandate on the Safe can't call them directly. Options: PondPad makes the Safe (with Docket) the owner of chosen settings; or the Safe is a proposer on PondPad's timelock and Docket learns to bound nested timelock calls. The tests let the Safe own the controller to show the mandate working. `GrowthFund.grant` works as is (granter = Safe) | User (PondPad decision; no PondPad change made here) |
 | Name checks for "Docket" | User |
