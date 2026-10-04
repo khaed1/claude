@@ -53,15 +53,15 @@ The owner of the project is the user (IMD ecosystem builder). The IMD / POOL4 de
 | `MarketController` | Permanent owner of the market hook: opens it once from `PadSale`, permissionless `collectFees` (both fee tokens split 40/25/20/15), policy via 48 h timelock, sinks via 7-day timelock; the only exit is `migrate` into a new hook (7-day timelock, first 12 months, D-40), never to a wallet | Done |
 | `PadBurner` | Burn sink: burns all $PONDPAD it holds, permissionless | Done |
 | `StakedPONDPAD` | sPONDPAD ERC-4626 vault (POOL4 `StakedIMD` fork): one-block hold, 3-day max pause, can't rescue stake, powers expire after 12 months | Done |
-| `RewardDripper` | Streams $PONDPAD into the vault at a bounded rate (POOL4 fork): fixed vault, can't rescue rewards, always drainable, powers expire after 12 months | Done |
+| `RewardDripper` | Streams $PONDPAD into the vault (POOL4 fork), self-adjusting: waiting rewards pay out over ~7 days whatever the volume (D-44); fixed vault, can't rescue rewards, powers expire after 12 months | Done |
 | `PadBuyer` | Stakers' 40%: buys $PONDPAD with IMD in small price-guarded chunks, forwards $PONDPAD to the dripper | Done |
 | `FeeLib`, `Route` | Shared fee math and the `Hop` struct | Done |
 
 ### Tests (`contracts/test/`)
-- `PondPad.t.sol` + `Base.t.sol`: **31 local tests** (64 local in total with `PadSale.t.sol`, `Market.t.sol` and `Staking.t.sol`) against a real v4 PoolManager with mock IMD and USDG and local IMD/ETH and ETH/USDG pools. Covers launch, fee splits, snipe tax, max-buy, dev buy, dividends, swarm budget, graduation in both currency orderings, locked liquidity, third-party router fees, the exact `PartialFill` revert, ETH and USDG paths before and after graduation, payment-route validation, integrator share (curve, pool, unregistered, spoofing through other routers, bounds), a 512-run solvency fuzz.
+- `PondPad.t.sol` + `Base.t.sol`: **31 local tests** (66 local in total with `PadSale.t.sol`, `Market.t.sol` and `Staking.t.sol`) against a real v4 PoolManager with mock IMD and USDG and local IMD/ETH and ETH/USDG pools. Covers launch, fee splits, snipe tax, max-buy, dev buy, dividends, swarm budget, graduation in both currency orderings, locked liquidity, third-party router fees, the exact `PartialFill` revert, ETH and USDG paths before and after graduation, payment-route validation, integrator share (curve, pool, unregistered, spoofing through other routers, bounds), a 512-run solvency fuzz.
 - `PadSale.t.sol`: **11 local tests** for the $PONDPAD sale: setup and start price, bad setup, closed before start / until funded, snipe tax decay to growth, fee and integrator share, whole-sale wallet cap (sells don't free it), sell round trip, ETH and USDG round trips, graduation at the curve's final price (sqrt price checked), completing-buy refund, solvency fuzz.
 - `Market.t.sol`: **12 local tests** for the $PONDPAD market: opens at the sale's final price when the sale graduates, fee 3% → 2% → 1% (both fee currencies), trims above the cap burned and 15% shared, ratchet no faster than 500k/day, fee split 40/25/20/15 in IMD and $PONDPAD, controller power limits, outsiders can't initialize or add liquidity, keeper rebalance deploys the backstop, cap-invariant fuzz at 3% and at 1%, migration into a new hook (same price, inventory, backstop IMD, fee clock and policy; guards; 12-month expiry), fee clock can only move earlier.
-- `Staking.t.sol`: **10 local tests**: vault deposit / one-block hold / redeem, short pause and cooldown, no stake rescue, powers expire; dripper streams trim rewards, never into an empty vault, bounded per call, settings stay drainable, no reward rescue; buyer turns splitter IMD into $PONDPAD for the dripper, refuses after a price pump until the reference catches up, forwards the $PONDPAD fee share, bounded settings; end to end from a coin trade to a higher sPONDPAD value.
+- `Staking.t.sol`: **12 local tests**: vault deposit / one-block hold / redeem, short pause and cooldown, no stake rescue, powers expire; dripper streams trim rewards at 1/168 of the buffer per hour, never into an empty vault, a long gap releases at most a day's share, a lump drains ~63% in 7 days and ~95% in 3 weeks, small buffers still sweep, bounded settings, no reward rescue; buyer turns splitter IMD into $PONDPAD for the dripper, refuses after a price pump until the reference catches up, forwards the $PONDPAD fee share, bounded settings; end to end from a coin trade to a higher sPONDPAD value.
 - `Fork.t.sol`: **5 fork tests** on live Robinhood Chain (real PoolManager, IMD, IMD/ETH and ETH/USDG pools): full lifecycle with ETH, USDG on the curve and after graduation, the $PONDPAD sale with ETH and USDG, the sale graduating into the market (cancun build, dynamic fee) with a buy and a trimmed sell, and an IMD depth report.
 
 ### Not built yet
@@ -75,7 +75,7 @@ See `ROADMAP.md` section 1. In short: `WorkerFund`, `GrowthFund`, `VersionRegist
 cd launchpad/contracts
 git submodule update --init --recursive        # forge-std v1.9.7, solady v0.1.9, v4-core @ 46c6834 (+ its solmate, openzeppelin)
 forge build
-forge test --no-match-contract Fork            # 64 local tests
+forge test --no-match-contract Fork            # 66 local tests
 FORK_RPC=https://rpc.mainnet.chain.robinhood.com forge test --match-contract Fork -vv   # 5 fork tests
 ```
 
@@ -90,7 +90,7 @@ mkdir -p ~/.foundry/bin && curl -sSL -o /tmp/foundry.tgz \
 Build settings (`foundry.toml`): Solidity 0.8.26, `evm_version = cancun`, `via_ir = true`, optimizer 200, `bytecode_hash = none`, lint on build off.
 
 Test gotchas found so far:
-- Under via-IR, `block.timestamp` read after `vm.warp` in the same test can be stale. Save `t0` and warp to absolute times. Same for `block.number` after `vm.roll`: use `_nextBlock()` from `Base.t.sol`.
+- Under via-IR, `block.timestamp` read after `vm.warp` in the same test can be stale. Save `t0` and warp to absolute times. Worse: a local like `uint256 t0 = block.timestamp` may be re-read after a warp, so warps compound; use constants (e.g. `START + 30 minutes`). Same for `block.number` after `vm.roll`: use `_nextBlock()` from `Base.t.sol`.
 - The PoolManager holds every pool's tokens; measure balance deltas, not totals.
 - Uniswap test helpers refund spare ETH to the test contract, so the test base has `receive()`.
 - Some Robinhood RPCs cap log queries at 10M blocks per request.

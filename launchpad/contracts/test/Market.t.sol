@@ -145,7 +145,8 @@ contract MarketTest is MarketBase {
     function test_market_feeFallsFromThreeToOnePercentOverSevenDays() public {
         assertEq(market.currentFee(), 30_000); // before open
         _graduate();
-        uint256 t0 = block.timestamp;
+        uint256 t0 = START + 30 minutes; // constant: a saved block.timestamp can be re-read under via-IR
+        assertEq(block.timestamp, t0);
 
         uint256 before = market.totalFeeQuote();
         _swap(true, 100e18);
@@ -190,7 +191,8 @@ contract MarketTest is MarketBase {
 
     function test_market_buysRatchetCapNoFasterThanDecay() public {
         _graduate();
-        uint256 t0 = block.timestamp;
+        uint256 t0 = START + 30 minutes; // constant: a saved block.timestamp can be re-read under via-IR
+        assertEq(block.timestamp, t0);
         uint256 cap0 = market.inventoryCap();
 
         // A large buy right away: no decay allowance yet, so the cap holds.
@@ -318,7 +320,8 @@ contract MarketTest is MarketBase {
 
     function test_market_migrateMovesEverythingIntoNewHook() public {
         _graduate();
-        uint256 t0 = block.timestamp;
+        uint256 t0 = START + 30 minutes; // constant: a saved block.timestamp can be re-read under via-IR
+        assertEq(block.timestamp, t0);
         _swap(true, 300e18);
         _swap(false, 15_000_000e18); // trims, builds retained IMD
         _nextBlock();

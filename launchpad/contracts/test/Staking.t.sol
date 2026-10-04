@@ -23,7 +23,7 @@ contract StakingTest is MarketBase {
         super.setUp();
         expiry = block.timestamp + 365 days;
         sVault = new StakedPONDPAD(address(pondpad), slowTimelock, expiry);
-        rewards = new RewardDripper(address(pondpad), address(sVault), timelock, 20e18, 1 hours, 100e18, 10_000e18, expiry);
+        rewards = new RewardDripper(address(pondpad), address(sVault), timelock, 7 days, 1 days, 10e18, 1_000e18, expiry);
         buyer = new PadBuyer(timelock, address(imd), address(pondpad), address(pm), address(controller), address(rewards));
         // Wire the stakers' paths: the market's trim share and the splitter's 40% both reach the dripper.
         vm.prank(slowTimelock);
@@ -109,39 +109,83 @@ contract StakingTest is MarketBase {
         uint256 buffered = pondpad.balanceOf(address(rewards));
         assertGt(buffered, 1_000_000e18);
 
-        // Never into an empty sVault.
-        vm.warp(block.timestamp + 1 hours);
+        // Never into an empty vault.
+        uint256 t0 = START + 30 minutes; // constant: a saved block.timestamp can be re-read under via-IR
+        assertEq(block.timestamp, t0);
+        vm.warp(t0 + 1 hours);
         vm.expectRevert(RewardDripper.VaultEmpty.selector);
         rewards.drip();
 
         _stake(1_000_000e18);
         uint256 assetsBefore = sVault.totalAssets();
-        vm.warp(block.timestamp + 10 hours); // catch-up capped at 1 hour
         vm.prank(keeper);
         (uint256 toVault, uint256 tip) = rewards.drip();
-        assertEq(toVault + tip, 20e18 * 1 hours);
-        assertEq(tip, 100e18);
+        assertEq(toVault + tip, buffered * 1 hours / 7 days, "1/168 of the buffer per hour");
+        assertEq(tip, 10e18);
         assertEq(sVault.totalAssets() - assetsBefore, toVault);
         assertGt(sVault.convertToAssets(sVault.balanceOf(staker)), 1_000_000e18);
+
+        // A long gap releases at most one day's share (1/7 of the buffer), never the whole buffer.
+        uint256 left = pondpad.balanceOf(address(rewards));
+        vm.warp(t0 + 30 days);
+        (toVault, tip) = rewards.drip();
+        assertEq(toVault + tip, left * 1 days / 7 days);
     }
 
-    function test_dripper_settingsStayDrainableAndRewardsCantBeRescued() public {
+    function test_dripper_lumpDrainsOverAboutAWeek() public {
+        _stake(1_000_000e18);
+        pondpad.transfer(address(rewards), 7_000_000e18);
+        uint256 t0 = START + 1 hours; // a constant: under via-IR a saved block.timestamp can be re-read after warps
+        vm.warp(t0);
+        rewards.drip(); // starts the clock at t0 (pays out ~1/168 of the lump)
+        for (uint256 h = 1; h <= 21 * 24; h++) {
+            vm.warp(t0 + h * 1 hours);
+            if (rewards.canDrip()) rewards.drip();
+            if (h == 7 * 24) {
+                // ~e^-1 = 36.8% still waiting after one smoothing period
+                assertApproxEqRel(pondpad.balanceOf(address(rewards)), 7_000_000e18 * 368 / 1000, 0.03e18);
+            }
+        }
+        // ~5% left after three weeks
+        assertApproxEqRel(pondpad.balanceOf(address(rewards)), 7_000_000e18 * 50 / 1000, 0.05e18);
+    }
+
+    function test_dripper_smallBufferStillSweeps() public {
+        _stake(1_000e18);
+        pondpad.transfer(address(rewards), 500e18); // below the 1,000 minimum
+        uint256 t0 = START + 30 minutes; // constant: a saved block.timestamp can be re-read under via-IR
+        assertEq(block.timestamp, t0);
+        vm.warp(t0 + 1 hours);
+        assertFalse(rewards.canDrip());
+        vm.expectRevert(RewardDripper.BelowMinDrip.selector);
+        rewards.drip();
+        vm.warp(t0 + 1 days);
+        vm.prank(keeper);
+        (uint256 toVault, uint256 tip) = rewards.drip();
+        assertEq(toVault, 500e18);
+        assertEq(tip, 0, "no tip on a remainder sweep");
+        assertEq(pondpad.balanceOf(address(rewards)), 0);
+    }
+
+    function test_dripper_settingsBoundedAndRewardsCantBeRescued() public {
         vm.startPrank(timelock);
-        vm.expectRevert(RewardDripper.RenounceWouldFreeze.selector);
-        rewards.setDripRate(0);
-        vm.expectRevert(RewardDripper.RenounceWouldFreeze.selector);
-        rewards.setMinDripAmount(1_000_000e18); // above one call's ceiling
+        vm.expectRevert(RewardDripper.InvalidSmoothing.selector);
+        rewards.setSmoothingPeriod(12 hours);
+        vm.expectRevert(RewardDripper.InvalidSmoothing.selector);
+        rewards.setSmoothingPeriod(31 days);
+        vm.expectRevert(RewardDripper.CatchupTooHigh.selector);
+        rewards.setMaxCatchup(8 days);
         vm.expectRevert(RewardDripper.CannotRescueRewards.selector);
         rewards.rescueERC20(address(pondpad), timelock, 1);
-        rewards.setDripRate(50e18);
-        assertEq(rewards.dripRatePerSecond(), 50e18);
+        rewards.setSmoothingPeriod(3 days);
+        assertEq(rewards.smoothingPeriod(), 3 days);
         vm.stopPrank();
         assertEq(rewards.vault(), address(sVault));
 
         vm.warp(expiry);
         vm.prank(timelock);
         vm.expectRevert(RewardDripper.PowersExpired.selector);
-        rewards.setDripRate(10e18);
+        rewards.setSmoothingPeriod(7 days);
     }
 
     // ------------------------------------------------------------------ Buyer
