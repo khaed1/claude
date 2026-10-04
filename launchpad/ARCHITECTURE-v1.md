@@ -15,7 +15,7 @@ Items marked **[DEV]** depend on answers from the IMD / POOL4 developer. Section
 3. Users pay with **ETH or IMD**. The router swaps ETH to IMD inside the same transaction.
 4. The **IMD swarm** builds each graduated coin's website for free, decides community takeovers (CTO), must audit every launchpad version before it goes live, and can be paid from a coin's own "swarm budget".
 5. Protocol fees go **40% to sPAD stakers, 25% to IMD workers, 20% to growth, 15% to the treasury**.
-6. **$PAD** is sold on its own ETH bonding curve (35 ETH) and graduates into a **POOL4 market** **[DEV]**.
+6. **$PAD** is sold on its own ETH bonding curve (35 ETH) and graduates into **our own fork of POOL4's `CappedBurnHook`** on Robinhood (section 5.4).
 7. Creators can link their coin's **X account** and get a badge.
 
 **Not in v1:** swap page, trading rewards and referrals, milestone bounties, scam flags, custom swarm-built coins, POOL4-style burn mode, dead-coin migration, other chains. See section 13.
@@ -51,7 +51,7 @@ Items marked **[DEV]** depend on answers from the IMD / POOL4 developer. Section
  AttestationVerifier ◄── IMD oracle attestations (EIP-712) ── used by CTOModule, VersionRegistry
  SocialRegistry ◄── X-link vouchers (Pad verifier key)
 
- $PAD:  PadSale (ETH curve, 35 ETH) ─► Pool4Adapter ─► POOL4 $PAD/ETH market [DEV]
+ $PAD:  PadSale (ETH curve, 35 ETH) ─► PadMarketHook (CappedBurnHook fork) $PAD/ETH ◄─ MarketController (owner)
         AirdropDistributor (5%, Merkle), TeamVesting (2%), liquidity reserve (3%, treasury)
 
  Offchain: static frontend (IPFS + domain) · indexer · Swarm Relay · keeper bot ·
@@ -234,10 +234,44 @@ function sellWithPermit(..., uint8 v, bytes32 r, bytes32 s) external;
 | Contract | Role |
 |---|---|
 | `PadSale` | Bonding curve in **ETH**: 600M $PAD sold (60%), target **35 ETH**, 300M reserved for the pool (30%). Same curve math with S = 2R: start market cap ≈ 29 ETH (~$78k), graduation market cap ≈ 117 ETH (~$311k). Two-way (sell back any time). 1% sale fee → FeeSplitter. |
-| `Pool4Adapter` | At graduation, opens the **$PAD/ETH POOL4 market** with the raised ETH and 300M $PAD at the final curve price **[DEV]**. Fallback: full-range plain v4 pool with LP locked forever. |
+| `PadMarketHook` | **Fork of POOL4's `CappedBurnHook`** (MIT, verified on Etherscan at `0xc6c965bd…2840`), deployed on Robinhood with the Robinhood PoolManager. $PAD/ETH full-range market, 1% LP fee, capped burn and ETH backstop. At graduation `PadSale` initializes it at the final curve price and calls `openMarket` with the raised ETH and 300M $PAD, then hands ownership to `MarketController`. Details in section 5.4.1. |
+| `MarketController` | The hook's owner. Limits what the owner can do (section 5.4.1). |
 | `AirdropDistributor` | 5% (50M) Merkle claim for IMD seat holders and sIMD stakers (snapshot published in advance) |
 | `TeamVesting` | 2%: 6-month cliff, 18-month linear |
-| Liquidity reserve | 3% held by the treasury Safe behind the timelock, only for adding $PAD liquidity later (via POOL4's add-liquidity path **[DEV]**) |
+| Liquidity reserve | 3% held by the treasury Safe behind the timelock, only for adding $PAD liquidity later through `fundInventory` (needs $PAD and ETH in proportion) |
+
+#### 5.4.1 The POOL4 fork for $PAD
+
+What we take from POOL4's verified source (`CappedBurnHook`, Solidity 0.8.30, solady, v4-core):
+
+- **One hook per market.** The hook's token is fixed in the constructor and ETH is hard-coded as the other side, so a $PAD/ETH market needs no code changes. Constructor: `owner, poolManager, token, burnSink, rewardsRecipient, rewardShareBps (≤ 30%), minTrimTokens, lpFee, tickSpacing`.
+- **Hook permissions:** `beforeInitialize`, `beforeAddLiquidity` (both hook-only) and `afterSwap`. The hook address must be mined for these flags.
+- **Fees:** a normal pool fee (1% on mainnet), collected on every swap into a fee ledger, in both ETH and the token, and paid out with `withdrawFees(recipient)` by the owner.
+- **Burn:** after sells, tokens above `inventoryCap` are removed: at least 70% go to `burnSink`, up to 30% to `rewardsRecipient`. The removed ETH funds a backstop band above the price, rebalanced by a permissionless keeper.
+
+**Changes for our fork:**
+
+| Item | Our setting or change |
+|---|---|
+| Compiler target | Rebuild with `evm_version = cancun`. The original is compiled for `osaka`, which Robinhood Chain may not support; Pepes runs `cancun` there. Fork tests must pass on Robinhood. |
+| `burnSink` | `PadBurner`: calls `$PAD.burn()` so supply really drops, instead of sending tokens to a dead address |
+| `rewardsRecipient` | The sPAD staking path (section 5.3): up to 30% of trimmed $PAD goes to stakers |
+| Fee recipient | `MarketController.collectFees()` (permissionless) → ETH fees to FeeSplitter (swapped to IMD) or treasury; $PAD fees burned or sent to stakers |
+| Cap settings | `capFloor` and `capDecayTokensPerDay` sized for $PAD's supply, not IMD's 1,000-token mainnet values |
+| Owner | `MarketController`, never an EOA |
+
+**`MarketController`** wraps the owner powers, which POOL4 documents as trusted:
+
+| Owner power in the hook | In MarketController |
+|---|---|
+| `withdrawFees` | Permissionless; always to the fixed fee route |
+| Policy setters (cap floor, decay, ratchet, keeper tip, rebalance, reward share ≤ 30%) | Timelock (48 h) |
+| `setBurnSink`, `setRewardsRecipient` | Timelock (7 days) |
+| `fundInventory` (add liquidity) | Timelock; only from the liquidity reserve + treasury |
+| `closeMarket` (withdraw the **whole** position) and `withdrawRetainedEth` | **Not exposed.** Optional emergency path only with a 7-day timelock **and** a swarm audit attestation that names a defect, with funds sent only to a new `PadMarketHook` |
+| `initializePool`, `openMarket` | Called once by `PadSale` at graduation, before ownership moves |
+
+The fork is unaudited code, so it is audited by the swarm together with our contracts (section 10), plus any audit the POOL4 developer has.
 
 ### 5.5 Governance, versions and swarm checks
 
@@ -372,7 +406,7 @@ There is no separate swap page in v1; trading happens on coin pages.
 3. **Audit loop** (section 10).
 4. **Deploy** to Robinhood: config, timelock and Safe first; then version 1 with its swarm audit attestation; then funds and staking.
 5. **$PAD sale** opens and the airdrop snapshot is published. Coin launches can open at the same time, since the stakers' share waits in the dripper until staking opens.
-6. **$PAD graduates** to POOL4, staking opens, and the dripper starts streaming.
+6. **$PAD graduates** into `PadMarketHook`, ownership moves to `MarketController`, staking opens, and the dripper starts streaming.
 7. **Coin launches go public** (optionally a short allowlist beta first).
 
 ---
@@ -381,14 +415,14 @@ There is no separate swap page in v1; trading happens on coin pages.
 
 | # | Question | Fallback if not ready |
 |---|---|---|
-| 1 | POOL4 deployed on Robinhood, and its IMD/ETH pool key | Use the hookless IMD/ETH pool; switch the key via timelock later |
-| 2 | Can a contract (`Pool4Adapter`) call the POOL4 launcher for $PAD/ETH? | Plain full-range v4 pool, LP locked forever |
-| 3 | Can per-market owner powers (re-seed, `closeMarket`) be renounced for $PAD? | Don't use POOL4 for $PAD until they can |
-| 4 | How is liquidity added to a POOL4 market later? | Add ETH to the buy wall; hold the 3% reserve |
+| 1 | Official POOL4 IMD/ETH market on Robinhood (planned, not guaranteed) | Use the hookless IMD/ETH pool; switch the key via timelock later |
+| 2 | ~~Launcher access for $PAD~~ | **Solved:** we fork `CappedBurnHook` ourselves (section 5.4.1) |
+| 3 | ~~Renouncing owner powers~~ | **Solved:** `MarketController` limits them |
+| 4 | ~~Adding liquidity later~~ | **Solved:** `fundInventory`, via the timelock |
 | 5 | Worker rewards address | WorkerFund accrues until set |
 | 6 | Oracle attestations for chain 4663, signer addresses, rotation | CTO stays multisig + 3-day notice; version activation uses the audit job link, not an onchain attestation |
 | 7 | Swarm job payments on Robinhood (and Base) | Relay pays from bridged mainnet IMD |
-| 8 | POOL4 source and audit timeline | Relevant for v2's burn mode only |
+| 8 | POOL4 GitHub repo (tests, deploy scripts; promised next week) and any audits | Fork from the verified Etherscan source; our own tests and the swarm audit cover it |
 
 ---
 
