@@ -1,8 +1,9 @@
 # Repository notes
 
-This repository has two unrelated projects:
+This repository has three separate projects:
 
 - `README.md` + `assets/`: a manual for running an IMD swarm worker on an Ubuntu VPS with Claude Code.
+- `swarm-steward/`: **Swarm Steward** (working name), an AI DAO that runs projects after launch using IMD swarm panels; design only so far (`swarm-steward/DESIGN.md`). Separate from PondPad; PondPad is meant to be its first client.
 - `launchpad/`: **PondPad**, an IMD-paired token launchpad on Robinhood Chain. **Start with `launchpad/HANDOFF.md`**: it has the current state, how to build and test, and the next steps. Decisions are logged in `launchpad/DECISIONS.md`, future work in `launchpad/ROADMAP.md`.
 
 When working on PondPad:
