@@ -2,6 +2,8 @@
 pragma solidity 0.8.26;
 
 import {Ownable} from "solady/auth/Ownable.sol";
+import {PoolKey} from "v4-core/types/PoolKey.sol";
+import {Currency} from "v4-core/types/Currency.sol";
 
 /// @title PadConfig
 /// @notice Every adjustable PondPad setting, each with hard limits enforced here. The owner is meant to be a
@@ -32,18 +34,32 @@ contract PadConfig is Ownable {
     address public growthFund;
     address public guardian;
     bool public launchesPaused;
+    /// @notice The IMD/ETH v4 pool the router uses for ETH payments (the hookless pool today; a POOL4 market later).
+    PoolKey internal _imdEthPoolKey;
+    address public immutable imd;
 
     event LaunchSettingsUpdated(LaunchSettings settings);
     event FeeSplitterUpdated(address feeSplitter);
     event GrowthFundUpdated(address growthFund);
     event GuardianUpdated(address guardian);
     event LaunchesPaused(bool paused);
+    event ImdEthPoolKeyUpdated(PoolKey key);
 
     error InvalidSetting();
     error NotGuardian();
 
-    constructor(address owner_, address feeSplitter_, address growthFund_, address guardian_, LaunchSettings memory s) {
+    constructor(
+        address owner_,
+        address imd_,
+        address feeSplitter_,
+        address growthFund_,
+        address guardian_,
+        LaunchSettings memory s,
+        PoolKey memory imdEthPoolKey_
+    ) {
         _initializeOwner(owner_);
+        imd = imd_;
+        _setImdEthPoolKey(imdEthPoolKey_);
         _setFeeSplitter(feeSplitter_);
         _setGrowthFund(growthFund_);
         guardian = guardian_;
@@ -56,6 +72,14 @@ contract PadConfig is Ownable {
 
     function setLaunchSettings(LaunchSettings calldata s) external onlyOwner {
         _setLaunchSettings(s);
+    }
+
+    function imdEthPoolKey() external view returns (PoolKey memory) {
+        return _imdEthPoolKey;
+    }
+
+    function setImdEthPoolKey(PoolKey calldata key) external onlyOwner {
+        _setImdEthPoolKey(key);
     }
 
     function setFeeSplitter(address feeSplitter_) external onlyOwner {
@@ -87,6 +111,13 @@ contract PadConfig is Ownable {
         ) revert InvalidSetting();
         _launch = s;
         emit LaunchSettingsUpdated(s);
+    }
+
+    /// @dev Must be a native-ETH/IMD pool: currency0 is ETH (address zero sorts first), currency1 is IMD.
+    function _setImdEthPoolKey(PoolKey memory key) internal {
+        if (!key.currency0.isAddressZero() || Currency.unwrap(key.currency1) != imd) revert InvalidSetting();
+        _imdEthPoolKey = key;
+        emit ImdEthPoolKeyUpdated(key);
     }
 
     function _setFeeSplitter(address a) internal {

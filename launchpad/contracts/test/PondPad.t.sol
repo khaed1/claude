@@ -144,13 +144,14 @@ contract PondPadTest is Base {
     function _graduationFlow(bool imdFirst) internal {
         address coin = _launchOrdered(_holderTax(50), imdFirst);
         uint256 growthBefore = imd.balanceOf(growth);
+        uint256 pmImdBefore = imd.balanceOf(address(pm));
         _fillCurve(coin);
         assertEq(uint8(curve.statusOf(coin)), uint8(BondingCurve.Status.Graduated));
 
         // The curve keeps nothing; the pool holds ~99% of the target and 198M tokens.
         assertEq(imd.balanceOf(address(curve)), 0, "curve empty");
         assertEq(PadToken(coin).balanceOf(address(curve)), 0, "curve has no tokens");
-        assertApproxEqRel(imd.balanceOf(address(pm)), (TARGET * 99) / 100, 1e14, "pool IMD");
+        assertApproxEqRel(imd.balanceOf(address(pm)) - pmImdBefore, (TARGET * 99) / 100, 1e14, "pool IMD");
         assertApproxEqRel(PadToken(coin).balanceOf(address(pm)), 198_000_000e18, 1e14, "pool tokens");
         assertGt(imd.balanceOf(growth) - growthBefore, (TARGET * 99) / 10_000, "graduation fee to growth");
         assertApproxEqAbs(PadToken(coin).totalSupply(), 998_000_000e18, 1e6, "1% of reserve (plus rounding dust) burned");
@@ -250,6 +251,78 @@ contract PondPadTest is Base {
         vm.prank(address(router));
         vm.expectRevert(BondingCurve.NotTrading.selector);
         curve.sell(coin, 1e18, 0, alice);
+    }
+
+    // ------------------------------------------------------------------ ETH payments
+
+    function test_launchWithEth_paysFeeAndDevBuys() public {
+        uint256 splitterBefore = imd.balanceOf(address(splitter));
+        vm.prank(creator);
+        (address coin, uint256 out) =
+            router.launchWithEth{value: 0.1 ether}(_params("FROG", _noTax(), 0), true, 0, 0);
+        // 1 IMD launch fee + the dev buy's own 1% protocol fee (~0.1 ETH ≈ 41 IMD).
+        uint256 toSplitter = imd.balanceOf(address(splitter)) - splitterBefore;
+        assertGt(toSplitter, 1e18, "launch fee in IMD");
+        assertApproxEqRel(toSplitter, 1e18 + 0.41e18, 5e16);
+        assertGt(out, 0);
+        assertEq(PadToken(coin).balanceOf(creator), out);
+        assertEq(imd.balanceOf(address(router)), 0, "router keeps nothing");
+    }
+
+    function test_launchWithEth_withoutDevBuyReturnsImd() public {
+        uint256 before = imd.balanceOf(creator);
+        uint256 splitterBefore = imd.balanceOf(address(splitter));
+        vm.prank(creator);
+        router.launchWithEth{value: 0.1 ether}(_params("FROG", _noTax(), 0), false, 0, 0);
+        assertGt(imd.balanceOf(creator), before, "unused IMD returned");
+        assertEq(imd.balanceOf(address(splitter)) - splitterBefore, 1e18, "exactly the launch fee");
+    }
+
+    function test_ethRoundTrip_onCurve() public {
+        address coin = _launch(_noTax(), 0);
+        vm.warp(block.timestamp + 1 hours);
+        uint256 ethBefore = alice.balance;
+        vm.prank(alice);
+        uint256 out = router.buyWithEth{value: 0.2 ether}(coin, 0, block.timestamp, bytes32(0));
+        assertGt(out, 0);
+        // ~0.2 ETH × 423 IMD, minus the 1% IMD/ETH pool fee and price impact, minus 1.5%.
+        assertApproxEqRel(curve.coinInfo(coin).raised, 0.2e18 * 423 * 99 / 100 * 9850 / 10_000, 2e16);
+
+        vm.startPrank(alice);
+        ERC20(coin).approve(address(router), out);
+        uint256 ethOut = router.sellForEth(coin, out, 0, block.timestamp, bytes32(0));
+        vm.stopPrank();
+        assertApproxEqRel(alice.balance, ethBefore - 0.2 ether + ethOut, 0);
+        assertApproxEqRel(ethOut, 0.2 ether * 9600 / 10_000, 1e16, "two pool fees + two curve fees");
+        assertEq(imd.balanceOf(address(router)), 0);
+        assertEq(address(router).balance, 0);
+    }
+
+    function test_ethRoundTrip_afterGraduation() public {
+        address coin = _launch(_holderTax(50), 0);
+        _fillCurve(coin);
+        uint256 splitterBefore = imd.balanceOf(address(splitter));
+        vm.prank(alice);
+        uint256 out = router.buyWithEth{value: 0.2 ether}(coin, 0, block.timestamp, bytes32(0));
+        assertGt(out, 0);
+        assertGt(imd.balanceOf(address(splitter)), splitterBefore, "coin fee charged and flushed");
+
+        uint256 ethBefore = alice.balance;
+        vm.startPrank(alice);
+        ERC20(coin).approve(address(router), out);
+        uint256 ethOut = router.sellForEth(coin, out, 0, block.timestamp, bytes32(0));
+        vm.stopPrank();
+        assertEq(alice.balance - ethBefore, ethOut);
+        assertApproxEqRel(ethOut, 0.2 ether * 9400 / 10_000, 1e16, "two pool fees + two 2% coin fees");
+        assertEq(address(router).balance, 0);
+    }
+
+    function test_buyWithEth_slippageReverts() public {
+        address coin = _launch(_noTax(), 0);
+        vm.warp(block.timestamp + 1 hours);
+        vm.prank(alice);
+        vm.expectRevert();
+        router.buyWithEth{value: 0.2 ether}(coin, type(uint256).max, block.timestamp, bytes32(0));
     }
 
     // ------------------------------------------------------------------ Config bounds
