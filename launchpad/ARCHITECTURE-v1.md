@@ -261,7 +261,7 @@ What we take from POOL4's verified source (`CappedBurnHook`, Solidity 0.8.30, so
 | `burnSink` | `PadBurner`: calls `$PAD.burn()` so supply really drops, instead of sending tokens to a dead address |
 | `rewardsRecipient` | `RewardDripper` (section 5.3): 15% of trimmed $PAD goes to stakers (allowed up to 30%) |
 | Fee recipient | `MarketController.collectFees()` (permissionless) → IMD fees straight to FeeSplitter; $PAD fees burned or sent to stakers |
-| Cap settings | Starting proposal: `capFloor` = 150M $PAD (half the opening pool), `capDecayTokensPerDay` = 150k $PAD (0.015% of supply). Section 5.4.2 explains the effect. |
+| Cap settings | Starting proposal: `capFloor` = 150M $PAD (half the opening pool), `capDecayTokensPerDay` = 500k $PAD (0.05% of supply). Both adjustable later through the timelock (`setCapDecay`, `setCapFloor`). Section 5.4.2 explains the effect. |
 | Owner | `MarketController`, never an EOA |
 
 **`MarketController`** wraps the owner powers, which POOL4 documents as trusted:
@@ -285,10 +285,10 @@ The fork is unaudited code, so it is audited by the swarm together with our cont
 - **Dumps into the backstop:** when price falls into the backstop, it buys $PAD. The next keeper rebalance burns those tokens with the same 85/15 split.
 
 So:
-- With normal back-and-forth trading, **the burn runs at about `capDecayTokensPerDay`**: about 150k $PAD a day (≈127.5k burned, ≈22.5k to stakers), roughly 4.5M a month and 55M a year.
+- With normal back-and-forth trading, **the burn runs at about `capDecayTokensPerDay`**: about 500k $PAD a day (≈425k burned, ≈75k to stakers), roughly 15M a month. This limit applies only to the cap moving down after buys; sells that push the pool above the cap are always trimmed in full, as in the original POOL4.
 - Quiet days save up their allowance, so the rate is an average, not a hard daily cap.
 - Net selling above the cap is always trimmed, whatever the rate.
-- Once the cap reaches the 150M floor (about 1,000 days at 150k/day with steady trading), the market behaves like a normal pool until sells push holdings back above the floor.
+- Once the cap reaches the 150M floor (about 300 days at 500k/day with steady trading), the market behaves like a normal pool until sells push holdings back above the floor.
 
 Both settings can be changed later through the timelock.
 
