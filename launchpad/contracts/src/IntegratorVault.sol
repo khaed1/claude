@@ -7,7 +7,7 @@ import {ReentrancyGuard} from "solady/utils/ReentrancyGuard.sol";
 /// @title IntegratorVault
 /// @notice Holds the IMD earned by registered integrators (apps, bots, wallets) for trades they route through
 ///         PadRouter: a share of the protocol fee, carved off before the fee splitter. Integrators claim anytime.
-/// @dev The bonding curve and the hook transfer IMD here first, then call `credit`.
+/// @dev The bonding curve, the hook and the $PONDPAD sale transfer IMD here first, then call `credit`.
 contract IntegratorVault is ReentrancyGuard {
     using SafeTransferLib for address;
 
@@ -15,6 +15,7 @@ contract IntegratorVault is ReentrancyGuard {
     address internal immutable _deployer;
     address public curve;
     address public hook;
+    address public sale;
 
     mapping(address integrator => uint256) public balanceOf;
     mapping(address integrator => uint256) public totalEarned;
@@ -37,8 +38,15 @@ contract IntegratorVault is ReentrancyGuard {
         hook = hook_;
     }
 
+    /// @notice Connects the $PONDPAD sale once, so integrators also earn on sale trades they route.
+    function setSale(address sale_) external {
+        if (msg.sender != _deployer) revert Unauthorized();
+        if (sale != address(0)) revert AlreadyInitialized();
+        sale = sale_;
+    }
+
     function credit(address integrator, address coin, uint256 amount) external {
-        if (msg.sender != curve && msg.sender != hook) revert Unauthorized();
+        if (msg.sender != curve && msg.sender != hook && msg.sender != sale) revert Unauthorized();
         balanceOf[integrator] += amount;
         totalEarned[integrator] += amount;
         emit Credited(integrator, coin, amount);

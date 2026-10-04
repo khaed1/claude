@@ -236,8 +236,8 @@ function sellForWithPermit(..., uint8 v, bytes32 r, bytes32 s) external returns 
 
 | Contract | Role |
 |---|---|
-| `PadSale` | Bonding curve in **IMD**: 600M $PONDPAD sold (60%), target **≈ 8,460 IMD** (≈ 20 ETH at 1 ETH ≈ 423 IMD; fixed in IMD at deploy), 300M reserved for the pool (30%). Same curve math with S = 2R: start market cap ≈ 7,050 IMD (~$44k), graduation market cap ≈ 28,200 IMD (~$178k), pool at graduation ≈ 8,460 IMD + 300M $PONDPAD (~$107k). Buyers can pay with ETH through `PadRouter` (ETH → IMD in the same transaction). Two-way (sell back any time). 1% sale fee → FeeSplitter. |
-| `PadMarketHook` | **Fork of POOL4's `CappedBurnHook`** (MIT, verified on Etherscan at `0xc6c965bd…2840`), adapted for an **IMD pair** and deployed on Robinhood with the Robinhood PoolManager. $PONDPAD/IMD full-range market, 1% LP fee, capped burn and IMD backstop. At graduation `PadSale` initializes it at the final curve price and calls `openMarket` with the raised IMD and 300M $PONDPAD, then hands ownership to `MarketController`. Details in section 5.4.1. |
+| `PadSale` | Bonding curve in **IMD**: 600M $PONDPAD sold (60%), target **≈ 8,460 IMD** (≈ 20 ETH at 1 ETH ≈ 423 IMD; fixed in IMD at deploy), 300M reserved for the pool (30%). Same curve math with S = 2R: start market cap ≈ 7,050 IMD (~$44k), graduation market cap ≈ 28,200 IMD (~$178k), pool at graduation ≈ 8,460 IMD + 300M $PONDPAD (~$107k). Trades directly on `PadSale` (`buyWith`, `sellFor`, `sellForWithPermit`) in IMD, ETH or any approved payment token, through the same `PaymentSwapper` code as `PadRouter`. Two-way (sell back any time until it completes). **1% fee** on each trade → FeeSplitter, with a registered integrator's 15% off the top (D-36). **Anti-bot (D-35):** opens at a fixed start time; snipe tax **80% → 0 over the first 30 minutes** (to GrowthFund); **15M $PONDPAD (1.5%) per-wallet cap for the whole sale**, which sells don't free. No graduation fee: the completing buy hands the whole net raise and 300M $PONDPAD to `MarketController.launch(sqrtPriceX96, imd, tokens)` at the curve's final price; overshoot refunded in IMD. |
+| `PadMarketHook` | **Fork of POOL4's `CappedBurnHook`** (MIT, verified on Etherscan at `0xc6c965bd…2840`), adapted for an **IMD pair** and deployed on Robinhood with the Robinhood PoolManager. $PONDPAD/IMD full-range market, **dynamic LP fee 3% → 1% over the first 7 days, then 1% (D-34)**, capped burn and IMD backstop. At graduation `PadSale` sends the raised IMD and 300M $PONDPAD to `MarketController.launch`, which initializes the pool at the curve's final price and calls `openMarket`. `MarketController` owns the hook from deployment. Details in section 5.4.1. |
 | `MarketController` | The hook's owner. Limits what the owner can do (section 5.4.1). |
 | `AirdropDistributor` | 5% (50M) Merkle claim for IMD seat holders and sIMD stakers (snapshot published in advance) |
 | `TeamVesting` | 2%: 6-month cliff, 18-month linear |
@@ -257,6 +257,7 @@ What we take from POOL4's verified source (`CappedBurnHook`, Solidity 0.8.30, so
 | Item | Our setting or change |
 |---|---|
 | **Quote asset: IMD instead of native ETH** | The math assumes quote = `currency0`, token = `currency1`. v4 sorts currencies by address, so we **mine the $PONDPAD token address to be above IMD's (`0x5F7B…7127`)**. IMD is then `currency0` and all price and amount math stays unchanged. We replace only the native-ETH plumbing with ERC-20 handling: `currency0 = IMD` in `poolKey()`; `openMarket`/`fundInventory` pull IMD with `transferFrom` instead of `msg.value`; settlements use `sync` + transfer + `settle` instead of `settle{value}`; payouts, keeper tips and the retained backstop pay IMD with `safeTransfer` instead of `safeTransferETH`; `receive()` is removed; `eth*` names become `quote*`. |
+| **Fee: dynamic 3% → 1% over 7 days (D-34)** | Pool key uses v4's dynamic-fee flag (`0x800000`) instead of a fixed `lpFee`. A new `beforeSwap` (extra hook flag to mine) returns `currentFee() \| OVERRIDE_FEE_FLAG`, where `currentFee()` = 30,000 at market open, falling linearly to 10,000 (1%) at day 7, then 10,000 forever: a pure function of time, no owner setter. The keeper-tip ceiling (`_keeperRewardDue`) reads `currentFee()` instead of `lpFee`. Nothing else changes: each swap's LP fee is still realised into the fee ledger before the cap runs, so cap / trim / burn / backstop math never sees the fee level. Tests compare against a flat-1% control |
 | ETH-sized constants | Retuned in IMD: rebalance threshold (0.1 ETH → ~40 IMD), keeper tip (0.002 ETH → ~1 IMD), max keeper tip (0.1 ETH → ~40 IMD) |
 | Tests | Port POOL4's tests (repo due next week) to the IMD pair, plus fork tests on Robinhood with real IMD |
 | Compiler target | Rebuild with `evm_version = cancun`. The original is compiled for `osaka`, which Robinhood Chain may not support; Pepes runs `cancun` there. Fork tests must pass on Robinhood. |
@@ -275,7 +276,7 @@ What we take from POOL4's verified source (`CappedBurnHook`, Solidity 0.8.30, so
 | `setBurnSink`, `setRewardsRecipient` | Timelock (7 days) |
 | `fundInventory` (add liquidity) | Timelock; only from the liquidity reserve + treasury |
 | `closeMarket` (withdraw the **whole** position) and `withdrawRetainedEth` | **Not exposed.** Optional emergency path only with a 7-day timelock **and** a swarm audit attestation that names a defect, with funds sent only to a new `PadMarketHook` |
-| `initializePool`, `openMarket` | Called once by `PadSale` at graduation, before ownership moves |
+| `initializePool`, `openMarket` | Called once inside `MarketController.launch`, which only `PadSale` can call, at graduation |
 
 The fork is unaudited code, so it is audited by the swarm together with our contracts (section 10), plus any audit the POOL4 developer has.
 
@@ -395,7 +396,7 @@ The swarm customizes design and content only. This keeps cost, quality and safet
 1. **Explore:** new, about to graduate, graduated, trending; filters for X-verified and has-website.
 2. **Create:** form, coin tax and destinations, optional dev buy, optional website add-on, ETH or IMD payment, total fee preview.
 3. **Coin page:** **trade box** (buy/sell with ETH or IMD, quote, slippage, total fee), chart, curve progress bar, holders, dividends to claim, creator fees, website card, audit and X badges, CTO status, swarm budget and its jobs.
-4. **$PONDPAD sale:** curve progress, buy and sell, airdrop claim.
+4. **$PONDPAD sale:** curve progress, buy and sell, live snipe tax and countdown, wallet allowance left, airdrop claim.
 5. **Stake:** stake $PONDPAD for sPONDPAD, redeem, the current $PONDPAD value per sPONDPAD, APR from the dripper rate, burn stats.
 6. **Transparency:** splitter flows, WorkerFund payouts, GrowthFund spend with job links, treasury, current settings and pending timelock changes.
 7. **Creator dashboard:** claim fees, change recipient, link X, request swarm jobs.

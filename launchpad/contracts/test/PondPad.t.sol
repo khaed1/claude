@@ -22,6 +22,7 @@ import {PadConfig} from "../src/PadConfig.sol";
 import {CoinFees} from "../src/FeeLib.sol";
 import {Hop} from "../src/Route.sol";
 import {PadRouter} from "../src/PadRouter.sol";
+import {PaymentSwapper} from "../src/PaymentSwapper.sol";
 
 contract PondPadTest is Base {
     using StateLibrary for IPoolManager;
@@ -370,17 +371,17 @@ contract PondPadTest is Base {
     function test_unsupportedPaymentTokenReverts() public {
         address coin = _launch(_noTax(), 0);
         vm.prank(alice);
-        vm.expectRevert(PadRouter.UnsupportedToken.selector);
+        vm.expectRevert(PaymentSwapper.UnsupportedToken.selector);
         router.buyWith(coin, address(0xdead), 1e18, 0, block.timestamp, address(0));
     }
 
     function test_ethAmountMustMatchValue() public {
         address coin = _launch(_noTax(), 0);
         vm.prank(alice);
-        vm.expectRevert(PadRouter.WrongEthAmount.selector);
+        vm.expectRevert(PaymentSwapper.WrongEthAmount.selector);
         router.buyWith{value: 0.1 ether}(coin, address(0), 0.2 ether, 0, block.timestamp, address(0));
         vm.prank(alice);
-        vm.expectRevert(PadRouter.WrongEthAmount.selector);
+        vm.expectRevert(PaymentSwapper.WrongEthAmount.selector);
         router.buyWith{value: 0.1 ether}(coin, address(imd), 1e18, 0, block.timestamp, address(0));
     }
 

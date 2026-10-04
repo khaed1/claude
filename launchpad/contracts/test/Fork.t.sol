@@ -23,6 +23,9 @@ import {FeeSplitter} from "../src/FeeSplitter.sol";
 import {IntegratorVault} from "../src/IntegratorVault.sol";
 import {CoinFees} from "../src/FeeLib.sol";
 import {Hop} from "../src/Route.sol";
+import {PadSale} from "../src/PadSale.sol";
+import {PondPadToken} from "../src/PondPadToken.sol";
+import {MockMarket} from "./PadSale.t.sol";
 
 /// @notice Runs PondPad against live Robinhood Chain state: the real Uniswap v4 PoolManager, the real IMD token and
 ///         the real hookless IMD/ETH pool. Skipped unless FORK_RPC is set:
@@ -43,6 +46,7 @@ contract ForkTest is Test {
     BondingCurve internal curve;
     PadHook internal hook;
     PadRouter internal router;
+    IntegratorVault internal integrators;
     address internal growth = makeAddr("growth");
     address internal creator = makeAddr("creator");
     bool internal forked;
@@ -79,7 +83,7 @@ contract ForkTest is Test {
         config.setPaymentRoute(USDG, usdgRoute);
         CreatorVault vault = new CreatorVault(IMD);
         SwarmBudget budget = new SwarmBudget(address(this), IMD, address(vault), address(this), 100e18);
-        IntegratorVault integrators = new IntegratorVault(IMD);
+        integrators = new IntegratorVault(IMD);
         curve = new BondingCurve(IMD, address(config), address(PM));
         address hookAddr = address(uint160(HOOK_FLAGS) | (uint160(0x5050) << 144));
         deployCodeTo(
@@ -98,6 +102,45 @@ contract ForkTest is Test {
         integrators.initialize(address(curve), address(hook));
         hook.initialize(address(curve), address(router));
         factory.initialize(address(router));
+    }
+
+    /// @dev The $PONDPAD sale on live state: buy with ETH and USDG through the real pools, sell back to ETH.
+    function test_fork_padSaleWithEthAndUsdg() public {
+        if (!forked) return;
+        PondPadToken pondpad;
+        for (uint256 i;; i++) {
+            pondpad = new PondPadToken{salt: bytes32(i)}(address(this));
+            if (address(pondpad) > IMD) break;
+        }
+        MockMarket market = new MockMarket();
+        PadSale sale = new PadSale(
+            IMD, address(PM), address(config), address(pondpad), address(market), address(integrators), 8_460e18,
+            block.timestamp
+        );
+        integrators.setSale(address(sale));
+        pondpad.approve(address(sale), type(uint256).max);
+        sale.fund();
+        vm.warp(block.timestamp + 30 minutes);
+
+        address buyer = makeAddr("saleBuyer");
+        vm.deal(buyer, 1 ether);
+        vm.prank(buyer);
+        uint256 out = sale.buyWith{value: 0.1 ether}(address(0), 0.1 ether, 1, block.timestamp, address(0));
+        assertGt(out, 0);
+        console2.log("PONDPAD for 0.1 ETH:", out / 1e18);
+
+        deal(USDG, buyer, 100e6);
+        vm.startPrank(buyer);
+        ERC20(USDG).approve(address(sale), type(uint256).max);
+        uint256 outUsdg = sale.buyWith(USDG, 100e6, 1, block.timestamp, address(0));
+        assertGt(outUsdg, 0);
+
+        pondpad.approve(address(sale), type(uint256).max);
+        uint256 ethBack = sale.sellFor(address(0), out + outUsdg, 1, block.timestamp, address(0));
+        vm.stopPrank();
+        assertGt(ethBack, 0);
+        assertEq(sale.sold(), 0);
+        assertGe(ERC20(IMD).balanceOf(address(sale)), sale.raised());
     }
 
     function test_fork_fullLifecycleWithEth() public {

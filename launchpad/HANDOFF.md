@@ -45,15 +45,19 @@ The owner of the project is the user (IMD ecosystem builder). The IMD / POOL4 de
 | `FeeSplitter` | 40/25/20/15 split within fixed ranges | Done |
 | `CreatorVault` | Creator fees per coin, recipient change, CTO entry point | Done |
 | `SwarmBudget` | Per-coin escrow for swarm jobs, released by the Swarm Relay | Done |
-| `IntegratorVault` | Integrator (app/bot) earnings: 15% of the protocol fee on trades they route, claimable in IMD | Done |
+| `IntegratorVault` | Integrator (app/bot) earnings: 15% of the protocol fee on trades they route (coins and the $PONDPAD sale), claimable in IMD | Done |
+| `PondPadToken` | $PONDPAD: 1B fixed supply, no owner, permit, `burn`; deployed at an address above IMD's | Done |
+| `PadSale` | $PONDPAD IMD curve (600M sold / 300M to pool, target ≈ 8,460 IMD), pays/receives IMD, ETH or any payment token, 1% fee (integrator share off the top), 80% → 0 snipe tax over 30 min, 15M per-wallet cap, hands raise + 300M to `MarketController.launch` at graduation | Done (market side still to build) |
+| `PaymentSwapper` | Shared payment plumbing (routes to/from IMD in one unlock) used by `PadRouter` and `PadSale` | Done |
 | `FeeLib`, `Route` | Shared fee math and the `Hop` struct | Done |
 
 ### Tests (`contracts/test/`)
-- `PondPad.t.sol` + `Base.t.sol`: **31 local tests** against a real v4 PoolManager with mock IMD and USDG and local IMD/ETH and ETH/USDG pools. Covers launch, fee splits, snipe tax, max-buy, dev buy, dividends, swarm budget, graduation in both currency orderings, locked liquidity, third-party router fees, the exact `PartialFill` revert, ETH and USDG paths before and after graduation, payment-route validation, integrator share (curve, pool, unregistered, spoofing through other routers, bounds), a 512-run solvency fuzz.
-- `Fork.t.sol`: **3 fork tests** on live Robinhood Chain (real PoolManager, IMD, IMD/ETH and ETH/USDG pools): full lifecycle with ETH, USDG on the curve and after graduation, and an IMD depth report.
+- `PondPad.t.sol` + `Base.t.sol`: **31 local tests** (42 local in total with `PadSale.t.sol`) against a real v4 PoolManager with mock IMD and USDG and local IMD/ETH and ETH/USDG pools. Covers launch, fee splits, snipe tax, max-buy, dev buy, dividends, swarm budget, graduation in both currency orderings, locked liquidity, third-party router fees, the exact `PartialFill` revert, ETH and USDG paths before and after graduation, payment-route validation, integrator share (curve, pool, unregistered, spoofing through other routers, bounds), a 512-run solvency fuzz.
+- `PadSale.t.sol`: **11 local tests** for the $PONDPAD sale: setup and start price, bad setup, closed before start / until funded, snipe tax decay to growth, fee and integrator share, whole-sale wallet cap (sells don't free it), sell round trip, ETH and USDG round trips, graduation at the curve's final price (sqrt price checked), completing-buy refund, solvency fuzz.
+- `Fork.t.sol`: **4 fork tests** on live Robinhood Chain (real PoolManager, IMD, IMD/ETH and ETH/USDG pools): full lifecycle with ETH, USDG on the curve and after graduation, the $PONDPAD sale with ETH and USDG, and an IMD depth report.
 
 ### Not built yet
-See `ROADMAP.md` section 1. In short: `PadSale` ($PONDPAD curve), `PadMarketHook` (POOL4 fork) + `MarketController`, staking (`StakedPONDPAD`, `RewardDripper`, `PadBuyer`, `PadBurner`), `WorkerFund`, `GrowthFund`, `VersionRegistry`, `AttestationVerifier`, `CTOModule`, `SocialRegistry`, `PadLens`, timelock wiring, deploy scripts, frontend, Swarm Relay, indexer.
+See `ROADMAP.md` section 1. In short: `PadMarketHook` (POOL4 fork) + `MarketController`, staking (`StakedPONDPAD`, `RewardDripper`, `PadBuyer`, `PadBurner`), `WorkerFund`, `GrowthFund`, `VersionRegistry`, `AttestationVerifier`, `CTOModule`, `SocialRegistry`, `PadLens`, timelock wiring, deploy scripts, frontend, Swarm Relay, indexer.
 
 ---
 
@@ -63,8 +67,8 @@ See `ROADMAP.md` section 1. In short: `PadSale` ($PONDPAD curve), `PadMarketHook
 cd launchpad/contracts
 git submodule update --init --recursive        # forge-std v1.9.7, solady v0.1.9, v4-core @ 46c6834 (+ its solmate, openzeppelin)
 forge build
-forge test --no-match-contract Fork            # 31 local tests
-FORK_RPC=https://rpc.mainnet.chain.robinhood.com forge test --match-contract Fork -vv   # 3 fork tests
+forge test --no-match-contract Fork            # 42 local tests
+FORK_RPC=https://rpc.mainnet.chain.robinhood.com forge test --match-contract Fork -vv   # 4 fork tests
 ```
 
 **Installing Foundry in the cloud sandbox:** `foundryup` fails there (its attestation download is blocked). Install the release binaries directly:
@@ -113,8 +117,8 @@ IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`)
 ## 5. Next steps (in order)
 
 1. ~~Integrator fee share~~ (done, D-31 / D-33).
-2. **`PadSale`**: $PONDPAD IMD bonding curve: 600M sold, 300M to pool, target ≈ 8,460 IMD, accepts every payment token, graduates into `PadMarketHook`.
-3. **`PadMarketHook` + `MarketController` + `PadBurner`**: POOL4 `CappedBurnHook` fork for $PONDPAD/IMD (changes listed in `ARCHITECTURE-v1.md` §5.4.1), cap floor 150M, decay 500k/day, 15% of trims to stakers.
+2. ~~`PadSale`~~ (done, D-35 to D-37).
+3. **`PadMarketHook` + `MarketController` + `PadBurner`**: POOL4 `CappedBurnHook` fork for $PONDPAD/IMD (changes listed in `ARCHITECTURE-v1.md` §5.4.1), **dynamic fee 3% → 1% over 7 days via `beforeSwap` (D-34)**, cap floor 150M, decay 500k/day, 15% of trims to stakers. `MarketController` implements `IPadMarketLauncher.launch(sqrtPriceX96, imdAmount, tokenAmount)` (see `PadSale.sol`): initialize the pool, open the market with what the sale sent, keep ownership of the hook. The POOL4 source is downloadable from `https://eth.blockscout.com/api/v2/smart-contracts/0xc6c965bd164c483e87d0b550671798e9a3602840` (`source_code` field).
 4. **Staking**: `StakedPONDPAD` + `RewardDripper` (forks of POOL4's `StakedIMD` / `RewardDripper`, asset $PONDPAD) and `PadBuyer` (buys $PONDPAD with the stakers' IMD).
 5. `WorkerFund`, `GrowthFund`, `AttestationVerifier`, `VersionRegistry`, `CTOModule`, `SocialRegistry`, `PadLens`.
 6. Timelock + Safe wiring, deploy scripts (hook address mining), fork rehearsal of a full deployment.
