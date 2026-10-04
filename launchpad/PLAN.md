@@ -1,5 +1,7 @@
 # IMD launchpad on Robinhood Chain: competitor analysis and build plan
 
+> **Superseded:** the current design is [`ARCHITECTURE-v1.md`](ARCHITECTURE-v1.md). This file is kept for the competitor analysis (section 1).
+
 Working name: **the Pad**, launchpad token **$PAD** (placeholders, rename freely).
 
 Research date: 2 October 2026. Sources: [docs.ponsfamily.com](https://docs.ponsfamily.com/) (v1 and v2), [pepesfamily.fun](https://www.pepesfamily.fun/) and its source ([github.com/0xtenang/PepesFamily](https://github.com/0xtenang/PepesFamily)), the [IMD swarm audit of PepesFamily](https://explorer.imd.fun/jobs/a3e708e2-fb57-43ea-a163-d93b916694a2), [imd.fun/docs](https://imd.fun/docs/), [pool4.imd.fun/docs](https://pool4.imd.fun/docs), and the live IMD API (`api.imd.fun/requests/capabilities`, `/openapi.json`).
