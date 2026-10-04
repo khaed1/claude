@@ -1,6 +1,6 @@
 # IMD launchpad on Robinhood Chain: competitor analysis and build plan
 
-> **Superseded:** the current design is [`ARCHITECTURE-v1.md`](ARCHITECTURE-v1.md). This file is kept for the competitor analysis (section 1).
+> **Superseded:** the current design is [`ARCHITECTURE-v1.md`](ARCHITECTURE-v1.md); start with [`HANDOFF.md`](HANDOFF.md). This file is kept for the competitor analysis (section 1).
 
 Working name: **the Pad**, launchpad token **$PAD** (placeholders, rename freely).
 

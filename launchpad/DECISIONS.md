@@ -1,0 +1,55 @@
+# PondPad: decision log
+
+Every decision and change, in the order it was made, with the reason. Numbers (D-n) are stable references; when a decision is changed later, the old entry is marked **Superseded by D-n** instead of deleted.
+
+## Research inputs (2 Oct 2026)
+
+- **Pepes Family** (github.com/0xtenang/PepesFamily): Uniswap v4 hook, coins paired with ETH or IMD, 100% single-sided liquidity locked from launch, 4% fee (1% protocol, 3% holders), no creator income, no staking, swarm-audited (1 medium open: partial-fill overcharge; 1 high fixed in v3: flash-borrowed dividend capture).
+- **Pons** (docs.ponsfamily.com): v1 direct-to-pool on v3 (1% fee, 70/30 creator/protocol), v2 bonding curve in a v4 hook with snipe tax, creator tax, buybacks into a vesting vault, CTO, dead-coin migration; whitelisted pair assets only.
+- **POOL4** (pool4.imd.fun): `CappedBurnHook` on Ethereum, ETH/IMD, 1% fee, burns tokens sold above a cap, ETH backstop, sIMD staking; unaudited; owner can close the market.
+- **IMD swarm API**: jobs 0.5 IMD on Ethereum mainnet (x402); launches only on Sepolia at the time; sites on IPFS under `*.site.identitymd.eth`; oracle answers are EIP-712 attestations.
+
+## Decisions
+
+| # | Decision | Why |
+|---|---|---|
+| D-1 | Build an IMD-paired launchpad on Robinhood Chain | User's goal; Pepes proved IMD pairs there but has no creator income, staking or swarm-built sites |
+| D-2 | Swarm builds each coin's website; the launchpad itself is built and audited by the swarm | Differentiator vs Pepes (which only audited with the swarm) |
+| D-3 | Protocol fees go to launchpad-token stakers, IMD workers, a buyback/burn and treasury | User requirement. *Burn part superseded by D-8* |
+| D-4 | Not using "Community Coins" | Different mechanics (user) |
+| D-5 | **Path 1**: coins use our own v4 hook; POOL4 used for the IMD leg and for $PONDPAD | Full control of fees and launch flow; POOL4 per-coin "burn mode" deferred to v2 |
+| D-6 | No upgradeable proxies. Immutable versions + `VersionRegistry`; bounded settings behind a timelock; replaceable periphery | Traders need fixed rules; scanners flag proxies; Pons/Pepes do the same |
+| D-7 | $PONDPAD gets its own POOL4 market, seeded by a bonding-curve sale | Liquidity without team capital; POOL4 burns $PONDPAD on sells |
+| D-8 | Drop the separate 20% buyback (POOL4 already burns $PONDPAD); bucket becomes **growth (option D)**, dialable toward stakers later | Buyback and staking yield are economically the same; growth attracts creators |
+| D-9 | Fees: **1.5% base (1% protocol, 0.5% creator) + optional 0–3% coin tax** fixed at launch, to creator / holders / swarm budget | Pons v2-style; creator chooses; protocol share fixed |
+| D-10 | Coins launch on a **bonding curve** that graduates into our hook pool (not Pepes-style single-sided pool from day one) | Graduation moment (free website), no pre-graduation pool to manipulate. Bots handled by snipe tax + max-buy, not by the curve itself |
+| D-11 | Launch fee and all contract prices in **IMD**; users can pay ETH (router swaps in the same tx, no backend custody) | Splitter/staking stay IMD-only. *Extended by D-30* |
+| D-12 | X verification badge (level 1: OAuth + wallet signature → `SocialRegistry`; level 2 later: swarm-verified tweet) | Trust signal; also evidence for CTO |
+| D-13 | $PONDPAD raise first proposed at 35 ETH. *Superseded by D-17* | |
+| D-14 | Coin graduation target **~2,060 IMD** (≈ $65k mcap at graduation, ≈ $4k at launch), **80/20** curve/pool split | Matches competitors' ~$4k start; user wanted $60–70k graduation |
+| D-15 | Swarm at protocol level (v1): audit-gated versions, CTO arbitration by oracle attestation, swarm-budget tax destination, free website at graduation. v1.1: reward/badge gating, scam flags, health report. v2: swarm-built custom coins, review of settings changes | Swarm makes judgments, contracts enforce rules; swarm never holds keys or blocks trading |
+| D-16 | POOL4 not on Robinhood yet (dev: planned, not guaranteed). **Fork `CappedBurnHook` ourselves** (MIT, verified source); dev will publish the repo | Unblocks $PONDPAD's market |
+| D-17 | **$PONDPAD paired with IMD, not ETH**; raise **~8,460 IMD (~20 ETH)**; split **60% curve / 30% pool / 5% airdrop (IMD seats + sIMD) / 2% team (6-mo cliff, 18-mo linear) / 3% liquidity reserve** | 35 ETH gave a $311k graduation mcap, too high; 20 ETH → ~$44k start, ~$178k graduation, 4× curve |
+| D-18 | `MarketController` owns the POOL4 fork: no `closeMarket` / `withdrawRetainedEth`; fees permissionless to the splitter; settings via timelock | POOL4's owner can withdraw the whole pool, which breaks "locked liquidity" |
+| D-19 | Fork changes for an IMD quote: mine $PONDPAD's address above IMD's so IMD is `currency0`; replace native-ETH plumbing with ERC-20; rebuild for `cancun` (original targets `osaka`) | Keeps POOL4's math untouched |
+| D-20 | **Stakers paid in $PONDPAD** (option A): fork `StakedIMD` (ERC-4626, auto-compounding) + `RewardDripper`; stakers' 40% IMD buys $PONDPAD via `PadBuyer` | Reuses POOL4 code; POOL4 trim rewards are already $PONDPAD; buy pressure |
+| D-21 | POOL4 burn for $PONDPAD: **cap floor 150M**, **decay 500k/day** (≈ $89/day at graduation price), **15%** of trims to stakers; adjustable via timelock | User wanted non-aggressive; 150k/day was ~$27/day, too small to matter. Note: sells above the cap are always trimmed in full, as in the original |
+| D-22 | Name: LilyPad / $LILY. *Superseded by D-23* | Clashed with Lilypad Network (AI compute, token LILY) |
+| D-23 | **Name PondPad, token $PONDPAD, staked sPONDPAD, domain pondpad.fun** (not bought yet). Not $POND (Marlin uses POND). Frog theme with an original mascot, not Pepe's likeness | Free on DexScreener / CoinGecko / GeckoTerminal at check time; PepesFamily already uses Pepe |
+| D-24 | Vocabulary: Spawn (launch) → Tadpole (curve) → Leap (graduation) → Frog; the Pond (stakers); the Chorus (swarm). Hero tagline "Every frog starts as a tadpole." | Site copy |
+| D-25 | Contracts keep the short `Pad` prefix (`PadToken`, `PadHook`, `PadSale`, …) | Naming |
+| D-26 | Hook charges fees on the **actual filled amount**; a swap with IMD as the specified side that only partly fills **reverts** (`PartialFill`) | Fixes Pepes' open medium finding |
+| D-27 | Dividends never distributed while the PoolManager is unlocked by an outside caller | Fixes Pepes' high finding (flash-borrowed capture) |
+| D-28 | Curve trading only through `PadRouter`; graduation inline unless an outside unlock is active, else permissionless `graduate()`; 1% graduation fee to growth with matching 1% reserve burn to keep price continuity | Snipe tax / max-buy enforceable; graduation can't be blocked |
+| D-29 | No fee changes after the "outside pools leak volume" discussion. Coin tax stays the creator's choice (up to 3%). Track per-coin volume through outside pools and publish it | User: creators decide their tax; deep locked liquidity is a moat for medium/large trades; Pepes keeps >99% of volume on Robinhood today |
+| D-30 | **Payment tokens**: `PadConfig` stores approved tokens with validated routes to IMD (≤3 hops). Launch: **ETH** (IMD/ETH pool) and **USDG** (USDG → ETH → IMD via the dynamic-fee ETH/USDG pool). More later via timelock. Router API: `launchWith`, `buyWith`, `sellFor`, `sellForWithPermit`. $PONDPAD sale accepts the same tokens | User wants ETH and USDG; contracts still only receive IMD |
+| D-31 | **Proposed, awaiting user:** integrator / referral share of the protocol fee for apps, bots and referrers routing through `PadRouter` (see `ROADMAP.md` §1 and the answer in chat: 15% of the 1% protocol fee, carved off the top before the splitter) | Pays the apps that bring volume, so they route through our pool rather than outside pools |
+| D-32 | $PONDPAD raise target stays ~8,460 IMD for now; **deepen IMD liquidity on Robinhood before the sale**, and run the sale over days rather than hours | Fork test: buying 8,590 IMD through the live pool costs ~42% over spot |
+
+## Changes to code (by commit)
+
+| Commit | Change |
+|---|---|
+| `71b2dfa` | Core contracts: `PadToken`, `BondingCurve`, `PadHook`, `PadRouter` (IMD only), `PadFactory`, `PadConfig`, `FeeSplitter`, `CreatorVault`, `SwarmBudget`, `FeeLib`; 16 tests |
+| `ba4707f` | ETH payments in the router (multi-hop in one unlock); IMD/ETH pool key in config; Robinhood fork tests and IMD depth report; 21 local + 2 fork tests |
+| `dd8a3b3` | Generic payment tokens: `Route.sol` (`Hop`), payment-route registry in `PadConfig` (replaces the single IMD/ETH key), router `launchWith` / `buyWith` / `sellFor` / `sellForWithPermit` (replaces `launch`, `buy`, `sell`, `*WithEth`); USDG tests locally and on the fork; 26 local + 3 fork tests |
