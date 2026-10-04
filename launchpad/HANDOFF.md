@@ -51,7 +51,7 @@ The owner of the project is the user (IMD ecosystem builder). The IMD / POOL4 de
 | `PadSale` | $PONDPAD IMD curve (600M sold / 300M to pool, target ≈ 8,460 IMD), pays/receives IMD, ETH or any payment token, 1% fee (integrator share off the top), 80% → 0 snipe tax over 30 min, 15M per-wallet cap, hands raise + 300M to `MarketController.launch` at graduation | Done |
 | `PaymentSwapper` | Shared payment plumbing (routes to/from IMD in one unlock) used by `PadRouter` and `PadSale` | Done |
 | `PadMarketHook` | $PONDPAD/IMD market: POOL4 `CappedBurnHook` fork (IMD quote as currency0, dynamic fee 3% → 1% over 7 days via `beforeSwap`, IMD-sized constants). Cap floor 150M, decay 500k/day, 15% of trims to stakers. Original source in `contracts/upstream/CappedBurnHook.sol` | Done |
-| `MarketController` | Permanent owner of the market hook: opens it once from `PadSale`, permissionless `collectFees` (both fee tokens split 40/25/20/15), policy via 48 h timelock, sinks via 7-day timelock; the only exit is `migrate` into a new hook (7-day timelock, first 12 months, D-40), never to a wallet | Done |
+| `MarketController` | Permanent owner of the market hook: opens it once from `PadSale` (records `openedAt`, the airdrop and vesting clock), permissionless `collectFees` (both fee tokens split 40/25/20/15), policy via 48 h timelock, sinks via 7-day timelock; the only exit is `migrate` into a new hook (7-day timelock, first 12 months, D-40), never to a wallet | Done |
 | `PadBurner` | Burn sink: burns all $PONDPAD it holds, permissionless | Done |
 | `StakedPONDPAD` | sPONDPAD ERC-4626 vault (POOL4 `StakedIMD` fork): one-block hold, 3-day max pause, can't rescue stake, powers expire after 12 months | Done |
 | `RewardDripper` | Streams $PONDPAD into the vault (POOL4 fork), self-adjusting: waiting rewards pay out over ~7 days whatever the volume (D-44); fixed vault, can't rescue rewards, powers expire after 12 months | Done |
@@ -63,19 +63,22 @@ The owner of the project is the user (IMD ecosystem builder). The IMD / POOL4 de
 | `VersionRegistry` | Versions with an onchain code hash of factory/router/curve/hook/lens; activation by audit attestation (permissionless) or timelock fallback; rollback | Done |
 | `SocialRegistry` | X badge level 1: coin links by fee recipient with a voucher from the X link service key, duplicate handles flagged; wallet X links (`linkWallet`) for takeover proposers | Done |
 | `PadLens` | Coin lists (pagination), coin state, exact curve and pool quotes in IMD, wallet balances and dividends | Done |
+| `AirdropDistributor` | 5% $PONDPAD airdrop: Merkle root fixed at deploy, no owner; claims from market open, vesting linearly over 30 days; claim wallet by gasless signature; unclaimed swept to `RewardDripper` after 180 days (D-53) | Done |
+| `TeamVesting` | 2% $PONDPAD to the team Safe: 1-month cliff, linear to month 6 from market open; not revocable (D-54) | Done |
 | `FeeLib`, `Route` | Shared fee math and the `Hop` struct | Done |
 
 ### Tests (`contracts/test/`)
-- `PondPad.t.sol` + `Base.t.sol`: **31 local tests** (81 local in total with `PadSale.t.sol`, `Market.t.sol`, `Staking.t.sol`, `Governance.t.sol` and `Funds.t.sol`) against a real v4 PoolManager with mock IMD and USDG and local IMD/ETH and ETH/USDG pools. Covers launch, fee splits, snipe tax, max-buy, dev buy, dividends, swarm budget, graduation in both currency orderings, locked liquidity, third-party router fees, the exact `PartialFill` revert, ETH and USDG paths before and after graduation, payment-route validation, integrator share (curve, pool, unregistered, spoofing through other routers, bounds), a 512-run solvency fuzz.
+- `PondPad.t.sol` + `Base.t.sol`: **31 local tests** (87 local in total with `PadSale.t.sol`, `Market.t.sol`, `Staking.t.sol`, `Governance.t.sol`, `Funds.t.sol` and `Distribution.t.sol`) against a real v4 PoolManager with mock IMD and USDG and local IMD/ETH and ETH/USDG pools. Covers launch, fee splits, snipe tax, max-buy, dev buy, dividends, swarm budget, graduation in both currency orderings, locked liquidity, third-party router fees, the exact `PartialFill` revert, ETH and USDG paths before and after graduation, payment-route validation, integrator share (curve, pool, unregistered, spoofing through other routers, bounds), a 512-run solvency fuzz.
 - `PadSale.t.sol`: **11 local tests** for the $PONDPAD sale: setup and start price, bad setup, closed before start / until funded, snipe tax decay to growth, fee and integrator share, whole-sale wallet cap (sells don't free it), sell round trip, ETH and USDG round trips, graduation at the curve's final price (sqrt price checked), completing-buy refund, solvency fuzz.
 - `Market.t.sol`: **12 local tests** for the $PONDPAD market: opens at the sale's final price when the sale graduates, fee 3% → 2% → 1% (both fee currencies), trims above the cap burned and 15% shared, ratchet no faster than 500k/day, fee split 40/25/20/15 in IMD and $PONDPAD, controller power limits, outsiders can't initialize or add liquidity, keeper rebalance deploys the backstop, cap-invariant fuzz at 3% and at 1%, migration into a new hook (same price, inventory, backstop IMD, fee clock and policy; guards; 12-month expiry), fee clock can only move earlier.
 - `Staking.t.sol`: **12 local tests**: vault deposit / one-block hold / redeem, short pause and cooldown, no stake rescue, powers expire; dripper streams trim rewards at 1/168 of the buffer per hour, never into an empty vault, a long gap releases at most a day's share, a lump drains ~63% in 7 days and ~95% in 3 weeks, small buffers still sweep, bounded settings, no reward rescue; buyer turns splitter IMD into $PONDPAD for the dripper, refuses after a price pump until the reference catches up, forwards the $PONDPAD fee share, bounded settings; end to end from a coin trade to a higher sPONDPAD value.
 - `Governance.t.sol`: **13 local tests**: the verifier against a **live IMD attestation** (our EIP-712 hash recovers the real signer, our question hash matches), accept/reject cases (signer, question, panel, agreement, quorum, answer type, validity window), bounded settings; CTO by attestation to a multisig (notice, recipient rotation doesn't cancel, accrued fees to the old recipient, no replay, no cancel, 90-day cooldown), guards (no X account, coin too young, plain wallet, someone else's attestation, "no", overlap, expired window), contest needing a ≥ 75-member confirmation, fees routed to holders (creator fees and swarm budget become dividends), council fallback with 7-day notice, contest and one-way retirement, ipfs-only rules; version register / manual and attested activation / rollback / retirement; social links, nonces, duplicates, revoke, expiry; lens lists and quotes equal to real trades on the curve and in the pool.
 - `Funds.t.sol`: **2 local tests**: WorkerFund accrues IMD and $PONDPAD from real coin and market fees until the address is set, then releases both; GrowthFund relay and grant caps per epoch, uncapped tokens refused, caps reset each epoch.
+- `Distribution.t.sol`: **6 local tests**: airdrop closed until the market opens, then vests over 30 days (partial and repeat claims); guards (strangers, wrong amount or proof); claim wallet set by a gasless signature and claimed in one transaction (main wallet never transacts, later claims still pay the claim wallet, used nonce, expired signature, direct re-pointing); claims end at 180 days and the rest is swept to the dripper; team vesting nothing before day 30, 1/6 at the cliff, half at day 90, all at day 180, permissionless release, only the beneficiary moves it. `Market.t.sol` also checks that a migration leaves `openedAt` unchanged.
 - `Fork.t.sol`: **5 fork tests** on live Robinhood Chain (real PoolManager, IMD, IMD/ETH and ETH/USDG pools): full lifecycle with ETH, USDG on the curve and after graduation, the $PONDPAD sale with ETH and USDG, the sale graduating into the market (cancun build, dynamic fee) with a buy and a trimmed sell, and an IMD depth report.
 
 ### Not built yet
-See `ROADMAP.md` section 1. In short: `AirdropDistributor`, `TeamVesting`, timelock/Safe wiring, deploy scripts, frontend, Swarm Relay, indexer, X link service, keeper bot.
+See `ROADMAP.md` section 1. In short: timelock/Safe wiring, deploy scripts, frontend, Swarm Relay, indexer, X link service, keeper bot.
 
 ---
 
@@ -85,7 +88,7 @@ See `ROADMAP.md` section 1. In short: `AirdropDistributor`, `TeamVesting`, timel
 cd launchpad/contracts
 git submodule update --init --recursive        # forge-std v1.9.7, solady v0.1.9, v4-core @ 46c6834 (+ its solmate, openzeppelin)
 forge build
-forge test --no-match-contract Fork            # 81 local tests
+forge test --no-match-contract Fork            # 87 local tests
 FORK_RPC=https://rpc.mainnet.chain.robinhood.com forge test --match-contract Fork -vv   # 5 fork tests
 ```
 
@@ -140,8 +143,9 @@ IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`)
 3. ~~`PadMarketHook` + `MarketController` + `PadBurner`~~ (done, D-34, D-38, D-39). The upstream POOL4 source is in `contracts/upstream/`; `diff upstream/CappedBurnHook.sol src/PadMarketHook.sol` shows every change, and `python3 upstream/make_fork.py` (from `contracts/`) regenerates the hook from POOL4's source; edit the script, not the hook. Migration added after (D-40).
 4. ~~Staking~~ (done, D-42, D-43). `python3 upstream/make_staking.py` regenerates the vault and dripper from POOL4's sources. At deploy: market hook `rewardsRecipient` = `RewardDripper`, splitter `stakers` = `PadBuyer`, `powersExpireAt` = market open + 12 months.
 5. ~~`WorkerFund`, `GrowthFund`, `AttestationVerifier`, `VersionRegistry`, `CTOModule`, `SocialRegistry`, `PadLens`~~ (done, D-45 to D-50). Owners at deploy: `AttestationVerifier`, `CTOModule`, `VersionRegistry`, `WorkerFund` = 7-day timelock; `GrowthFund`, `SocialRegistry` = 48 h timelock; `CTOModule.council` and `GrowthFund.granter` = team Safe; `GrowthFund.relay` = Swarm Relay wallet; `SocialRegistry.verifier` = X link service key. Deploy `SocialRegistry` and `CTOModule` (needs the curve, social registry, verifier and the `ipfs://` rules link) before `CreatorVault.initialize` (the vault takes its address once). Splitter `workers` = `WorkerFund`, `growth` = `GrowthFund`; `PadConfig.growthFund` = `GrowthFund`. `PadLens` is registered with each version.
-6. `AirdropDistributor` (5% Merkle) + `TeamVesting` (2%), then timelock + Safe wiring, deploy scripts (hook address mining for `PadHook` and `PadMarketHook`, $PONDPAD address above IMD's), fork rehearsal of a full deployment.
-7. Swarm audit loop, then frontend, Swarm Relay, indexer, X link service.
+6. ~~`AirdropDistributor` (5% Merkle) + `TeamVesting` (2%)~~ (done, D-53, D-54). At deploy: both take `market` = `MarketController` (clock = `openedAt`); airdrop `unclaimedSink` = `RewardDripper` and the final Merkle root (OZ `StandardMerkleTree` leaves for `(address, uint256)`, built from the snapshot after contract-wallet holders name Robinhood addresses); vesting `beneficiary` = team Safe; fund them with 50M and 20M from the deployer's $PONDPAD in the same script.
+7. Timelock + Safe wiring, deploy scripts (hook address mining for `PadHook` and `PadMarketHook`, $PONDPAD address above IMD's), fork rehearsal of a full deployment.
+8. Swarm audit loop, then frontend, Swarm Relay, indexer, X link service.
 
 ## 6. Keepers (who calls the permissionless functions)
 
@@ -162,6 +166,8 @@ Every upkeep function is permissionless: anyone can call it, nothing depends on 
 | `WorkerFund.release()` | weekly, once the worker rewards address is set | no | – |
 | `CTOModule.execute(coin)` | when a takeover's notice has passed (3-day window) | no | – |
 | `CreatorVault.claim(coin)` + `SwarmBudget.sweepToHolders(coin)` | weekly, for coins whose fees go to holders | no | – |
+| `TeamVesting.release()` | monthly from day 30 after market open (always pays the team Safe) | no | – |
+| `AirdropDistributor.sweep()` | once, 180 days after market open | no | – |
 
 ## 7. Open items waiting on someone
 
@@ -175,3 +181,4 @@ Every upkeep function is permissionless: anyone can call it, nothing depends on 
 | Official POOL4 IMD/ETH market on Robinhood | IMD dev (planned, not guaranteed) |
 | Deepen IMD liquidity on Robinhood before the $PONDPAD sale | User + IMD dev / holders |
 | Buy pondpad.fun, X and Telegram handles | User |
+| Airdrop snapshot rules: which IMD seats and sIMD count, weights, snapshot block and chain, how contract wallets name a Robinhood address; then the Merkle root (fixed at deploy, D-53) | User |

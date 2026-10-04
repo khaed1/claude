@@ -42,6 +42,9 @@ contract MarketController is Ownable, IPadMarketLauncher {
     address public sale;
     address public sinkAdmin;
     bool public launched;
+    /// @notice When the market opened (PadSale graduated). Zero before launch. Starts the airdrop and team vesting
+    ///         clocks (D-53, D-54); unlike the hook's fee clock it never changes, even after a migration.
+    uint256 public openedAt;
     /// @notice Migration is possible only before this time (12 months after the market opened). Zero before launch.
     uint256 public migrationDeadline;
     uint256 public constant MIGRATION_WINDOW = 365 days;
@@ -107,6 +110,7 @@ contract MarketController is Ownable, IPadMarketLauncher {
         if (msg.sender != sale) revert Unauthorized();
         if (launched) revert AlreadyLaunched();
         launched = true;
+        openedAt = block.timestamp;
         migrationDeadline = block.timestamp + MIGRATION_WINDOW;
 
         PadMarketHook h = hook;

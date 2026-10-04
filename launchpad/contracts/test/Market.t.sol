@@ -347,6 +347,7 @@ contract MarketTest is MarketBase {
         controller.migrate(address(next));
         vm.prank(slowTimelock);
         controller.migrate(address(next));
+        assertEq(controller.openedAt(), t0); // airdrop and team vesting clocks don't move (D-53, D-54)
 
         assertEq(address(controller.hook()), address(next));
         assertFalse(market.marketOpen());

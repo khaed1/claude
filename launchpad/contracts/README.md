@@ -33,8 +33,10 @@ Core launch-and-trade path and the $PONDPAD sale and market, tested end to end a
 | `VersionRegistry` | Versions (factory, router, curve, hook, lens) with an onchain code hash; activation needs a swarm audit attestation (or the timelock fallback) |
 | `SocialRegistry` | X badge level 1: voucher-signed handle links, duplicates flagged |
 | `PadLens` | Read-only coin lists, coin state, exact curve and pool quotes, wallet positions |
+| `AirdropDistributor` | 5% $PONDPAD airdrop: Merkle list fixed at deploy, vests over 30 days from market open, gasless claim-wallet delegation, unclaimed swept to stakers after 180 days |
+| `TeamVesting` | 2% team $PONDPAD: 1-month cliff, linear to month 6 from market open, to the team Safe, not revocable |
 
-Not built yet: `AirdropDistributor`/`TeamVesting`, timelock/Safe wiring and deploy scripts.
+Not built yet: timelock/Safe wiring and deploy scripts.
 
 ## Build and test
 

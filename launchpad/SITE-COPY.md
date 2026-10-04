@@ -160,9 +160,9 @@ Small print, in plain words:
 >
 > - 60% sold on the curve
 > - 30% into the pool, locked
-> - 5% airdropped to IMD seat holders and sIMD stakers
+> - 5% airdropped to IMD seat holders and sIMD stakers, released over 30 days after the Leap
 > - 3% kept for adding liquidity later
-> - 2% team, locked for 6 months, then released over 18 months
+> - 2% team, locked for the first month after the Leap, fully released by month 6
 >
 > You can sell back to the curve anytime before the Leap.
 

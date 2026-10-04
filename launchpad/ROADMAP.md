@@ -4,7 +4,7 @@ What is left in v1, then everything discussed for later versions. Details of the
 
 ## 1. v1: remaining work
 
-Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), factory, config, fee splitter, creator vault, swarm budget, integrator vault, $PONDPAD token and sale, $PONDPAD market (POOL4 fork) and its controller, staking, worker and growth funds, oracle attestation verifier, CTO module, version registry, social registry and lens, with local and Robinhood fork tests. See `HANDOFF.md` §2.
+Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), factory, config, fee splitter, creator vault, swarm budget, integrator vault, $PONDPAD token and sale, $PONDPAD market (POOL4 fork) and its controller, staking, worker and growth funds, oracle attestation verifier, CTO module, version registry, social registry, lens, airdrop and team vesting, with local and Robinhood fork tests. See `HANDOFF.md` §2.
 
 | # | Item | Notes |
 |---|---|---|
@@ -12,7 +12,7 @@ Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), fac
 | 2 | ~~`PadSale` ($PONDPAD sale)~~ | **Done** (D-35 to D-37): IMD curve, S = 600M, R = 300M, target ≈ 8,460 IMD, all payment tokens, 80% → 0 snipe tax over 30 min, 15M per-wallet cap, hands the raise to the market launcher at graduation. `PondPadToken` done too |
 | 3 | ~~`PadMarketHook` + `MarketController` + `PadBurner`~~ | **Done** (D-34, D-38, D-39): POOL4 `CappedBurnHook` fork for $PONDPAD/IMD with dynamic fee 3% → 1% over 7 days; floor 150M, decay 500k/day, 15% of trims to stakers; no pool-withdrawal power; migrate-only emergency exit for 12 months (D-40); sell-side $PONDPAD fees split 40/25/20/15 |
 | 4 | ~~`StakedPONDPAD` + `RewardDripper` + `PadBuyer`~~ **Done** (D-42, D-43) | Forks of `StakedIMD` / `RewardDripper` with asset $PONDPAD; `PadBuyer` turns stakers' IMD into $PONDPAD in small, price-guarded chunks **and forwards the $PONDPAD fee share it receives (D-38)** |
-| 5 | `AirdropDistributor`, `TeamVesting` | 5% Merkle airdrop to IMD seats + sIMD; 2% team vesting |
+| 5 | ~~`AirdropDistributor`, `TeamVesting`~~ | **Done** (D-53, D-54): 5% Merkle airdrop, 30-day vesting from market open, gasless claim wallet, unclaimed to stakers after 180 days; 2% team vesting, 1-month cliff, linear to month 6. **Before deploy:** the airdrop snapshot rules (which seats / sIMD, weights, snapshot block) and the Merkle root |
 | 6 | ~~`WorkerFund`, `GrowthFund`~~ | **Done** (D-45, D-47): WorkerFund forwards IMD and $PONDPAD to the worker rewards address once the IMD dev gives it; GrowthFund pays relay jobs (100 IMD/week) and Safe grants (1,000 IMD + 10M $PONDPAD/week) |
 | 7 | ~~`AttestationVerifier`, `VersionRegistry`~~ | **Done** (D-46, D-48, D-49, D-50): IMD oracle v2 attestations (panel ≥ 51, 2/3 agreement, exact question rebuilt onchain); version activation by audit attestation, timelock fallback until retired. Needs from the IMD dev: the signer on Robinhood and support for consumer chain 4663 |
 | 8 | ~~`CTOModule`~~ | **Done** (D-46, D-50 to D-52): X-verified proposer + oracle "yes" (or council fallback, 7-day notice, until retired) → 3-day notice (contest: +7 days and a ≥ 75 panel) → 3-day window; new recipient a multisig or the holders. **Before launch:** finalize `CTO-RULES.md`, pin it to IPFS, deploy with that link |
