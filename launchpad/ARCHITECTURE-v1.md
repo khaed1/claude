@@ -15,7 +15,7 @@ Items marked **[DEV]** depend on answers from the IMD / POOL4 developer. Section
 3. Users pay with **ETH or IMD**. The router swaps ETH to IMD inside the same transaction.
 4. The **IMD swarm** builds each graduated coin's website for free, decides community takeovers (CTO), must audit every launchpad version before it goes live, and can be paid from a coin's own "swarm budget".
 5. Protocol fees go **40% to sPAD stakers, 25% to IMD workers, 20% to growth, 15% to the treasury**.
-6. **$PAD** is paired with **IMD**, like every coin on the Pad. It is sold on its own IMD bonding curve (target ≈ 14,800 IMD, about 35 ETH) and graduates into **our own fork of POOL4's `CappedBurnHook`**, adapted for an IMD pair (section 5.4).
+6. **$PAD** is paired with **IMD**, like every coin on the Pad. It is sold on its own IMD bonding curve (target ≈ 8,460 IMD, about 20 ETH) and graduates into **our own fork of POOL4's `CappedBurnHook`**, adapted for an IMD pair (section 5.4).
 7. Creators can link their coin's **X account** and get a badge.
 
 **Not in v1:** swap page, trading rewards and referrals, milestone bounties, scam flags, custom swarm-built coins, POOL4-style burn mode, dead-coin migration, other chains. See section 13.
@@ -51,7 +51,7 @@ Items marked **[DEV]** depend on answers from the IMD / POOL4 developer. Section
  AttestationVerifier ◄── IMD oracle attestations (EIP-712) ── used by CTOModule, VersionRegistry
  SocialRegistry ◄── X-link vouchers (Pad verifier key)
 
- $PAD:  PadSale (IMD curve, ≈14,800 IMD) ─► PadMarketHook (CappedBurnHook fork) $PAD/IMD ◄─ MarketController (owner)
+ $PAD:  PadSale (IMD curve, ≈8,460 IMD) ─► PadMarketHook (CappedBurnHook fork) $PAD/IMD ◄─ MarketController (owner)
         AirdropDistributor (5%, Merkle), TeamVesting (2%), liquidity reserve (3%, treasury)
 
  Offchain: static frontend (IPFS + domain) · indexer · Swarm Relay · keeper bot ·
@@ -233,7 +233,7 @@ function sellWithPermit(..., uint8 v, bytes32 r, bytes32 s) external;
 
 | Contract | Role |
 |---|---|
-| `PadSale` | Bonding curve in **IMD**: 600M $PAD sold (60%), target **≈ 14,800 IMD** (≈ 35 ETH at 1 ETH ≈ 423 IMD; fixed in IMD at deploy), 300M reserved for the pool (30%). Same curve math with S = 2R: start market cap ≈ 12,350 IMD (~$78k), graduation market cap ≈ 49,400 IMD (~$311k). Buyers can pay with ETH through `PadRouter` (ETH → IMD in the same transaction). Two-way (sell back any time). 1% sale fee → FeeSplitter. |
+| `PadSale` | Bonding curve in **IMD**: 600M $PAD sold (60%), target **≈ 8,460 IMD** (≈ 20 ETH at 1 ETH ≈ 423 IMD; fixed in IMD at deploy), 300M reserved for the pool (30%). Same curve math with S = 2R: start market cap ≈ 7,050 IMD (~$44k), graduation market cap ≈ 28,200 IMD (~$178k), pool at graduation ≈ 8,460 IMD + 300M $PAD (~$107k). Buyers can pay with ETH through `PadRouter` (ETH → IMD in the same transaction). Two-way (sell back any time). 1% sale fee → FeeSplitter. |
 | `PadMarketHook` | **Fork of POOL4's `CappedBurnHook`** (MIT, verified on Etherscan at `0xc6c965bd…2840`), adapted for an **IMD pair** and deployed on Robinhood with the Robinhood PoolManager. $PAD/IMD full-range market, 1% LP fee, capped burn and IMD backstop. At graduation `PadSale` initializes it at the final curve price and calls `openMarket` with the raised IMD and 300M $PAD, then hands ownership to `MarketController`. Details in section 5.4.1. |
 | `MarketController` | The hook's owner. Limits what the owner can do (section 5.4.1). |
 | `AirdropDistributor` | 5% (50M) Merkle claim for IMD seat holders and sIMD stakers (snapshot published in advance) |
