@@ -2,8 +2,8 @@
 pragma solidity 0.8.26;
 
 import {Ownable} from "solady/auth/Ownable.sol";
-import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
+import {Hop} from "./Route.sol";
 
 /// @title PadConfig
 /// @notice Every adjustable PondPad setting, each with hard limits enforced here. The owner is meant to be a
@@ -34,8 +34,11 @@ contract PadConfig is Ownable {
     address public growthFund;
     address public guardian;
     bool public launchesPaused;
-    /// @notice The IMD/ETH v4 pool the router uses for ETH payments (the hookless pool today; a POOL4 market later).
-    PoolKey internal _imdEthPoolKey;
+    /// @notice Approved payment tokens and their swap path to IMD (address(0) = native ETH). The router can take
+    ///         any of them for launches and buys, and pay them out on sells, swapping through IMD in the same
+    ///         transaction. Contracts only ever receive IMD.
+    mapping(address token => Hop[]) internal _routeToImd;
+    address[] internal _paymentTokens;
     address public immutable imd;
 
     event LaunchSettingsUpdated(LaunchSettings settings);
@@ -43,7 +46,8 @@ contract PadConfig is Ownable {
     event GrowthFundUpdated(address growthFund);
     event GuardianUpdated(address guardian);
     event LaunchesPaused(bool paused);
-    event ImdEthPoolKeyUpdated(PoolKey key);
+    event PaymentRouteSet(address indexed token, Hop[] hops);
+    event PaymentRouteRemoved(address indexed token);
 
     error InvalidSetting();
     error NotGuardian();
@@ -54,12 +58,10 @@ contract PadConfig is Ownable {
         address feeSplitter_,
         address growthFund_,
         address guardian_,
-        LaunchSettings memory s,
-        PoolKey memory imdEthPoolKey_
+        LaunchSettings memory s
     ) {
         _initializeOwner(owner_);
         imd = imd_;
-        _setImdEthPoolKey(imdEthPoolKey_);
         _setFeeSplitter(feeSplitter_);
         _setGrowthFund(growthFund_);
         guardian = guardian_;
@@ -74,12 +76,57 @@ contract PadConfig is Ownable {
         _setLaunchSettings(s);
     }
 
-    function imdEthPoolKey() external view returns (PoolKey memory) {
-        return _imdEthPoolKey;
+    uint256 public constant MAX_ROUTE_HOPS = 3;
+
+    /// @notice The swap path from `token` to IMD. Empty if `token` is not an approved payment token.
+    function routeToImd(address token) external view returns (Hop[] memory) {
+        return _routeToImd[token];
     }
 
-    function setImdEthPoolKey(PoolKey calldata key) external onlyOwner {
-        _setImdEthPoolKey(key);
+    function paymentTokens() external view returns (address[] memory) {
+        return _paymentTokens;
+    }
+
+    function isPaymentToken(address token) public view returns (bool) {
+        return _routeToImd[token].length != 0;
+    }
+
+    /// @notice Approves `token` as a payment token with the given path to IMD, or replaces its path.
+    ///         Each hop's output must be the next hop's input, the first input must be `token` and the last
+    ///         output IMD.
+    function setPaymentRoute(address token, Hop[] calldata hops) external onlyOwner {
+        uint256 n = hops.length;
+        if (token == imd || n == 0 || n > MAX_ROUTE_HOPS) revert InvalidSetting();
+        address current = token;
+        for (uint256 i; i < n; i++) {
+            Hop calldata h = hops[i];
+            (Currency input, Currency output) =
+                h.zeroForOne ? (h.key.currency0, h.key.currency1) : (h.key.currency1, h.key.currency0);
+            if (Currency.unwrap(input) != current) revert InvalidSetting();
+            current = Currency.unwrap(output);
+        }
+        if (current != imd) revert InvalidSetting();
+
+        if (!isPaymentToken(token)) _paymentTokens.push(token);
+        delete _routeToImd[token];
+        for (uint256 i; i < n; i++) {
+            _routeToImd[token].push(hops[i]);
+        }
+        emit PaymentRouteSet(token, hops);
+    }
+
+    function removePaymentRoute(address token) external onlyOwner {
+        if (!isPaymentToken(token)) revert InvalidSetting();
+        delete _routeToImd[token];
+        uint256 n = _paymentTokens.length;
+        for (uint256 i; i < n; i++) {
+            if (_paymentTokens[i] == token) {
+                _paymentTokens[i] = _paymentTokens[n - 1];
+                _paymentTokens.pop();
+                break;
+            }
+        }
+        emit PaymentRouteRemoved(token);
     }
 
     function setFeeSplitter(address feeSplitter_) external onlyOwner {
@@ -111,13 +158,6 @@ contract PadConfig is Ownable {
         ) revert InvalidSetting();
         _launch = s;
         emit LaunchSettingsUpdated(s);
-    }
-
-    /// @dev Must be a native-ETH/IMD pool: currency0 is ETH (address zero sorts first), currency1 is IMD.
-    function _setImdEthPoolKey(PoolKey memory key) internal {
-        if (!key.currency0.isAddressZero() || Currency.unwrap(key.currency1) != imd) revert InvalidSetting();
-        _imdEthPoolKey = key;
-        emit ImdEthPoolKeyUpdated(key);
     }
 
     function _setFeeSplitter(address a) internal {

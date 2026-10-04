@@ -20,6 +20,8 @@ import {BondingCurve} from "../src/BondingCurve.sol";
 import {PadToken} from "../src/PadToken.sol";
 import {PadConfig} from "../src/PadConfig.sol";
 import {CoinFees} from "../src/FeeLib.sol";
+import {Hop} from "../src/Route.sol";
+import {PadRouter} from "../src/PadRouter.sol";
 
 contract PondPadTest is Base {
     using StateLibrary for IPoolManager;
@@ -43,7 +45,8 @@ contract PondPadTest is Base {
 
     function test_devBuy_isExemptFromSnipeTaxAndMaxBuy() public {
         vm.prank(creator);
-        (address coin, uint256 out) = router.launch(_params("FROG", _noTax(), 0), 200e18, 0);
+        (address coin, uint256 out) =
+            router.launchWith(_params("FROG", _noTax(), 0), address(imd), 201e18, true, 0, 0);
         assertGt(out, 20_000_000e18, "dev buy above the 2% window cap");
         assertEq(imd.balanceOf(growth), 0, "no snipe tax on dev buy");
         assertEq(PadToken(coin).balanceOf(creator), out);
@@ -68,7 +71,7 @@ contract PondPadTest is Base {
         vm.warp(t0 + 30); // snipe tax over, max-buy window still on
         vm.prank(alice);
         vm.expectRevert(BondingCurve.MaxBuyExceeded.selector);
-        router.buy(coin, 200e18, 0, block.timestamp, bytes32(0));
+        router.buyWith(coin, address(imd), 200e18, 0, block.timestamp, bytes32(0));
 
         vm.warp(t0 + 61);
         _buy(alice, coin, 200e18);
@@ -259,7 +262,7 @@ contract PondPadTest is Base {
         uint256 splitterBefore = imd.balanceOf(address(splitter));
         vm.prank(creator);
         (address coin, uint256 out) =
-            router.launchWithEth{value: 0.1 ether}(_params("FROG", _noTax(), 0), true, 0, 0);
+            router.launchWith{value: 0.1 ether}(_params("FROG", _noTax(), 0), address(0), 0.1 ether, true, 0, 0);
         // 1 IMD launch fee + the dev buy's own 1% protocol fee (~0.1 ETH ≈ 41 IMD).
         uint256 toSplitter = imd.balanceOf(address(splitter)) - splitterBefore;
         assertGt(toSplitter, 1e18, "launch fee in IMD");
@@ -273,7 +276,7 @@ contract PondPadTest is Base {
         uint256 before = imd.balanceOf(creator);
         uint256 splitterBefore = imd.balanceOf(address(splitter));
         vm.prank(creator);
-        router.launchWithEth{value: 0.1 ether}(_params("FROG", _noTax(), 0), false, 0, 0);
+        router.launchWith{value: 0.1 ether}(_params("FROG", _noTax(), 0), address(0), 0.1 ether, false, 0, 0);
         assertGt(imd.balanceOf(creator), before, "unused IMD returned");
         assertEq(imd.balanceOf(address(splitter)) - splitterBefore, 1e18, "exactly the launch fee");
     }
@@ -283,14 +286,14 @@ contract PondPadTest is Base {
         vm.warp(block.timestamp + 1 hours);
         uint256 ethBefore = alice.balance;
         vm.prank(alice);
-        uint256 out = router.buyWithEth{value: 0.2 ether}(coin, 0, block.timestamp, bytes32(0));
+        uint256 out = router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, 0, block.timestamp, bytes32(0));
         assertGt(out, 0);
         // ~0.2 ETH × 423 IMD, minus the 1% IMD/ETH pool fee and price impact, minus 1.5%.
         assertApproxEqRel(curve.coinInfo(coin).raised, 0.2e18 * 423 * 99 / 100 * 9850 / 10_000, 2e16);
 
         vm.startPrank(alice);
         ERC20(coin).approve(address(router), out);
-        uint256 ethOut = router.sellForEth(coin, out, 0, block.timestamp, bytes32(0));
+        uint256 ethOut = router.sellFor(coin, address(0), out, 0, block.timestamp, bytes32(0));
         vm.stopPrank();
         assertApproxEqRel(alice.balance, ethBefore - 0.2 ether + ethOut, 0);
         assertApproxEqRel(ethOut, 0.2 ether * 9600 / 10_000, 1e16, "two pool fees + two curve fees");
@@ -303,14 +306,14 @@ contract PondPadTest is Base {
         _fillCurve(coin);
         uint256 splitterBefore = imd.balanceOf(address(splitter));
         vm.prank(alice);
-        uint256 out = router.buyWithEth{value: 0.2 ether}(coin, 0, block.timestamp, bytes32(0));
+        uint256 out = router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, 0, block.timestamp, bytes32(0));
         assertGt(out, 0);
         assertGt(imd.balanceOf(address(splitter)), splitterBefore, "coin fee charged and flushed");
 
         uint256 ethBefore = alice.balance;
         vm.startPrank(alice);
         ERC20(coin).approve(address(router), out);
-        uint256 ethOut = router.sellForEth(coin, out, 0, block.timestamp, bytes32(0));
+        uint256 ethOut = router.sellFor(coin, address(0), out, 0, block.timestamp, bytes32(0));
         vm.stopPrank();
         assertEq(alice.balance - ethBefore, ethOut);
         assertApproxEqRel(ethOut, 0.2 ether * 9400 / 10_000, 1e16, "two pool fees + two 2% coin fees");
@@ -322,7 +325,80 @@ contract PondPadTest is Base {
         vm.warp(block.timestamp + 1 hours);
         vm.prank(alice);
         vm.expectRevert();
-        router.buyWithEth{value: 0.2 ether}(coin, type(uint256).max, block.timestamp, bytes32(0));
+        router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, type(uint256).max, block.timestamp, bytes32(0));
+    }
+
+    // ------------------------------------------------------------------ USDG payments (two hops: USDG → ETH → IMD)
+
+    function test_usdg_launchBuyAndSellOnCurve() public {
+        vm.prank(creator);
+        (address coin, uint256 devOut) =
+            router.launchWith(_params("FROG", _noTax(), 0), address(usdg), 100e6, true, 0, 0);
+        assertGt(devOut, 0, "dev buy paid in USDG");
+
+        vm.warp(block.timestamp + 1 hours);
+        uint256 usdgBefore = usdg.balanceOf(alice);
+        uint256 raisedBefore = curve.coinInfo(coin).raised;
+        vm.prank(alice);
+        uint256 out = router.buyWith(coin, address(usdg), 500e6, 0, block.timestamp, bytes32(0));
+        assertEq(usdgBefore - usdg.balanceOf(alice), 500e6);
+        // 500 USDG ≈ 0.1875 ETH ≈ 79 IMD, minus pool fees and 1.5%.
+        assertApproxEqRel(curve.coinInfo(coin).raised - raisedBefore, 79.3e18 * 99 / 100 * 9850 / 10_000, 3e16);
+
+        vm.startPrank(alice);
+        ERC20(coin).approve(address(router), out);
+        uint256 usdgOut = router.sellFor(coin, address(usdg), out, 0, block.timestamp, bytes32(0));
+        vm.stopPrank();
+        assertApproxEqRel(usdgOut, 500e6 * 9500 / 10_000, 2e16, "round trip through both pools and the curve");
+        assertEq(usdg.balanceOf(address(router)), 0);
+        assertEq(imd.balanceOf(address(router)), 0);
+    }
+
+    function test_usdg_afterGraduation() public {
+        address coin = _launch(_noTax(), 0);
+        _fillCurve(coin);
+        vm.prank(alice);
+        uint256 out = router.buyWith(coin, address(usdg), 500e6, 0, block.timestamp, bytes32(0));
+        assertGt(out, 0);
+        vm.startPrank(alice);
+        ERC20(coin).approve(address(router), out);
+        uint256 usdgOut = router.sellFor(coin, address(usdg), out, 0, block.timestamp, bytes32(0));
+        vm.stopPrank();
+        assertApproxEqRel(usdgOut, 500e6 * 9500 / 10_000, 2e16);
+    }
+
+    function test_unsupportedPaymentTokenReverts() public {
+        address coin = _launch(_noTax(), 0);
+        vm.prank(alice);
+        vm.expectRevert(PadRouter.UnsupportedToken.selector);
+        router.buyWith(coin, address(0xdead), 1e18, 0, block.timestamp, bytes32(0));
+    }
+
+    function test_ethAmountMustMatchValue() public {
+        address coin = _launch(_noTax(), 0);
+        vm.prank(alice);
+        vm.expectRevert(PadRouter.WrongEthAmount.selector);
+        router.buyWith{value: 0.1 ether}(coin, address(0), 0.2 ether, 0, block.timestamp, bytes32(0));
+        vm.prank(alice);
+        vm.expectRevert(PadRouter.WrongEthAmount.selector);
+        router.buyWith{value: 0.1 ether}(coin, address(imd), 1e18, 0, block.timestamp, bytes32(0));
+    }
+
+    function test_paymentRoutes_validatedAndRemovable() public {
+        address[] memory tokens = config.paymentTokens();
+        assertEq(tokens.length, 2);
+        // A route that doesn't end in IMD is rejected.
+        Hop[] memory bad = new Hop[](1);
+        bad[0] = Hop(ethUsdgKey, true); // ETH → USDG
+        vm.expectRevert(PadConfig.InvalidSetting.selector);
+        config.setPaymentRoute(address(0), bad);
+        // Only the owner (timelock) can change routes.
+        vm.prank(alice);
+        vm.expectRevert();
+        config.removePaymentRoute(address(usdg));
+        config.removePaymentRoute(address(usdg));
+        assertFalse(config.isPaymentToken(address(usdg)));
+        assertEq(config.paymentTokens().length, 1);
     }
 
     // ------------------------------------------------------------------ Config bounds
@@ -338,7 +414,7 @@ contract PondPadTest is Base {
         config.setLaunchesPaused(true);
         vm.prank(creator);
         vm.expectRevert();
-        router.launch(_params("FROG", _noTax(), 0), 0, 0);
+        router.launchWith(_params("FROG", _noTax(), 0), address(imd), 1e18, false, 0, 0);
     }
 
     // ------------------------------------------------------------------ Fuzz

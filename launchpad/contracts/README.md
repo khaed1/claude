@@ -11,9 +11,9 @@ Core launch-and-trade path, tested end to end against a real Uniswap v4 PoolMana
 | `PadToken` | The launched coin: 1B fixed supply, no owner, EIP-2612 permit, IMD dividends for holders (flash-borrow safe) |
 | `BondingCurve` | IMD bonding curve (80% sold / 20% to the pool), fees, snipe tax, early max-buy, graduation |
 | `PadHook` | Uniswap v4 hook: opens the pool at the curve's final price, owns locked full-range liquidity, charges fees through any router, rejects partial fills |
-| `PadRouter` | Launch with dev buy, buy, sell, sell with permit, paying or receiving IMD or ETH (ETH ⇄ IMD through the IMD/ETH pool set in `PadConfig`); routes to the curve or the pool |
+| `PadRouter` | Launch with dev buy, buy, sell, sell with permit, paying or receiving IMD, ETH, USDG or any payment token approved in `PadConfig` (swapped to and from IMD along its route); routes to the curve or the pool |
 | `PadFactory` | Deploys coins with CREATE2 |
-| `PadConfig` | Bounded launch settings, fee/growth addresses, IMD/ETH pool key, guardian pause of new launches |
+| `PadConfig` | Bounded launch settings, fee/growth addresses, payment tokens and their routes to IMD, guardian pause of new launches |
 | `FeeSplitter` | Protocol IMD → stakers 40% / workers 25% / growth 20% / treasury 15%, within fixed ranges |
 | `CreatorVault` | Creator fees per coin, recipient changes, CTO hook-in |
 | `SwarmBudget` | Per-coin escrow for swarm jobs, released by the Swarm Relay |

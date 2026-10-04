@@ -22,6 +22,25 @@ import {CreatorVault} from "../src/CreatorVault.sol";
 import {SwarmBudget} from "../src/SwarmBudget.sol";
 import {FeeSplitter} from "../src/FeeSplitter.sol";
 import {CoinFees} from "../src/FeeLib.sol";
+import {Hop} from "../src/Route.sol";
+
+contract MockUSDG is ERC20 {
+    function name() public pure override returns (string memory) {
+        return "Global Dollar";
+    }
+
+    function symbol() public pure override returns (string memory) {
+        return "USDG";
+    }
+
+    function decimals() public pure override returns (uint8) {
+        return 6;
+    }
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
+    }
+}
 
 contract MockIMD is ERC20 {
     function name() public pure override returns (string memory) {
@@ -64,6 +83,8 @@ abstract contract Base is Test {
     address internal bob = makeAddr("bob");
 
     PoolKey internal imdEthKey;
+    PoolKey internal ethUsdgKey;
+    MockUSDG internal usdg;
 
     receive() external payable {}
 
@@ -71,6 +92,8 @@ abstract contract Base is Test {
         pm = new PoolManager(address(this));
         imd = new MockIMD();
         imdEthKey = _seedImdEthPool();
+        usdg = new MockUSDG();
+        ethUsdgKey = _seedEthUsdgPool();
 
         splitter = new FeeSplitter(
             address(this),
@@ -92,9 +115,15 @@ abstract contract Base is Test {
                 snipeTaxDuration: 20,
                 maxBuyWindow: 60,
                 maxBuyBps: 200
-            }),
-            imdEthKey
+            })
         );
+        Hop[] memory ethRoute = new Hop[](1);
+        ethRoute[0] = Hop(imdEthKey, true);
+        config.setPaymentRoute(address(0), ethRoute);
+        Hop[] memory usdgRoute = new Hop[](2);
+        usdgRoute[0] = Hop(ethUsdgKey, false); // USDG → ETH
+        usdgRoute[1] = Hop(imdEthKey, true); // ETH → IMD
+        config.setPaymentRoute(address(usdg), usdgRoute);
         vault = new CreatorVault(address(imd));
         budget = new SwarmBudget(address(this), address(imd), address(vault), relay, 100e18);
         curve = new BondingCurve(address(imd), address(config), address(pm));
@@ -120,6 +149,9 @@ abstract contract Base is Test {
         for (uint256 i; i < users.length; i++) {
             vm.deal(users[i], 1_000 ether);
             imd.mint(users[i], 1_000_000e18);
+            usdg.mint(users[i], 1_000_000e6);
+            vm.prank(users[i]);
+            usdg.approve(address(router), type(uint256).max);
             vm.prank(users[i]);
             imd.approve(address(router), type(uint256).max);
         }
@@ -138,6 +170,22 @@ abstract contract Base is Test {
         lp.modifyLiquidity{value: 120 ether}(
             key,
             ModifyLiquidityParams(TickMath.minUsableTick(100), TickMath.maxUsableTick(100), 2_000e18, 0),
+            ""
+        );
+    }
+
+    /// @dev A hookless native-ETH/USDG pool: 0.05% fee, tick spacing 10, ~2,667 USDG per ETH, ~200k USDG deep.
+    function _seedEthUsdgPool() internal returns (PoolKey memory key) {
+        key = PoolKey(Currency.wrap(address(0)), Currency.wrap(address(usdg)), 500, 10, IHooks(address(0)));
+        // sqrt(2667e6 / 1e18) * 2^96
+        pm.initialize(key, 4091587813935018962591680);
+        PoolModifyLiquidityTest lp = new PoolModifyLiquidityTest(IPoolManager(address(pm)));
+        usdg.mint(address(this), 1_000_000e6);
+        usdg.approve(address(lp), type(uint256).max);
+        vm.deal(address(this), address(this).balance + 200 ether);
+        lp.modifyLiquidity{value: 150 ether}(
+            key,
+            ModifyLiquidityParams(TickMath.minUsableTick(10), TickMath.maxUsableTick(10), 5_000_000_000_000_000, 0),
             ""
         );
     }
@@ -163,7 +211,7 @@ abstract contract Base is Test {
 
     function _launch(CoinFees memory fees, uint256 devBuy) internal returns (address coin) {
         vm.prank(creator);
-        (coin,) = router.launch(_params("FROG", fees, bytes32(0)), devBuy, 0);
+        (coin,) = router.launchWith(_params("FROG", fees, bytes32(0)), address(imd), 1e18 + devBuy, devBuy != 0, 0, 0);
     }
 
     /// @dev Launches coins with increasing salts until the IMD/coin address ordering matches `imdFirst`.
@@ -173,7 +221,7 @@ abstract contract Base is Test {
             address predicted = factory.predictAddress(p, creator);
             if ((address(imd) < predicted) == imdFirst) {
                 vm.prank(creator);
-                (coin,) = router.launch(p, 0, 0);
+                (coin,) = router.launchWith(p, address(imd), 1e18, false, 0, 0);
                 return coin;
             }
         }
@@ -182,13 +230,13 @@ abstract contract Base is Test {
 
     function _buy(address who, address coin, uint256 imdIn) internal returns (uint256 out) {
         vm.prank(who);
-        out = router.buy(coin, imdIn, 0, block.timestamp, bytes32(0));
+        out = router.buyWith(coin, address(imd), imdIn, 0, block.timestamp, bytes32(0));
     }
 
     function _sell(address who, address coin, uint256 tokensIn) internal returns (uint256 out) {
         vm.startPrank(who);
         ERC20(coin).approve(address(router), tokensIn);
-        out = router.sell(coin, tokensIn, 0, block.timestamp, bytes32(0));
+        out = router.sellFor(coin, address(imd), tokensIn, 0, block.timestamp, bytes32(0));
         vm.stopPrank();
     }
 
@@ -201,7 +249,7 @@ abstract contract Base is Test {
             imd.mint(buyer, 1_000e18);
             vm.startPrank(buyer);
             imd.approve(address(router), type(uint256).max);
-            router.buy(coin, 1_000e18, 0, block.timestamp, bytes32(0));
+            router.buyWith(coin, address(imd), 1_000e18, 0, block.timestamp, bytes32(0));
             vm.stopPrank();
         }
     }

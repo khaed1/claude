@@ -12,7 +12,7 @@ Items marked **[DEV]** depend on answers from the IMD / POOL4 developer. Section
 
 1. Anyone launches a coin **paired with IMD**. It starts on a **bonding curve** and **graduates** into a Uniswap v4 pool run by PondPad's hook, with liquidity locked forever.
 2. Every trade, on the curve or in the pool and through any router, pays a **1.5% base fee**, plus an optional **0–3% coin tax** chosen at launch.
-3. Users pay with **ETH or IMD**. The router swaps ETH to IMD inside the same transaction.
+3. Users pay with **IMD, ETH or USDG** (more tokens can be approved later). The router swaps them to IMD inside the same transaction.
 4. The **IMD swarm** builds each graduated coin's website for free, decides community takeovers (CTO), must audit every launchpad version before it goes live, and can be paid from a coin's own "swarm budget".
 5. Protocol fees go **40% to sPONDPAD stakers, 25% to IMD workers, 20% to growth, 15% to the treasury**.
 6. **$PONDPAD** is paired with **IMD**, like every coin on PondPad. It is sold on its own IMD bonding curve (target ≈ 8,460 IMD, about 20 ETH) and graduates into **our own fork of POOL4's `CappedBurnHook`**, adapted for an IMD pair (section 5.4).
@@ -197,13 +197,13 @@ Trading functions accept calls only from `PadRouter`, so snipe tax and max-buy a
 
 **`PadRouter`**: the single entry point for the website.
 ```solidity
-function launch(LaunchParams calldata p, uint256 devBuyImd, uint256 minOut) external payable returns (address, uint256);
-function buy(address coin, uint256 amountIn, bool payEth, uint256 minOut, uint256 deadline, bytes32 ref) external payable;
-function sell(address coin, uint256 amountIn, bool receiveEth, uint256 minOut, uint256 deadline, bytes32 ref) external;
-function sellWithPermit(..., uint8 v, bytes32 r, bytes32 s) external;
+function launchWith(LaunchParams calldata p, address tokenIn, uint256 amountIn, bool devBuy, uint256 minImd, uint256 minTokensOut) external payable returns (address, uint256);
+function buyWith(address coin, address tokenIn, uint256 amountIn, uint256 minTokensOut, uint256 deadline, bytes32 ref) external payable returns (uint256);
+function sellFor(address coin, address tokenOut, uint256 tokensIn, uint256 minOut, uint256 deadline, bytes32 ref) external returns (uint256);
+function sellForWithPermit(..., uint8 v, bytes32 r, bytes32 s) external returns (uint256);
 ```
 - It routes automatically: curve before graduation, v4 pool after.
-- `payEth` / `receiveEth` adds the ETH ⇄ IMD hop through the **IMD/ETH pool key stored in `PadConfig`** (the hookless pool today, the POOL4 market on Robinhood when live).
+- `tokenIn` / `tokenOut` is IMD, native ETH (`address(0)`) or any **payment token approved in `PadConfig`**, which stores a swap path to IMD for each (ETH: the IMD/ETH pool; USDG: USDG → ETH → IMD). After graduation the payment path and the coin's pool run in one unlock.
 - `ref` is recorded in events now and used by referrals in v1.1.
 - The router holds no funds between transactions.
 
@@ -298,7 +298,7 @@ Both settings can be changed later through the timelock.
 - launch fee, graduation target, graduation fee
 - snipe tax and max-buy settings
 - splitter shares and the growth ↔ stakers dial
-- IMD/ETH pool key, worker rewards address, Relay address, oracle signers
+- payment tokens and their routes to IMD (up to 3 hops), worker rewards address, Relay address, oracle signers
 
 Changes go through **Timelock** (48 h for fees and launch settings, **7 days** for splitter shares, oracle signers, worker address and pool key). Changes apply only to **future** launches; each coin keeps its saved settings.
 
@@ -326,18 +326,25 @@ New launches go to `current()`. Coins from older versions trade forever on their
 |---|---|
 | Change bounded settings for **future** launches | Change an existing coin's fees, tax, curve or target |
 | Change splitter shares within their ranges | Remove or move locked liquidity |
-| Set the IMD/ETH pool key, worker address, Relay, oracle signers | Pause trading, freeze tokens, mint |
+| Set payment-token routes, worker address, Relay, oracle signers | Pause trading, freeze tokens, mint |
 | Register and activate versions (with swarm audit) | Upgrade contracts (none are proxies) |
 | Pause **new launches** (guardian, instant) | Take creator fees, dividends or staked funds |
 | Execute a CTO (only with a swarm attestation and after the 3-day notice) | Change a CTO outcome without a new attestation |
 
 ---
 
-## 6. Payments: ETH or IMD
+## 6. Payments: IMD, ETH, USDG (more later)
 
 - Every price (launch fee, graduation target, website fee) is set in **IMD**. Contracts only ever receive IMD.
-- The website shows prices in ETH and lets users pay with ETH. `PadRouter` swaps ETH → IMD in the same transaction through the configured IMD/ETH pool, with slippage limits. No backend touches user funds.
-- Selling to ETH works the same way in reverse. IMD approvals are for the exact amount; sells use a permit signature.
+- `PadConfig` keeps an approved list of **payment tokens**, each with a fixed swap path to IMD (at most 3 hops, validated on set, changed only through the timelock):
+  - **ETH**: ETH → IMD through the hookless IMD/ETH pool (1% fee, tick spacing 100). Switch to a POOL4 market when one exists on Robinhood.
+  - **USDG** (`0x5fc5…d168`): USDG → ETH through the ETH/USDG pool (dynamic fee, tick spacing 10, its own hook) → IMD.
+  - Later: other stablecoins or stock tokens, added the same way.
+- `PadRouter` swaps the payment to IMD (or IMD back to the payment token on sells) in the same transaction, with slippage limits. No backend touches user funds. Each extra pool adds its fee and price impact; the website shows the full cost.
+- IMD approvals are for the exact amount; sells can use a permit signature.
+- The **$PONDPAD sale** accepts the same payment tokens.
+- **Live depth (fork test, Oct 2026):** Robinhood holds ~46.9k IMD; the IMD/ETH pool ~28.9k IMD + 70 ETH. Buying 2,091 IMD (one graduation) costs ~5.3 ETH (~5% above spot); buying 8,590 IMD (the full $PONDPAD raise) costs ~29.6 ETH (~42% above spot). Deepen IMD liquidity on Robinhood before the $PONDPAD sale.
+- **Volume through outside pools:** anyone can open another pool for a coin and undercut our fee. On Robinhood today this is negligible (Pepes keeps >99% of volume in its own pool), but the indexer tracks it per coin and the transparency page publishes it. Fees stay the creator's choice.
 
 ---
 
