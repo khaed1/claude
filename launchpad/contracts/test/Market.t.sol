@@ -298,6 +298,113 @@ contract MarketTest is Base {
         market.rebalance();
     }
 
+    function _newHook(uint160 prefix, address owner_, address burnSink_) internal returns (PadMarketHook) {
+        address addr = address(uint160(MARKET_FLAGS) | (prefix << 144));
+        deployCodeTo(
+            "PadMarketHook.sol:PadMarketHook",
+            abi.encode(
+                owner_, IPoolManager(address(pm)), address(imd), address(pondpad), burnSink_, dripper, uint256(1_500),
+                uint256(1_000e18), int24(200)
+            ),
+            addr
+        );
+        return PadMarketHook(addr);
+    }
+
+    function test_market_migrateMovesEverythingIntoNewHook() public {
+        _graduate();
+        uint256 t0 = block.timestamp;
+        _swap(true, 300e18);
+        _swap(false, 15_000_000e18); // trims, builds retained IMD
+        vm.roll(block.number + 1);
+        market.rebalance(); // retained IMD becomes a backstop band
+        vm.warp(t0 + 3 days);
+        vm.roll(block.number + 1);
+        vm.prank(slowTimelock);
+        vm.expectRevert(Ownable.Unauthorized.selector); // policy is the 48 h timelock's, not the 7-day one's
+        controller.setCapDecay(400_000e18);
+        vm.prank(timelock);
+        controller.setCapDecay(400_000e18);
+
+        (uint160 priceBefore,,,) = IPoolManager(address(pm)).getSlot0(market.poolId());
+        uint256 tokensBefore = market.tokensInPool();
+        (,, uint128 band) = market.backstop();
+        assertGt(band, 0);
+        uint256 feeBefore = market.currentFee();
+        uint256 capFloorBefore = market.capFloor();
+
+        PadMarketHook next = _newHook(0x8888, address(controller), address(burner));
+        vm.prank(timelock); // the 48 h timelock can't migrate
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        controller.migrate(address(next));
+        vm.prank(slowTimelock);
+        controller.migrate(address(next));
+
+        assertEq(address(controller.hook()), address(next));
+        assertFalse(market.marketOpen());
+        assertTrue(next.marketOpen());
+        (uint160 priceAfter,,,) = IPoolManager(address(pm)).getSlot0(next.poolId());
+        assertEq(priceAfter, priceBefore, "same price");
+        assertApproxEqRel(next.tokensInPool(), tokensBefore, 0.0001e18, "same inventory");
+        assertGt(next.retainedQuote(), 0, "backstop IMD carried over");
+        assertEq(next.currentFee(), feeBefore, "fee clock continues");
+        assertEq(next.capFloor(), capFloorBefore);
+        assertEq(next.capDecayTokensPerDay(), 400_000e18);
+        assertEq(next.rewardShareBps(), 1_500);
+        // The controller kept nothing.
+        assertEq(imd.balanceOf(address(controller)), 0);
+        assertEq(pondpad.balanceOf(address(controller)), 0);
+        // Nothing is left behind in the old hook except settled-claim dust.
+        assertLe(imd.balanceOf(address(market)), 1);
+
+        // The new market trades, trims and pays fees as before.
+        _swap(true, 50e18);
+        _swap(false, 5_000_000e18);
+        assertLe(next.tokensInPool(), next.inventoryCap() + next.minTrimTokens());
+        vm.roll(block.number + 1);
+        controller.collectFees();
+        assertEq(next.feeQuoteClaims(), 0);
+        next.rebalance();
+        (,, uint128 newBand) = next.backstop();
+        assertGt(newBand, 0);
+    }
+
+    function test_market_migrateGuards() public {
+        PadMarketHook next = _newHook(0x8888, address(controller), address(burner));
+        vm.prank(slowTimelock);
+        vm.expectRevert(MarketController.MigrationClosed.selector); // not launched yet
+        controller.migrate(address(next));
+
+        _graduate();
+        // Wrong owner, wrong burn sink, the current hook itself: refused.
+        PadMarketHook foreign = _newHook(0x9999, address(this), address(burner));
+        PadMarketHook badSink = _newHook(0xAAAA, address(controller), address(0xBAD));
+        vm.startPrank(slowTimelock);
+        vm.expectRevert(MarketController.InvalidSetup.selector);
+        controller.migrate(address(foreign));
+        vm.expectRevert(MarketController.InvalidSetup.selector);
+        controller.migrate(address(badSink));
+        vm.expectRevert(MarketController.InvalidSetup.selector);
+        controller.migrate(address(market));
+        vm.stopPrank();
+
+        // After 12 months the market is locked for good.
+        vm.warp(controller.migrationDeadline());
+        vm.prank(slowTimelock);
+        vm.expectRevert(MarketController.MigrationClosed.selector);
+        controller.migrate(address(next));
+    }
+
+    function test_market_feeScheduleCanOnlyMoveEarlier() public {
+        _graduate();
+        uint256 opened = market.marketOpenedAt();
+        vm.prank(address(controller));
+        vm.expectRevert(PadMarketHook.InvalidConfiguration.selector);
+        market.inheritFeeSchedule(opened + 1); // later start = higher fee: refused
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        market.inheritFeeSchedule(opened - 1 days);
+    }
+
     /// @dev Random trades at either fee level keep POOL4's invariants: the position never holds more than the cap
     ///      (beyond the trim threshold), and the cap never drops below the floor.
     function testFuzz_market_capInvariantAtBothFeeLevels(uint256 seed, bool late) public {

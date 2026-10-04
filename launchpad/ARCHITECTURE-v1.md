@@ -275,7 +275,8 @@ What we take from POOL4's verified source (`CappedBurnHook`, Solidity 0.8.30, so
 | Policy setters (cap floor, decay, ratchet, keeper tip, rebalance, reward share ≤ 30%) | Timelock (48 h) |
 | `setBurnSink`, `setRewardsRecipient` | `sinkAdmin` = the 7-day timelock |
 | `fundInventory` (add liquidity) | Timelock; only from the liquidity reserve + treasury |
-| `closeMarket` (withdraw the **whole** position) and `withdrawRetainedQuote` | **Not exposed in v1** (D-39), and the controller can't transfer the hook's ownership. A future emergency path would need a new controller design (7-day timelock + swarm attestation naming a defect, funds only to a new `PadMarketHook`) |
+| `closeMarket` (withdraw the **whole** position) | Only inside `migrate(newHook)` (D-40): 7-day timelock, first 12 months only, everything reopens in a new unopened hook owned by this controller at the same price, cap and fee clock; nothing to any wallet. Locked forever after 12 months |
+| `withdrawRetainedQuote`, ownership transfer | **Not exposed** |
 | `initializePool`, `openMarket` | Called once inside `MarketController.launch`, which only `PadSale` can call, at graduation |
 
 The fork is unaudited code, so it is audited by the swarm together with our contracts (section 10), plus any audit the POOL4 developer has.

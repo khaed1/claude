@@ -21,8 +21,8 @@ Core launch-and-trade path and the $PONDPAD sale and market, tested end to end a
 | `PaymentSwapper` | Payment plumbing shared by `PadRouter` and `PadSale` |
 | `PondPadToken` | $PONDPAD: 1B fixed supply, no owner, permit, burn |
 | `PadSale` | $PONDPAD IMD bonding curve (600M sold / 300M to the pool), snipe tax, per-wallet cap; opens the market at graduation |
-| `PadMarketHook` | $PONDPAD/IMD market: fork of POOL4's `CappedBurnHook` with an IMD quote and a 3% → 1% dynamic fee. Original in `upstream/` (`diff upstream/CappedBurnHook.sol src/PadMarketHook.sol`) |
-| `MarketController` | Permanent owner of the market hook; opens it once, sends fees to the splitter, no way to withdraw the position |
+| `PadMarketHook` | $PONDPAD/IMD market: fork of POOL4's `CappedBurnHook` with an IMD quote and a 3% → 1% dynamic fee. Generated from the original in `upstream/` by `upstream/make_fork.py` |
+| `MarketController` | Permanent owner of the market hook; opens it once, sends fees to the splitter; the position can only migrate into a new hook (7-day timelock, first 12 months), never to a wallet |
 | `PadBurner` | Burns the $PONDPAD the market trims |
 
 Not built yet: `PadLens`, `VersionRegistry` and `AttestationVerifier`, `CTOModule`, `SocialRegistry`, staking (`StakedPONDPAD`, `RewardDripper`, `PadBuyer`), `WorkerFund`/`GrowthFund`, `AirdropDistributor`/`TeamVesting`, and deploy scripts.

@@ -16,7 +16,10 @@ pragma solidity 0.8.26;
        Nothing in the cap / trim / burn / backstop paths reads the fee.
     3. IMD-sized constants: rebalance threshold 40 IMD, default keeper tip 1 IMD, max keeper tip 40 IMD.
     4. v4-core types come from `PoolOperation.sol` in the pinned v4-core; compiled for cancun.
-  The owner is MarketController, which does not expose `closeMarket` or `withdrawRetainedQuote` (D-18).
+    5. `seedRetainedQuote` and `inheritFeeSchedule`: let MarketController carry retained IMD and the fee clock into
+       a new market when it migrates (D-40).
+  The owner is MarketController. It never exposes `withdrawRetainedQuote`; it calls `closeMarket` only inside
+  `migrate`, which moves everything into a new market hook (7-day timelock, first 12 months only, D-40).
 */
 
 import {Ownable} from "solady/auth/Ownable.sol";
@@ -112,6 +115,7 @@ contract PadMarketHook is Ownable {
     event RewardsRecipientUpdated(address indexed previous, address indexed current);
     event RewardShareUpdated(uint256 previousBps, uint256 newBps);
     event RetainedQuoteWithdrawn(address indexed recipient, uint256 amount);
+    event RetainedQuoteSeeded(uint256 amount); // PondPad
     event ClaimsSettled(uint256 tokensToBurnSink, uint256 tokensToRewards, uint256 quoteRedeemed);
     /// @notice The LP fee realised by one swap (or a backstop close). Emitted once per collection.
     event FeeCollected(uint256 tokenFee, uint256 quoteFee);
@@ -643,6 +647,25 @@ contract PadMarketHook is Ownable {
         retainedQuote -= amount;
         SafeTransferLib.safeTransfer(quote, recipient, amount);
         emit RetainedQuoteWithdrawn(recipient, amount);
+    }
+
+    /// @notice PondPad: adds IMD to `retainedQuote` from the owner, so the next keeper rebalance deploys it as
+    /// backstop. Used only when MarketController migrates a market: the old market's retained / backstop IMD,
+    /// which does not fit the full-range position at the same price, carries over as the new market's buy wall
+    /// instead of going anywhere else (D-40). Backed by real balance, which `_payQuote` already handles.
+    function seedRetainedQuote(uint256 amount) external onlyOwner {
+        if (!marketOpen) revert MarketNotOpen();
+        if (amount == 0) return;
+        SafeTransferLib.safeTransferFrom(quote, msg.sender, address(this), amount);
+        retainedQuote += amount;
+        emit RetainedQuoteSeeded(amount);
+    }
+
+    /// @notice PondPad: on migration, the new market continues the old market's fee schedule instead of
+    /// restarting at 3%. The start can only move earlier, so the fee can only go down, never up (D-40).
+    function inheritFeeSchedule(uint256 openedAt) external onlyOwner {
+        if (!marketOpen || openedAt == 0 || openedAt > marketOpenedAt) revert InvalidConfiguration();
+        marketOpenedAt = openedAt;
     }
 
     /// @notice Sends the accumulated trading-fee revenue (token + IMD) to `recipient`. The fee ledger

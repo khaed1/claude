@@ -21,8 +21,10 @@ interface IPadBurner {
 /// @notice The permanent owner of PadMarketHook (the $PONDPAD/IMD market). It narrows the hook's owner powers
 ///         (D-18): the market is opened exactly once, by PadSale at graduation; trading fees can only go to the
 ///         fee splitter, and anyone can push them there; policy settings sit behind the timelock; and the
-///         hook's `closeMarket`, `withdrawRetainedQuote` and ownership transfer are not reachable at all, so no
-///         one can withdraw the locked market position.
+///         hook's `withdrawRetainedQuote` and ownership transfer are not reachable at all. The only way the
+///         position ever leaves a hook is `migrate` (D-40): during the first 12 months, through the 7-day
+///         timelock, everything moves into a new market hook owned by this same controller, at the same
+///         price. No path sends the position or the retained IMD to any wallet.
 /// @dev Roles: `owner` is the 48-hour timelock (policy, extra inventory, backstop close); `sinkAdmin` is the
 ///      7-day timelock (burn sink and rewards recipient). Neither can move the position or the retained IMD.
 contract MarketController is Ownable, IPadMarketLauncher {
@@ -40,13 +42,20 @@ contract MarketController is Ownable, IPadMarketLauncher {
     address public sale;
     address public sinkAdmin;
     bool public launched;
+    /// @notice Migration is possible only before this time (12 months after the market opened). Zero before launch.
+    uint256 public migrationDeadline;
+    uint256 public constant MIGRATION_WINDOW = 365 days;
 
     event Launched(uint160 sqrtPriceX96, uint128 liquidity, uint256 imdDeposited, uint256 tokensDeposited);
     event FeesCollected(uint256 imd, uint256 token);
     event SinkAdminUpdated(address sinkAdmin);
+    event Migrated(
+        address indexed oldHook, address indexed newHook, uint160 sqrtPriceX96, uint256 imdMoved, uint256 tokensMoved
+    );
 
     error AlreadyLaunched(); // Unauthorized and AlreadyInitialized come from Ownable
     error InvalidSetup();
+    error MigrationClosed();
 
     modifier onlySinkAdmin() {
         if (msg.sender != sinkAdmin) revert Unauthorized();
@@ -98,6 +107,7 @@ contract MarketController is Ownable, IPadMarketLauncher {
         if (msg.sender != sale) revert Unauthorized();
         if (launched) revert AlreadyLaunched();
         launched = true;
+        migrationDeadline = block.timestamp + MIGRATION_WINDOW;
 
         PadMarketHook h = hook;
         h.initializePool(sqrtPriceX96);
@@ -142,7 +152,10 @@ contract MarketController is Ownable, IPadMarketLauncher {
     /// @notice Sends the market's trading fees to the fee splitter and splits them: IMD with the usual 40/25/20/15,
     ///         the $PONDPAD that sellers paid with the same shares in $PONDPAD (D-38). Anyone can call it.
     function collectFees() external {
-        PadMarketHook h = hook;
+        _collectFees(hook);
+    }
+
+    function _collectFees(PadMarketHook h) internal {
         uint256 imdFee = h.feeQuoteClaims();
         uint256 tokenFee = h.feeTokenClaims();
         h.withdrawFees(feeSplitter);
@@ -214,6 +227,59 @@ contract MarketController is Ownable, IPadMarketLauncher {
 
     function setRewardsRecipient(address newRewardsRecipient) external onlySinkAdmin {
         hook.setRewardsRecipient(newRewardsRecipient);
+    }
+
+    // ------------------------------------------------------------------ Migration (7-day timelock, first 12 months)
+
+    /// @notice Moves the whole market into `newHook` (D-40): for fixing a defect or moving to a better version
+    ///         while the code is young. Only the 7-day timelock, only before `migrationDeadline`. `newHook` must be
+    ///         an unopened market for the same IMD/$PONDPAD pair, owned by this controller, with the same burn sink
+    ///         and rewards recipient. The old market's fees go to the splitter; its position and retained IMD
+    ///         reopen the new market at the old market's current price, with the same cap floor, decay and
+    ///         policy; IMD that doesn't fit the full-range position becomes the new market's backstop IMD. The
+    ///         controller keeps nothing and pays no one.
+    function migrate(address newHook_) external onlySinkAdmin {
+        if (!launched || block.timestamp >= migrationDeadline) revert MigrationClosed();
+        PadMarketHook old = hook;
+        PadMarketHook nh = PadMarketHook(newHook_);
+        if (
+            newHook_ == address(old) || nh.owner() != address(this) || nh.quote() != imd || nh.token() != token
+                || nh.marketOpen() || nh.burnSink() != old.burnSink() || nh.rewardsRecipient() != old.rewardsRecipient()
+        ) revert InvalidSetup();
+
+        uint160 sqrtPriceX96 = old.currentSqrtPriceX96();
+        old.closeMarket(address(this)); // settles claims, closes the backstop, returns position + retained IMD
+        _collectFees(old); // fees realised by the close go to the splitter, as always
+
+        hook = nh;
+        imd.safeApprove(newHook_, type(uint256).max);
+        token.safeApprove(newHook_, type(uint256).max);
+        uint256 imdBal = imd.balanceOf(address(this));
+        uint256 tokenBal = token.balanceOf(address(this));
+        nh.initializePool(sqrtPriceX96);
+        uint128 liquidity = fullRangeLiquidity(sqrtPriceX96, imdBal, tokenBal, nh.tickSpacing());
+        nh.openMarket(liquidity, tokenBal, imdBal, old.capFloor(), old.capDecayTokensPerDay());
+        nh.inheritFeeSchedule(old.marketOpenedAt());
+        _copyPolicy(old, nh);
+
+        uint256 imdLeft = imd.balanceOf(address(this));
+        if (imdLeft != 0) nh.seedRetainedQuote(imdLeft);
+        uint256 tokenLeft = token.balanceOf(address(this));
+        if (tokenLeft != 0) {
+            token.safeTransfer(burner, tokenLeft);
+            IPadBurner(burner).burn();
+        }
+        emit Migrated(address(old), newHook_, sqrtPriceX96, imdBal, tokenBal - tokenLeft);
+    }
+
+    function _copyPolicy(PadMarketHook old, PadMarketHook nh) internal {
+        nh.setRatchetBps(old.ratchetBps());
+        nh.setRewardShareBps(old.rewardShareBps());
+        nh.setMaxRefStep(old.maxRefStep());
+        nh.setFloorDecay(old.floorDecayTicksPerDay());
+        nh.setKeeperReward(0); // keeper tip must stay below the threshold while both change
+        nh.setRebalance(old.rebalanceEnabled(), old.rebalanceQuoteThreshold());
+        nh.setKeeperReward(old.keeperReward());
     }
 
     function setSinkAdmin(address newSinkAdmin) external onlySinkAdmin {
