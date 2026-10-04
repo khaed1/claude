@@ -160,11 +160,29 @@ Small print, in plain words:
 >
 > - 60% sold on the curve
 > - 30% into the pool, locked
-> - 5% airdropped to IMD seat holders and sIMD stakers, released over 30 days after the Leap
+> - 5% airdropped to IMD seat holders and sIMD stakers, switched on by 100 of them after the Leap, then released over 30 days
 > - 3% kept for adding liquidity later
 > - 2% team, locked for the first month after the Leap, fully released by month 6
 >
 > You can sell back to the curve anytime before the Leap.
+
+**Airdrop: wake the pond (after the Leap, until 100 wallets have initiated)**
+> ## Wake the pond
+> The airdrop sleeps until 100 wallets from the snapshot wake it up. Post the line below on X with your code, paste the link, and sign with the wallet that's on the list. When the 100th frog croaks, everyone on the list can claim, not just the 100.
+>
+> **Post this:** "Initiating the airdrop phase for $PondPad 🐸 [your code]"
+>
+> **{count} / 100 frogs awake.**
+
+Microcopy: *"One X account per wallet. Your code is tied to your wallet, so anyone can check it."* · *"Want to keep your main wallet off the trading side? Name a claim wallet with one signature, no gas."*
+
+**Airdrop: claim (after activation)**
+> ## The pond is awake
+> Your share unlocks a little every day for 30 days. Claim as often as you like. Unclaimed tokens go to the Pond (stakers) 180 days after the airdrop woke up.
+>
+> [ Claim ] [ Share on X ]
+
+Share text (optional, prefilled): *"Just claimed my $PondPad airdrop 🐸 Every frog starts as a tadpole. pondpad.fun"*
 
 **Burn line (on the pool page after the Leap)**
 > Sell into the pool and part of it never comes back. **4,212,880 $PONDPAD burned so far.**

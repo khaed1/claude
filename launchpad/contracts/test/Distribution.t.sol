@@ -1,60 +1,108 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {Ownable} from "solady/auth/Ownable.sol";
 import {MarketBase} from "./Market.t.sol";
 import {AirdropDistributor} from "../src/AirdropDistributor.sol";
 import {TeamVesting} from "../src/TeamVesting.sol";
 
 contract DistributionTest is MarketBase {
     uint256 internal constant OPEN = START + 30 minutes; // the market opens in `_graduate()` at this time
+    uint256 internal constant ACT = OPEN + 2 days; // `_activate()` brings in the 100th initiator at this time
     uint256 internal constant AIRDROP = 50_000_000e18;
     uint256 internal constant TEAM = 20_000_000e18;
+    uint256 internal constant FILLERS = 100;
+    uint256 internal constant FILLER_AMOUNT = 100_000e18;
+    bytes32 internal constant DELEGATE_TYPEHASH =
+        keccak256("Delegate(address account,address claimWallet,uint256 nonce,uint256 deadline)");
+    bytes32 internal constant INITIATION_TYPEHASH =
+        keccak256("Initiation(address account,bytes32 handleHash,bytes32 tweetHash,uint256 deadline)");
 
     AirdropDistributor internal airdrop;
     TeamVesting internal vesting;
 
     address internal dripperSink = makeAddr("rewardDripper");
     address internal teamSafe = makeAddr("teamSafe");
+    address internal xChecker;
+    uint256 internal xCheckerKey;
     address internal seat;
     uint256 internal seatKey;
     address internal hot = makeAddr("hotWallet");
     address internal staker = makeAddr("sIMDStaker");
 
-    address[4] internal accounts;
-    uint256[4] internal amounts;
-    bytes32[4] internal leaves;
+    // Leaves 0..3: seat, staker, c, d (40M); leaves 4..103: 100 small holders (10M).
+    address[] internal accounts;
+    uint256[] internal amounts;
+    bytes32[][] internal layers;
 
     function setUp() public override {
         super.setUp();
         (seat, seatKey) = makeAddrAndKey("seatHolder");
-        accounts = [seat, staker, makeAddr("c"), makeAddr("d")];
-        amounts = [uint256(30_000_000e18), 12_000_000e18, 5_000_000e18, 3_000_000e18];
-        for (uint256 i; i < 4; ++i) {
-            leaves[i] = keccak256(bytes.concat(keccak256(abi.encode(accounts[i], amounts[i]))));
+        (xChecker, xCheckerKey) = makeAddrAndKey("tweetChecker");
+        accounts.push(seat);
+        accounts.push(staker);
+        accounts.push(makeAddr("c"));
+        accounts.push(makeAddr("d"));
+        amounts.push(20_000_000e18);
+        amounts.push(12_000_000e18);
+        amounts.push(5_000_000e18);
+        amounts.push(3_000_000e18);
+        for (uint256 i; i < FILLERS; ++i) {
+            accounts.push(address(uint160(0x9000 + i)));
+            amounts.push(FILLER_AMOUNT);
         }
-        bytes32 root = _hashPair(_hashPair(leaves[0], leaves[1]), _hashPair(leaves[2], leaves[3]));
+        _buildTree();
 
-        airdrop = new AirdropDistributor(address(pondpad), root, address(controller), dripperSink);
+        airdrop = new AirdropDistributor(
+            timelock, address(pondpad), layers[layers.length - 1][0], address(controller), dripperSink, xChecker
+        );
         vesting = new TeamVesting(address(pondpad), address(controller), teamSafe);
         pondpad.transfer(address(airdrop), AIRDROP);
         vm.prank(trader); // the test base already gave the sale and the trader 950M
         pondpad.transfer(address(vesting), TEAM);
+        assertEq(airdrop.DELEGATE_TYPEHASH(), DELEGATE_TYPEHASH);
+        assertEq(airdrop.INITIATION_TYPEHASH(), INITIATION_TYPEHASH);
     }
 
-    // ------------------------------------------------------------------ Merkle helpers (OZ StandardMerkleTree)
+    // ------------------------------------------------------------------ Merkle helpers (OZ-compatible leaves, sorted pairs)
 
     function _hashPair(bytes32 a, bytes32 b) internal pure returns (bytes32) {
         return a < b ? keccak256(abi.encode(a, b)) : keccak256(abi.encode(b, a));
     }
 
-    function _proof(uint256 i) internal view returns (bytes32[] memory p) {
-        p = new bytes32[](2);
-        p[0] = leaves[i ^ 1];
-        p[1] = i < 2 ? _hashPair(leaves[2], leaves[3]) : _hashPair(leaves[0], leaves[1]);
+    function _buildTree() internal {
+        bytes32[] memory level = new bytes32[](accounts.length);
+        for (uint256 i; i < level.length; ++i) {
+            level[i] = keccak256(bytes.concat(keccak256(abi.encode(accounts[i], amounts[i]))));
+        }
+        layers.push(level);
+        while (level.length > 1) {
+            bytes32[] memory up = new bytes32[]((level.length + 1) / 2);
+            for (uint256 i; i < up.length; ++i) {
+                up[i] = 2 * i + 1 < level.length ? _hashPair(level[2 * i], level[2 * i + 1]) : level[2 * i];
+            }
+            layers.push(up);
+            level = up;
+        }
     }
 
-    function _delegateSig(address claimWallet, uint256 nonce, uint256 deadline) internal view returns (bytes memory) {
-        bytes32 structHash = keccak256(abi.encode(airdrop.DELEGATE_TYPEHASH(), seat, claimWallet, nonce, deadline));
+    function _proof(uint256 i) internal view returns (bytes32[] memory p) {
+        bytes32[] memory tmp = new bytes32[](layers.length);
+        uint256 n;
+        for (uint256 l; l + 1 < layers.length; ++l) {
+            uint256 sib = i ^ 1;
+            if (sib < layers[l].length) tmp[n++] = layers[l][sib]; // an odd last node moves up without a sibling
+            i /= 2;
+        }
+        p = new bytes32[](n);
+        for (uint256 k; k < n; ++k) {
+            p[k] = tmp[k];
+        }
+    }
+
+    // ------------------------------------------------------------------ Signature helpers
+
+    function _digest(bytes32 structHash) internal view returns (bytes32) {
         bytes32 domain = keccak256(
             abi.encode(
                 keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
@@ -64,45 +112,184 @@ contract DistributionTest is MarketBase {
                 address(airdrop)
             )
         );
-        (uint8 v, bytes32 r, bytes32 s) =
-            vm.sign(seatKey, keccak256(abi.encodePacked("\x19\x01", domain, structHash)));
+        return keccak256(abi.encodePacked("\x19\x01", domain, structHash));
+    }
+
+    function _sign(uint256 key, bytes32 structHash) internal view returns (bytes memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(key, _digest(structHash));
         return abi.encodePacked(r, s, v);
     }
 
-    // ------------------------------------------------------------------ Airdrop
+    function _delegateSig(address claimWallet, uint256 nonce, uint256 deadline) internal view returns (bytes memory) {
+        return _sign(seatKey, keccak256(abi.encode(DELEGATE_TYPEHASH, seat, claimWallet, nonce, deadline)));
+    }
 
-    function test_airdrop_vestsOverThirtyDaysFromMarketOpen() public {
-        bytes32[] memory p = _proof(1);
+    function _voucher(uint256 key, address account, bytes32 handle, bytes32 tweet, uint256 deadline)
+        internal
+        view
+        returns (bytes memory)
+    {
+        return _sign(key, keccak256(abi.encode(INITIATION_TYPEHASH, account, handle, tweet, deadline)));
+    }
+
+    /// @dev Account `i` initiates with X handle and tweet derived from `i`, a voucher valid for a day.
+    function _initiate(uint256 i, uint256 now_) internal {
+        address a = accounts[i];
+        bytes32 handle = keccak256(abi.encode("handle", i));
+        bytes32 tweet = keccak256(abi.encode("tweet", i));
+        bytes memory v = _voucher(xCheckerKey, a, handle, tweet, now_ + 1 days);
+        bytes32[] memory p = _proof(i);
+        vm.prank(a);
+        airdrop.initiate(a, amounts[i], p, handle, tweet, now_ + 1 days, v);
+    }
+
+    /// @dev Market opens at OPEN; the 100 small holders initiate, the last one at ACT.
+    function _activate() internal {
+        _graduate();
+        vm.warp(OPEN + 1 days);
+        for (uint256 i = 4; i < 4 + FILLERS - 1; ++i) {
+            _initiate(i, OPEN + 1 days);
+        }
+        vm.warp(ACT);
+        _initiate(4 + FILLERS - 1, ACT);
+        assertEq(airdrop.activatedAt(), ACT);
+    }
+
+    // ------------------------------------------------------------------ Initiation
+
+    function test_airdrop_activatesAtHundredthInitiatorAfterMarketOpen() public {
+        vm.expectRevert(AirdropDistributor.MarketNotOpen.selector);
+        _initiate(4, OPEN - 1);
+
+        _graduate();
+        vm.warp(OPEN + 1 days); // market open alone starts nothing
         vm.prank(staker);
-        vm.expectRevert(AirdropDistributor.NotOpen.selector);
-        airdrop.claim(staker, amounts[1], p);
+        vm.expectRevert(AirdropDistributor.NotActive.selector);
+        airdrop.claim(staker, amounts[1], _proof(1));
+
+        for (uint256 i = 4; i < 4 + FILLERS - 1; ++i) {
+            _initiate(i, OPEN + 1 days);
+        }
+        assertEq(airdrop.initiatorCount(), 99);
+        assertEq(airdrop.activatedAt(), 0);
         assertEq(airdrop.claimable(staker, amounts[1]), 0);
         assertEq(airdrop.claimDeadline(), 0);
 
-        _graduate();
-        assertEq(controller.openedAt(), OPEN);
-        assertEq(airdrop.claimDeadline(), OPEN + 180 days);
+        vm.warp(ACT);
+        _initiate(4 + FILLERS - 1, ACT);
+        assertEq(airdrop.initiatorCount(), 100);
+        assertEq(airdrop.activatedAt(), ACT);
+        assertEq(airdrop.claimDeadline(), ACT + 180 days);
 
-        vm.warp(OPEN + 6 days); // 1/5 vested
-        vm.prank(staker);
-        assertEq(airdrop.claim(staker, amounts[1], p), amounts[1] / 5);
-        vm.prank(staker);
-        assertEq(airdrop.claim(staker, amounts[1], p), 0); // nothing new in the same second
+        vm.expectRevert(AirdropDistributor.AlreadyActive.selector); // no more initiations needed
+        _initiate(2, ACT);
 
-        vm.warp(OPEN + 15 days);
+        // Everyone on the list can claim, initiators or not; vesting counts from activation.
+        vm.warp(ACT + 6 days); // 1/5 vested
+        vm.prank(staker);
+        assertEq(airdrop.claim(staker, amounts[1], _proof(1)), amounts[1] / 5);
+        vm.prank(staker);
+        assertEq(airdrop.claim(staker, amounts[1], _proof(1)), 0); // nothing new in the same second
+        vm.warp(ACT + 15 days);
         assertEq(airdrop.claimable(staker, amounts[1]), amounts[1] / 2 - amounts[1] / 5);
-        vm.warp(OPEN + 45 days); // fully vested
+        vm.warp(ACT + 45 days);
         vm.prank(staker);
-        assertEq(airdrop.claim(staker, amounts[1], p), amounts[1] - amounts[1] / 5);
+        airdrop.claim(staker, amounts[1], _proof(1));
         assertEq(pondpad.balanceOf(staker), amounts[1]);
-        assertEq(airdrop.totalClaimed(), amounts[1]);
-        vm.prank(staker);
-        assertEq(airdrop.claim(staker, amounts[1], p), 0);
+        address filler = accounts[10];
+        vm.prank(filler); // initiators get exactly their share (no bonus)
+        assertEq(airdrop.claim(filler, FILLER_AMOUNT, _proof(10)), FILLER_AMOUNT);
+        assertEq(airdrop.totalClaimed(), amounts[1] + FILLER_AMOUNT);
     }
 
-    function test_airdrop_guards() public {
+    function test_airdrop_initiationGuards() public {
         _graduate();
-        vm.warp(OPEN + 30 days);
+        vm.warp(OPEN + 1 days);
+        uint256 t = OPEN + 1 days;
+        address a = accounts[4];
+        bytes32 h = keccak256("h");
+        bytes32 tw = keccak256("t");
+        bytes32[] memory p = _proof(4);
+
+        vm.prank(hot); // a stranger can't initiate for someone
+        vm.expectRevert(AirdropDistributor.NotAuthorized.selector);
+        airdrop.initiate(a, FILLER_AMOUNT, p, h, tw, t + 1, _voucher(xCheckerKey, a, h, tw, t + 1));
+
+        vm.startPrank(a);
+        (, uint256 otherKey) = makeAddrAndKey("other");
+        vm.expectRevert(AirdropDistributor.BadVoucher.selector); // not the tweet checker
+        airdrop.initiate(a, FILLER_AMOUNT, p, h, tw, t + 1, _voucher(otherKey, a, h, tw, t + 1));
+        vm.expectRevert(AirdropDistributor.BadVoucher.selector); // voucher for another wallet
+        airdrop.initiate(a, FILLER_AMOUNT, p, h, tw, t + 1, _voucher(xCheckerKey, accounts[5], h, tw, t + 1));
+        vm.expectRevert(AirdropDistributor.BadVoucher.selector); // voucher for another tweet
+        airdrop.initiate(a, FILLER_AMOUNT, p, h, keccak256("t2"), t + 1, _voucher(xCheckerKey, a, h, tw, t + 1));
+        vm.expectRevert(AirdropDistributor.Expired.selector);
+        airdrop.initiate(a, FILLER_AMOUNT, p, h, tw, t - 1, _voucher(xCheckerKey, a, h, tw, t - 1));
+        vm.expectRevert(AirdropDistributor.InvalidProof.selector); // wrong amount
+        airdrop.initiate(a, FILLER_AMOUNT + 1, p, h, tw, t + 1, _voucher(xCheckerKey, a, h, tw, t + 1));
+        airdrop.initiate(a, FILLER_AMOUNT, p, h, tw, t + 1, _voucher(xCheckerKey, a, h, tw, t + 1));
+        vm.expectRevert(AirdropDistributor.AlreadyInitiated.selector);
+        airdrop.initiate(a, FILLER_AMOUNT, p, keccak256("h2"), keccak256("t2"), t + 1, "");
+        vm.stopPrank();
+
+        address b = accounts[5];
+        p = _proof(5);
+        vm.startPrank(b);
+        vm.expectRevert(AirdropDistributor.HandleUsed.selector); // one X account, one wallet
+        airdrop.initiate(b, FILLER_AMOUNT, p, h, keccak256("t2"), t + 1, "");
+        vm.expectRevert(AirdropDistributor.TweetUsed.selector);
+        airdrop.initiate(b, FILLER_AMOUNT, p, keccak256("h2"), tw, t + 1, "");
+        vm.stopPrank();
+
+        // Not on the list: no proof works.
+        address outsider = makeAddr("outsider");
+        vm.prank(outsider);
+        vm.expectRevert(AirdropDistributor.InvalidProof.selector);
+        airdrop.initiate(outsider, FILLER_AMOUNT, p, keccak256("h3"), keccak256("t3"), t + 1, "");
+
+        // The claim wallet named by signature can initiate for the seat holder.
+        bytes memory d = _delegateSig(hot, 0, t + 1);
+        airdrop.setClaimWalletBySig(seat, hot, t + 1, d);
+        bytes32 h4 = keccak256("h4");
+        bytes32 t4 = keccak256("t4");
+        bytes memory v4 = _voucher(xCheckerKey, seat, h4, t4, t + 1);
+        bytes32[] memory p0 = _proof(0);
+        vm.prank(hot);
+        airdrop.initiate(seat, amounts[0], p0, h4, t4, t + 1, v4);
+        assertTrue(airdrop.initiated(seat));
+        assertEq(airdrop.initiatorCount(), 2);
+
+        // Codes differ per wallet.
+        assertTrue(airdrop.initiationCode(a) != airdrop.initiationCode(b));
+    }
+
+    function test_airdrop_onlyTimelockReplacesTweetChecker() public {
+        (address newChecker, uint256 newKey) = makeAddrAndKey("newChecker");
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        airdrop.setVerifier(newChecker);
+        vm.prank(timelock);
+        airdrop.setVerifier(newChecker);
+        assertEq(airdrop.verifier(), newChecker);
+
+        _graduate();
+        vm.warp(OPEN + 1 days);
+        vm.expectRevert(AirdropDistributor.BadVoucher.selector); // old key no longer works
+        _initiate(4, OPEN + 1 days);
+        address a = accounts[4];
+        bytes32 h = keccak256("h");
+        bytes32 tw = keccak256("t");
+        bytes memory v = _voucher(newKey, a, h, tw, OPEN + 2 days);
+        bytes32[] memory p = _proof(4);
+        vm.prank(a);
+        airdrop.initiate(a, FILLER_AMOUNT, p, h, tw, OPEN + 2 days, v);
+        assertEq(airdrop.initiatorCount(), 1);
+    }
+
+    // ------------------------------------------------------------------ Claims
+
+    function test_airdrop_claimGuards() public {
+        _activate();
+        vm.warp(ACT + 30 days);
         bytes32[] memory p = _proof(1);
 
         vm.prank(hot); // a stranger can't trigger someone else's claim
@@ -120,10 +307,10 @@ contract DistributionTest is MarketBase {
     }
 
     function test_airdrop_claimWalletByGaslessSignature() public {
-        _graduate();
-        vm.warp(OPEN + 10 days); // 1/3 vested
+        _activate();
+        vm.warp(ACT + 10 days); // 1/3 vested
         bytes32[] memory p = _proof(0);
-        uint256 deadline = OPEN + 11 days;
+        uint256 deadline = ACT + 11 days;
         bytes memory sig = _delegateSig(hot, 0, deadline);
 
         vm.prank(hot); // the seat holder's main wallet never sends a transaction
@@ -139,36 +326,36 @@ contract DistributionTest is MarketBase {
         airdrop.setClaimWalletBySig(seat, staker, deadline, sig);
 
         // Later claims, by the main wallet or the claim wallet, always pay the claim wallet.
-        vm.warp(OPEN + 30 days);
+        vm.warp(ACT + 30 days);
         vm.prank(seat);
         airdrop.claim(seat, amounts[0], p);
         assertEq(pondpad.balanceOf(hot), amounts[0]);
         assertEq(pondpad.balanceOf(seat), 0);
 
-        vm.warp(OPEN + 40 days);
-        bytes memory late = _delegateSig(staker, 1, OPEN + 39 days);
+        vm.warp(ACT + 40 days);
+        bytes memory late = _delegateSig(staker, 1, ACT + 39 days);
         vm.expectRevert(AirdropDistributor.Expired.selector);
-        airdrop.setClaimWalletBySig(seat, staker, OPEN + 39 days, late);
+        airdrop.setClaimWalletBySig(seat, staker, ACT + 39 days, late);
         vm.prank(seat); // the eligible wallet can still re-point its claim wallet directly
         airdrop.setClaimWallet(staker);
         assertEq(airdrop.claimWalletOf(seat), staker);
     }
 
     function test_airdrop_unclaimedSweptToStakersAfter180Days() public {
-        vm.expectRevert(AirdropDistributor.ClaimWindowNotOver.selector); // not even open
+        vm.expectRevert(AirdropDistributor.ClaimWindowNotOver.selector); // not even active
         airdrop.sweep();
-        _graduate();
-        vm.warp(OPEN + 30 days);
+        _activate();
+        vm.warp(ACT + 30 days);
         vm.prank(staker);
         airdrop.claim(staker, amounts[1], _proof(1));
 
-        vm.warp(OPEN + 180 days - 1);
+        vm.warp(ACT + 180 days - 1);
         vm.expectRevert(AirdropDistributor.ClaimWindowNotOver.selector);
         airdrop.sweep();
         vm.prank(seat);
         airdrop.claim(seat, amounts[0], _proof(0)); // last second
 
-        vm.warp(OPEN + 180 days);
+        vm.warp(ACT + 180 days);
         vm.prank(accounts[2]);
         vm.expectRevert(AirdropDistributor.ClaimWindowOver.selector);
         airdrop.claim(accounts[2], amounts[2], _proof(2));
@@ -176,7 +363,7 @@ contract DistributionTest is MarketBase {
 
         vm.prank(hot); // permissionless
         uint256 swept = airdrop.sweep();
-        assertEq(swept, amounts[2] + amounts[3]);
+        assertEq(swept, amounts[2] + amounts[3] + FILLERS * FILLER_AMOUNT);
         assertEq(pondpad.balanceOf(dripperSink), swept);
         assertEq(pondpad.balanceOf(address(airdrop)), 0);
     }
