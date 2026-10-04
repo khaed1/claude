@@ -1,0 +1,503 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+import {Ownable} from "solady/auth/Ownable.sol";
+import {Base} from "./Base.t.sol";
+import {BondingCurve} from "../src/BondingCurve.sol";
+import {AttestationVerifier, OracleAttestation} from "../src/AttestationVerifier.sol";
+import {CTOModule} from "../src/CTOModule.sol";
+import {VersionRegistry} from "../src/VersionRegistry.sol";
+import {SocialRegistry} from "../src/SocialRegistry.sol";
+import {PadLens} from "../src/PadLens.sol";
+import {PadToken} from "../src/PadToken.sol";
+
+contract GovernanceTest is Base {
+    address internal constant CTO_ADDR = address(0xC70C70);
+    uint256 internal constant T0 = 1_000_000;
+    string internal constant RULES = "https://pondpad.fun/cto-rules-v1";
+
+    AttestationVerifier internal verifier;
+    CTOModule internal cto;
+    VersionRegistry internal versions;
+    SocialRegistry internal social;
+    PadLens internal lens;
+
+    address internal slowTimelock = makeAddr("slowTimelock");
+    address internal council = makeAddr("council");
+    address internal newOwner = makeAddr("newOwner");
+    uint256 internal oracleKey = 0xA11CE;
+    address internal oracle;
+    uint256 internal linkKey = 0xB0B;
+    address internal linker;
+    uint256 internal _req;
+
+    function _ctoModuleAddress() internal pure override returns (address) {
+        return CTO_ADDR;
+    }
+
+    function setUp() public override {
+        super.setUp();
+        vm.warp(T0);
+        oracle = vm.addr(oracleKey);
+        linker = vm.addr(linkKey);
+        verifier = new AttestationVerifier(slowTimelock);
+        deployCodeTo(
+            "CTOModule.sol:CTOModule", abi.encode(slowTimelock, address(vault), address(verifier), council, RULES), CTO_ADDR
+        );
+        cto = CTOModule(CTO_ADDR);
+        versions = new VersionRegistry(address(this), address(verifier));
+        social = new SocialRegistry(address(this), address(vault), linker);
+        lens = new PadLens(address(curve), address(hook), address(vault), address(budget));
+    }
+
+    // ------------------------------------------------------------------ Helpers
+
+    /// @dev A bool attestation for `question`, valid now, from a 60-member panel with 50 agreeing.
+    function _att(string memory question, bool answer) internal returns (OracleAttestation memory a) {
+        a.requestId = bytes32(++_req);
+        a.chainId = 4663;
+        a.fromBlock = 100;
+        a.toBlock = 200;
+        a.questionHash = verifier.questionHash(question, a.chainId, a.fromBlock, a.toBlock);
+        a.answerType = 0;
+        a.answer = abi.encode(answer);
+        a.panelSize = 60;
+        a.quorum = 40;
+        a.agreed = 50;
+        a.issuedAt = uint64(T0 - 1);
+        a.expiresAt = uint64(T0 + 30 days);
+    }
+
+    function _sign(OracleAttestation memory a, uint256 key) internal view returns (bytes memory) {
+        bytes32 digest =
+            keccak256(abi.encodePacked("\x19\x01", verifier.domainSeparator(), verifier.hashAttestation(a)));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(key, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function _approveOracle() internal {
+        vm.prank(slowTimelock);
+        verifier.setSigner(oracle, true);
+    }
+
+    // ------------------------------------------------------------------ AttestationVerifier
+
+    /// @dev A real attestation from api.imd.fun (request 145633d5…, signer 0x5598…2982): checks our EIP-712 type
+    ///      hash and our rebuild of the oracle's question hash against what the oracle actually signs.
+    function test_verifier_matchesLiveImdAttestation() public view {
+        OracleAttestation memory a;
+        a.requestId = 0x145633d5031f4b9499d72f33b8a3261b00000000000000000000000000000000;
+        a.chainId = 1;
+        a.questionHash = 0x190d8eddbf6187c0ac2abcb41290d06adb73c7fdc9c0af65eea30a9237a59727;
+        a.answerType = 2; // bytes32
+        a.answer = hex"63686c6f726f7068796c6c000000000000000000000000000000000000000000"; // "chlorophyll"
+        a.figure = 0;
+        a.fromBlock = 26115475;
+        a.toBlock = 26115774;
+        a.blockHash = 0xfb68a2df5d4f0f8dcedd2b8258f3a76c4af1ee4d01df82c4a2f300ff088d6614;
+        a.panelJobId = 0x79416ef99b254efab6263be3bb05239000000000000000000000000000000000;
+        a.panelSize = 200;
+        a.quorum = 140;
+        a.agreed = 140;
+        a.issuedAt = 1791080459;
+        a.expiresAt = 1791102059;
+
+        assertEq(
+            verifier.questionHashTyped(
+                "Which pigment makes plants green? Answer with the single word only, in lowercase.",
+                "bytes32",
+                1,
+                26115475,
+                26115774
+            ),
+            a.questionHash
+        );
+
+        // That request named no consumer, so it was signed for chain 1 and the zero address.
+        bytes32 domain = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256("IdentityMD Oracle"),
+                keccak256("2"),
+                uint256(1),
+                address(0)
+            )
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domain, verifier.hashAttestation(a)));
+        address signer = ecrecover(
+            digest,
+            0x1b,
+            0x6724351565e38a8cccda51d268558b61f4f95c116b10c55b7246ca45530c50ef,
+            0x03f40e1ea99a1408ee0e637e3ea561eca2e03bb788c399b1fee8f7dda19446f0
+        );
+        assertEq(signer, 0x5598Aa9146215Bc13eb26f2c692Ad1461Fd32982);
+    }
+
+    function test_verifier_acceptsGoodRejectsBad() public {
+        string memory q = "Is this a test question?";
+        OracleAttestation memory a = _att(q, true);
+        bytes memory sig = _sign(a, oracleKey);
+
+        vm.expectRevert(AttestationVerifier.UnknownSigner.selector); // no signer approved yet
+        verifier.verifyBool(a, sig, q);
+        _approveOracle();
+        assertTrue(verifier.verifyBool(a, sig, q));
+
+        OracleAttestation memory no = _att(q, false);
+        assertFalse(verifier.verifyBool(no, _sign(no, oracleKey), q));
+
+        vm.expectRevert(AttestationVerifier.WrongQuestion.selector);
+        verifier.verifyBool(a, sig, "Is this another question?");
+        bytes memory bad = _sign(a, 0xBAD);
+        vm.expectRevert(AttestationVerifier.UnknownSigner.selector);
+        verifier.verifyBool(a, bad, q);
+
+        OracleAttestation memory b = _att(q, true);
+        b.panelSize = 50; // must be more than 50
+        b.quorum = 40;
+        b.agreed = 45;
+        bytes memory bs = _sign(b, oracleKey);
+        vm.expectRevert(AttestationVerifier.PanelTooSmall.selector);
+        verifier.verifyBool(b, bs, q);
+
+        b = _att(q, true);
+        b.agreed = 39; // below 2/3 of 60
+        b.quorum = 30;
+        bs = _sign(b, oracleKey);
+        vm.expectRevert(AttestationVerifier.NotEnoughAgreement.selector);
+        verifier.verifyBool(b, bs, q);
+
+        b = _att(q, true);
+        b.quorum = 55; // agreed 50 < the request's own quorum
+        bs = _sign(b, oracleKey);
+        vm.expectRevert(AttestationVerifier.NotEnoughAgreement.selector);
+        verifier.verifyBool(b, bs, q);
+
+        b = _att(q, true);
+        b.answerType = 2;
+        bs = _sign(b, oracleKey);
+        vm.expectRevert(AttestationVerifier.NotBool.selector);
+        verifier.verifyBool(b, bs, q);
+
+        b = _att(q, true);
+        b.answer = abi.encode(uint256(2));
+        bs = _sign(b, oracleKey);
+        vm.expectRevert(AttestationVerifier.NotBool.selector);
+        verifier.verifyBool(b, bs, q);
+
+        b = _att(q, true);
+        b.issuedAt = uint64(T0 + 1);
+        bs = _sign(b, oracleKey);
+        vm.expectRevert(AttestationVerifier.NotYetValid.selector);
+        verifier.verifyBool(b, bs, q);
+
+        vm.warp(T0 + 30 days + 1);
+        vm.expectRevert(AttestationVerifier.Expired.selector);
+        verifier.verifyBool(a, sig, q);
+
+        vm.expectRevert(AttestationVerifier.BadQuestionText.selector);
+        verifier.questionHash('say "yes"', 1, 1, 2);
+    }
+
+    function test_verifier_settingsBounded() public {
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        verifier.setSigner(oracle, true);
+        vm.startPrank(slowTimelock);
+        verifier.setSigner(oracle, true);
+        assertEq(verifier.signerCount(), 1);
+        vm.expectRevert(AttestationVerifier.InvalidSetting.selector);
+        verifier.setSigner(oracle, true); // no double count
+        vm.expectRevert(AttestationVerifier.InvalidSetting.selector);
+        verifier.setThresholds(4, 6_667);
+        vm.expectRevert(AttestationVerifier.InvalidSetting.selector);
+        verifier.setThresholds(101, 6_667);
+        vm.expectRevert(AttestationVerifier.InvalidSetting.selector);
+        verifier.setThresholds(51, 5_000);
+        verifier.setThresholds(75, 7_500);
+        verifier.setSigner(oracle, false);
+        vm.stopPrank();
+        assertEq(verifier.minPanelSize(), 75);
+        assertEq(verifier.signerCount(), 0);
+    }
+
+    // ------------------------------------------------------------------ CTOModule
+
+    function _coinWithCreatorFees() internal returns (address coin) {
+        coin = _launch(_noTax(), 0);
+        vm.warp(T0 + 1 hours);
+        _buy(alice, coin, 100e18);
+        assertGt(vault.balanceOf(coin), 0);
+    }
+
+    function test_cto_attestedTakeoverAfterNotice() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees();
+        string memory q = cto.question(coin, newOwner);
+        OracleAttestation memory a = _att(q, true);
+        bytes memory sig = _sign(a, oracleKey);
+
+        vm.prank(bob); // anyone can submit
+        cto.propose(coin, newOwner, a, sig);
+        assertEq(cto.pendingOf(coin).newRecipient, newOwner);
+
+        // The creator moving fees during the notice doesn't cancel the takeover.
+        vm.prank(creator);
+        vault.setRecipient(coin, alice);
+
+        vm.warp(T0 + 1 hours + 3 days - 1);
+        vm.expectRevert(CTOModule.NotYet.selector);
+        cto.execute(coin);
+        vm.prank(slowTimelock);
+        vm.expectRevert(CTOModule.NotCouncil.selector); // nobody can cancel an attested takeover
+        cto.cancel(coin);
+
+        uint256 accrued = vault.balanceOf(coin);
+        uint256 aliceBefore = imd.balanceOf(alice);
+        vm.warp(T0 + 1 hours + 3 days);
+        cto.execute(coin);
+        assertEq(vault.recipientOf(coin), newOwner);
+        assertEq(imd.balanceOf(alice) - aliceBefore, accrued); // accrued fees went to the old recipient
+        assertEq(vault.balanceOf(coin), 0);
+
+        vm.expectRevert(CTOModule.RequestUsed.selector); // the same attestation can't be replayed
+        cto.propose(coin, newOwner, a, sig);
+    }
+
+    function test_cto_rejectsWrongCoinNoAnswerAndOverlap() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees();
+        address other = makeAddr("other");
+
+        // An attestation for another recipient doesn't match this proposal's question.
+        OracleAttestation memory a = _att(cto.question(coin, other), true);
+        bytes memory sig = _sign(a, oracleKey);
+        vm.expectRevert(AttestationVerifier.WrongQuestion.selector);
+        cto.propose(coin, newOwner, a, sig);
+
+        OracleAttestation memory no = _att(cto.question(coin, newOwner), false);
+        bytes memory noSig = _sign(no, oracleKey);
+        vm.expectRevert(CTOModule.AnswerNo.selector);
+        cto.propose(coin, newOwner, no, noSig);
+
+        OracleAttestation memory unknown = _att(cto.question(address(0xdead), newOwner), true);
+        bytes memory unknownSig = _sign(unknown, oracleKey);
+        vm.expectRevert(CTOModule.UnknownCoin.selector);
+        cto.propose(address(0xdead), newOwner, unknown, unknownSig);
+
+        cto.propose(coin, other, a, sig);
+        OracleAttestation memory b = _att(cto.question(coin, newOwner), true);
+        bytes memory bSig = _sign(b, oracleKey);
+        vm.expectRevert(CTOModule.Pending.selector);
+        cto.propose(coin, newOwner, b, bSig);
+
+        // Once the execution window closes unexecuted, a new takeover can be proposed.
+        vm.warp(T0 + 1 hours + 6 days);
+        vm.expectRevert(CTOModule.WindowClosed.selector);
+        cto.execute(coin);
+        cto.propose(coin, newOwner, b, bSig);
+    }
+
+    function test_cto_councilFallbackAndRetirement() public {
+        address coin = _coinWithCreatorFees();
+        vm.expectRevert(CTOModule.NotCouncil.selector);
+        cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
+
+        vm.prank(council);
+        cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
+        vm.prank(council);
+        cto.cancel(coin); // the council may withdraw its own proposal
+        assertEq(cto.pendingOf(coin).newRecipient, address(0));
+
+        vm.prank(council);
+        cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
+        vm.warp(T0 + 1 hours + 3 days);
+        cto.execute(coin);
+        assertEq(vault.recipientOf(coin), newOwner);
+
+        // Retiring needs a working oracle signer, and is one-way.
+        vm.prank(slowTimelock);
+        vm.expectRevert(CTOModule.CannotRetire.selector);
+        cto.retireCouncil();
+        _approveOracle();
+        vm.prank(slowTimelock);
+        cto.retireCouncil();
+        vm.prank(council);
+        vm.expectRevert(CTOModule.NotCouncil.selector);
+        cto.proposeByCouncil(coin, creator, "ipfs://evidence");
+    }
+
+    // ------------------------------------------------------------------ VersionRegistry
+
+    function test_versions_registerActivateAndRollback() public {
+        vm.prank(alice);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        versions.register(address(factory), address(router), address(curve), address(hook), address(lens));
+
+        uint256 v1 = versions.register(address(factory), address(router), address(curve), address(hook), address(lens));
+        assertEq(v1, 1);
+        assertEq(
+            versions.versionInfo(1).codeHash,
+            keccak256(
+                abi.encode(
+                    address(factory).codehash,
+                    address(router).codehash,
+                    address(curve).codehash,
+                    address(hook).codehash,
+                    address(lens).codehash
+                )
+            )
+        );
+        vm.expectRevert(VersionRegistry.UnknownVersion.selector); // nothing active yet
+        versions.current();
+
+        // Fallback: manual activation with the audit link.
+        versions.activateManually(1, "https://api.imd.fun/jobs/audit-1/report.md");
+        assertEq(versions.currentVersion(), 1);
+        vm.expectRevert(VersionRegistry.AlreadyActive.selector);
+        versions.activateManually(1, "again");
+
+        // Version 2 (same contracts here, for the test) activated by an oracle "yes".
+        versions.register(address(factory), address(router), address(curve), address(hook), address(lens));
+        _approveOracle();
+        string memory job = "6f1d2c3a-1111-4222-8333-944455556666";
+        OracleAttestation memory a = _att(versions.question(2, job), true);
+        bytes memory sig = _sign(a, oracleKey);
+        vm.expectRevert(AttestationVerifier.WrongQuestion.selector); // wrong job id
+        versions.activate(2, "6f1d2c3a-0000-4222-8333-944455556666", a, sig);
+        vm.expectRevert(VersionRegistry.BadAuditJob.selector);
+        versions.activate(2, "job 1", a, sig);
+        vm.prank(bob);
+        versions.activate(2, job, a, sig);
+        assertEq(versions.currentVersion(), 2);
+        assertEq(versions.current().auditRef, job);
+
+        // Rollback to an activated version only.
+        versions.setCurrent(1);
+        assertEq(versions.currentVersion(), 1);
+        versions.register(address(factory), address(router), address(curve), address(hook), address(lens));
+        vm.expectRevert(VersionRegistry.NotActivated.selector);
+        versions.setCurrent(3);
+
+        versions.retireManualActivation();
+        vm.expectRevert(VersionRegistry.Retired.selector);
+        versions.activateManually(3, "link");
+        assertEq(versions.count(), 3);
+    }
+
+    // ------------------------------------------------------------------ SocialRegistry
+
+    function _voucher(address coin, bytes32 handle, address account, uint256 nonce, uint256 deadline)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                social.domainSeparator(),
+                keccak256(abi.encode(social.LINK_TYPEHASH(), coin, handle, account, nonce, deadline))
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(linkKey, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function test_social_linkUnlinkAndDuplicates() public {
+        address coin = _launch(_noTax(), 0);
+        address coin2 = _launchOrdered(_noTax(), address(imd) > coin);
+        bytes32 handle = keccak256("pondpadfun");
+        uint256 deadline = T0 + 1 days;
+
+        bytes memory sig = _voucher(coin, handle, creator, 0, deadline);
+        vm.prank(alice); // only the fee recipient
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        social.link(coin, handle, deadline, sig);
+        vm.prank(creator);
+        social.link(coin, handle, deadline, sig);
+        (bytes32 h, bool dup) = social.badgeOf(coin);
+        assertEq(h, handle);
+        assertFalse(dup);
+
+        vm.prank(creator); // the nonce moved on, so the voucher can't be reused
+        vm.expectRevert(SocialRegistry.BadVoucher.selector);
+        social.link(coin, handle, deadline, sig);
+
+        // The same handle on a second coin is allowed but flagged on both.
+        bytes memory sig2 = _voucher(coin2, handle, creator, 0, deadline);
+        vm.prank(creator);
+        social.link(coin2, handle, deadline, sig2);
+        (, dup) = social.badgeOf(coin);
+        assertTrue(dup);
+
+        vm.prank(linker); // the verifier revokes the second link
+        social.unlink(coin2);
+        (, dup) = social.badgeOf(coin);
+        assertFalse(dup);
+
+        bytes memory late = _voucher(coin2, handle, creator, 1, deadline);
+        vm.warp(deadline + 1);
+        vm.prank(creator);
+        vm.expectRevert(SocialRegistry.Expired.selector);
+        social.link(coin2, handle, deadline, late);
+    }
+
+    // ------------------------------------------------------------------ PadLens
+
+    function test_lens_listsAndCurveQuotesMatchTrades() public {
+        address a = _launch(_noTax(), 0);
+        address b = _launchOrdered(_holderTax(100), address(imd) > a);
+        assertEq(lens.coinCount(), 2);
+        PadLens.CoinView[] memory list = lens.coins(0, 10, true);
+        assertEq(list.length, 2);
+        assertEq(list[0].coin, b);
+        assertEq(list[1].coin, a);
+        assertEq(lens.coins(1, 10, false)[0].coin, b);
+        assertEq(lens.coins(2, 10, false).length, 0);
+
+        PadLens.CoinView memory v = lens.coinView(b);
+        assertEq(v.symbol, "FROG");
+        assertEq(v.totalFeeBps, 250);
+        assertEq(v.feeRecipient, creator);
+        assertEq(v.target, TARGET);
+        assertGt(v.snipeTaxBps, 0);
+
+        vm.warp(T0 + 1 hours);
+        (uint256 out, uint256 fee,, bool graduated, bool full) = lens.quoteBuy(b, 50e18);
+        assertFalse(graduated);
+        assertTrue(full);
+        assertEq(fee, 50e18 * 250 / 10_000);
+        assertEq(_buy(alice, b, 50e18), out);
+        (uint256 imdOut,,,) = lens.quoteSell(b, out / 2);
+        assertEq(_sell(alice, b, out / 2), imdOut);
+
+        address[] memory l = new address[](2);
+        l[0] = a;
+        l[1] = b;
+        PadLens.Position[] memory p = lens.positions(alice, l);
+        assertEq(p[1].balance, out - out / 2);
+        assertEq(p[0].balance, 0);
+    }
+
+    function test_lens_poolQuotesMatchTrades() public {
+        address coin = _launch(_holderTax(50), 0);
+        _fillCurve(coin);
+        PadLens.CoinView memory v = lens.coinView(coin);
+        assertEq(uint8(v.status), uint8(BondingCurve.Status.Graduated));
+        assertGt(v.poolLiquidity, 0);
+        // Spot price matches the curve's final price E/R within rounding.
+        assertApproxEqRel(v.priceE18, TARGET * 1e18 / 200_000_000e18, 1e15);
+
+        (uint256 out, uint256 fee,, bool graduated, bool full) = lens.quoteBuy(coin, 20e18);
+        assertTrue(graduated && full);
+        assertEq(fee, 20e18 * 200 / 10_000);
+        assertEq(_buy(alice, coin, 20e18), out);
+
+        (uint256 imdOut,,, bool fullSell) = lens.quoteSell(coin, out / 3);
+        assertTrue(fullSell);
+        assertEq(_sell(alice, coin, out / 3), imdOut);
+
+        address[] memory l = new address[](1);
+        l[0] = coin;
+        assertEq(lens.positions(alice, l)[0].pendingDividends, PadToken(coin).withdrawableDividendOf(alice));
+    }
+}

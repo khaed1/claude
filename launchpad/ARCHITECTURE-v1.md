@@ -209,16 +209,17 @@ function sellForWithPermit(..., uint8 v, bytes32 r, bytes32 s) external returns 
 - `ref` is recorded in events now and used by referrals in v1.1.
 - The router holds no funds between transactions.
 
-**`PadLens`** (view only): coin lists with pagination, coin info, quotes across curve and pool, user positions, pending dividends and creator fees.
+**`PadLens`** (view only): coin lists with pagination (from `BondingCurve.coinAt`), coin info, exact IMD quotes on the curve or in the pool (one `SwapMath` step over the single full-range position, hook fee on the IMD side), user positions, pending dividends and creator fees.
 
 ### 5.2 Creator side
 
 **`CreatorVault`**: IMD balance per coin, `claim(coin)`, `setFeeRecipient(coin, newRecipient)` (current recipient only, future earnings).
 
 **`CTOModule`**: community takeover, decided by the swarm.
-1. `propose(coin, newRecipient, attestation)` needs an **IMD oracle attestation** answering "yes" to the takeover question for this coin. The protocol multisig or a holder-backed requester can submit it.
-2. A **3-day public notice** follows, then a **3-day execution window**. Anyone executes. The creator moving fees during the notice does not cancel it.
-3. Execution calls `CreatorVault` to change the recipient. Fees already accrued stay with the old recipient.
+1. `propose(coin, newRecipient, attestation, signature)` needs an **IMD oracle attestation** answering "yes" to the module's own question for this exact coin and new recipient (`question(coin, newRecipient)`, which names the published takeover rules, D-49). Anyone can submit it; each oracle request id is used once.
+2. A **3-day public notice** follows, then a **3-day execution window**. Anyone executes. The creator moving fees during the notice does not cancel it. Nobody can cancel an attested takeover. One pending takeover per coin.
+3. Execution calls `CreatorVault` to change the recipient. Fees already accrued are paid to the old recipient.
+4. **Fallback (D-46):** until attestations work on Robinhood, the council (team Safe) can propose with an evidence link instead (same notice; it can cancel only its own proposals). The 7-day timelock retires this path once the verifier has a signer; it can't be re-enabled.
 
 ### 5.3 Fees and $PONDPAD economy
 
@@ -228,8 +229,8 @@ function sellForWithPermit(..., uint8 v, bytes32 r, bytes32 s) external returns 
 | `PadBuyer` | `buy()` | Permissionless and rate-limited: spends the stakers' IMD on $PONDPAD in the `PadMarketHook` pool in small chunks, with a price guard (block-lagged reference price, max slippage), and sends the $PONDPAD to `RewardDripper`. Keeper tip capped. |
 | `RewardDripper` | `drip()` | **Fork of POOL4's `RewardDripper`**, asset = $PONDPAD. Streams $PONDPAD into the vault with a self-adjusting release (D-44): each drip pays out a share of the waiting rewards proportional to the time since the last drip (default: all of it over ~7 days, ~0.6% per hour), so no one can stake just before a large payout, and it scales with volume without tuning. Never drips into an empty vault, so rewards wait until staking opens. Also receives up to 30% of trimmed $PONDPAD from `PadMarketHook`. |
 | `StakedPONDPAD` (sPONDPAD) | `deposit`, `redeem` (ERC-4626) | **Fork of POOL4's `StakedIMD`**, asset = $PONDPAD. Auto-compounding: rewards raise the $PONDPAD value of each sPONDPAD share; no claim step. One-block hold blocks same-block deposit → redeem. No lockup in v1. Owner powers narrowed (D-42): 7-day timelock owner; pause at most 3 days at a time; rescue can never touch staked $PONDPAD; all powers expire 12 months after launch. |
-| `WorkerFund` | `release()` | Sends its balance to `workerRewardsAddress` (set by timelock) **[DEV]**; accrues until it's set |
-| `GrowthFund` | `payJob(…)`, `grant(…)` | Pays swarm jobs via the Relay and grants via the multisig; per-epoch spending cap; every payment emits a reason and reference |
+| `WorkerFund` | `release()`, `releaseToken(token)` | Sends its whole IMD and $PONDPAD balance, as they are (D-45), to `workerRewards` (set by the 7-day timelock) **[DEV]**; accrues until it's set. Permissionless |
+| `GrowthFund` | `payJob(amount, jobRef, reason)`, `grant(token, to, amount, ref, reason)` | Relay pays swarm jobs (≤ 100 IMD per 7-day epoch); the team Safe pays grants (≤ 1,000 IMD and 10M $PONDPAD per epoch; tokens without a cap can't be granted). Caps, relay and granter set by the 48 h timelock (D-47). Every payment emits a reference and reason |
 | `SwarmBudget` | `requestSpend(coin, amount, specHash)`, `release(requestId)` | Per-coin escrow funded by the swarm-budget tax. Only the coin's fee recipient can request; the Relay releases to pay that job; per-request cap; job ID recorded onchain. |
 
 ### 5.4 $PONDPAD launch (one-time)
@@ -308,21 +309,24 @@ Changes go through **Timelock** (48 h for fees and launch settings, **7 days** f
 
 **Guardian role** (multisig): may **pause new launches** instantly. It can never pause trading, touch liquidity or move user funds.
 
-**`VersionRegistry`**:
+**`VersionRegistry`** (owner: 7-day timelock):
 ```solidity
-function register(uint16 version, address factory, address router, address lens, bytes32 codeHash) external; // timelock
-function activate(uint16 version, Attestation calldata swarmAudit) external; // needs IMD audit attestation for codeHash
-function current() external view returns (VersionInfo memory);
-function all() external view returns (VersionInfo[] memory);
+function register(address factory, address router, address curve, address hook, address lens) external returns (uint256 version); // owner; code hash computed onchain
+function activate(uint256 version, string calldata auditJobId, OracleAttestation calldata att, bytes calldata sig) external; // anyone, with an oracle "yes" to question(version, auditJobId)
+function activateManually(uint256 version, string calldata auditLink) external; // owner, fallback until retired (D-46)
+function setCurrent(uint256 version) external; // owner, rollback to an activated version
+function current() external view returns (Version memory);
+function all() external view returns (Version[] memory);
 ```
-New launches go to `current()`. Coins from older versions trade forever on their own hook.
+New launches go to `current()`. Coins from older versions trade forever on their own hook. The audit question names the audit job, the code hash and the five addresses.
 
-**`AttestationVerifier`**: checks IMD oracle EIP-712 attestations (domain `IdentityMD Oracle`, version `2`, chainId 4663, verifyingContract = this) **[DEV]**.
-- It checks the signer against an approved signer list (changed by timelock), the question hash, the answer, the expiry, and that the request ID hasn't been used before.
+**`AttestationVerifier`** (owner: 7-day timelock): checks IMD oracle v2 attestations, EIP-712 `OracleAttestation(bytes32 requestId,uint256 chainId,bytes32 questionHash,uint8 answerType,bytes answer,uint256 figure,uint64 fromBlock,uint64 toBlock,bytes32 blockHash,bytes32 panelJobId,uint16 panelSize,uint16 quorum,uint16 agreed,uint64 issuedAt,uint64 expiresAt)` under domain `IdentityMD Oracle`, version `2`, chainId 4663, verifyingContract = this (the request's `consumer`) **[DEV: signer on Robinhood]**.
+- Checks: approved signer; `questionHash` equals the hash of the consumer's exact question (canonical JSON of the request, rebuilt onchain from the attestation's window, D-49); bool answer; panel ≥ 51 and agreed ≥ 2/3 of the panel and ≥ the request's quorum (D-48); `issuedAt ≤ now ≤ expiresAt`. Consumers mark request ids used.
+- Checked against a live attestation from `api.imd.fun` in the tests.
 
-**`SocialRegistry`**: X badge, level 1.
-- `link(coin, handleHash, voucher)`: the creator submits a voucher signed by PondPad's verifier key after X OAuth and a wallet signature.
-- `revoke(coin)` by the verifier. One handle per coin; a handle claimed twice is flagged.
+**`SocialRegistry`**: X badge, level 1 (owner: 48 h timelock).
+- `link(coin, handleHash, deadline, voucher)`: the coin's fee recipient submits an EIP-712 voucher signed by PondPad's X link service key after X OAuth and a wallet signature (bound to coin, handle, account, per-coin nonce, deadline).
+- `unlink(coin)` by the recipient, the verifier or the owner. One handle per coin; a handle linked to two coins is flagged on both (`badgeOf`), never blocked.
 
 ### 5.6 Admin powers, all of them
 
@@ -333,7 +337,7 @@ New launches go to `current()`. Coins from older versions trade forever on their
 | Set payment-token routes, worker address, Relay, oracle signers | Pause trading, freeze tokens, mint |
 | Register and activate versions (with swarm audit) | Upgrade contracts (none are proxies) |
 | Pause **new launches** (guardian, instant) | Take creator fees, dividends or staked funds |
-| Execute a CTO (only with a swarm attestation and after the 3-day notice) | Change a CTO outcome without a new attestation |
+| Propose a CTO as the council only until that fallback is retired (D-46); otherwise CTOs need a swarm attestation; always a 3-day notice | Cancel an attested CTO, or change its outcome without a new attestation |
 
 ---
 
@@ -359,7 +363,7 @@ New launches go to `current()`. Coins from older versions trade forever on their
 | 1 | **Audit-gated versions** | `VersionRegistry.activate` needs a swarm audit attestation for the exact `codeHash` with no open high or critical findings | Treasury |
 | 2 | **Free website at graduation** | On `Graduated`, the Relay orders a `build-website` job from a fixed template; published at `<symbol>.site.identitymd.eth`, linked on the coin page | GrowthFund |
 | 3 | **Paid website before graduation** | Creator pays a website fee (default 5 IMD) at or after launch | Website fee → GrowthFund |
-| 4 | **CTO arbitration** | Oracle panel (default 9 agents) answers the takeover question; `CTOModule` needs the attestation | Requester pays the oracle fee (refunded on "yes") |
+| 4 | **CTO arbitration** | Oracle panel (at least 51 members, 2/3 agreeing) answers the takeover question; `CTOModule` needs the attestation | Requester pays the oracle fee (0.5 IMD today; refunded on "yes") |
 | 5 | **Swarm budget** | Coin tax share → `SwarmBudget`; the creator requests jobs (site updates, content, scheduled work) | That coin's budget |
 
 ### 7.1 Swarm Relay (backend)
@@ -450,7 +454,7 @@ There is no separate swap page in v1; trading happens on coin pages.
 | 3 | ~~Renouncing owner powers~~ | **Solved:** `MarketController` limits them |
 | 4 | ~~Adding liquidity later~~ | **Solved:** `fundInventory`, via the timelock |
 | 5 | Worker rewards address | WorkerFund accrues until set |
-| 6 | Oracle attestations for chain 4663, signer addresses, rotation | CTO stays multisig + 3-day notice; version activation uses the audit job link, not an onchain attestation |
+| 6 | Oracle attestations for consumer chain 4663, signer addresses, rotation | **Built with fallbacks:** CTO by council (Safe) + 3-day notice; version activation by the timelock with the audit job link. Both retire one-way once a signer is approved (D-46) |
 | 7 | Swarm job payments on Robinhood (and Base) | Relay pays from bridged mainnet IMD |
 | 8 | POOL4 GitHub repo (tests, deploy scripts; promised next week) and any audits | Fork from the verified Etherscan source; our own tests and the swarm audit cover it |
 

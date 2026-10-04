@@ -81,6 +81,8 @@ contract BondingCurve is ReentrancyGuard {
 
     mapping(address coin => Coin) internal _coins;
     mapping(address coin => mapping(address wallet => uint256)) public boughtInWindow;
+    /// @dev Every coin launched on this curve, in launch order (for PadLens pagination).
+    address[] internal _allCoins;
 
     event CurveTrade(
         address indexed coin,
@@ -157,6 +159,7 @@ contract BondingCurve is ReentrancyGuard {
         c.maxBuyWindow = s.maxBuyWindow;
         c.maxBuyTokens = uint128((TOTAL_SUPPLY * s.maxBuyBps) / BPS);
         c.fees = fees;
+        _allCoins.push(coin);
 
         ICreatorRegistry(creatorVault).register(coin, feeRecipient);
     }
@@ -316,6 +319,14 @@ contract BondingCurve is ReentrancyGuard {
 
     function coinInfo(address coin) external view returns (Coin memory) {
         return _coins[coin];
+    }
+
+    function coinCount() external view returns (uint256) {
+        return _allCoins.length;
+    }
+
+    function coinAt(uint256 index) external view returns (address) {
+        return _allCoins[index];
     }
 
     function statusOf(address coin) external view returns (Status) {

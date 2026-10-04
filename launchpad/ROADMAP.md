@@ -4,7 +4,7 @@ What is left in v1, then everything discussed for later versions. Details of the
 
 ## 1. v1: remaining work
 
-Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), factory, config, fee splitter, creator vault, swarm budget, integrator vault, $PONDPAD token and sale, $PONDPAD market (POOL4 fork) and its controller, with local and Robinhood fork tests. See `HANDOFF.md` §2.
+Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), factory, config, fee splitter, creator vault, swarm budget, integrator vault, $PONDPAD token and sale, $PONDPAD market (POOL4 fork) and its controller, staking, worker and growth funds, oracle attestation verifier, CTO module, version registry, social registry and lens, with local and Robinhood fork tests. See `HANDOFF.md` §2.
 
 | # | Item | Notes |
 |---|---|---|
@@ -13,11 +13,11 @@ Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), fac
 | 3 | ~~`PadMarketHook` + `MarketController` + `PadBurner`~~ | **Done** (D-34, D-38, D-39): POOL4 `CappedBurnHook` fork for $PONDPAD/IMD with dynamic fee 3% → 1% over 7 days; floor 150M, decay 500k/day, 15% of trims to stakers; no pool-withdrawal power; migrate-only emergency exit for 12 months (D-40); sell-side $PONDPAD fees split 40/25/20/15 |
 | 4 | ~~`StakedPONDPAD` + `RewardDripper` + `PadBuyer`~~ **Done** (D-42, D-43) | Forks of `StakedIMD` / `RewardDripper` with asset $PONDPAD; `PadBuyer` turns stakers' IMD into $PONDPAD in small, price-guarded chunks **and forwards the $PONDPAD fee share it receives (D-38)** |
 | 5 | `AirdropDistributor`, `TeamVesting` | 5% Merkle airdrop to IMD seats + sIMD; 2% team vesting |
-| 6 | `WorkerFund`, `GrowthFund` | Worker rewards address from the IMD dev; growth pays graduation websites, oracle costs, capped grants. Both must also handle the $PONDPAD share of market fees (D-38) |
-| 7 | `AttestationVerifier`, `VersionRegistry` | IMD oracle EIP-712 attestations; version activation needs a swarm audit attestation |
-| 8 | `CTOModule` | Swarm-approved takeover → 3-day notice → 3-day execution window |
-| 9 | `SocialRegistry` | X badge level 1 (OAuth + wallet signature voucher) |
-| 10 | `PadLens` | Read-only quotes and lists for the frontend |
+| 6 | ~~`WorkerFund`, `GrowthFund`~~ | **Done** (D-45, D-47): WorkerFund forwards IMD and $PONDPAD to the worker rewards address once the IMD dev gives it; GrowthFund pays relay jobs (100 IMD/week) and Safe grants (1,000 IMD + 10M $PONDPAD/week) |
+| 7 | ~~`AttestationVerifier`, `VersionRegistry`~~ | **Done** (D-46, D-48, D-49, D-50): IMD oracle v2 attestations (panel ≥ 51, 2/3 agreement, exact question rebuilt onchain); version activation by audit attestation, timelock fallback until retired. Needs from the IMD dev: the signer on Robinhood and support for consumer chain 4663 |
+| 8 | ~~`CTOModule`~~ | **Done** (D-46, D-50): oracle "yes" (or council fallback until retired) → 3-day notice → 3-day execution window. **To do before launch:** publish the takeover rules page named in every question (`rulesURI`, fixed at deploy) |
+| 9 | ~~`SocialRegistry`~~ | **Done** (D-50): voucher-signed handle links, duplicates flagged. The X link service that signs vouchers is backend work (item 15) |
+| 10 | ~~`PadLens`~~ | **Done** (D-50): coin lists, coin state, exact curve and pool quotes in IMD, wallet positions. ETH/USDG legs quoted with the v4 Quoter |
 | 11 | Governance wiring | OpenZeppelin `TimelockController` (48 h / 7 days) owned by a Safe; guardian for launch pause |
 | 12 | Deploy scripts | CREATE2 salt mining for both hooks and for $PONDPAD's address (> IMD); full deployment rehearsal on a Robinhood fork |
 | 13 | Audit loop | Swarm audit (4 auditors + judge) until clean; swarm fuzz campaigns; human audit before large TVL; bug bounty |
