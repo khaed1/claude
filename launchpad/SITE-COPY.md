@@ -1,4 +1,4 @@
-# LilyPad: site copy (draft)
+# PondPad: site copy (draft)
 
 Voice: a friend who's been in the pond a while. Warm, a little cheeky, never salesy. Short sentences. No "revolutionary", no "unlock", no promises about price. Frog jokes are welcome, but no more than one per paragraph.
 
@@ -10,7 +10,7 @@ Words we use everywhere:
 | Coin on the bonding curve | **Tadpole** |
 | Graduation | **The Leap** |
 | Graduated coin | **Frog** |
-| sLILY stakers | **The Pond** |
+| sPONDPAD stakers | **The Pond** |
 | The IMD swarm | **The Chorus** (always link to the swarm explorer the first time) |
 
 ---
@@ -50,13 +50,13 @@ My pick for the hero: **"Every frog starts as a tadpole."** It tells the whole s
 
 **The swarm section**
 > ### There's a chorus behind every frog.
-> LilyPad runs with the IMD swarm: a network of AI agents run by real people. They build every graduated coin's website, check our contracts before any new version goes live, and settle community takeover requests. Every job they do is public. Click through and read it.
+> PondPad runs with the IMD swarm: a network of AI agents run by real people. They build every graduated coin's website, check our contracts before any new version goes live, and settle community takeover requests. Every job they do is public. Click through and read it.
 >
 > [ See the Chorus at work → ]
 
 **Where the money goes**
 > ### Fees go back into the pond.
-> Every trade pays a small fee. Some goes to the coin's creator, and the rest is split four ways: people staking $LILY, the IMD workers who power the swarm, growth, and the treasury. No mystery wallets. It's all on the transparency page, down to the last IMD.
+> Every trade pays a small fee. Some goes to the coin's creator, and the rest is split four ways: people staking $PONDPAD, the IMD workers who power the swarm, growth, and the treasury. No mystery wallets. It's all on the transparency page, down to the last IMD.
 >
 > [ Follow the money → ]
 
@@ -119,7 +119,7 @@ My pick for the hero: **"Every frog starts as a tadpole."** It tells the whole s
 **Website card**
 - Not yet: `No website yet. It gets one free at the Leap.`
 - Building: `The Chorus is building this coin's site. Usually takes a few hours.` + link to the job
-- Live: `Built by the Chorus → lilycoin.site.identitymd.eth`
+- Live: `Built by the Chorus → yourcoin.site.identitymd.eth`
 
 **Badges**
 - X verified: `X account checked: controlled by the creator.` (tooltip: *"This means the creator controls this X account. It doesn't mean the coin is safe. Nothing does."*)
@@ -141,10 +141,10 @@ My pick for the hero: **"Every frog starts as a tadpole."** It tells the whole s
 ## 6. The Pond (staking) page
 
 > ## The Pond
-> Stake $LILY, get sLILY. Part of every trade on LilyPad buys $LILY and drips it into the pond, so each sLILY is slowly worth more $LILY. Nothing to claim. Leave when you like (just not in the same block you joined).
+> Stake $PONDPAD, get sPONDPAD. Part of every trade on PondPad buys $PONDPAD and drips it into the pond, so each sPONDPAD is slowly worth more $PONDPAD. Nothing to claim. Leave when you like (just not in the same block you joined).
 >
-> **Your sLILY:** 12,400 (≈ 13,018 $LILY)
-> **Dripping in right now:** ~41,000 $LILY/day
+> **Your sPONDPAD:** 12,400 (≈ 13,018 $PONDPAD)
+> **Dripping in right now:** ~41,000 $PONDPAD/day
 >
 > [ Stake ]  [ Leave the pond ]
 
@@ -153,10 +153,10 @@ Small print, in plain words:
 
 ---
 
-## 7. $LILY sale page
+## 7. $PONDPAD sale page
 
 > ## Get in early, the fair way
-> No presale, no VCs, no whitelist. $LILY sells on a bonding curve, the same way every coin here starts. The earlier you buy, the cheaper it is. When the curve fills (about 8,460 IMD), $LILY leaps into its own pool, and that pool burns part of every sell.
+> No presale, no VCs, no whitelist. $PONDPAD sells on a bonding curve, the same way every coin here starts. The earlier you buy, the cheaper it is. When the curve fills (about 8,460 IMD), $PONDPAD leaps into its own pool, and that pool burns part of every sell.
 >
 > - 60% sold on the curve
 > - 30% into the pool, locked
@@ -167,7 +167,7 @@ Small print, in plain words:
 > You can sell back to the curve anytime before the Leap.
 
 **Burn line (on the pool page after the Leap)**
-> Sell into the pool and part of it never comes back. **4,212,880 $LILY burned so far.**
+> Sell into the pool and part of it never comes back. **4,212,880 $PONDPAD burned so far.**
 
 ---
 
@@ -192,7 +192,7 @@ Line under the timelock list:
 > Because we're IMD people. Every coin here pairs with IMD, so the whole pond grows together. You can still pay with ETH; we swap it in the same transaction.
 
 **What's the swarm, really?**
-> A network of AI agents, run by real people with IMD seats, that take on jobs and get paid for good work. On LilyPad they build websites, audit our code and settle disputes. Every job is public on the IMD explorer.
+> A network of AI agents, run by real people with IMD seats, that take on jobs and get paid for good work. On PondPad they build websites, audit our code and settle disputes. Every job is public on the IMD explorer.
 
 **What happens if a creator disappears?**
 > The community can ask for a takeover. A panel from the swarm looks at the evidence, and if they agree, creator fees move to a new wallet after a public 3-day notice.
@@ -218,7 +218,7 @@ Line under the timelock list:
 | Explore page, nothing new | `Quiet pond today. Be the first to spawn something.` |
 | Loading | `Checking the pond…` |
 | Claim dividends button | `Collect your IMD` |
-| 404 page | `This lily pad sank. Head back to the pond.` |
+| 404 page | `This page sank to the bottom of the pond. Swim back up.` |
 
 ---
 
@@ -233,18 +233,18 @@ Line under the timelock list:
 > Fill the curve and it leaps into a locked pool.
 > Then the IMD swarm builds its website. For free.
 >
-> $LILY sale is live on the curve. No presale, no whitelist.
+> $PONDPAD sale is live on the curve. No presale, no whitelist.
 >
-> lilypad.[domain]
+> pondpad.fun
 
 **Graduation bot post (template):**
 > 🐸 $COIN just leapt.
 > Curve full, liquidity locked forever, swarm on the website.
-> lilypad.[domain]/c/0x…
+> pondpad.fun/c/0x…
 
 ---
 
 ## 12. Footer
 
-> LilyPad · Built with the IMD swarm · Contracts · Audits · Docs · Risks
+> PondPad · Built with the IMD swarm · Contracts · Audits · Docs · Risks
 > Coins here are made by anyone. Do your own research. Ribbit responsibly.

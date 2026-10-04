@@ -1,8 +1,8 @@
-# LilyPad: v1 architecture
+# PondPad: v1 architecture
 
-LilyPad is an IMD-paired token launchpad on Robinhood Chain (chain ID 4663). The swarm builds and audits it, and fees flow to $LILY stakers, IMD workers, growth and the treasury.
+PondPad is an IMD-paired token launchpad on Robinhood Chain (chain ID 4663). The swarm builds and audits it, and fees flow to $PONDPAD stakers, IMD workers, growth and the treasury.
 
-Status: **v1 design, 4 October 2026.** This replaces the first draft in [`PLAN.md`](PLAN.md), which keeps the competitor analysis. Name: **LilyPad**, platform token **$LILY**, staked **sLILY**. Contract names keep the short `Pad` prefix.
+Status: **v1 design, 4 October 2026.** This replaces the first draft in [`PLAN.md`](PLAN.md), which keeps the competitor analysis. Name: **PondPad**, platform token **$PONDPAD**, staked **sPONDPAD**. Contract names keep the short `Pad` prefix.
 
 Items marked **[DEV]** depend on answers from the IMD / POOL4 developer. Section 12 lists each with its fallback.
 
@@ -10,12 +10,12 @@ Items marked **[DEV]** depend on answers from the IMD / POOL4 developer. Section
 
 ## 1. What v1 does
 
-1. Anyone launches a coin **paired with IMD**. It starts on a **bonding curve** and **graduates** into a Uniswap v4 pool run by LilyPad's hook, with liquidity locked forever.
+1. Anyone launches a coin **paired with IMD**. It starts on a **bonding curve** and **graduates** into a Uniswap v4 pool run by PondPad's hook, with liquidity locked forever.
 2. Every trade, on the curve or in the pool and through any router, pays a **1.5% base fee**, plus an optional **0–3% coin tax** chosen at launch.
 3. Users pay with **ETH or IMD**. The router swaps ETH to IMD inside the same transaction.
 4. The **IMD swarm** builds each graduated coin's website for free, decides community takeovers (CTO), must audit every launchpad version before it goes live, and can be paid from a coin's own "swarm budget".
-5. Protocol fees go **40% to sLILY stakers, 25% to IMD workers, 20% to growth, 15% to the treasury**.
-6. **$LILY** is paired with **IMD**, like every coin on LilyPad. It is sold on its own IMD bonding curve (target ≈ 8,460 IMD, about 20 ETH) and graduates into **our own fork of POOL4's `CappedBurnHook`**, adapted for an IMD pair (section 5.4).
+5. Protocol fees go **40% to sPONDPAD stakers, 25% to IMD workers, 20% to growth, 15% to the treasury**.
+6. **$PONDPAD** is paired with **IMD**, like every coin on PondPad. It is sold on its own IMD bonding curve (target ≈ 8,460 IMD, about 20 ETH) and graduates into **our own fork of POOL4's `CappedBurnHook`**, adapted for an IMD pair (section 5.4).
 7. Creators can link their coin's **X account** and get a badge.
 
 **Not in v1:** swap page, trading rewards and referrals, milestone bounties, scam flags, custom swarm-built coins, POOL4-style burn mode, dead-coin migration, other chains. See section 13.
@@ -43,7 +43,7 @@ Items marked **[DEV]** depend on answers from the IMD / POOL4 developer. Section
  Fees (IMD) ─► CreatorVault (creator share + creator tax, CTO-able)
             ─► PadToken dividends (holder tax)
             ─► SwarmBudget (swarm-budget tax, per coin)
-            ─► FeeSplitter ─┬─ 40% LilyBuyer (IMD → $LILY) ─► RewardDripper ─► StakedLILY (sLILY, ERC-4626)
+            ─► FeeSplitter ─┬─ 40% PadBuyer (IMD → $PONDPAD) ─► RewardDripper ─► StakedPONDPAD (sPONDPAD, ERC-4626)
                             ├─ 25% WorkerFund ─► IMD worker rewards address [DEV]
                             ├─ 20% GrowthFund (graduation websites, oracle costs, grants)
                             └─ 15% Treasury (Safe)
@@ -51,7 +51,7 @@ Items marked **[DEV]** depend on answers from the IMD / POOL4 developer. Section
  AttestationVerifier ◄── IMD oracle attestations (EIP-712) ── used by CTOModule, VersionRegistry
  SocialRegistry ◄── X-link vouchers (Pad verifier key)
 
- $LILY:  LilySale (IMD curve, ≈8,460 IMD) ─► LilyMarketHook (CappedBurnHook fork) $LILY/IMD ◄─ MarketController (owner)
+ $PONDPAD:  PadSale (IMD curve, ≈8,460 IMD) ─► PadMarketHook (CappedBurnHook fork) $PONDPAD/IMD ◄─ MarketController (owner)
         AirdropDistributor (5%, Merkle), TeamVesting (2%), liquidity reserve (3%, treasury)
 
  Offchain: static frontend (IPFS + domain) · indexer · Swarm Relay · keeper bot ·
@@ -148,7 +148,7 @@ No one can block graduation by creating the pool first, because the hook rejects
 
 | Bucket | Share | Allowed range (timelocked) | v1 use |
 |---|---|---|---|
-| sLILY stakers | 40% | 25–60% | `LilyBuyer` buys $LILY with it on the market; `RewardDripper` streams the $LILY into the sLILY vault |
+| sPONDPAD stakers | 40% | 25–60% | `PadBuyer` buys $PONDPAD with it on the market; `RewardDripper` streams the $PONDPAD into the sPONDPAD vault |
 | IMD workers | 25% | 15–35% | WorkerFund → IMD worker rewards address **[DEV]** |
 | Growth | 20% | 0–30% | Graduation websites, oracle costs, capped grants. The "growth ↔ stakers" dial moves this toward stakers over time. |
 | Treasury | 15% | 5–20% | Safe multisig |
@@ -218,34 +218,34 @@ function sellWithPermit(..., uint8 v, bytes32 r, bytes32 s) external;
 2. A **3-day public notice** follows, then a **3-day execution window**. Anyone executes. The creator moving fees during the notice does not cancel it.
 3. Execution calls `CreatorVault` to change the recipient. Fees already accrued stay with the old recipient.
 
-### 5.3 Fees and $LILY economy
+### 5.3 Fees and $PONDPAD economy
 
 | Contract | Key functions | Notes |
 |---|---|---|
 | `FeeSplitter` | `distribute()` | Shares read from `PadConfig`; IMD only |
-| `LilyBuyer` | `buy()` | Permissionless and rate-limited: spends the stakers' IMD on $LILY in the `LilyMarketHook` pool in small chunks, with a price guard (block-lagged reference price, max slippage), and sends the $LILY to `RewardDripper`. Keeper tip capped. |
-| `RewardDripper` | `drip()` | **Fork of POOL4's `RewardDripper`**, asset = $LILY. Streams $LILY into the vault at a bounded rate (rate ceiling and per-call cap), so no one can stake just before a large payout. Never drips into an empty vault, so rewards wait until staking opens. Also receives up to 30% of trimmed $LILY from `LilyMarketHook`. |
-| `StakedLILY` (sLILY) | `deposit`, `redeem` (ERC-4626) | **Fork of POOL4's `StakedIMD`**, asset = $LILY. Auto-compounding: rewards raise the $LILY value of each sLILY share; no claim step. One-block hold blocks same-block deposit → redeem. No lockup in v1. The original's owner powers (pause, rescue of any balance including staked funds) sit behind the 7-day timelock and are renounced once the vault has run safely for a set period. |
+| `PadBuyer` | `buy()` | Permissionless and rate-limited: spends the stakers' IMD on $PONDPAD in the `PadMarketHook` pool in small chunks, with a price guard (block-lagged reference price, max slippage), and sends the $PONDPAD to `RewardDripper`. Keeper tip capped. |
+| `RewardDripper` | `drip()` | **Fork of POOL4's `RewardDripper`**, asset = $PONDPAD. Streams $PONDPAD into the vault at a bounded rate (rate ceiling and per-call cap), so no one can stake just before a large payout. Never drips into an empty vault, so rewards wait until staking opens. Also receives up to 30% of trimmed $PONDPAD from `PadMarketHook`. |
+| `StakedPONDPAD` (sPONDPAD) | `deposit`, `redeem` (ERC-4626) | **Fork of POOL4's `StakedIMD`**, asset = $PONDPAD. Auto-compounding: rewards raise the $PONDPAD value of each sPONDPAD share; no claim step. One-block hold blocks same-block deposit → redeem. No lockup in v1. The original's owner powers (pause, rescue of any balance including staked funds) sit behind the 7-day timelock and are renounced once the vault has run safely for a set period. |
 | `WorkerFund` | `release()` | Sends its balance to `workerRewardsAddress` (set by timelock) **[DEV]**; accrues until it's set |
 | `GrowthFund` | `payJob(…)`, `grant(…)` | Pays swarm jobs via the Relay and grants via the multisig; per-epoch spending cap; every payment emits a reason and reference |
 | `SwarmBudget` | `requestSpend(coin, amount, specHash)`, `release(requestId)` | Per-coin escrow funded by the swarm-budget tax. Only the coin's fee recipient can request; the Relay releases to pay that job; per-request cap; job ID recorded onchain. |
 
-### 5.4 $LILY launch (one-time)
+### 5.4 $PONDPAD launch (one-time)
 
 | Contract | Role |
 |---|---|
-| `LilySale` | Bonding curve in **IMD**: 600M $LILY sold (60%), target **≈ 8,460 IMD** (≈ 20 ETH at 1 ETH ≈ 423 IMD; fixed in IMD at deploy), 300M reserved for the pool (30%). Same curve math with S = 2R: start market cap ≈ 7,050 IMD (~$44k), graduation market cap ≈ 28,200 IMD (~$178k), pool at graduation ≈ 8,460 IMD + 300M $LILY (~$107k). Buyers can pay with ETH through `PadRouter` (ETH → IMD in the same transaction). Two-way (sell back any time). 1% sale fee → FeeSplitter. |
-| `LilyMarketHook` | **Fork of POOL4's `CappedBurnHook`** (MIT, verified on Etherscan at `0xc6c965bd…2840`), adapted for an **IMD pair** and deployed on Robinhood with the Robinhood PoolManager. $LILY/IMD full-range market, 1% LP fee, capped burn and IMD backstop. At graduation `LilySale` initializes it at the final curve price and calls `openMarket` with the raised IMD and 300M $LILY, then hands ownership to `MarketController`. Details in section 5.4.1. |
+| `PadSale` | Bonding curve in **IMD**: 600M $PONDPAD sold (60%), target **≈ 8,460 IMD** (≈ 20 ETH at 1 ETH ≈ 423 IMD; fixed in IMD at deploy), 300M reserved for the pool (30%). Same curve math with S = 2R: start market cap ≈ 7,050 IMD (~$44k), graduation market cap ≈ 28,200 IMD (~$178k), pool at graduation ≈ 8,460 IMD + 300M $PONDPAD (~$107k). Buyers can pay with ETH through `PadRouter` (ETH → IMD in the same transaction). Two-way (sell back any time). 1% sale fee → FeeSplitter. |
+| `PadMarketHook` | **Fork of POOL4's `CappedBurnHook`** (MIT, verified on Etherscan at `0xc6c965bd…2840`), adapted for an **IMD pair** and deployed on Robinhood with the Robinhood PoolManager. $PONDPAD/IMD full-range market, 1% LP fee, capped burn and IMD backstop. At graduation `PadSale` initializes it at the final curve price and calls `openMarket` with the raised IMD and 300M $PONDPAD, then hands ownership to `MarketController`. Details in section 5.4.1. |
 | `MarketController` | The hook's owner. Limits what the owner can do (section 5.4.1). |
 | `AirdropDistributor` | 5% (50M) Merkle claim for IMD seat holders and sIMD stakers (snapshot published in advance) |
 | `TeamVesting` | 2%: 6-month cliff, 18-month linear |
-| Liquidity reserve | 3% held by the treasury Safe behind the timelock, only for adding $LILY liquidity later through `fundInventory` (needs $LILY and IMD in proportion) |
+| Liquidity reserve | 3% held by the treasury Safe behind the timelock, only for adding $PONDPAD liquidity later through `fundInventory` (needs $PONDPAD and IMD in proportion) |
 
-#### 5.4.1 The POOL4 fork for $LILY
+#### 5.4.1 The POOL4 fork for $PONDPAD
 
 What we take from POOL4's verified source (`CappedBurnHook`, Solidity 0.8.30, solady, v4-core):
 
-- **One hook per market.** The hook's token is fixed in the constructor, and the original hard-codes **native ETH** as the other side (`currency0 = address(0)`). A $LILY/**IMD** market therefore needs the changes in the table below. Constructor: `owner, poolManager, token, burnSink, rewardsRecipient, rewardShareBps (≤ 30%), minTrimTokens, lpFee, tickSpacing`.
+- **One hook per market.** The hook's token is fixed in the constructor, and the original hard-codes **native ETH** as the other side (`currency0 = address(0)`). A $PONDPAD/**IMD** market therefore needs the changes in the table below. Constructor: `owner, poolManager, token, burnSink, rewardsRecipient, rewardShareBps (≤ 30%), minTrimTokens, lpFee, tickSpacing`.
 - **Hook permissions:** `beforeInitialize`, `beforeAddLiquidity` (both hook-only) and `afterSwap`. The hook address must be mined for these flags.
 - **Fees:** a normal pool fee (1% on mainnet), collected on every swap into a fee ledger, in both the quote asset and the token, and paid out with `withdrawFees(recipient)` by the owner.
 - **Burn:** after sells, tokens above `inventoryCap` are removed: at least 70% go to `burnSink`, up to 30% to `rewardsRecipient`. The removed quote asset (ETH in the original, IMD in ours) funds a backstop band above the price, rebalanced by a permissionless keeper.
@@ -254,14 +254,14 @@ What we take from POOL4's verified source (`CappedBurnHook`, Solidity 0.8.30, so
 
 | Item | Our setting or change |
 |---|---|
-| **Quote asset: IMD instead of native ETH** | The math assumes quote = `currency0`, token = `currency1`. v4 sorts currencies by address, so we **mine the $LILY token address to be above IMD's (`0x5F7B…7127`)**. IMD is then `currency0` and all price and amount math stays unchanged. We replace only the native-ETH plumbing with ERC-20 handling: `currency0 = IMD` in `poolKey()`; `openMarket`/`fundInventory` pull IMD with `transferFrom` instead of `msg.value`; settlements use `sync` + transfer + `settle` instead of `settle{value}`; payouts, keeper tips and the retained backstop pay IMD with `safeTransfer` instead of `safeTransferETH`; `receive()` is removed; `eth*` names become `quote*`. |
+| **Quote asset: IMD instead of native ETH** | The math assumes quote = `currency0`, token = `currency1`. v4 sorts currencies by address, so we **mine the $PONDPAD token address to be above IMD's (`0x5F7B…7127`)**. IMD is then `currency0` and all price and amount math stays unchanged. We replace only the native-ETH plumbing with ERC-20 handling: `currency0 = IMD` in `poolKey()`; `openMarket`/`fundInventory` pull IMD with `transferFrom` instead of `msg.value`; settlements use `sync` + transfer + `settle` instead of `settle{value}`; payouts, keeper tips and the retained backstop pay IMD with `safeTransfer` instead of `safeTransferETH`; `receive()` is removed; `eth*` names become `quote*`. |
 | ETH-sized constants | Retuned in IMD: rebalance threshold (0.1 ETH → ~40 IMD), keeper tip (0.002 ETH → ~1 IMD), max keeper tip (0.1 ETH → ~40 IMD) |
 | Tests | Port POOL4's tests (repo due next week) to the IMD pair, plus fork tests on Robinhood with real IMD |
 | Compiler target | Rebuild with `evm_version = cancun`. The original is compiled for `osaka`, which Robinhood Chain may not support; Pepes runs `cancun` there. Fork tests must pass on Robinhood. |
-| `burnSink` | `LilyBurner`: calls `$LILY.burn()` so supply really drops, instead of sending tokens to a dead address |
-| `rewardsRecipient` | `RewardDripper` (section 5.3): 15% of trimmed $LILY goes to stakers (allowed up to 30%) |
-| Fee recipient | `MarketController.collectFees()` (permissionless) → IMD fees straight to FeeSplitter; $LILY fees burned or sent to stakers |
-| Cap settings | Starting proposal: `capFloor` = 150M $LILY (half the opening pool), `capDecayTokensPerDay` = 500k $LILY (0.05% of supply). Both adjustable later through the timelock (`setCapDecay`, `setCapFloor`). Section 5.4.2 explains the effect. |
+| `burnSink` | `PadBurner`: calls `$PONDPAD.burn()` so supply really drops, instead of sending tokens to a dead address |
+| `rewardsRecipient` | `RewardDripper` (section 5.3): 15% of trimmed $PONDPAD goes to stakers (allowed up to 30%) |
+| Fee recipient | `MarketController.collectFees()` (permissionless) → IMD fees straight to FeeSplitter; $PONDPAD fees burned or sent to stakers |
+| Cap settings | Starting proposal: `capFloor` = 150M $PONDPAD (half the opening pool), `capDecayTokensPerDay` = 500k $PONDPAD (0.05% of supply). Both adjustable later through the timelock (`setCapDecay`, `setCapFloor`). Section 5.4.2 explains the effect. |
 | Owner | `MarketController`, never an EOA |
 
 **`MarketController`** wraps the owner powers, which POOL4 documents as trusted:
@@ -272,20 +272,20 @@ What we take from POOL4's verified source (`CappedBurnHook`, Solidity 0.8.30, so
 | Policy setters (cap floor, decay, ratchet, keeper tip, rebalance, reward share ≤ 30%) | Timelock (48 h) |
 | `setBurnSink`, `setRewardsRecipient` | Timelock (7 days) |
 | `fundInventory` (add liquidity) | Timelock; only from the liquidity reserve + treasury |
-| `closeMarket` (withdraw the **whole** position) and `withdrawRetainedEth` | **Not exposed.** Optional emergency path only with a 7-day timelock **and** a swarm audit attestation that names a defect, with funds sent only to a new `LilyMarketHook` |
-| `initializePool`, `openMarket` | Called once by `LilySale` at graduation, before ownership moves |
+| `closeMarket` (withdraw the **whole** position) and `withdrawRetainedEth` | **Not exposed.** Optional emergency path only with a 7-day timelock **and** a swarm audit attestation that names a defect, with funds sent only to a new `PadMarketHook` |
+| `initializePool`, `openMarket` | Called once by `PadSale` at graduation, before ownership moves |
 
 The fork is unaudited code, so it is audited by the swarm together with our contracts (section 10), plus any audit the POOL4 developer has.
 
 #### 5.4.2 How the burn behaves day to day
 
-- **The cap:** the market starts with a cap equal to the $LILY it opened with (300M).
-- **Buys lower the cap:** when buyers take $LILY out of the pool, the cap follows the pool's holdings down. It falls at most `capDecayTokensPerDay` on average, and never below `capFloor`.
-- **Sells above the cap are trimmed:** after a sell, any $LILY the pool holds above the cap is removed at an unchanged price: 85% burned, 15% to stakers. The IMD removed alongside it goes into the backstop, a buy wall below the market price.
-- **Dumps into the backstop:** when price falls into the backstop, it buys $LILY. The next keeper rebalance burns those tokens with the same 85/15 split.
+- **The cap:** the market starts with a cap equal to the $PONDPAD it opened with (300M).
+- **Buys lower the cap:** when buyers take $PONDPAD out of the pool, the cap follows the pool's holdings down. It falls at most `capDecayTokensPerDay` on average, and never below `capFloor`.
+- **Sells above the cap are trimmed:** after a sell, any $PONDPAD the pool holds above the cap is removed at an unchanged price: 85% burned, 15% to stakers. The IMD removed alongside it goes into the backstop, a buy wall below the market price.
+- **Dumps into the backstop:** when price falls into the backstop, it buys $PONDPAD. The next keeper rebalance burns those tokens with the same 85/15 split.
 
 So:
-- With normal back-and-forth trading, **the burn runs at about `capDecayTokensPerDay`**: about 500k $LILY a day (≈425k burned, ≈75k to stakers), roughly 15M a month. This limit applies only to the cap moving down after buys; sells that push the pool above the cap are always trimmed in full, as in the original POOL4.
+- With normal back-and-forth trading, **the burn runs at about `capDecayTokensPerDay`**: about 500k $PONDPAD a day (≈425k burned, ≈75k to stakers), roughly 15M a month. This limit applies only to the cap moving down after buys; sells that push the pool above the cap are always trimmed in full, as in the original POOL4.
 - Quiet days save up their allowance, so the rate is an average, not a hard daily cap.
 - Net selling above the cap is always trimmed, whatever the rate.
 - Once the cap reaches the 150M floor (about 300 days at 500k/day with steady trading), the market behaves like a normal pool until sells push holdings back above the floor.
@@ -317,7 +317,7 @@ New launches go to `current()`. Coins from older versions trade forever on their
 - It checks the signer against an approved signer list (changed by timelock), the question hash, the answer, the expiry, and that the request ID hasn't been used before.
 
 **`SocialRegistry`**: X badge, level 1.
-- `link(coin, handleHash, voucher)`: the creator submits a voucher signed by LilyPad's verifier key after X OAuth and a wallet signature.
+- `link(coin, handleHash, voucher)`: the creator submits a voucher signed by PondPad's verifier key after X OAuth and a wallet signature.
 - `revoke(coin)` by the verifier. One handle per coin; a handle claimed twice is flagged.
 
 ### 5.6 Admin powers, all of them
@@ -386,8 +386,8 @@ The swarm customizes design and content only. This keeps cost, quality and safet
 1. **Explore:** new, about to graduate, graduated, trending; filters for X-verified and has-website.
 2. **Create:** form, coin tax and destinations, optional dev buy, optional website add-on, ETH or IMD payment, total fee preview.
 3. **Coin page:** **trade box** (buy/sell with ETH or IMD, quote, slippage, total fee), chart, curve progress bar, holders, dividends to claim, creator fees, website card, audit and X badges, CTO status, swarm budget and its jobs.
-4. **$LILY sale:** curve progress, buy and sell, airdrop claim.
-5. **Stake:** stake $LILY for sLILY, redeem, the current $LILY value per sLILY, APR from the dripper rate, burn stats.
+4. **$PONDPAD sale:** curve progress, buy and sell, airdrop claim.
+5. **Stake:** stake $PONDPAD for sPONDPAD, redeem, the current $PONDPAD value per sPONDPAD, APR from the dripper rate, burn stats.
 6. **Transparency:** splitter flows, WorkerFund payouts, GrowthFund spend with job links, treasury, current settings and pending timelock changes.
 7. **Creator dashboard:** claim fees, change recipient, link X, request swarm jobs.
 8. **Docs:** mechanics, fees, risks, contract addresses, audit links.
@@ -420,12 +420,12 @@ There is no separate swap page in v1; trading happens on coin pages.
 
 ## 11. Build and launch order
 
-1. **Contracts:** core (token, curve, hook, router, lens, vault, splitter, config, registry), then staking, funds and CTO, then `LilySale` and adapters.
+1. **Contracts:** core (token, curve, hook, router, lens, vault, splitter, config, registry), then staking, funds and CTO, then `PadSale` and adapters.
 2. **Swarm testnet run:** `workflow.open` on Sepolia (contracts + adversarial review + site) for a public testnet.
 3. **Audit loop** (section 10).
 4. **Deploy** to Robinhood: config, timelock and Safe first; then version 1 with its swarm audit attestation; then funds and staking.
-5. **$LILY sale** opens and the airdrop snapshot is published. Coin launches can open at the same time, since the stakers' share waits in the dripper until staking opens.
-6. **$LILY graduates** into `LilyMarketHook`, ownership moves to `MarketController`, staking opens, and the dripper starts streaming.
+5. **$PONDPAD sale** opens and the airdrop snapshot is published. Coin launches can open at the same time, since the stakers' share waits in the dripper until staking opens.
+6. **$PONDPAD graduates** into `PadMarketHook`, ownership moves to `MarketController`, staking opens, and the dripper starts streaming.
 7. **Coin launches go public** (optionally a short allowlist beta first).
 
 ---
@@ -435,7 +435,7 @@ There is no separate swap page in v1; trading happens on coin pages.
 | # | Question | Fallback if not ready |
 |---|---|---|
 | 1 | Official POOL4 IMD/ETH market on Robinhood (planned, not guaranteed) | Use the hookless IMD/ETH pool; switch the key via timelock later |
-| 2 | ~~Launcher access for $LILY~~ | **Solved:** we fork `CappedBurnHook` ourselves (section 5.4.1) |
+| 2 | ~~Launcher access for $PONDPAD~~ | **Solved:** we fork `CappedBurnHook` ourselves (section 5.4.1) |
 | 3 | ~~Renouncing owner powers~~ | **Solved:** `MarketController` limits them |
 | 4 | ~~Adding liquidity later~~ | **Solved:** `fundInventory`, via the timelock |
 | 5 | Worker rewards address | WorkerFund accrues until set |
@@ -449,6 +449,6 @@ There is no separate swap page in v1; trading happens on coin pages.
 
 | Version | Additions |
 |---|---|
-| **v1.1** | Swap page with coin → coin routing through IMD; referrals (via `ref`); "trade to earn sLILY" (rewards always below the protocol fee paid, paid as locked sLILY, weekly Merkle checked by the swarm); milestone bounties; scam flags; daily swarm health report; X badge level 2 (swarm-verified tweet) |
-| **v2** | Custom coins built and audited by the swarm (bytecode-attested); swarm review of every settings change; POOL4-style burn mode per coin; boosted or locked sLILY tiers |
+| **v1.1** | Swap page with coin → coin routing through IMD; referrals (via `ref`); "trade to earn sPONDPAD" (rewards always below the protocol fee paid, paid as locked sPONDPAD, weekly Merkle checked by the swarm); milestone bounties; scam flags; daily swarm health report; X badge level 2 (swarm-verified tweet) |
+| **v2** | Custom coins built and audited by the swarm (bytecode-attested); swarm review of every settings change; POOL4-style burn mode per coin; boosted or locked sPONDPAD tiers |
 | **Later** | Dead-coin migration (Pons-style); outside liquidity providers; Base and Ethereum deployments |
