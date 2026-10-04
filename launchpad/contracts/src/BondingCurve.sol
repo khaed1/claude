@@ -321,6 +321,10 @@ contract BondingCurve is ReentrancyGuard {
         return _coins[coin];
     }
 
+    function coinLaunchedAt(address coin) external view returns (uint64) {
+        return _coins[coin].launchedAt;
+    }
+
     function coinCount() external view returns (uint256) {
         return _allCoins.length;
     }

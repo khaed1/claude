@@ -9,6 +9,10 @@ interface ICreatorVault {
     function recipientOf(address coin) external view returns (address);
 }
 
+interface IDividendToken {
+    function distribute() external;
+}
+
 /// @title SwarmBudget
 /// @notice Per-coin escrow funded by the "swarm budget" share of a coin's tax. It can only pay for IMD swarm jobs
 ///         for that coin: the coin's fee recipient requests a job, and the Swarm Relay releases the IMD to pay it.
@@ -40,6 +44,7 @@ contract SwarmBudget is Ownable, ReentrancyGuard {
     event SpendRequested(uint256 indexed id, address indexed coin, uint256 amount, bytes32 specHash);
     event SpendReleased(uint256 indexed id, address indexed coin, uint256 amount, string jobId);
     event SpendCancelled(uint256 indexed id);
+    event SweptToHolders(address indexed coin, uint256 amount);
     event RelayUpdated(address relay);
     event MaxRequestUpdated(uint96 maxRequest);
 
@@ -104,6 +109,19 @@ contract SwarmBudget is Ownable, ReentrancyGuard {
         r.cancelled = true;
         reservedOf[r.coin] -= r.amount;
         emit SpendCancelled(id);
+    }
+
+    /// @notice When a coin's fees were routed to its holders (fee recipient = the coin itself, after a CTO), no one
+    ///         can request swarm jobs for it any more, so its unreserved budget goes to holders as IMD dividends.
+    ///         Anyone can call it.
+    function sweepToHolders(address coin) external nonReentrant returns (uint256 amount) {
+        if (creatorVault.recipientOf(coin) != coin) revert Unauthorized();
+        amount = available(coin);
+        if (amount == 0) return 0;
+        balanceOf[coin] -= amount;
+        imd.safeTransfer(coin, amount);
+        IDividendToken(coin).distribute();
+        emit SweptToHolders(coin, amount);
     }
 
     function setRelay(address relay_) external onlyOwner {

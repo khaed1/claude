@@ -215,11 +215,14 @@ function sellForWithPermit(..., uint8 v, bytes32 r, bytes32 s) external returns 
 
 **`CreatorVault`**: IMD balance per coin, `claim(coin)`, `setFeeRecipient(coin, newRecipient)` (current recipient only, future earnings).
 
-**`CTOModule`**: community takeover, decided by the swarm.
-1. `propose(coin, newRecipient, attestation, signature)` needs an **IMD oracle attestation** answering "yes" to the module's own question for this exact coin and new recipient (`question(coin, newRecipient)`, which names the published takeover rules, D-49). Anyone can submit it; each oracle request id is used once.
-2. A **3-day public notice** follows, then a **3-day execution window**. Anyone executes. The creator moving fees during the notice does not cancel it. Nobody can cancel an attested takeover. One pending takeover per coin.
-3. Execution calls `CreatorVault` to change the recipient. Fees already accrued are paid to the old recipient.
-4. **Fallback (D-46):** until attestations work on Robinhood, the council (team Safe) can propose with an evidence link instead (same notice; it can cancel only its own proposals). The 7-day timelock retires this path once the verifier has a signer; it can't be re-enabled.
+**`CTOModule`**: community takeover, decided by the swarm under the rules in [`CTO-RULES.md`](CTO-RULES.md) (pinned to IPFS; the `ipfs://` link is fixed at deploy, D-51).
+1. `propose(coin, newRecipient, attestation, signature)`: the caller must have a **verified X account** (`SocialRegistry.linkWallet`) and an **IMD oracle "yes"** to the module's own question naming this coin, the new recipient and the proposer's X account. Each oracle request id is used once.
+2. The new recipient must be a contract: the community's **multisig**, or the **coin itself**, which sends the creator fees to **holders** as IMD dividends (D-52; the coin's swarm budget is then swept to holders too).
+3. Onchain guards: coin at least 30 days old; no takeover of it in the last 90 days; one pending takeover per coin.
+4. A **3-day public notice**, then a **3-day execution window** in which anyone executes. The creator moving fees does not cancel it; nobody can cancel an attested takeover.
+5. **Contest:** during the notice the current recipient can contest. The takeover then waits 7 more days and needs a second "yes" from a panel of at least 75 to a confirmation question.
+6. Execution calls `CreatorVault` to change the recipient. Fees already accrued are paid to the old recipient.
+7. **Fallback (D-46):** until attestations work on Robinhood, the council (team Safe) can propose with an evidence link (7-day notice; it can cancel only its own proposals and must confirm publicly if contested). The 7-day timelock retires this path once the verifier has a signer; it can't be re-enabled.
 
 ### 5.3 Fees and $PONDPAD economy
 
@@ -327,6 +330,7 @@ New launches go to `current()`. Coins from older versions trade forever on their
 **`SocialRegistry`**: X badge, level 1 (owner: 48 h timelock).
 - `link(coin, handleHash, deadline, voucher)`: the coin's fee recipient submits an EIP-712 voucher signed by PondPad's X link service key after X OAuth and a wallet signature (bound to coin, handle, account, per-coin nonce, deadline).
 - `unlink(coin)` by the recipient, the verifier or the owner. One handle per coin; a handle linked to two coins is flagged on both (`badgeOf`), never blocked.
+- `linkWallet(handle, deadline, voucher)`: any wallet links its own X account the same way; required for CTO proposers and shown on takeover pages.
 
 ### 5.6 Admin powers, all of them
 

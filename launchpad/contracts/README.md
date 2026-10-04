@@ -29,7 +29,7 @@ Core launch-and-trade path and the $PONDPAD sale and market, tested end to end a
 | `WorkerFund` | Workers' 25%: accrues IMD and $PONDPAD until the worker rewards address is set, then `release()` (permissionless) forwards both |
 | `GrowthFund` | Growth's 20%: relay pays swarm jobs, the Safe pays grants; both capped per 7-day epoch, every payment with a reference and reason |
 | `AttestationVerifier` | Checks IMD oracle attestations (EIP-712 "IdentityMD Oracle" v2): approved signer, panel ≥ 51, agreement ≥ 2/3, expiry, exact question |
-| `CTOModule` | Community takeovers: oracle "yes" (or council fallback) → 3-day notice → 3-day execution window |
+| `CTOModule` | Community takeovers: X-verified proposer + oracle "yes" (or council fallback) → notice, contest with a larger confirming panel → execution; fees to a multisig or to holders |
 | `VersionRegistry` | Versions (factory, router, curve, hook, lens) with an onchain code hash; activation needs a swarm audit attestation (or the timelock fallback) |
 | `SocialRegistry` | X badge level 1: voucher-signed handle links, duplicates flagged |
 | `PadLens` | Read-only coin lists, coin state, exact curve and pool quotes, wallet positions |
