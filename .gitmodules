@@ -7,3 +7,12 @@
 [submodule "launchpad/contracts/lib/solady"]
 	path = launchpad/contracts/lib/solady
 	url = https://github.com/Vectorized/solady
+[submodule "swarm-steward/contracts/lib/forge-std"]
+	path = swarm-steward/contracts/lib/forge-std
+	url = https://github.com/foundry-rs/forge-std
+[submodule "swarm-steward/contracts/lib/solady"]
+	path = swarm-steward/contracts/lib/solady
+	url = https://github.com/Vectorized/solady
+[submodule "swarm-steward/contracts/lib/v4-core"]
+	path = swarm-steward/contracts/lib/v4-core
+	url = https://github.com/Uniswap/v4-core
