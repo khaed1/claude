@@ -43,7 +43,7 @@ Items marked **[DEV]** depend on answers from the IMD / POOL4 developer. Section
  Fees (IMD) ─► CreatorVault (creator share + creator tax, CTO-able)
             ─► PadToken dividends (holder tax)
             ─► SwarmBudget (swarm-budget tax, per coin)
-            ─► FeeSplitter ─┬─ 40% RewardDripper ─► StakedPAD (sPAD)
+            ─► FeeSplitter ─┬─ 40% PadBuyer (IMD → $PAD) ─► RewardDripper ─► StakedPAD (sPAD, ERC-4626)
                             ├─ 25% WorkerFund ─► IMD worker rewards address [DEV]
                             ├─ 20% GrowthFund (graduation websites, oracle costs, grants)
                             └─ 15% Treasury (Safe)
@@ -148,7 +148,7 @@ No one can block graduation by creating the pool first, because the hook rejects
 
 | Bucket | Share | Allowed range (timelocked) | v1 use |
 |---|---|---|---|
-| sPAD stakers | 40% | 25–60% | Streamed by RewardDripper (7 days) |
+| sPAD stakers | 40% | 25–60% | `PadBuyer` buys $PAD with it on the market; `RewardDripper` streams the $PAD into the sPAD vault |
 | IMD workers | 25% | 15–35% | WorkerFund → IMD worker rewards address **[DEV]** |
 | Growth | 20% | 0–30% | Graduation websites, oracle costs, capped grants. The "growth ↔ stakers" dial moves this toward stakers over time. |
 | Treasury | 15% | 5–20% | Safe multisig |
@@ -223,8 +223,9 @@ function sellWithPermit(..., uint8 v, bytes32 r, bytes32 s) external;
 | Contract | Key functions | Notes |
 |---|---|---|
 | `FeeSplitter` | `distribute()` | Shares read from `PadConfig`; IMD only |
-| `RewardDripper` | `drip()` | Releases incoming IMD linearly over 7 days. Holds rewards until staking opens. |
-| `StakedPAD` (sPAD) | `stake`, `unstake`, `claim`, `earned` | Rewards in IMD (Synthetix-style accounting). Stake must be ≥ 1 block old to earn; no stake and unstake in the same block; no lockup in v1. |
+| `PadBuyer` | `buy()` | Permissionless and rate-limited: spends the stakers' IMD on $PAD in the `PadMarketHook` pool in small chunks, with a price guard (block-lagged reference price, max slippage), and sends the $PAD to `RewardDripper`. Keeper tip capped. |
+| `RewardDripper` | `drip()` | **Fork of POOL4's `RewardDripper`**, asset = $PAD. Streams $PAD into the vault at a bounded rate (rate ceiling and per-call cap), so no one can stake just before a large payout. Never drips into an empty vault, so rewards wait until staking opens. Also receives up to 30% of trimmed $PAD from `PadMarketHook`. |
+| `StakedPAD` (sPAD) | `deposit`, `redeem` (ERC-4626) | **Fork of POOL4's `StakedIMD`**, asset = $PAD. Auto-compounding: rewards raise the $PAD value of each sPAD share; no claim step. One-block hold blocks same-block deposit → redeem. No lockup in v1. The original's owner powers (pause, rescue of any balance including staked funds) sit behind the 7-day timelock and are renounced once the vault has run safely for a set period. |
 | `WorkerFund` | `release()` | Sends its balance to `workerRewardsAddress` (set by timelock) **[DEV]**; accrues until it's set |
 | `GrowthFund` | `payJob(…)`, `grant(…)` | Pays swarm jobs via the Relay and grants via the multisig; per-epoch spending cap; every payment emits a reason and reference |
 | `SwarmBudget` | `requestSpend(coin, amount, specHash)`, `release(requestId)` | Per-coin escrow funded by the swarm-budget tax. Only the coin's fee recipient can request; the Relay releases to pay that job; per-request cap; job ID recorded onchain. |
@@ -258,9 +259,9 @@ What we take from POOL4's verified source (`CappedBurnHook`, Solidity 0.8.30, so
 | Tests | Port POOL4's tests (repo due next week) to the IMD pair, plus fork tests on Robinhood with real IMD |
 | Compiler target | Rebuild with `evm_version = cancun`. The original is compiled for `osaka`, which Robinhood Chain may not support; Pepes runs `cancun` there. Fork tests must pass on Robinhood. |
 | `burnSink` | `PadBurner`: calls `$PAD.burn()` so supply really drops, instead of sending tokens to a dead address |
-| `rewardsRecipient` | The sPAD staking path (section 5.3): up to 30% of trimmed $PAD goes to stakers |
+| `rewardsRecipient` | `RewardDripper` (section 5.3): 15% of trimmed $PAD goes to stakers (allowed up to 30%) |
 | Fee recipient | `MarketController.collectFees()` (permissionless) → IMD fees straight to FeeSplitter; $PAD fees burned or sent to stakers |
-| Cap settings | `capFloor` and `capDecayTokensPerDay` sized for $PAD's supply, not IMD's 1,000-token mainnet values |
+| Cap settings | Starting proposal: `capFloor` = 150M $PAD (half the opening pool), `capDecayTokensPerDay` = 500k $PAD (0.05% of supply). Section 5.4.2 explains the effect. |
 | Owner | `MarketController`, never an EOA |
 
 **`MarketController`** wraps the owner powers, which POOL4 documents as trusted:
@@ -275,6 +276,21 @@ What we take from POOL4's verified source (`CappedBurnHook`, Solidity 0.8.30, so
 | `initializePool`, `openMarket` | Called once by `PadSale` at graduation, before ownership moves |
 
 The fork is unaudited code, so it is audited by the swarm together with our contracts (section 10), plus any audit the POOL4 developer has.
+
+#### 5.4.2 How the burn behaves day to day
+
+- **The cap:** the market starts with a cap equal to the $PAD it opened with (300M).
+- **Buys lower the cap:** when buyers take $PAD out of the pool, the cap follows the pool's holdings down. It falls at most `capDecayTokensPerDay` on average, and never below `capFloor`.
+- **Sells above the cap are trimmed:** after a sell, any $PAD the pool holds above the cap is removed at an unchanged price: 85% burned, 15% to stakers. The IMD removed alongside it goes into the backstop, a buy wall below the market price.
+- **Dumps into the backstop:** when price falls into the backstop, it buys $PAD. The next keeper rebalance burns those tokens with the same 85/15 split.
+
+So:
+- With normal back-and-forth trading, **the burn runs at about `capDecayTokensPerDay`**: about 500k $PAD a day, roughly 15M a month.
+- Quiet days save up their allowance, so the rate is an average, not a hard daily cap.
+- Net selling above the cap is always trimmed, whatever the rate.
+- Once the cap reaches the 150M floor (about 300 days at 500k/day with steady trading), the market behaves like a normal pool until sells push holdings back above the floor.
+
+Both settings can be changed later through the timelock.
 
 ### 5.5 Governance, versions and swarm checks
 
@@ -371,7 +387,7 @@ The swarm customizes design and content only. This keeps cost, quality and safet
 2. **Create:** form, coin tax and destinations, optional dev buy, optional website add-on, ETH or IMD payment, total fee preview.
 3. **Coin page:** **trade box** (buy/sell with ETH or IMD, quote, slippage, total fee), chart, curve progress bar, holders, dividends to claim, creator fees, website card, audit and X badges, CTO status, swarm budget and its jobs.
 4. **$PAD sale:** curve progress, buy and sell, airdrop claim.
-5. **Stake:** stake/unstake sPAD, IMD rewards, APR from the dripper rate.
+5. **Stake:** stake $PAD for sPAD, redeem, the current $PAD value per sPAD, APR from the dripper rate, burn stats.
 6. **Transparency:** splitter flows, WorkerFund payouts, GrowthFund spend with job links, treasury, current settings and pending timelock changes.
 7. **Creator dashboard:** claim fees, change recipient, link X, request swarm jobs.
 8. **Docs:** mechanics, fees, risks, contract addresses, audit links.
