@@ -15,7 +15,7 @@ Items marked **[DEV]** depend on answers from the IMD / POOL4 developer. Section
 3. Users pay with **ETH or IMD**. The router swaps ETH to IMD inside the same transaction.
 4. The **IMD swarm** builds each graduated coin's website for free, decides community takeovers (CTO), must audit every launchpad version before it goes live, and can be paid from a coin's own "swarm budget".
 5. Protocol fees go **40% to sPAD stakers, 25% to IMD workers, 20% to growth, 15% to the treasury**.
-6. **$PAD** is sold on its own ETH bonding curve (35 ETH) and graduates into **our own fork of POOL4's `CappedBurnHook`** on Robinhood (section 5.4).
+6. **$PAD** is paired with **IMD**, like every coin on the Pad. It is sold on its own IMD bonding curve (target ≈ 14,800 IMD, about 35 ETH) and graduates into **our own fork of POOL4's `CappedBurnHook`**, adapted for an IMD pair (section 5.4).
 7. Creators can link their coin's **X account** and get a badge.
 
 **Not in v1:** swap page, trading rewards and referrals, milestone bounties, scam flags, custom swarm-built coins, POOL4-style burn mode, dead-coin migration, other chains. See section 13.
@@ -51,7 +51,7 @@ Items marked **[DEV]** depend on answers from the IMD / POOL4 developer. Section
  AttestationVerifier ◄── IMD oracle attestations (EIP-712) ── used by CTOModule, VersionRegistry
  SocialRegistry ◄── X-link vouchers (Pad verifier key)
 
- $PAD:  PadSale (ETH curve, 35 ETH) ─► PadMarketHook (CappedBurnHook fork) $PAD/ETH ◄─ MarketController (owner)
+ $PAD:  PadSale (IMD curve, ≈14,800 IMD) ─► PadMarketHook (CappedBurnHook fork) $PAD/IMD ◄─ MarketController (owner)
         AirdropDistributor (5%, Merkle), TeamVesting (2%), liquidity reserve (3%, treasury)
 
  Offchain: static frontend (IPFS + domain) · indexer · Swarm Relay · keeper bot ·
@@ -233,30 +233,33 @@ function sellWithPermit(..., uint8 v, bytes32 r, bytes32 s) external;
 
 | Contract | Role |
 |---|---|
-| `PadSale` | Bonding curve in **ETH**: 600M $PAD sold (60%), target **35 ETH**, 300M reserved for the pool (30%). Same curve math with S = 2R: start market cap ≈ 29 ETH (~$78k), graduation market cap ≈ 117 ETH (~$311k). Two-way (sell back any time). 1% sale fee → FeeSplitter. |
-| `PadMarketHook` | **Fork of POOL4's `CappedBurnHook`** (MIT, verified on Etherscan at `0xc6c965bd…2840`), deployed on Robinhood with the Robinhood PoolManager. $PAD/ETH full-range market, 1% LP fee, capped burn and ETH backstop. At graduation `PadSale` initializes it at the final curve price and calls `openMarket` with the raised ETH and 300M $PAD, then hands ownership to `MarketController`. Details in section 5.4.1. |
+| `PadSale` | Bonding curve in **IMD**: 600M $PAD sold (60%), target **≈ 14,800 IMD** (≈ 35 ETH at 1 ETH ≈ 423 IMD; fixed in IMD at deploy), 300M reserved for the pool (30%). Same curve math with S = 2R: start market cap ≈ 12,350 IMD (~$78k), graduation market cap ≈ 49,400 IMD (~$311k). Buyers can pay with ETH through `PadRouter` (ETH → IMD in the same transaction). Two-way (sell back any time). 1% sale fee → FeeSplitter. |
+| `PadMarketHook` | **Fork of POOL4's `CappedBurnHook`** (MIT, verified on Etherscan at `0xc6c965bd…2840`), adapted for an **IMD pair** and deployed on Robinhood with the Robinhood PoolManager. $PAD/IMD full-range market, 1% LP fee, capped burn and IMD backstop. At graduation `PadSale` initializes it at the final curve price and calls `openMarket` with the raised IMD and 300M $PAD, then hands ownership to `MarketController`. Details in section 5.4.1. |
 | `MarketController` | The hook's owner. Limits what the owner can do (section 5.4.1). |
 | `AirdropDistributor` | 5% (50M) Merkle claim for IMD seat holders and sIMD stakers (snapshot published in advance) |
 | `TeamVesting` | 2%: 6-month cliff, 18-month linear |
-| Liquidity reserve | 3% held by the treasury Safe behind the timelock, only for adding $PAD liquidity later through `fundInventory` (needs $PAD and ETH in proportion) |
+| Liquidity reserve | 3% held by the treasury Safe behind the timelock, only for adding $PAD liquidity later through `fundInventory` (needs $PAD and IMD in proportion) |
 
 #### 5.4.1 The POOL4 fork for $PAD
 
 What we take from POOL4's verified source (`CappedBurnHook`, Solidity 0.8.30, solady, v4-core):
 
-- **One hook per market.** The hook's token is fixed in the constructor and ETH is hard-coded as the other side, so a $PAD/ETH market needs no code changes. Constructor: `owner, poolManager, token, burnSink, rewardsRecipient, rewardShareBps (≤ 30%), minTrimTokens, lpFee, tickSpacing`.
+- **One hook per market.** The hook's token is fixed in the constructor, and the original hard-codes **native ETH** as the other side (`currency0 = address(0)`). A $PAD/**IMD** market therefore needs the changes in the table below. Constructor: `owner, poolManager, token, burnSink, rewardsRecipient, rewardShareBps (≤ 30%), minTrimTokens, lpFee, tickSpacing`.
 - **Hook permissions:** `beforeInitialize`, `beforeAddLiquidity` (both hook-only) and `afterSwap`. The hook address must be mined for these flags.
-- **Fees:** a normal pool fee (1% on mainnet), collected on every swap into a fee ledger, in both ETH and the token, and paid out with `withdrawFees(recipient)` by the owner.
-- **Burn:** after sells, tokens above `inventoryCap` are removed: at least 70% go to `burnSink`, up to 30% to `rewardsRecipient`. The removed ETH funds a backstop band above the price, rebalanced by a permissionless keeper.
+- **Fees:** a normal pool fee (1% on mainnet), collected on every swap into a fee ledger, in both the quote asset and the token, and paid out with `withdrawFees(recipient)` by the owner.
+- **Burn:** after sells, tokens above `inventoryCap` are removed: at least 70% go to `burnSink`, up to 30% to `rewardsRecipient`. The removed quote asset (ETH in the original, IMD in ours) funds a backstop band above the price, rebalanced by a permissionless keeper.
 
 **Changes for our fork:**
 
 | Item | Our setting or change |
 |---|---|
+| **Quote asset: IMD instead of native ETH** | The math assumes quote = `currency0`, token = `currency1`. v4 sorts currencies by address, so we **mine the $PAD token address to be above IMD's (`0x5F7B…7127`)**. IMD is then `currency0` and all price and amount math stays unchanged. We replace only the native-ETH plumbing with ERC-20 handling: `currency0 = IMD` in `poolKey()`; `openMarket`/`fundInventory` pull IMD with `transferFrom` instead of `msg.value`; settlements use `sync` + transfer + `settle` instead of `settle{value}`; payouts, keeper tips and the retained backstop pay IMD with `safeTransfer` instead of `safeTransferETH`; `receive()` is removed; `eth*` names become `quote*`. |
+| ETH-sized constants | Retuned in IMD: rebalance threshold (0.1 ETH → ~40 IMD), keeper tip (0.002 ETH → ~1 IMD), max keeper tip (0.1 ETH → ~40 IMD) |
+| Tests | Port POOL4's tests (repo due next week) to the IMD pair, plus fork tests on Robinhood with real IMD |
 | Compiler target | Rebuild with `evm_version = cancun`. The original is compiled for `osaka`, which Robinhood Chain may not support; Pepes runs `cancun` there. Fork tests must pass on Robinhood. |
 | `burnSink` | `PadBurner`: calls `$PAD.burn()` so supply really drops, instead of sending tokens to a dead address |
 | `rewardsRecipient` | The sPAD staking path (section 5.3): up to 30% of trimmed $PAD goes to stakers |
-| Fee recipient | `MarketController.collectFees()` (permissionless) → ETH fees to FeeSplitter (swapped to IMD) or treasury; $PAD fees burned or sent to stakers |
+| Fee recipient | `MarketController.collectFees()` (permissionless) → IMD fees straight to FeeSplitter; $PAD fees burned or sent to stakers |
 | Cap settings | `capFloor` and `capDecayTokensPerDay` sized for $PAD's supply, not IMD's 1,000-token mainnet values |
 | Owner | `MarketController`, never an EOA |
 
