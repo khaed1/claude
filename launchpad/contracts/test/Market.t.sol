@@ -18,7 +18,8 @@ import {PadBurner} from "../src/PadBurner.sol";
 import {PadMarketHook} from "../src/PadMarketHook.sol";
 import {MarketController} from "../src/MarketController.sol";
 
-contract MarketTest is Base {
+/// @dev Shared setup: $PONDPAD, sale, market hook, controller and burner on a real PoolManager.
+abstract contract MarketBase is Base {
     using StateLibrary for IPoolManager;
 
     uint256 internal constant SALE_TARGET = 8_460e18;
@@ -40,7 +41,7 @@ contract MarketTest is Base {
     address internal dripper = makeAddr("dripper");
     address internal trader = makeAddr("trader");
 
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
         for (uint256 i;; i++) {
             pondpad = new PondPadToken{salt: bytes32(i)}(address(this));
@@ -113,6 +114,10 @@ contract MarketTest is Base {
             ""
         );
     }
+}
+
+contract MarketTest is MarketBase {
+    using StateLibrary for IPoolManager;
 
     function test_market_opensAtSalePriceWhenSaleGraduates() public {
         uint256 supplyBefore = pondpad.totalSupply();
@@ -176,7 +181,7 @@ contract MarketTest is Base {
         assertGt(market.retainedQuote(), 0); // the IMD removed alongside funds the backstop
 
         // Claims settle from the next block; then the burner really burns.
-        vm.roll(block.number + 1);
+        _nextBlock();
         market.settleClaims();
         assertEq(pondpad.balanceOf(dripper), market.totalRewarded());
         burner.burn();
@@ -216,7 +221,7 @@ contract MarketTest is Base {
         assertGt(imdFee, 0);
         assertGt(tokenFee, 0);
 
-        vm.roll(block.number + 1);
+        _nextBlock();
         uint256 stakersImd = imd.balanceOf(stakers);
         uint256 treasuryImd = imd.balanceOf(treasury);
         controller.collectFees(); // permissionless
@@ -286,7 +291,7 @@ contract MarketTest is Base {
         _graduate();
         _swap(false, 10_000_000e18);
         assertGe(market.retainedQuote(), market.rebalanceQuoteThreshold());
-        vm.roll(block.number + 1);
+        _nextBlock();
         assertTrue(market.pendingRebalance());
         address keeper = makeAddr("keeper");
         market.rebalance();
@@ -316,10 +321,10 @@ contract MarketTest is Base {
         uint256 t0 = block.timestamp;
         _swap(true, 300e18);
         _swap(false, 15_000_000e18); // trims, builds retained IMD
-        vm.roll(block.number + 1);
+        _nextBlock();
         market.rebalance(); // retained IMD becomes a backstop band
         vm.warp(t0 + 3 days);
-        vm.roll(block.number + 1);
+        _nextBlock();
         vm.prank(slowTimelock);
         vm.expectRevert(Ownable.Unauthorized.selector); // policy is the 48 h timelock's, not the 7-day one's
         controller.setCapDecay(400_000e18);
@@ -361,7 +366,7 @@ contract MarketTest is Base {
         _swap(true, 50e18);
         _swap(false, 5_000_000e18);
         assertLe(next.tokensInPool(), next.inventoryCap() + next.minTrimTokens());
-        vm.roll(block.number + 1);
+        _nextBlock();
         controller.collectFees();
         assertEq(next.feeQuoteClaims(), 0);
         next.rebalance();
@@ -414,7 +419,7 @@ contract MarketTest is Base {
         for (uint256 i; i < 10; i++) {
             seed = uint256(keccak256(abi.encode(seed, i)));
             vm.warp(block.timestamp + (seed % 2 days));
-            vm.roll(block.number + 1);
+            _nextBlock();
             if (seed % 2 == 0) _swap(true, 1e18 + (seed >> 8) % 500e18);
             else _swap(false, 1e18 + (seed >> 8) % 8_000_000e18);
             assertLe(market.tokensInPool(), market.inventoryCap() + market.minTrimTokens());

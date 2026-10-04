@@ -52,16 +52,20 @@ The owner of the project is the user (IMD ecosystem builder). The IMD / POOL4 de
 | `PadMarketHook` | $PONDPAD/IMD market: POOL4 `CappedBurnHook` fork (IMD quote as currency0, dynamic fee 3% → 1% over 7 days via `beforeSwap`, IMD-sized constants). Cap floor 150M, decay 500k/day, 15% of trims to stakers. Original source in `contracts/upstream/CappedBurnHook.sol` | Done |
 | `MarketController` | Permanent owner of the market hook: opens it once from `PadSale`, permissionless `collectFees` (both fee tokens split 40/25/20/15), policy via 48 h timelock, sinks via 7-day timelock; the only exit is `migrate` into a new hook (7-day timelock, first 12 months, D-40), never to a wallet | Done |
 | `PadBurner` | Burn sink: burns all $PONDPAD it holds, permissionless | Done |
+| `StakedPONDPAD` | sPONDPAD ERC-4626 vault (POOL4 `StakedIMD` fork): one-block hold, 3-day max pause, can't rescue stake, powers expire after 12 months | Done |
+| `RewardDripper` | Streams $PONDPAD into the vault at a bounded rate (POOL4 fork): fixed vault, can't rescue rewards, always drainable, powers expire after 12 months | Done |
+| `PadBuyer` | Stakers' 40%: buys $PONDPAD with IMD in small price-guarded chunks, forwards $PONDPAD to the dripper | Done |
 | `FeeLib`, `Route` | Shared fee math and the `Hop` struct | Done |
 
 ### Tests (`contracts/test/`)
-- `PondPad.t.sol` + `Base.t.sol`: **31 local tests** (54 local in total with `PadSale.t.sol` and `Market.t.sol`) against a real v4 PoolManager with mock IMD and USDG and local IMD/ETH and ETH/USDG pools. Covers launch, fee splits, snipe tax, max-buy, dev buy, dividends, swarm budget, graduation in both currency orderings, locked liquidity, third-party router fees, the exact `PartialFill` revert, ETH and USDG paths before and after graduation, payment-route validation, integrator share (curve, pool, unregistered, spoofing through other routers, bounds), a 512-run solvency fuzz.
+- `PondPad.t.sol` + `Base.t.sol`: **31 local tests** (64 local in total with `PadSale.t.sol`, `Market.t.sol` and `Staking.t.sol`) against a real v4 PoolManager with mock IMD and USDG and local IMD/ETH and ETH/USDG pools. Covers launch, fee splits, snipe tax, max-buy, dev buy, dividends, swarm budget, graduation in both currency orderings, locked liquidity, third-party router fees, the exact `PartialFill` revert, ETH and USDG paths before and after graduation, payment-route validation, integrator share (curve, pool, unregistered, spoofing through other routers, bounds), a 512-run solvency fuzz.
 - `PadSale.t.sol`: **11 local tests** for the $PONDPAD sale: setup and start price, bad setup, closed before start / until funded, snipe tax decay to growth, fee and integrator share, whole-sale wallet cap (sells don't free it), sell round trip, ETH and USDG round trips, graduation at the curve's final price (sqrt price checked), completing-buy refund, solvency fuzz.
 - `Market.t.sol`: **12 local tests** for the $PONDPAD market: opens at the sale's final price when the sale graduates, fee 3% → 2% → 1% (both fee currencies), trims above the cap burned and 15% shared, ratchet no faster than 500k/day, fee split 40/25/20/15 in IMD and $PONDPAD, controller power limits, outsiders can't initialize or add liquidity, keeper rebalance deploys the backstop, cap-invariant fuzz at 3% and at 1%, migration into a new hook (same price, inventory, backstop IMD, fee clock and policy; guards; 12-month expiry), fee clock can only move earlier.
+- `Staking.t.sol`: **10 local tests**: vault deposit / one-block hold / redeem, short pause and cooldown, no stake rescue, powers expire; dripper streams trim rewards, never into an empty vault, bounded per call, settings stay drainable, no reward rescue; buyer turns splitter IMD into $PONDPAD for the dripper, refuses after a price pump until the reference catches up, forwards the $PONDPAD fee share, bounded settings; end to end from a coin trade to a higher sPONDPAD value.
 - `Fork.t.sol`: **5 fork tests** on live Robinhood Chain (real PoolManager, IMD, IMD/ETH and ETH/USDG pools): full lifecycle with ETH, USDG on the curve and after graduation, the $PONDPAD sale with ETH and USDG, the sale graduating into the market (cancun build, dynamic fee) with a buy and a trimmed sell, and an IMD depth report.
 
 ### Not built yet
-See `ROADMAP.md` section 1. In short: staking (`StakedPONDPAD`, `RewardDripper`, `PadBuyer`), `WorkerFund`, `GrowthFund`, `VersionRegistry`, `AttestationVerifier`, `CTOModule`, `SocialRegistry`, `PadLens`, timelock wiring, deploy scripts, frontend, Swarm Relay, indexer.
+See `ROADMAP.md` section 1. In short: `WorkerFund`, `GrowthFund`, `VersionRegistry`, `AttestationVerifier`, `CTOModule`, `SocialRegistry`, `PadLens`, timelock wiring, deploy scripts, frontend, Swarm Relay, indexer.
 
 ---
 
@@ -71,7 +75,7 @@ See `ROADMAP.md` section 1. In short: staking (`StakedPONDPAD`, `RewardDripper`,
 cd launchpad/contracts
 git submodule update --init --recursive        # forge-std v1.9.7, solady v0.1.9, v4-core @ 46c6834 (+ its solmate, openzeppelin)
 forge build
-forge test --no-match-contract Fork            # 54 local tests
+forge test --no-match-contract Fork            # 64 local tests
 FORK_RPC=https://rpc.mainnet.chain.robinhood.com forge test --match-contract Fork -vv   # 5 fork tests
 ```
 
@@ -86,7 +90,7 @@ mkdir -p ~/.foundry/bin && curl -sSL -o /tmp/foundry.tgz \
 Build settings (`foundry.toml`): Solidity 0.8.26, `evm_version = cancun`, `via_ir = true`, optimizer 200, `bytecode_hash = none`, lint on build off.
 
 Test gotchas found so far:
-- Under via-IR, `block.timestamp` read after `vm.warp` in the same test can be stale. Save `t0` and warp to absolute times.
+- Under via-IR, `block.timestamp` read after `vm.warp` in the same test can be stale. Save `t0` and warp to absolute times. Same for `block.number` after `vm.roll`: use `_nextBlock()` from `Base.t.sol`.
 - The PoolManager holds every pool's tokens; measure balance deltas, not totals.
 - Uniswap test helpers refund spare ETH to the test contract, so the test base has `receive()`.
 - Some Robinhood RPCs cap log queries at 10M blocks per request.
@@ -123,7 +127,7 @@ IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`)
 1. ~~Integrator fee share~~ (done, D-31 / D-33).
 2. ~~`PadSale`~~ (done, D-35 to D-37).
 3. ~~`PadMarketHook` + `MarketController` + `PadBurner`~~ (done, D-34, D-38, D-39). The upstream POOL4 source is in `contracts/upstream/`; `diff upstream/CappedBurnHook.sol src/PadMarketHook.sol` shows every change, and `python3 upstream/make_fork.py` (from `contracts/`) regenerates the hook from POOL4's source; edit the script, not the hook. Migration added after (D-40).
-4. **Staking**: `StakedPONDPAD` + `RewardDripper` (forks of POOL4's `StakedIMD` / `RewardDripper`, asset $PONDPAD; sources at the addresses in §4) and `PadBuyer` (buys $PONDPAD with the stakers' IMD in the `PadMarketHook` pool, and forwards the $PONDPAD fee share it receives from the splitter, D-38). The market hook's `rewardsRecipient` becomes the `RewardDripper` (set at deploy).
+4. ~~Staking~~ (done, D-42, D-43). `python3 upstream/make_staking.py` regenerates the vault and dripper from POOL4's sources. At deploy: market hook `rewardsRecipient` = `RewardDripper`, splitter `stakers` = `PadBuyer`, `powersExpireAt` = market open + 12 months.
 5. `WorkerFund`, `GrowthFund` (both also receive $PONDPAD from market fees, D-38), `AttestationVerifier`, `VersionRegistry`, `CTOModule`, `SocialRegistry`, `PadLens`.
 6. Timelock + Safe wiring, deploy scripts (hook address mining), fork rehearsal of a full deployment.
 7. Swarm audit loop, then frontend, Swarm Relay, indexer, X link service.

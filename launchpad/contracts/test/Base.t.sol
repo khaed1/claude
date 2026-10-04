@@ -90,6 +90,15 @@ abstract contract Base is Test {
 
     receive() external payable {}
 
+    uint256 internal _bn;
+
+    /// @dev Moves to the next block. Under via-IR, `block.number` read after `vm.roll` can be stale, so
+    ///      `vm.roll(block.number + 1)` twice in one test may land on the same block; this keeps its own count.
+    function _nextBlock() internal {
+        if (_bn < block.number) _bn = block.number;
+        vm.roll(++_bn);
+    }
+
     function setUp() public virtual {
         pm = new PoolManager(address(this));
         imd = new MockIMD();
