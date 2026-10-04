@@ -4,7 +4,7 @@ Foundry project for PondPad v1 on Robinhood Chain. Design: [`../ARCHITECTURE-v1.
 
 ## Status
 
-Core launch-and-trade path, tested end to end against a real Uniswap v4 PoolManager:
+Core launch-and-trade path and the $PONDPAD sale and market, tested end to end against a real Uniswap v4 PoolManager:
 
 | Contract | Role |
 | --- | --- |
@@ -15,11 +15,17 @@ Core launch-and-trade path, tested end to end against a real Uniswap v4 PoolMana
 | `PadFactory` | Deploys coins with CREATE2 |
 | `PadConfig` | Bounded launch settings, fee/growth addresses, payment tokens and their routes to IMD, integrator registry and share, guardian pause of new launches |
 | `IntegratorVault` | Integrator (app/bot) earnings: 15% of the protocol fee on trades they route |
-| `FeeSplitter` | Protocol IMD → stakers 40% / workers 25% / growth 20% / treasury 15%, within fixed ranges |
+| `FeeSplitter` | Protocol IMD (and the $PONDPAD market's sell-side fees) → stakers 40% / workers 25% / growth 20% / treasury 15%, within fixed ranges |
 | `CreatorVault` | Creator fees per coin, recipient changes, CTO hook-in |
 | `SwarmBudget` | Per-coin escrow for swarm jobs, released by the Swarm Relay |
+| `PaymentSwapper` | Payment plumbing shared by `PadRouter` and `PadSale` |
+| `PondPadToken` | $PONDPAD: 1B fixed supply, no owner, permit, burn |
+| `PadSale` | $PONDPAD IMD bonding curve (600M sold / 300M to the pool), snipe tax, per-wallet cap; opens the market at graduation |
+| `PadMarketHook` | $PONDPAD/IMD market: fork of POOL4's `CappedBurnHook` with an IMD quote and a 3% → 1% dynamic fee. Original in `upstream/` (`diff upstream/CappedBurnHook.sol src/PadMarketHook.sol`) |
+| `MarketController` | Permanent owner of the market hook; opens it once, sends fees to the splitter, no way to withdraw the position |
+| `PadBurner` | Burns the $PONDPAD the market trims |
 
-Not built yet: `PadLens`, `VersionRegistry` and `AttestationVerifier`, `CTOModule`, `SocialRegistry`, staking (`StakedPONDPAD`, `RewardDripper`, `PadBuyer`), `WorkerFund`/`GrowthFund`, the $PONDPAD sale and the POOL4 fork (`PadMarketHook`, `MarketController`), and deploy scripts.
+Not built yet: `PadLens`, `VersionRegistry` and `AttestationVerifier`, `CTOModule`, `SocialRegistry`, staking (`StakedPONDPAD`, `RewardDripper`, `PadBuyer`), `WorkerFund`/`GrowthFund`, `AirdropDistributor`/`TeamVesting`, and deploy scripts.
 
 ## Build and test
 

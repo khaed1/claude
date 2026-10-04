@@ -6,7 +6,8 @@ import {Ownable} from "solady/auth/Ownable.sol";
 
 /// @title FeeSplitter
 /// @notice Receives all protocol IMD and splits it between stakers, IMD workers, growth and the treasury.
-///         Anyone can call `distribute()`. Shares can only move inside fixed ranges, through the owner (timelock).
+///         Anyone can call `distribute()`. The $PONDPAD that sellers pay as fees in the $PONDPAD/IMD pool is
+///         split the same way, in $PONDPAD, with `distributeToken` (D-38). Shares can only move inside fixed ranges, through the owner (timelock).
 contract FeeSplitter is Ownable {
     using SafeTransferLib for address;
 
@@ -31,6 +32,7 @@ contract FeeSplitter is Ownable {
     Recipients internal _recipients;
 
     event Distributed(uint256 stakers, uint256 workers, uint256 growth, uint256 treasury);
+    event TokenDistributed(address indexed token, uint256 stakers, uint256 workers, uint256 growth, uint256 treasury);
     event SharesUpdated(Shares shares);
     event RecipientsUpdated(Recipients recipients);
 
@@ -53,19 +55,33 @@ contract FeeSplitter is Ownable {
     }
 
     function distribute() external {
-        uint256 amount = SafeTransferLib.balanceOf(imd, address(this));
-        if (amount == 0) return;
+        (uint256 a, uint256 b, uint256 c, uint256 d) = _distribute(imd);
+        if (a + b + c + d != 0) emit Distributed(a, b, c, d);
+    }
+
+    /// @notice Splits this contract's balance of any other token (in practice $PONDPAD from the market's
+    ///         sell-side fees) with the same shares and recipients.
+    function distributeToken(address token) external {
+        (uint256 a, uint256 b, uint256 c, uint256 d) = _distribute(token);
+        if (a + b + c + d != 0) emit TokenDistributed(token, a, b, c, d);
+    }
+
+    function _distribute(address token)
+        internal
+        returns (uint256 toStakers, uint256 toWorkers, uint256 toGrowth, uint256 toTreasury)
+    {
+        uint256 amount = SafeTransferLib.balanceOf(token, address(this));
+        if (amount == 0) return (0, 0, 0, 0);
         Shares memory s = _shares;
         Recipients memory r = _recipients;
-        uint256 toStakers = (amount * s.stakers) / BPS;
-        uint256 toWorkers = (amount * s.workers) / BPS;
-        uint256 toGrowth = (amount * s.growth) / BPS;
-        uint256 toTreasury = amount - toStakers - toWorkers - toGrowth;
-        if (toStakers != 0) imd.safeTransfer(r.stakers, toStakers);
-        if (toWorkers != 0) imd.safeTransfer(r.workers, toWorkers);
-        if (toGrowth != 0) imd.safeTransfer(r.growth, toGrowth);
-        if (toTreasury != 0) imd.safeTransfer(r.treasury, toTreasury);
-        emit Distributed(toStakers, toWorkers, toGrowth, toTreasury);
+        toStakers = (amount * s.stakers) / BPS;
+        toWorkers = (amount * s.workers) / BPS;
+        toGrowth = (amount * s.growth) / BPS;
+        toTreasury = amount - toStakers - toWorkers - toGrowth;
+        if (toStakers != 0) token.safeTransfer(r.stakers, toStakers);
+        if (toWorkers != 0) token.safeTransfer(r.workers, toWorkers);
+        if (toGrowth != 0) token.safeTransfer(r.growth, toGrowth);
+        if (toTreasury != 0) token.safeTransfer(r.treasury, toTreasury);
     }
 
     function setShares(Shares calldata s) external onlyOwner {

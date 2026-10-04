@@ -257,13 +257,13 @@ What we take from POOL4's verified source (`CappedBurnHook`, Solidity 0.8.30, so
 | Item | Our setting or change |
 |---|---|
 | **Quote asset: IMD instead of native ETH** | The math assumes quote = `currency0`, token = `currency1`. v4 sorts currencies by address, so we **mine the $PONDPAD token address to be above IMD's (`0x5F7B…7127`)**. IMD is then `currency0` and all price and amount math stays unchanged. We replace only the native-ETH plumbing with ERC-20 handling: `currency0 = IMD` in `poolKey()`; `openMarket`/`fundInventory` pull IMD with `transferFrom` instead of `msg.value`; settlements use `sync` + transfer + `settle` instead of `settle{value}`; payouts, keeper tips and the retained backstop pay IMD with `safeTransfer` instead of `safeTransferETH`; `receive()` is removed; `eth*` names become `quote*`. |
-| **Fee: dynamic 3% → 1% over 7 days (D-34)** | Pool key uses v4's dynamic-fee flag (`0x800000`) instead of a fixed `lpFee`. A new `beforeSwap` (extra hook flag to mine) returns `currentFee() \| OVERRIDE_FEE_FLAG`, where `currentFee()` = 30,000 at market open, falling linearly to 10,000 (1%) at day 7, then 10,000 forever: a pure function of time, no owner setter. The keeper-tip ceiling (`_keeperRewardDue`) reads `currentFee()` instead of `lpFee`. Nothing else changes: each swap's LP fee is still realised into the fee ledger before the cap runs, so cap / trim / burn / backstop math never sees the fee level. Tests compare against a flat-1% control |
+| **Fee: dynamic 3% → 1% over 7 days (D-34)** | Pool key uses v4's dynamic-fee flag (`0x800000`) instead of a fixed `lpFee`. A new `beforeSwap` (extra hook flag to mine) returns `currentFee() \| OVERRIDE_FEE_FLAG`, where `currentFee()` = 30,000 at market open, falling linearly to 10,000 (1%) at day 7, then 10,000 forever: a pure function of time, no owner setter. The keeper-tip ceiling (`_keeperRewardDue`) reads `currentFee()` instead of `lpFee`. Nothing else changes: each swap's LP fee is still realised into the fee ledger before the cap runs, so cap / trim / burn / backstop math never sees the fee level. A fuzz test checks the cap invariants at both 3% and 1% |
 | ETH-sized constants | Retuned in IMD: rebalance threshold (0.1 ETH → ~40 IMD), keeper tip (0.002 ETH → ~1 IMD), max keeper tip (0.1 ETH → ~40 IMD) |
-| Tests | Port POOL4's tests (repo due next week) to the IMD pair, plus fork tests on Robinhood with real IMD |
+| Tests | Own tests (`Market.t.sol`) and a Robinhood fork test with real IMD; port POOL4's tests when its repo is published |
 | Compiler target | Rebuild with `evm_version = cancun`. The original is compiled for `osaka`, which Robinhood Chain may not support; Pepes runs `cancun` there. Fork tests must pass on Robinhood. |
 | `burnSink` | `PadBurner`: calls `$PONDPAD.burn()` so supply really drops, instead of sending tokens to a dead address |
 | `rewardsRecipient` | `RewardDripper` (section 5.3): 15% of trimmed $PONDPAD goes to stakers (allowed up to 30%) |
-| Fee recipient | `MarketController.collectFees()` (permissionless) → IMD fees straight to FeeSplitter; $PONDPAD fees burned or sent to stakers |
+| Fee recipient | `MarketController.collectFees()` (permissionless) → both fee currencies to FeeSplitter: IMD split 40/25/20/15 as usual, and the $PONDPAD that sellers pay split **40/25/20/15 in $PONDPAD** (`distributeToken`, D-38) |
 | Cap settings | Starting proposal: `capFloor` = 150M $PONDPAD (half the opening pool), `capDecayTokensPerDay` = 500k $PONDPAD (0.05% of supply). Both adjustable later through the timelock (`setCapDecay`, `setCapFloor`). Section 5.4.2 explains the effect. |
 | Owner | `MarketController`, never an EOA |
 
@@ -273,9 +273,9 @@ What we take from POOL4's verified source (`CappedBurnHook`, Solidity 0.8.30, so
 |---|---|
 | `withdrawFees` | Permissionless; always to the fixed fee route |
 | Policy setters (cap floor, decay, ratchet, keeper tip, rebalance, reward share ≤ 30%) | Timelock (48 h) |
-| `setBurnSink`, `setRewardsRecipient` | Timelock (7 days) |
+| `setBurnSink`, `setRewardsRecipient` | `sinkAdmin` = the 7-day timelock |
 | `fundInventory` (add liquidity) | Timelock; only from the liquidity reserve + treasury |
-| `closeMarket` (withdraw the **whole** position) and `withdrawRetainedEth` | **Not exposed.** Optional emergency path only with a 7-day timelock **and** a swarm audit attestation that names a defect, with funds sent only to a new `PadMarketHook` |
+| `closeMarket` (withdraw the **whole** position) and `withdrawRetainedQuote` | **Not exposed in v1** (D-39), and the controller can't transfer the hook's ownership. A future emergency path would need a new controller design (7-day timelock + swarm attestation naming a defect, funds only to a new `PadMarketHook`) |
 | `initializePool`, `openMarket` | Called once inside `MarketController.launch`, which only `PadSale` can call, at graduation |
 
 The fork is unaudited code, so it is audited by the swarm together with our contracts (section 10), plus any audit the POOL4 developer has.

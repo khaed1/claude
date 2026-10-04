@@ -4,16 +4,16 @@ What is left in v1, then everything discussed for later versions. Details of the
 
 ## 1. v1: remaining work
 
-Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), factory, config, fee splitter, creator vault, swarm budget, integrator vault, $PONDPAD token and sale, with local and Robinhood fork tests. See `HANDOFF.md` §2.
+Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), factory, config, fee splitter, creator vault, swarm budget, integrator vault, $PONDPAD token and sale, $PONDPAD market (POOL4 fork) and its controller, with local and Robinhood fork tests. See `HANDOFF.md` §2.
 
 | # | Item | Notes |
 |---|---|---|
 | 1 | ~~Integrator fee share~~ | **Done** (D-31, D-33): 15% of the protocol fee to registered integrators via `IntegratorVault` |
 | 2 | ~~`PadSale` ($PONDPAD sale)~~ | **Done** (D-35 to D-37): IMD curve, S = 600M, R = 300M, target ≈ 8,460 IMD, all payment tokens, 80% → 0 snipe tax over 30 min, 15M per-wallet cap, hands the raise to the market launcher at graduation. `PondPadToken` done too |
-| 3 | `PadMarketHook` + `MarketController` + `PadBurner` | POOL4 `CappedBurnHook` fork for $PONDPAD/IMD; **dynamic fee 3% → 1% over 7 days (D-34)**; floor 150M, decay 500k/day, 15% of trims to stakers; no pool-withdrawal power; `MarketController.launch` receives the sale's handoff |
-| 4 | `StakedPONDPAD` + `RewardDripper` + `PadBuyer` | Forks of `StakedIMD` / `RewardDripper` with asset $PONDPAD; `PadBuyer` turns stakers' IMD into $PONDPAD in small, price-guarded chunks |
+| 3 | ~~`PadMarketHook` + `MarketController` + `PadBurner`~~ | **Done** (D-34, D-38, D-39): POOL4 `CappedBurnHook` fork for $PONDPAD/IMD with dynamic fee 3% → 1% over 7 days; floor 150M, decay 500k/day, 15% of trims to stakers; no pool-withdrawal power; sell-side $PONDPAD fees split 40/25/20/15 |
+| 4 | `StakedPONDPAD` + `RewardDripper` + `PadBuyer` | Forks of `StakedIMD` / `RewardDripper` with asset $PONDPAD; `PadBuyer` turns stakers' IMD into $PONDPAD in small, price-guarded chunks **and forwards the $PONDPAD fee share it receives (D-38)** |
 | 5 | `AirdropDistributor`, `TeamVesting` | 5% Merkle airdrop to IMD seats + sIMD; 2% team vesting |
-| 6 | `WorkerFund`, `GrowthFund` | Worker rewards address from the IMD dev; growth pays graduation websites, oracle costs, capped grants |
+| 6 | `WorkerFund`, `GrowthFund` | Worker rewards address from the IMD dev; growth pays graduation websites, oracle costs, capped grants. Both must also handle the $PONDPAD share of market fees (D-38) |
 | 7 | `AttestationVerifier`, `VersionRegistry` | IMD oracle EIP-712 attestations; version activation needs a swarm audit attestation |
 | 8 | `CTOModule` | Swarm-approved takeover → 3-day notice → 3-day execution window |
 | 9 | `SocialRegistry` | X badge level 1 (OAuth + wallet signature voucher) |

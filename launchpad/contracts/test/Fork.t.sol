@@ -26,6 +26,9 @@ import {Hop} from "../src/Route.sol";
 import {PadSale} from "../src/PadSale.sol";
 import {PondPadToken} from "../src/PondPadToken.sol";
 import {MockMarket} from "./PadSale.t.sol";
+import {PadBurner} from "../src/PadBurner.sol";
+import {PadMarketHook} from "../src/PadMarketHook.sol";
+import {MarketController} from "../src/MarketController.sol";
 
 /// @notice Runs PondPad against live Robinhood Chain state: the real Uniswap v4 PoolManager, the real IMD token and
 ///         the real hookless IMD/ETH pool. Skipped unless FORK_RPC is set:
@@ -141,6 +144,79 @@ contract ForkTest is Test {
         assertGt(ethBack, 0);
         assertEq(sale.sold(), 0);
         assertGe(ERC20(IMD).balanceOf(address(sale)), sale.raised());
+    }
+
+    /// @dev $PONDPAD sale graduates into the POOL4-fork market on the live PoolManager (cancun build, dynamic fee),
+    ///      then a buy and a trimmed sell go through it.
+    function test_fork_saleGraduatesIntoMarket() public {
+        if (!forked) return;
+        PondPadToken pondpad;
+        for (uint256 i;; i++) {
+            pondpad = new PondPadToken{salt: bytes32(i)}(address(this));
+            if (address(pondpad) > IMD) break;
+        }
+        PadBurner burner = new PadBurner(address(pondpad));
+        MarketController controller = new MarketController(
+            address(this), address(this), IMD, address(pondpad), address(splitter), address(burner), 150_000_000e18,
+            500_000e18
+        );
+        uint160 flags = Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_SWAP_FLAG
+            | Hooks.AFTER_SWAP_FLAG;
+        address hookAddr = address(flags | (uint160(0x7070) << 144));
+        deployCodeTo(
+            "PadMarketHook.sol:PadMarketHook",
+            abi.encode(
+                address(controller), PM, IMD, address(pondpad), address(burner), makeAddr("dripper"), uint256(1_500),
+                uint256(1_000e18), int24(200)
+            ),
+            hookAddr
+        );
+        PadMarketHook market = PadMarketHook(hookAddr);
+        PadSale sale = new PadSale(
+            IMD, address(PM), address(config), address(pondpad), address(controller), address(integrators), 8_460e18,
+            block.timestamp
+        );
+        integrators.setSale(address(sale));
+        controller.initialize(hookAddr, address(sale));
+        pondpad.approve(address(sale), type(uint256).max);
+        sale.fund();
+        vm.warp(block.timestamp + 30 minutes);
+
+        for (uint256 i; sale.status() == PadSale.Status.Trading; i++) {
+            address buyer = address(uint160(0x50000 + i));
+            deal(IMD, buyer, 100e18);
+            vm.startPrank(buyer);
+            ERC20(IMD).approve(address(sale), type(uint256).max);
+            sale.buyWith(IMD, 100e18, 0, block.timestamp, address(0));
+            vm.stopPrank();
+        }
+        assertTrue(market.marketOpen());
+        assertEq(market.currentFee(), 30_000);
+        console2.log("market IMD / PONDPAD at open:", market.quoteInPool() / 1e18, market.tokensInPool() / 1e18);
+
+        PoolSwapTest swapper = new PoolSwapTest(PM);
+        deal(IMD, address(this), 100e18);
+        ERC20(IMD).approve(address(swapper), type(uint256).max);
+        pondpad.approve(address(swapper), type(uint256).max);
+        PoolKey memory key = market.poolKey();
+        swapper.swap(
+            key,
+            SwapParams(true, -100e18, TickMath.MIN_SQRT_PRICE + 1),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            ""
+        );
+        assertApproxEqRel(market.totalFeeQuote(), 3e18, 1e12);
+        swapper.swap(
+            key,
+            SwapParams(false, -10_000_000e18, TickMath.MAX_SQRT_PRICE - 1),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            ""
+        );
+        assertGt(market.totalBurned(), 0);
+        assertLe(market.tokensInPool(), market.inventoryCap() + market.minTrimTokens());
+        vm.roll(block.number + 1);
+        market.settleClaims();
+        assertGt(burner.burn(), 0);
     }
 
     function test_fork_fullLifecycleWithEth() public {
