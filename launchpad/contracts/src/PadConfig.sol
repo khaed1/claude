@@ -39,6 +39,11 @@ contract PadConfig is Ownable {
     ///         transaction. Contracts only ever receive IMD.
     mapping(address token => Hop[]) internal _routeToImd;
     address[] internal _paymentTokens;
+
+    /// @notice Share of the protocol fee paid to a registered integrator on trades it routes through PadRouter.
+    uint16 public integratorShareBps;
+    uint16 public constant MAX_INTEGRATOR_SHARE_BPS = 2_500;
+    mapping(address => bool) public isIntegrator;
     address public immutable imd;
 
     event LaunchSettingsUpdated(LaunchSettings settings);
@@ -48,6 +53,8 @@ contract PadConfig is Ownable {
     event LaunchesPaused(bool paused);
     event PaymentRouteSet(address indexed token, Hop[] hops);
     event PaymentRouteRemoved(address indexed token);
+    event IntegratorShareUpdated(uint16 bps);
+    event IntegratorSet(address indexed integrator, bool registered);
 
     error InvalidSetting();
     error NotGuardian();
@@ -66,6 +73,28 @@ contract PadConfig is Ownable {
         _setGrowthFund(growthFund_);
         guardian = guardian_;
         _setLaunchSettings(s);
+        integratorShareBps = 1_500;
+        emit IntegratorShareUpdated(1_500);
+    }
+
+    /// @notice The integrator share in bps for `referrer`, or zero if it is not a registered integrator.
+    function integratorShareFor(address referrer) external view returns (uint256) {
+        return referrer != address(0) && isIntegrator[referrer] ? integratorShareBps : 0;
+    }
+
+    function setIntegratorShareBps(uint16 bps) external onlyOwner {
+        if (bps > MAX_INTEGRATOR_SHARE_BPS) revert InvalidSetting();
+        integratorShareBps = bps;
+        emit IntegratorShareUpdated(bps);
+    }
+
+    /// @notice Registers or removes an integrator. Owner or guardian: it only redirects part of the protocol's
+    ///         own fee, never user funds, so onboarding an app doesn't wait for the timelock.
+    function setIntegrator(address integrator, bool registered) external {
+        if (msg.sender != guardian && msg.sender != owner()) revert NotGuardian();
+        if (integrator == address(0)) revert InvalidSetting();
+        isIntegrator[integrator] = registered;
+        emit IntegratorSet(integrator, registered);
     }
 
     function launchSettings() external view returns (LaunchSettings memory) {

@@ -46,7 +46,7 @@ contract PondPadTest is Base {
     function test_devBuy_isExemptFromSnipeTaxAndMaxBuy() public {
         vm.prank(creator);
         (address coin, uint256 out) =
-            router.launchWith(_params("FROG", _noTax(), 0), address(imd), 201e18, true, 0, 0);
+            router.launchWith(_params("FROG", _noTax(), 0), address(imd), 201e18, true, 0, 0, address(0));
         assertGt(out, 20_000_000e18, "dev buy above the 2% window cap");
         assertEq(imd.balanceOf(growth), 0, "no snipe tax on dev buy");
         assertEq(PadToken(coin).balanceOf(creator), out);
@@ -71,7 +71,7 @@ contract PondPadTest is Base {
         vm.warp(t0 + 30); // snipe tax over, max-buy window still on
         vm.prank(alice);
         vm.expectRevert(BondingCurve.MaxBuyExceeded.selector);
-        router.buyWith(coin, address(imd), 200e18, 0, block.timestamp, bytes32(0));
+        router.buyWith(coin, address(imd), 200e18, 0, block.timestamp, address(0));
 
         vm.warp(t0 + 61);
         _buy(alice, coin, 200e18);
@@ -253,7 +253,7 @@ contract PondPadTest is Base {
         _fillCurve(coin);
         vm.prank(address(router));
         vm.expectRevert(BondingCurve.NotTrading.selector);
-        curve.sell(coin, 1e18, 0, alice);
+        curve.sell(coin, 1e18, 0, alice, address(0));
     }
 
     // ------------------------------------------------------------------ ETH payments
@@ -262,7 +262,7 @@ contract PondPadTest is Base {
         uint256 splitterBefore = imd.balanceOf(address(splitter));
         vm.prank(creator);
         (address coin, uint256 out) =
-            router.launchWith{value: 0.1 ether}(_params("FROG", _noTax(), 0), address(0), 0.1 ether, true, 0, 0);
+            router.launchWith{value: 0.1 ether}(_params("FROG", _noTax(), 0), address(0), 0.1 ether, true, 0, 0, address(0));
         // 1 IMD launch fee + the dev buy's own 1% protocol fee (~0.1 ETH ≈ 41 IMD).
         uint256 toSplitter = imd.balanceOf(address(splitter)) - splitterBefore;
         assertGt(toSplitter, 1e18, "launch fee in IMD");
@@ -276,7 +276,7 @@ contract PondPadTest is Base {
         uint256 before = imd.balanceOf(creator);
         uint256 splitterBefore = imd.balanceOf(address(splitter));
         vm.prank(creator);
-        router.launchWith{value: 0.1 ether}(_params("FROG", _noTax(), 0), address(0), 0.1 ether, false, 0, 0);
+        router.launchWith{value: 0.1 ether}(_params("FROG", _noTax(), 0), address(0), 0.1 ether, false, 0, 0, address(0));
         assertGt(imd.balanceOf(creator), before, "unused IMD returned");
         assertEq(imd.balanceOf(address(splitter)) - splitterBefore, 1e18, "exactly the launch fee");
     }
@@ -286,14 +286,14 @@ contract PondPadTest is Base {
         vm.warp(block.timestamp + 1 hours);
         uint256 ethBefore = alice.balance;
         vm.prank(alice);
-        uint256 out = router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, 0, block.timestamp, bytes32(0));
+        uint256 out = router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, 0, block.timestamp, address(0));
         assertGt(out, 0);
         // ~0.2 ETH × 423 IMD, minus the 1% IMD/ETH pool fee and price impact, minus 1.5%.
         assertApproxEqRel(curve.coinInfo(coin).raised, 0.2e18 * 423 * 99 / 100 * 9850 / 10_000, 2e16);
 
         vm.startPrank(alice);
         ERC20(coin).approve(address(router), out);
-        uint256 ethOut = router.sellFor(coin, address(0), out, 0, block.timestamp, bytes32(0));
+        uint256 ethOut = router.sellFor(coin, address(0), out, 0, block.timestamp, address(0));
         vm.stopPrank();
         assertApproxEqRel(alice.balance, ethBefore - 0.2 ether + ethOut, 0);
         assertApproxEqRel(ethOut, 0.2 ether * 9600 / 10_000, 1e16, "two pool fees + two curve fees");
@@ -306,14 +306,14 @@ contract PondPadTest is Base {
         _fillCurve(coin);
         uint256 splitterBefore = imd.balanceOf(address(splitter));
         vm.prank(alice);
-        uint256 out = router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, 0, block.timestamp, bytes32(0));
+        uint256 out = router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, 0, block.timestamp, address(0));
         assertGt(out, 0);
         assertGt(imd.balanceOf(address(splitter)), splitterBefore, "coin fee charged and flushed");
 
         uint256 ethBefore = alice.balance;
         vm.startPrank(alice);
         ERC20(coin).approve(address(router), out);
-        uint256 ethOut = router.sellFor(coin, address(0), out, 0, block.timestamp, bytes32(0));
+        uint256 ethOut = router.sellFor(coin, address(0), out, 0, block.timestamp, address(0));
         vm.stopPrank();
         assertEq(alice.balance - ethBefore, ethOut);
         assertApproxEqRel(ethOut, 0.2 ether * 9400 / 10_000, 1e16, "two pool fees + two 2% coin fees");
@@ -325,7 +325,7 @@ contract PondPadTest is Base {
         vm.warp(block.timestamp + 1 hours);
         vm.prank(alice);
         vm.expectRevert();
-        router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, type(uint256).max, block.timestamp, bytes32(0));
+        router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, type(uint256).max, block.timestamp, address(0));
     }
 
     // ------------------------------------------------------------------ USDG payments (two hops: USDG → ETH → IMD)
@@ -333,21 +333,21 @@ contract PondPadTest is Base {
     function test_usdg_launchBuyAndSellOnCurve() public {
         vm.prank(creator);
         (address coin, uint256 devOut) =
-            router.launchWith(_params("FROG", _noTax(), 0), address(usdg), 100e6, true, 0, 0);
+            router.launchWith(_params("FROG", _noTax(), 0), address(usdg), 100e6, true, 0, 0, address(0));
         assertGt(devOut, 0, "dev buy paid in USDG");
 
         vm.warp(block.timestamp + 1 hours);
         uint256 usdgBefore = usdg.balanceOf(alice);
         uint256 raisedBefore = curve.coinInfo(coin).raised;
         vm.prank(alice);
-        uint256 out = router.buyWith(coin, address(usdg), 500e6, 0, block.timestamp, bytes32(0));
+        uint256 out = router.buyWith(coin, address(usdg), 500e6, 0, block.timestamp, address(0));
         assertEq(usdgBefore - usdg.balanceOf(alice), 500e6);
         // 500 USDG ≈ 0.1875 ETH ≈ 79 IMD, minus pool fees and 1.5%.
         assertApproxEqRel(curve.coinInfo(coin).raised - raisedBefore, 79.3e18 * 99 / 100 * 9850 / 10_000, 3e16);
 
         vm.startPrank(alice);
         ERC20(coin).approve(address(router), out);
-        uint256 usdgOut = router.sellFor(coin, address(usdg), out, 0, block.timestamp, bytes32(0));
+        uint256 usdgOut = router.sellFor(coin, address(usdg), out, 0, block.timestamp, address(0));
         vm.stopPrank();
         assertApproxEqRel(usdgOut, 500e6 * 9500 / 10_000, 2e16, "round trip through both pools and the curve");
         assertEq(usdg.balanceOf(address(router)), 0);
@@ -358,11 +358,11 @@ contract PondPadTest is Base {
         address coin = _launch(_noTax(), 0);
         _fillCurve(coin);
         vm.prank(alice);
-        uint256 out = router.buyWith(coin, address(usdg), 500e6, 0, block.timestamp, bytes32(0));
+        uint256 out = router.buyWith(coin, address(usdg), 500e6, 0, block.timestamp, address(0));
         assertGt(out, 0);
         vm.startPrank(alice);
         ERC20(coin).approve(address(router), out);
-        uint256 usdgOut = router.sellFor(coin, address(usdg), out, 0, block.timestamp, bytes32(0));
+        uint256 usdgOut = router.sellFor(coin, address(usdg), out, 0, block.timestamp, address(0));
         vm.stopPrank();
         assertApproxEqRel(usdgOut, 500e6 * 9500 / 10_000, 2e16);
     }
@@ -371,17 +371,17 @@ contract PondPadTest is Base {
         address coin = _launch(_noTax(), 0);
         vm.prank(alice);
         vm.expectRevert(PadRouter.UnsupportedToken.selector);
-        router.buyWith(coin, address(0xdead), 1e18, 0, block.timestamp, bytes32(0));
+        router.buyWith(coin, address(0xdead), 1e18, 0, block.timestamp, address(0));
     }
 
     function test_ethAmountMustMatchValue() public {
         address coin = _launch(_noTax(), 0);
         vm.prank(alice);
         vm.expectRevert(PadRouter.WrongEthAmount.selector);
-        router.buyWith{value: 0.1 ether}(coin, address(0), 0.2 ether, 0, block.timestamp, bytes32(0));
+        router.buyWith{value: 0.1 ether}(coin, address(0), 0.2 ether, 0, block.timestamp, address(0));
         vm.prank(alice);
         vm.expectRevert(PadRouter.WrongEthAmount.selector);
-        router.buyWith{value: 0.1 ether}(coin, address(imd), 1e18, 0, block.timestamp, bytes32(0));
+        router.buyWith{value: 0.1 ether}(coin, address(imd), 1e18, 0, block.timestamp, address(0));
     }
 
     function test_paymentRoutes_validatedAndRemovable() public {
@@ -401,6 +401,80 @@ contract PondPadTest is Base {
         assertEq(config.paymentTokens().length, 1);
     }
 
+    // ------------------------------------------------------------------ Integrator share
+
+    function test_integrator_earnsShareOnCurveTrades() public {
+        address app = makeAddr("app");
+        config.setIntegrator(app, true);
+        address coin = _launch(_noTax(), 0);
+        vm.warp(block.timestamp + 1 hours);
+
+        uint256 splitterBefore = imd.balanceOf(address(splitter));
+        vm.prank(alice);
+        router.buyWith(coin, address(imd), 100e18, 0, block.timestamp, app);
+        assertEq(integrators.balanceOf(app), 0.15e18, "15% of the 1% protocol fee");
+        assertEq(imd.balanceOf(address(splitter)) - splitterBefore, 0.85e18, "splitter gets the rest");
+        assertEq(vault.balanceOf(coin), 0.5e18, "creator untouched");
+
+        integrators.claim(app);
+        assertEq(imd.balanceOf(app), 0.15e18);
+    }
+
+    function test_integrator_unregisteredReferrerEarnsNothing() public {
+        address coin = _launch(_noTax(), 0);
+        vm.warp(block.timestamp + 1 hours);
+        uint256 splitterBefore = imd.balanceOf(address(splitter));
+        vm.prank(alice);
+        router.buyWith(coin, address(imd), 100e18, 0, block.timestamp, makeAddr("stranger"));
+        assertEq(imd.balanceOf(address(splitter)) - splitterBefore, 1e18);
+        assertEq(imd.balanceOf(address(integrators)), 0);
+    }
+
+    function test_integrator_earnsShareAfterGraduation() public {
+        address app = makeAddr("app");
+        config.setIntegrator(app, true);
+        address coin = _launch(_holderTax(50), 0);
+        _fillCurve(coin);
+
+        uint256 splitterBefore = imd.balanceOf(address(splitter));
+        vm.prank(alice);
+        router.buyWith(coin, address(imd), 100e18, 0, block.timestamp, app);
+        assertEq(integrators.balanceOf(app), 0.15e18, "flushed to the vault after the pool trade");
+        assertEq(imd.balanceOf(address(splitter)) - splitterBefore, 0.85e18);
+        assertEq(hook.pendingIntegrator(app), 0);
+    }
+
+    function test_integrator_cannotBeSpoofedThroughOtherRouters() public {
+        address app = makeAddr("app");
+        config.setIntegrator(app, true);
+        address coin = _launch(_noTax(), 0);
+        _fillCurve(coin);
+        PoolKey memory key = hook.poolKey(coin);
+        bool imdIs0 = Currency.unwrap(key.currency0) == address(imd);
+        PoolSwapTest swapper = new PoolSwapTest(IPoolManager(address(pm)));
+        imd.mint(address(this), 100e18);
+        imd.approve(address(swapper), type(uint256).max);
+        swapper.swap(
+            key,
+            SwapParams({
+                zeroForOne: imdIs0,
+                amountSpecified: -10e18,
+                sqrtPriceLimitX96: imdIs0 ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
+            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            abi.encode(address(this), app)
+        );
+        assertEq(hook.pendingIntegrator(app), 0, "hook data from other routers is ignored");
+    }
+
+    function test_integrator_shareIsBoundedAndOnlyGuardianRegisters() public {
+        vm.expectRevert(PadConfig.InvalidSetting.selector);
+        config.setIntegratorShareBps(2_600);
+        vm.prank(alice);
+        vm.expectRevert(PadConfig.NotGuardian.selector);
+        config.setIntegrator(alice, true);
+    }
+
     // ------------------------------------------------------------------ Config bounds
 
     function test_config_rejectsOutOfRangeSettings() public {
@@ -414,7 +488,7 @@ contract PondPadTest is Base {
         config.setLaunchesPaused(true);
         vm.prank(creator);
         vm.expectRevert();
-        router.launchWith(_params("FROG", _noTax(), 0), address(imd), 1e18, false, 0, 0);
+        router.launchWith(_params("FROG", _noTax(), 0), address(imd), 1e18, false, 0, 0, address(0));
     }
 
     // ------------------------------------------------------------------ Fuzz

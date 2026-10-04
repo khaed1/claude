@@ -21,6 +21,7 @@ import {PadRouter} from "../src/PadRouter.sol";
 import {CreatorVault} from "../src/CreatorVault.sol";
 import {SwarmBudget} from "../src/SwarmBudget.sol";
 import {FeeSplitter} from "../src/FeeSplitter.sol";
+import {IntegratorVault} from "../src/IntegratorVault.sol";
 import {CoinFees} from "../src/FeeLib.sol";
 import {Hop} from "../src/Route.sol";
 
@@ -68,6 +69,7 @@ abstract contract Base is Test {
     FeeSplitter internal splitter;
     CreatorVault internal vault;
     SwarmBudget internal budget;
+    IntegratorVault internal integrators;
     BondingCurve internal curve;
     PadHook internal hook;
     PadFactory internal factory;
@@ -126,12 +128,13 @@ abstract contract Base is Test {
         config.setPaymentRoute(address(usdg), usdgRoute);
         vault = new CreatorVault(address(imd));
         budget = new SwarmBudget(address(this), address(imd), address(vault), relay, 100e18);
+        integrators = new IntegratorVault(address(imd));
         curve = new BondingCurve(address(imd), address(config), address(pm));
 
         address hookAddr = address(uint160(HOOK_FLAGS) | (uint160(0x4444) << 144));
         deployCodeTo(
             "PadHook.sol:PadHook",
-            abi.encode(IPoolManager(address(pm)), address(imd), address(config), address(vault), address(budget), address(this)),
+            abi.encode(IPoolManager(address(pm)), address(imd), address(config), address(vault), address(budget), address(integrators), address(this)),
             hookAddr
         );
         hook = PadHook(hookAddr);
@@ -141,7 +144,10 @@ abstract contract Base is Test {
 
         vault.initialize(address(curve), address(hook), address(0));
         budget.initialize(address(curve), address(hook));
-        curve.initialize(address(factory), address(router), address(hook), address(vault), address(budget));
+        curve.initialize(
+            address(factory), address(router), address(hook), address(vault), address(budget), address(integrators)
+        );
+        integrators.initialize(address(curve), address(hook));
         hook.initialize(address(curve), address(router));
         factory.initialize(address(router));
 
@@ -211,7 +217,7 @@ abstract contract Base is Test {
 
     function _launch(CoinFees memory fees, uint256 devBuy) internal returns (address coin) {
         vm.prank(creator);
-        (coin,) = router.launchWith(_params("FROG", fees, bytes32(0)), address(imd), 1e18 + devBuy, devBuy != 0, 0, 0);
+        (coin,) = router.launchWith(_params("FROG", fees, bytes32(0)), address(imd), 1e18 + devBuy, devBuy != 0, 0, 0, address(0));
     }
 
     /// @dev Launches coins with increasing salts until the IMD/coin address ordering matches `imdFirst`.
@@ -221,7 +227,7 @@ abstract contract Base is Test {
             address predicted = factory.predictAddress(p, creator);
             if ((address(imd) < predicted) == imdFirst) {
                 vm.prank(creator);
-                (coin,) = router.launchWith(p, address(imd), 1e18, false, 0, 0);
+                (coin,) = router.launchWith(p, address(imd), 1e18, false, 0, 0, address(0));
                 return coin;
             }
         }
@@ -230,13 +236,13 @@ abstract contract Base is Test {
 
     function _buy(address who, address coin, uint256 imdIn) internal returns (uint256 out) {
         vm.prank(who);
-        out = router.buyWith(coin, address(imd), imdIn, 0, block.timestamp, bytes32(0));
+        out = router.buyWith(coin, address(imd), imdIn, 0, block.timestamp, address(0));
     }
 
     function _sell(address who, address coin, uint256 tokensIn) internal returns (uint256 out) {
         vm.startPrank(who);
         ERC20(coin).approve(address(router), tokensIn);
-        out = router.sellFor(coin, address(imd), tokensIn, 0, block.timestamp, bytes32(0));
+        out = router.sellFor(coin, address(imd), tokensIn, 0, block.timestamp, address(0));
         vm.stopPrank();
     }
 
@@ -249,7 +255,7 @@ abstract contract Base is Test {
             imd.mint(buyer, 1_000e18);
             vm.startPrank(buyer);
             imd.approve(address(router), type(uint256).max);
-            router.buyWith(coin, address(imd), 1_000e18, 0, block.timestamp, bytes32(0));
+            router.buyWith(coin, address(imd), 1_000e18, 0, block.timestamp, address(0));
             vm.stopPrank();
         }
     }

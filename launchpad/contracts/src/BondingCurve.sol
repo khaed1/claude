@@ -14,6 +14,10 @@ interface IFeeSink {
     function credit(address coin, uint256 amount) external;
 }
 
+interface IIntegratorSink {
+    function credit(address integrator, address coin, uint256 amount) external;
+}
+
 interface ICreatorRegistry {
     function register(address coin, address recipient) external;
 }
@@ -73,6 +77,7 @@ contract BondingCurve is ReentrancyGuard {
     address public hook;
     address public creatorVault;
     address public swarmBudget;
+    address public integratorVault;
 
     mapping(address coin => Coin) internal _coins;
     mapping(address coin => mapping(address wallet => uint256)) public boughtInWindow;
@@ -107,9 +112,14 @@ contract BondingCurve is ReentrancyGuard {
         _deployer = msg.sender;
     }
 
-    function initialize(address factory_, address router_, address hook_, address creatorVault_, address swarmBudget_)
-        external
-    {
+    function initialize(
+        address factory_,
+        address router_,
+        address hook_,
+        address creatorVault_,
+        address swarmBudget_,
+        address integratorVault_
+    ) external {
         if (msg.sender != _deployer) revert Unauthorized();
         if (factory != address(0)) revert AlreadyInitialized();
         factory = factory_;
@@ -117,6 +127,7 @@ contract BondingCurve is ReentrancyGuard {
         hook = hook_;
         creatorVault = creatorVault_;
         swarmBudget = swarmBudget_;
+        integratorVault = integratorVault_;
         imd.safeApprove(hook_, type(uint256).max);
     }
 
@@ -154,9 +165,18 @@ contract BondingCurve is ReentrancyGuard {
 
     /// @notice Buys `coin` with `grossIn` IMD that the router has already sent here.
     /// @param exempt True only for the creator's dev buy in the launch transaction (no snipe tax, no max-buy).
+    /// @param referrer Integrator that routed the trade; earns its share of the protocol fee if registered.
     /// @return out Tokens sent to `recipient`.
     /// @return refund IMD returned to `refundTo` when the buy completes the curve.
-    function buy(address coin, uint256 grossIn, uint256 minOut, address recipient, address refundTo, bool exempt)
+    function buy(
+        address coin,
+        uint256 grossIn,
+        uint256 minOut,
+        address recipient,
+        address refundTo,
+        bool exempt,
+        address referrer
+    )
         external
         nonReentrant
         returns (uint256 out, uint256 refund)
@@ -201,7 +221,7 @@ contract BondingCurve is ReentrancyGuard {
         uint256 fee = (gross * feeBps) / BPS;
         uint256 snipe = gross - net - fee;
         // Holders are credited before the buyer receives tokens, so a buyer never earns from their own buy.
-        _routeFees(coin, c.fees, fee);
+        _routeFees(coin, c.fees, fee, referrer);
         if (snipe != 0) imd.safeTransfer(config.growthFund(), snipe);
         if (refund != 0) imd.safeTransfer(refundTo, refund);
         coin.safeTransfer(recipient, out);
@@ -217,7 +237,7 @@ contract BondingCurve is ReentrancyGuard {
     }
 
     /// @notice Sells `tokensIn` of `coin` that the router has already sent here.
-    function sell(address coin, uint256 tokensIn, uint256 minOut, address recipient)
+    function sell(address coin, uint256 tokensIn, uint256 minOut, address recipient, address referrer)
         external
         nonReentrant
         returns (uint256 out)
@@ -239,7 +259,7 @@ contract BondingCurve is ReentrancyGuard {
         c.sold -= uint128(tokensIn);
 
         // The seller's tokens already left their wallet, so they don't share in their own sell's holder fee.
-        _routeFees(coin, c.fees, fee);
+        _routeFees(coin, c.fees, fee, referrer);
         imd.safeTransfer(recipient, out);
         emit CurveTrade(coin, recipient, false, gross, tokensIn, fee, 0, c.raised);
     }
@@ -268,9 +288,15 @@ contract BondingCurve is ReentrancyGuard {
         emit Graduated(coin, poolImd, poolTokens, graduationFee);
     }
 
-    function _routeFees(address coin, CoinFees memory fees, uint256 fee) internal {
+    function _routeFees(address coin, CoinFees memory fees, uint256 fee, address referrer) internal {
         if (fee == 0) return;
         FeeParts memory p = FeeLib.split(fees, fee);
+        uint256 integratorCut = (p.protocol * config.integratorShareFor(referrer)) / BPS;
+        if (integratorCut != 0) {
+            p.protocol -= integratorCut;
+            imd.safeTransfer(integratorVault, integratorCut);
+            IIntegratorSink(integratorVault).credit(referrer, coin, integratorCut);
+        }
         if (p.protocol != 0) imd.safeTransfer(config.feeSplitter(), p.protocol);
         if (p.creator != 0) {
             imd.safeTransfer(creatorVault, p.creator);

@@ -20,6 +20,7 @@ import {PadRouter} from "../src/PadRouter.sol";
 import {CreatorVault} from "../src/CreatorVault.sol";
 import {SwarmBudget} from "../src/SwarmBudget.sol";
 import {FeeSplitter} from "../src/FeeSplitter.sol";
+import {IntegratorVault} from "../src/IntegratorVault.sol";
 import {CoinFees} from "../src/FeeLib.sol";
 import {Hop} from "../src/Route.sol";
 
@@ -78,11 +79,12 @@ contract ForkTest is Test {
         config.setPaymentRoute(USDG, usdgRoute);
         CreatorVault vault = new CreatorVault(IMD);
         SwarmBudget budget = new SwarmBudget(address(this), IMD, address(vault), address(this), 100e18);
+        IntegratorVault integrators = new IntegratorVault(IMD);
         curve = new BondingCurve(IMD, address(config), address(PM));
         address hookAddr = address(uint160(HOOK_FLAGS) | (uint160(0x5050) << 144));
         deployCodeTo(
             "PadHook.sol:PadHook",
-            abi.encode(PM, IMD, address(config), address(vault), address(budget), address(this)),
+            abi.encode(PM, IMD, address(config), address(vault), address(budget), address(integrators), address(this)),
             hookAddr
         );
         hook = PadHook(hookAddr);
@@ -90,7 +92,10 @@ contract ForkTest is Test {
         router = new PadRouter(IMD, address(PM), address(config), address(curve), address(hook), address(factory));
         vault.initialize(address(curve), address(hook), address(0));
         budget.initialize(address(curve), address(hook));
-        curve.initialize(address(factory), address(router), address(hook), address(vault), address(budget));
+        curve.initialize(
+            address(factory), address(router), address(hook), address(vault), address(budget), address(integrators)
+        );
+        integrators.initialize(address(curve), address(hook));
         hook.initialize(address(curve), address(router));
         factory.initialize(address(router));
     }
@@ -105,7 +110,8 @@ contract ForkTest is Test {
             0.05 ether,
             true,
             0,
-            0
+            0,
+            address(0)
         );
         assertGt(devTokens, 0);
         vm.warp(block.timestamp + 1 hours);
@@ -116,7 +122,7 @@ contract ForkTest is Test {
             address buyer = address(uint160(0xF0000 + i));
             vm.deal(buyer, 2 ether);
             vm.prank(buyer);
-            router.buyWith{value: 1 ether}(coin, address(0), 1 ether, 0, block.timestamp, bytes32(0));
+            router.buyWith{value: 1 ether}(coin, address(0), 1 ether, 0, block.timestamp, address(0));
             ethSpent += 1 ether;
         }
         console2.log("ETH spent by buyers to graduate one coin (incl. refund in IMD):", ethSpent);
@@ -126,10 +132,10 @@ contract ForkTest is Test {
         address alice = makeAddr("alice");
         vm.deal(alice, 1 ether);
         vm.prank(alice);
-        uint256 tokens = router.buyWith{value: 0.1 ether}(coin, address(0), 0.1 ether, 0, block.timestamp, bytes32(0));
+        uint256 tokens = router.buyWith{value: 0.1 ether}(coin, address(0), 0.1 ether, 0, block.timestamp, address(0));
         vm.startPrank(alice);
         ERC20(coin).approve(address(router), tokens);
-        uint256 ethBack = router.sellFor(coin, address(0), tokens, 0, block.timestamp, bytes32(0));
+        uint256 ethBack = router.sellFor(coin, address(0), tokens, 0, block.timestamp, address(0));
         vm.stopPrank();
         console2.log("0.1 ETH round trip after graduation returns:", ethBack);
         assertApproxEqRel(ethBack, 0.094 ether, 2e16);
@@ -140,9 +146,9 @@ contract ForkTest is Test {
         deal(USDG, alice, 1_000e6);
         vm.startPrank(alice);
         ERC20(USDG).approve(address(router), type(uint256).max);
-        tokens = router.buyWith(coin, USDG, 300e6, 0, block.timestamp, bytes32(0));
+        tokens = router.buyWith(coin, USDG, 300e6, 0, block.timestamp, address(0));
         ERC20(coin).approve(address(router), tokens);
-        uint256 usdgBack = router.sellFor(coin, USDG, tokens, 0, block.timestamp, bytes32(0));
+        uint256 usdgBack = router.sellFor(coin, USDG, tokens, 0, block.timestamp, address(0));
         vm.stopPrank();
         console2.log("300 USDG round trip after graduation returns (6 decimals):", usdgBack);
         assertApproxEqRel(usdgBack, 300e6 * 94 / 100, 3e16);
@@ -156,12 +162,11 @@ contract ForkTest is Test {
         vm.startPrank(alice);
         ERC20(USDG).approve(address(router), type(uint256).max);
         (address coin,) = router.launchWith(
-            LaunchParams("Usdg Frog", "UFROG", "ipfs://x", address(0), CoinFees(0, 0, 0, 0), 0), USDG, 50e6, true, 0, 0
-        );
+            LaunchParams("Usdg Frog", "UFROG", "ipfs://x", address(0), CoinFees(0, 0, 0, 0), 0), USDG, 50e6, true, 0, 0, address(0));
         vm.warp(block.timestamp + 1 hours);
-        uint256 tokens = router.buyWith(coin, USDG, 200e6, 0, block.timestamp, bytes32(0));
+        uint256 tokens = router.buyWith(coin, USDG, 200e6, 0, block.timestamp, address(0));
         ERC20(coin).approve(address(router), tokens);
-        uint256 usdgBack = router.sellFor(coin, USDG, tokens, 0, block.timestamp, bytes32(0));
+        uint256 usdgBack = router.sellFor(coin, USDG, tokens, 0, block.timestamp, address(0));
         vm.stopPrank();
         console2.log("200 USDG round trip on the curve returns (6 decimals):", usdgBack);
         assertApproxEqRel(usdgBack, 200e6 * 95 / 100, 3e16);

@@ -148,6 +148,7 @@ No one can block graduation by creating the pool first, because the hook rejects
 
 | Bucket | Share | Allowed range (timelocked) | v1 use |
 |---|---|---|---|
+| *(off the top, referred trades only)* Integrator | 15% of the protocol fee | 0–25% (timelock) | `IntegratorVault`, claimable in IMD by the registered app/bot that routed the trade |
 | sPONDPAD stakers | 40% | 25–60% | `PadBuyer` buys $PONDPAD with it on the market; `RewardDripper` streams the $PONDPAD into the sPONDPAD vault |
 | IMD workers | 25% | 15–35% | WorkerFund → IMD worker rewards address **[DEV]** |
 | Growth | 20% | 0–30% | Graduation websites, oracle costs, capped grants. The "growth ↔ stakers" dial moves this toward stakers over time. |
@@ -201,6 +202,7 @@ function launchWith(LaunchParams calldata p, address tokenIn, uint256 amountIn, 
 function buyWith(address coin, address tokenIn, uint256 amountIn, uint256 minTokensOut, uint256 deadline, bytes32 ref) external payable returns (uint256);
 function sellFor(address coin, address tokenOut, uint256 tokensIn, uint256 minOut, uint256 deadline, bytes32 ref) external returns (uint256);
 function sellForWithPermit(..., uint8 v, bytes32 r, bytes32 s) external returns (uint256);
+// every trading function also takes `address referrer` (registered integrator, or address(0))
 ```
 - It routes automatically: curve before graduation, v4 pool after.
 - `tokenIn` / `tokenOut` is IMD, native ETH (`address(0)`) or any **payment token approved in `PadConfig`**, which stores a swap path to IMD for each (ETH: the IMD/ETH pool; USDG: USDG → ETH → IMD). After graduation the payment path and the coin's pool run in one unlock.

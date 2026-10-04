@@ -26,6 +26,10 @@ interface IFeeSinkHook {
     function credit(address coin, uint256 amount) external;
 }
 
+interface IIntegratorSinkHook {
+    function credit(address integrator, address coin, uint256 amount) external;
+}
+
 /// @title PadHook
 /// @notice Uniswap v4 hook for graduated PondPad coins. It creates each coin's pool at graduation, owns the pool's
 ///         full-range liquidity forever (there is no function to remove it), and charges the coin's fee on the IMD
@@ -45,6 +49,7 @@ contract PadHook is IHooks, IUnlockCallback {
     uint256 internal constant Q96 = 0x1000000000000000000000000;
     uint8 internal constant ACTION_SEED = 1;
     uint8 internal constant ACTION_FLUSH = 2;
+    uint8 internal constant ACTION_FLUSH_INTEGRATOR = 3;
     /// @dev Transient slots for the fee and expected pool amount of a specified-IMD swap.
     bytes32 internal constant FEE_SLOT = keccak256("pondpad.hook.fee");
     bytes32 internal constant EXPECTED_SLOT = keccak256("pondpad.hook.expected");
@@ -54,6 +59,7 @@ contract PadHook is IHooks, IUnlockCallback {
     PadConfig public immutable config;
     address public immutable creatorVault;
     address public immutable swarmBudget;
+    address public immutable integratorVault;
     address internal immutable _deployer;
 
     address public curve;
@@ -75,6 +81,8 @@ contract PadHook is IHooks, IUnlockCallback {
     mapping(address coin => Market) internal _markets;
     mapping(PoolId => address coin) public coinOfPool;
     mapping(address coin => Pending) public pending;
+    /// @notice Integrator earnings held as claims until flushed to the IntegratorVault.
+    mapping(address integrator => uint256) public pendingIntegrator;
 
     event MarketOpened(address indexed coin, PoolId indexed poolId, uint160 sqrtPriceX96, uint128 liquidity);
     event Trade(
@@ -97,6 +105,7 @@ contract PadHook is IHooks, IUnlockCallback {
         address config_,
         address creatorVault_,
         address swarmBudget_,
+        address integratorVault_,
         address deployer_
     ) {
         poolManager = poolManager_;
@@ -104,6 +113,7 @@ contract PadHook is IHooks, IUnlockCallback {
         config = PadConfig(config_);
         creatorVault = creatorVault_;
         swarmBudget = swarmBudget_;
+        integratorVault = integratorVault_;
         _deployer = deployer_;
         Hooks.validateHookPermissions(IHooks(address(this)), getHookPermissions());
     }
@@ -221,7 +231,7 @@ contract PadHook is IHooks, IUnlockCallback {
         revert OnlySelf();
     }
 
-    function beforeSwap(address, PoolKey calldata key, SwapParams calldata params, bytes calldata)
+    function beforeSwap(address sender, PoolKey calldata key, SwapParams calldata params, bytes calldata hookData)
         external
         onlyPoolManager
         returns (bytes4, BeforeSwapDelta, uint24)
@@ -239,7 +249,8 @@ contract PadHook is IHooks, IUnlockCallback {
         // exact-in buy: fee on what the buyer pays. exact-out sell: fee on the gross the pool pays out.
         uint256 fee = exactIn ? (amount * feeBps) / BPS : (amount * feeBps) / (BPS - feeBps);
         uint256 expected = exactIn ? amount - fee : amount + fee;
-        _charge(coin, m.fees, fee);
+        (, address referrer) = _decodeHookData(sender, hookData);
+        _charge(coin, m.fees, fee, referrer);
         bytes32 feeSlot = FEE_SLOT;
         bytes32 expectedSlot = EXPECTED_SLOT;
         assembly ("memory-safe") {
@@ -281,20 +292,37 @@ contract PadHook is IHooks, IUnlockCallback {
             uint256 feeBps = FeeLib.totalBps(m.fees);
             // exact-in sell: fee on the pool's IMD output. exact-out buy: fee on what the buyer pays in total.
             fee = exactIn ? (poolImd * feeBps) / BPS : (poolImd * feeBps) / (BPS - feeBps);
-            _charge(coin, m.fees, fee);
+            (, address referrer) = _decodeHookData(sender, hookData);
+            _charge(coin, m.fees, fee, referrer);
             hookDelta = fee.toInt128();
         }
 
         bool isBuy = params.zeroForOne == m.imdIsCurrency0;
-        address trader = sender == router && hookData.length == 32 ? abi.decode(hookData, (address)) : sender;
+        (address trader,) = _decodeHookData(sender, hookData);
         emit Trade(coin, trader, isBuy, isBuy ? poolImd + fee : poolImd - fee, tokenAmount, fee);
         return (IHooks.afterSwap.selector, hookDelta);
     }
 
+    /// @dev Only the router's hook data is trusted: (trader, referrer). Other callers are their own trader and
+    ///      never earn an integrator share.
+    function _decodeHookData(address sender, bytes calldata hookData)
+        internal
+        view
+        returns (address trader, address referrer)
+    {
+        if (sender == router && hookData.length == 64) return abi.decode(hookData, (address, address));
+        return (sender, address(0));
+    }
+
     /// @dev The swap credits the hook `fee` IMD; minting claims of the same size settles that credit.
-    function _charge(address coin, CoinFees memory fees, uint256 fee) internal {
+    function _charge(address coin, CoinFees memory fees, uint256 fee, address referrer) internal {
         if (fee == 0) return;
         FeeParts memory p = FeeLib.split(fees, fee);
+        uint256 integratorCut = (p.protocol * config.integratorShareFor(referrer)) / BPS;
+        if (integratorCut != 0) {
+            p.protocol -= integratorCut;
+            pendingIntegrator[referrer] += integratorCut;
+        }
         Pending storage pd = pending[coin];
         pd.protocol += uint128(p.protocol);
         pd.creator += uint128(p.creator);
@@ -314,6 +342,25 @@ contract PadHook is IHooks, IUnlockCallback {
             return;
         }
         poolManager.unlock(abi.encode(ACTION_FLUSH, abi.encode(coin)));
+    }
+
+    /// @notice Sends an integrator's pending earnings to the IntegratorVault. Same unlock rules as `flush`.
+    function flushIntegrator(address integrator) external {
+        if (poolManager.isUnlocked()) {
+            if (msg.sender == router) _flushIntegrator(integrator);
+            return;
+        }
+        poolManager.unlock(abi.encode(ACTION_FLUSH_INTEGRATOR, abi.encode(integrator)));
+    }
+
+    function _flushIntegrator(address integrator) internal {
+        uint256 amount = pendingIntegrator[integrator];
+        if (amount == 0) return;
+        pendingIntegrator[integrator] = 0;
+        Currency c = Currency.wrap(imd);
+        poolManager.burn(address(this), CurrencyLibrary.toId(c), amount);
+        poolManager.take(c, integratorVault, amount);
+        IIntegratorSinkHook(integratorVault).credit(integrator, address(0), amount);
     }
 
     function _flush(address coin) internal {
@@ -347,8 +394,10 @@ contract PadHook is IHooks, IUnlockCallback {
             (address coin, uint256 amount0, uint256 amount1, uint160 sqrtP) =
                 abi.decode(payload, (address, uint256, uint256, uint160));
             _seed(coin, amount0, amount1, sqrtP);
-        } else {
+        } else if (action == ACTION_FLUSH) {
             _flush(abi.decode(payload, (address)));
+        } else {
+            _flushIntegrator(abi.decode(payload, (address)));
         }
         return "";
     }

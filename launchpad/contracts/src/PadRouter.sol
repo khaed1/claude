@@ -42,10 +42,10 @@ contract PadRouter is IUnlockCallback, ReentrancyGuard {
         address payer; // pays the first hop's input; address(this) = the router's own balance or msg.value
         address recipient; // receives the last hop's output
         address trader; // reported to the hook for trade attribution
+        address referrer; // integrator that routed the trade (earns a share of the protocol fee if registered)
     }
 
     event Launched(address indexed coin, address indexed creator, uint256 devBuyImd, uint256 devBuyTokens);
-    event Referral(address indexed coin, address indexed trader, bytes32 indexed ref, bool isBuy, uint256 amount);
 
     error Expired();
     error Slippage();
@@ -75,16 +75,18 @@ contract PadRouter is IUnlockCallback, ReentrancyGuard {
     ///         into IMD; the launch fee comes out of it, and the rest is either the creator's dev buy (exempt from
     ///         the snipe tax and max-buy) or returned as IMD.
     /// @param minImd Minimum IMD the payment must convert to (slippage on the conversion).
+    /// @param referrer Integrator (app, bot) that brought the launch; earns its share on the dev buy's protocol fee.
     function launchWith(
         LaunchParams calldata p,
         address tokenIn,
         uint256 amountIn,
         bool devBuy,
         uint256 minImd,
-        uint256 minTokensOut
+        uint256 minTokensOut,
+        address referrer
     ) external payable nonReentrant returns (address coin, uint256 tokensOut) {
         uint256 fee = _launchFee();
-        uint256 imdIn = _collectImd(tokenIn, amountIn, address(this));
+        uint256 imdIn = _collectImd(tokenIn, amountIn, address(this), referrer);
         if (imdIn < minImd) revert Slippage();
         if (imdIn < fee) revert InsufficientForFee();
         if (fee != 0) imd.safeTransfer(config.feeSplitter(), fee);
@@ -93,7 +95,7 @@ contract PadRouter is IUnlockCallback, ReentrancyGuard {
         if (rest != 0) {
             if (devBuy) {
                 imd.safeTransfer(address(curve), rest);
-                (tokensOut,) = curve.buy(coin, rest, minTokensOut, msg.sender, msg.sender, true);
+                (tokensOut,) = curve.buy(coin, rest, minTokensOut, msg.sender, msg.sender, true, referrer);
             } else {
                 imd.safeTransfer(msg.sender, rest);
             }
@@ -116,7 +118,7 @@ contract PadRouter is IUnlockCallback, ReentrancyGuard {
         uint256 amountIn,
         uint256 minTokensOut,
         uint256 deadline,
-        bytes32 ref
+        address referrer
     ) external payable nonReentrant checkDeadline(deadline) returns (uint256 tokensOut) {
         if (curve.statusOf(coin) == BondingCurve.Status.Graduated) {
             // One unlock: [payment route →] IMD → coin.
@@ -126,14 +128,13 @@ contract PadRouter is IUnlockCallback, ReentrancyGuard {
                 hops[i] = route[i];
             }
             hops[route.length] = _coinHop(coin, true);
-            tokensOut = _execute(Path(hops, amountIn, _payer(tokenIn, amountIn), msg.sender, msg.sender));
-            hook.flush(coin);
+            tokensOut = _execute(Path(hops, amountIn, _payer(tokenIn, amountIn), msg.sender, msg.sender, referrer));
+            _flushFees(coin, referrer);
         } else {
-            uint256 imdIn = _collectImd(tokenIn, amountIn, address(curve));
-            (tokensOut,) = curve.buy(coin, imdIn, minTokensOut, msg.sender, msg.sender, false);
+            uint256 imdIn = _collectImd(tokenIn, amountIn, address(curve), referrer);
+            (tokensOut,) = curve.buy(coin, imdIn, minTokensOut, msg.sender, msg.sender, false, referrer);
         }
         if (tokensOut < minTokensOut) revert Slippage();
-        if (ref != bytes32(0)) emit Referral(coin, msg.sender, ref, true, amountIn);
     }
 
     // ------------------------------------------------------------------ Sell
@@ -145,9 +146,9 @@ contract PadRouter is IUnlockCallback, ReentrancyGuard {
         uint256 tokensIn,
         uint256 minOut,
         uint256 deadline,
-        bytes32 ref
+        address referrer
     ) external nonReentrant checkDeadline(deadline) returns (uint256 out) {
-        out = _sell(coin, tokenOut, tokensIn, minOut, ref);
+        out = _sell(coin, tokenOut, tokensIn, minOut, referrer);
     }
 
     /// @notice Sell with an EIP-2612 permit instead of a prior approval. A permit that was already used (for
@@ -158,17 +159,17 @@ contract PadRouter is IUnlockCallback, ReentrancyGuard {
         uint256 tokensIn,
         uint256 minOut,
         uint256 deadline,
-        bytes32 ref,
+        address referrer,
         uint256 permitValue,
         uint8 v,
         bytes32 r,
         bytes32 s
     ) external nonReentrant checkDeadline(deadline) returns (uint256 out) {
         try ERC20(coin).permit(msg.sender, address(this), permitValue, deadline, v, r, s) {} catch {}
-        out = _sell(coin, tokenOut, tokensIn, minOut, ref);
+        out = _sell(coin, tokenOut, tokensIn, minOut, referrer);
     }
 
-    function _sell(address coin, address tokenOut, uint256 tokensIn, uint256 minOut, bytes32 ref)
+    function _sell(address coin, address tokenOut, uint256 tokensIn, uint256 minOut, address referrer)
         internal
         returns (uint256 out)
     {
@@ -180,32 +181,40 @@ contract PadRouter is IUnlockCallback, ReentrancyGuard {
             for (uint256 i; i < back.length; i++) {
                 hops[i + 1] = back[i];
             }
-            out = _execute(Path(hops, tokensIn, msg.sender, msg.sender, msg.sender));
-            hook.flush(coin);
+            out = _execute(Path(hops, tokensIn, msg.sender, msg.sender, msg.sender, referrer));
+            _flushFees(coin, referrer);
         } else {
             coin.safeTransferFrom(msg.sender, address(curve), tokensIn);
             if (back.length == 0) {
-                out = curve.sell(coin, tokensIn, minOut, msg.sender);
+                out = curve.sell(coin, tokensIn, minOut, msg.sender, referrer);
             } else {
-                uint256 imdOut = curve.sell(coin, tokensIn, 0, address(this));
-                out = _execute(Path(back, imdOut, address(this), msg.sender, msg.sender));
+                uint256 imdOut = curve.sell(coin, tokensIn, 0, address(this), referrer);
+                out = _execute(Path(back, imdOut, address(this), msg.sender, msg.sender, referrer));
             }
         }
         if (out < minOut) revert Slippage();
-        if (ref != bytes32(0)) emit Referral(coin, msg.sender, ref, false, out);
     }
 
     // ------------------------------------------------------------------ Payment conversion
 
+    /// @dev Flushes a graduated coin's pending fees, and the integrator's earnings when there is one.
+    function _flushFees(address coin, address referrer) internal {
+        hook.flush(coin);
+        if (config.integratorShareFor(referrer) != 0) hook.flushIntegrator(referrer);
+    }
+
     /// @dev Takes `amountIn` of `tokenIn` from the caller and delivers it to `recipient` as IMD.
-    function _collectImd(address tokenIn, uint256 amountIn, address recipient) internal returns (uint256) {
+    function _collectImd(address tokenIn, uint256 amountIn, address recipient, address referrer)
+        internal
+        returns (uint256)
+    {
         if (tokenIn == imd) {
             if (msg.value != 0) revert WrongEthAmount();
             imd.safeTransferFrom(msg.sender, recipient, amountIn);
             return amountIn;
         }
         Hop[] memory route = _routeToImd(tokenIn);
-        return _execute(Path(route, amountIn, _payer(tokenIn, amountIn), recipient, msg.sender));
+        return _execute(Path(route, amountIn, _payer(tokenIn, amountIn), recipient, msg.sender, referrer));
     }
 
     /// @dev ETH is paid from msg.value (payer = this); ERC-20s are pulled from the caller.
@@ -251,7 +260,7 @@ contract PadRouter is IUnlockCallback, ReentrancyGuard {
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
         if (msg.sender != address(poolManager)) revert NotPoolManager();
         Path memory path = abi.decode(data, (Path));
-        bytes memory hookData = abi.encode(path.trader);
+        bytes memory hookData = abi.encode(path.trader, path.referrer);
 
         uint256 amount = path.amountIn;
         for (uint256 i; i < path.hops.length; i++) {

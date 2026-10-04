@@ -8,7 +8,7 @@ Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), fac
 
 | # | Item | Notes |
 |---|---|---|
-| 1 | **Integrator / referral fee share** (pending user OK, D-31) | `ref` = integrator address; share of the protocol fee on router trades, claimable in IMD; also usable by individual referrers |
+| 1 | ~~Integrator fee share~~ | **Done** (D-31, D-33): 15% of the protocol fee to registered integrators via `IntegratorVault` |
 | 2 | `PadSale` ($PONDPAD sale) | IMD curve, S = 600M, R = 300M, target ≈ 8,460 IMD, all payment tokens, graduates into `PadMarketHook` |
 | 3 | `PadMarketHook` + `MarketController` + `PadBurner` | POOL4 `CappedBurnHook` fork for $PONDPAD/IMD; floor 150M, decay 500k/day, 15% of trims to stakers; no pool-withdrawal power |
 | 4 | `StakedPONDPAD` + `RewardDripper` + `PadBuyer` | Forks of `StakedIMD` / `RewardDripper` with asset $PONDPAD; `PadBuyer` turns stakers' IMD into $PONDPAD in small, price-guarded chunks |
@@ -29,7 +29,7 @@ Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), fac
 
 - **Swap page**: coin → coin through IMD in one transaction, plus ETH / USDG / IMD ↔ any coin.
 - **Trade to earn sPONDPAD**: weekly rewards paid as locked sPONDPAD, funded from the growth bucket, always below the protocol fee the trader paid (no profitable wash trading), filters for round trips and creator wallets, payout checked by a swarm oracle panel.
-- **Referral tiers** (if the integrator share ships in v1, v1.1 adds tiers and dashboards).
+- **Referral tiers and dashboards** for integrators; open referral links for individuals (needs a design that prevents self-referral discounts).
 - **Milestone bounties** for creators (holders / market-cap milestones, not volume).
 - **Scam / impersonation flags** by swarm oracle (UI warning and no growth perks; never blocks trading).
 - **Daily swarm health report** (solvency, fee flows, suspicious launches).
