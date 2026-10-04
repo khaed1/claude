@@ -132,7 +132,25 @@ IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`)
 6. Timelock + Safe wiring, deploy scripts (hook address mining), fork rehearsal of a full deployment.
 7. Swarm audit loop, then frontend, Swarm Relay, indexer, X link service.
 
-## 6. Open items waiting on someone
+## 6. Keepers (who calls the permissionless functions)
+
+Every upkeep function is permissionless: anyone can call it, nothing depends on one operator. Many also run by themselves during normal trading. A plain script on a timer (cron + `cast` or viem, a hot wallet with a little ETH for gas) is enough; no AI agent is needed for this part. Not built yet (ROADMAP §1 item 15, "keeper bot").
+
+| Call | When | Runs by itself? | Pays the caller |
+|---|---|---|---|
+| `PadBuyer.buy()` | every 10 min while it holds ≥ 1 IMD | no | 0.5% of the IMD spent |
+| `RewardDripper.drip()` | hourly (`canDrip()`) | no | 10 $PONDPAD |
+| `PadMarketHook.rebalance()` | when `pendingRebalance()` | no | up to 1 IMD |
+| `PadMarketHook.settleClaims()` | after trims | yes, on the next swap in a later block | – |
+| `PadBurner.burn()` | after claims settle | no | – |
+| `MarketController.collectFees()` | daily | no | – (also runs `FeeSplitter.distribute` / `distributeToken`) |
+| `FeeSplitter.distribute()` | daily | no | – |
+| `PadHook.flush(coin)` | for trades through outside routers | yes for `PadRouter` trades | – |
+| `BondingCurve.graduate(coin)` | only if the completing buy couldn't graduate | yes, normally inline | – |
+| `PadSale.graduate()` | same, once | yes, normally inline | – |
+| `WorkerFund.release()` | not built yet | – | – |
+
+## 7. Open items waiting on someone
 
 | Item | Waiting on |
 |---|---|
