@@ -1,0 +1,14 @@
+{
+  "name": "pondpad-bots",
+  "private": true,
+  "type": "module",
+  "description": "Testnet trader bots with invariant checks (HANDOFF §5b).",
+  "scripts": {
+    "fund": "node bots.mjs fund",
+    "start": "node bots.mjs run"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "viem": "2.57.3"
+  }
+}
