@@ -181,5 +181,5 @@ Every upkeep function is permissionless: anyone can call it, nothing depends on 
 | Official POOL4 IMD/ETH market on Robinhood | IMD dev (planned, not guaranteed) |
 | Deepen IMD liquidity on Robinhood before the $PONDPAD sale | User + IMD dev / holders |
 | Buy pondpad.fun, X and Telegram handles | User |
-| Airdrop snapshot rules: which IMD seats and sIMD count, weights, snapshot block and chain, how contract wallets name a Robinhood address; then the Merkle root (fixed at deploy, D-53) | User |
+| Airdrop list (D-56): pools, eligibility, weights and the 700k cap are decided; still open: snapshot method (one past block vs 30 daily readings), whether the 7,000 IMD is summed across chains, whether the cap is per pool or overall; how contract wallets name a Robinhood address. Then the snapshot script and the Merkle root (fixed at deploy, D-53) | User |
 | Airdrop tweet checker (D-55): service that reads the initiation post (X API or link fetch), checks the phrase and `initiationCode`, signs the voucher; its key goes into `AirdropDistributor` at deploy | Us (backend) |
