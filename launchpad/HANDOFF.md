@@ -203,6 +203,38 @@ Every upkeep function is permissionless: anyone can call it, nothing depends on 
 | `TeamVesting.release()` | monthly from day 30 after market open (always pays the team Safe) | no | – |
 | `AirdropDistributor.sweep()` | once, 180 days after activation (`claimDeadline()`) | no | – |
 
+## 6b. Discussed, not decided (5 Oct 2026)
+
+Nothing below is built. Each needs the user's go-ahead.
+
+- **Audit submission:** the user submits the four jobs in `audit/rounds/<n>/` through the explorer's web form (explorer.imd.fun/launch → Audit). Repository address: `https://github.com/khaed1/claude/tree/<full commit>`. Description: the area's `<ID>.objective.txt`. Then Check (free), then Pay, 0.5 IMD each. The user shares the job links; each report is at `api.imd.fun/jobs/<id>/report.md`.
+- **Mainnet deploy: by the user with `Deploy.s.sol`, not through the swarm.**
+  - A swarm token launch gives 10% of the token to the swarm and opens its own 1.25% pool, which breaks the supply split and PadSale's path to the market.
+  - The swarm's contracts-only launch (`evm_contracts`) allows 1 to 8 contracts, simple constructor arguments and no calls after deployment. Our deploy is ~40 contracts in 48 transactions, with mined hook addresses and setup calls.
+  - Swarm deploys run only on Sepolia today.
+  - The swarm's role stays auditing, oracle-checked version activation and coin websites.
+- **Multi-chain (later; Base first):**
+  - The contracts take every chain-specific address at deploy; only `Deploy.s.sol` hard-codes Robinhood. Each chain needs Uniswap v4, IMD with liquidity (Ethereum and Base have it; other chains need the IMD dev to bridge it), the IMD oracle signing for that chain, and its own Safe and timelocks.
+  - $PONDPAD, staking and the burn market stay on Robinhood. A new bridge contract sends the stakers' IMD share (and maybe the workers' and growth shares) back over IMD's LayerZero bridge.
+  - Ethereum mainnet is too expensive for curve trading.
+  - ROADMAP still lists Base and Ethereum under "Later" until the user decides.
+- **Can start before the audit ends:** frontend, indexer, X link service, tweet checker and Swarm Relay. They don't change contracts; an audit fix may need small frontend updates.
+- **Robinhood testnet run (proposed next step):**
+  - Testnet: chain 46630, RPC `https://rpc.testnet.chain.robinhood.com`, explorer `explorer.testnet.chain.robinhood.com`, gas ~0.05 gwei. Already there: the v4 PoolManager (same address as mainnet), the CREATE2 factory, Permit2, Multicall3 and the Safe contracts. Not there: IMD, USDG and their pools.
+  - Plan:
+    1. `script/TestnetSetup.s.sol`: deploy test IMD and test USDG with public faucets, then create and fill the IMD/ETH pool (~411 IMD per ETH) and an ETH/USDG pool.
+    2. A small `Deploy.s.sol` change to read the PoolManager, IMD and USDG addresses and the timelock delays from settings (mainnet unchanged).
+    3. Scripted trader bots: many funded wallets with different behaviours, checking the invariants after each round.
+    4. The frontend, built against the testnet.
+    5. Later, AI adversarial agents with their own testnet wallets.
+  - Testnet ETH: Sepolia faucets, then the Arbitrum bridge in testnet mode (Sepolia → Robinhood Chain Testnet). About 2–3 ETH covers the pool and the bots; the deploy itself is ~0.004 ETH.
+  - Things the testnet can't show quickly (7-day fee decay, vesting, 180-day sweep, 12-month expiries) stay covered by the fork tests.
+  - Open questions for the user:
+    1. Go-ahead for the testnet setup.
+    2. Testnet timelocks at 10 and 30 minutes?
+    3. Who runs it: Claude with a testnet-only key saved as an environment secret, or the user with their own wallet?
+- **Timelocks need no activating:** `Deploy.s.sol` creates both and hands them ownership in the same run. A change is `schedule` by the Safe, then the delay, then anyone calls `execute`. A small helper that turns a setting change into a ready Safe transaction was offered, not built.
+
 ## 7. Open items waiting on someone
 
 | Item | Waiting on |
