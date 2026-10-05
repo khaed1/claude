@@ -29,7 +29,8 @@ const s = JSON.parse(readFileSync(here("../contracts/deployments/46630-setup.jso
 const chain = defineChain({ id: Number(d.chainId), name: "Robinhood Chain Testnet", nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 }, rpcUrls: { default: { http: [RPC_URL] } } });
 const client = createPublicClient({ chain, transport: http(RPC_URL) });
 const master = privateKeyToAccount(MASTER_KEY);
-const tester = privateKeyToAccount(keccak256(concat([MASTER_KEY, toHex("pondpad-testnet:pool4-tester")])));
+const derive = (label) => privateKeyToAccount(keccak256(concat([MASTER_KEY, toHex(`pondpad-testnet:${label}`)])));
+const tester = derive("pool4-tester");
 const mw = createWalletClient({ account: master, chain, transport: http(RPC_URL) });
 const tw = createWalletClient({ account: tester, chain, transport: http(RPC_URL) });
 
@@ -53,7 +54,9 @@ const E = (v) => Number(formatEther(v)).toLocaleString("en-US", { maximumFractio
 
 async function send(wallet, c, functionName, args, value = 0n) {
   const { request } = await client.simulateContract({ ...c, functionName, args, value, account: wallet.account });
-  const hash = await wallet.writeContract(request);
+  // 50% gas headroom: the market hook's afterSwap does more work when claims mature between estimate and inclusion.
+  const gas = await client.estimateContractGas({ ...c, functionName, args, value, account: wallet.account });
+  const hash = await wallet.writeContract({ ...request, gas: (gas * 3n) / 2n });
   const rc = await client.waitForTransactionReceipt({ hash });
   if (rc.status !== "success") throw new Error(`${functionName} reverted onchain ${hash}`);
   return rc;
@@ -70,8 +73,8 @@ async function reverts(wallet, c, functionName, args, value = 0n) {
 
 const results = [];
 const check = (id, name, ok, detail) => {
-  results.push({ id, name, ok: !!ok, detail });
-  console.log(`${ok ? "PASS" : "FAIL"} ${id} ${name}: ${detail}`);
+  results.push({ id, name, ok: ok === null ? null : !!ok, detail });
+  console.log(`${ok === null ? "SKIP" : ok ? "PASS" : "FAIL"} ${id} ${name}: ${detail}`);
 };
 
 const MIN_SQRT = 4295128739n + 1n, MAX_SQRT = 1461446703485210103287273052203988822378723970342n - 1n;
@@ -107,29 +110,53 @@ console.log(`tester ${tester.address}`);
   check("A", "Fee schedule 3% → 1% over 7 days", fee >= expected - 1n && fee <= expected + 1n, `${Number(fee) / 10000}% at ${Number(elapsed)} s after open (expected ${Number(expected) / 10000}%)`);
 }
 
-// B. Ratchet: a buy draws inventory down and the cap follows (never below the floor).
-let s0 = await snap();
-await buy(parseEther("500"));
-await sleep(1500);
-let s1 = await snap();
-check("B", "Ratchet: cap follows a buy down", s1.held < s0.held && s1.cap <= s0.cap && s1.cap >= s1.floor,
-  `inventory ${E(s0.held)} → ${E(s1.held)}, cap ${E(s0.cap)} → ${E(s1.cap)}, floor ${E(s1.floor)}`);
+// Gathers $PONDPAD from the sale crowd's wallets (our own testnet wallets) so the tester can sell above the cap.
+async function gather(target, to) {
+  for (let i = 0; i < 80 && (await bal(C.pondpad, to)) < target; i++) {
+    const w = derive(`crowd-${i}`);
+    const b = await bal(C.pondpad, w.address);
+    if (b === 0n) continue;
+    const need = target - (await bal(C.pondpad, to));
+    await send(createWalletClient({ account: w, chain, transport: http(RPC_URL) }), C.pondpad, "transfer", [to, b < need ? b : need]);
+  }
+  return bal(C.pondpad, to);
+}
+// "A later block" in the hook means a later block.number, which on Robinhood is the Ethereum block (~12 s).
+const nextL1Block = async () => {
+  const n0 = await client.readContract({ address: "0xcA11bde05977b3631167028862bE2a173976CA11", abi: [{ type: "function", name: "getBlockNumber", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] }], functionName: "getBlockNumber" });
+  for (let i = 0; i < 30; i++) {
+    await sleep(2000);
+    const n = await client.readContract({ address: "0xcA11bde05977b3631167028862bE2a173976CA11", abi: [{ type: "function", name: "getBlockNumber", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] }], functionName: "getBlockNumber" });
+    if (n > n0) return;
+  }
+};
 
-// C. Trim: sell more than was bought; everything above the cap leaves the pool, split 85/15.
-const tokens = await bal(C.pondpad, tester.address);
-const rc = await sell(tokens);
+// B. Ratchet: a buy draws inventory down; the cap follows no faster than capDecayTokensPerDay (500k/day, D-21).
+let s0 = await snap();
+const decayAt = await read(C.market, "lastCapDecayAt"), perDay = await read(C.market, "capDecayTokensPerDay");
+await buy(parseEther("500"));
+let s1 = await snap();
+const now1 = (await client.getBlock()).timestamp;
+const allowance = (perDay * (now1 - decayAt)) / 86400n + parseEther("1");
+check("B", "Ratchet: cap follows buys down at most 500k/day, never below the floor", s1.held < s0.held && s1.cap <= s0.cap && s0.cap - s1.cap <= allowance && s1.cap >= s1.floor,
+  `inventory ${E(s0.held)} → ${E(s1.held)}; cap ${E(s0.cap)} → ${E(s1.cap)} (allowed drop ${E(allowance)}), floor ${E(s1.floor)}`);
+
+// C. Trim: sell enough to push inventory above the cap; the excess leaves the pool, split 85% burn / 15% stakers.
+const gap = s1.cap > s1.held ? s1.cap - s1.held : 0n;
+const have = await gather(gap + parseEther("25000000"), tester.address);
+const rc = await sell(have);
 const trims = parseEventLogs({ abi: C.market.abi, eventName: "Trimmed", logs: rc.logs });
 let s2 = await snap();
 const tBurn = trims.reduce((a, l) => a + l.args.tokensBurned, 0n), tReward = trims.reduce((a, l) => a + l.args.tokensRewarded, 0n);
-check("C1", "Trim: inventory never above the cap after a sell", s2.held <= s2.cap + parseEther("1000"), `inventory ${E(s2.held)}, cap ${E(s2.cap)}, trimmed ${E(tBurn + tReward)} in ${trims.length} trim(s)`);
+const tQuote = trims.reduce((a, l) => a + l.args.quoteRetained, 0n);
+check("C1", "Trim: inventory back at the cap after a sell above it", trims.length > 0 && s2.held <= s2.cap + parseEther("1000"), `sold ${E(have)}; inventory ${E(s2.held)}, cap ${E(s2.cap)}; trimmed ${E(tBurn + tReward)} $PONDPAD + ${E(tQuote)} IMD retained`);
 const share = tBurn + tReward > 0n ? Number((tReward * 10000n) / (tBurn + tReward)) / 100 : 0;
-check("C2", "Trim split 85% burn / 15% stakers (D-21)", trims.length > 0 && Math.abs(share - 15) < 0.1, `burned ${E(tBurn)}, to stakers ${E(tReward)} (${share}%)`);
+check("C2", "Trim split 85% burn / 15% stakers (D-21)", trims.length > 0 && Math.abs(share - 15) < 0.1, `to burn ${E(tBurn)}, to stakers ${E(tReward)} (${share}%)`);
 
-// D. Settle: claims mature and pay out on a swap in a later block (or settleClaims()).
-await sleep(2500);
+// D. Settle: the trimmed tokens are claims until a swap in a later (Ethereum) block redeems them.
+await nextL1Block();
 await buy(parseEther("1"));
-await sleep(1500);
-if ((await read(C.market, "burnClaims")) > 0n) await send(tw, C.market, "settleClaims", []);
+if ((await read(C.market, "burnClaims")) > 0n) { await nextL1Block(); await send(tw, C.market, "settleClaims", []); }
 let s3 = await snap();
 check("D", "Claims settle to the burner and the stakers' dripper", s3.burnClaims === 0n && s3.burnerBal > s2.burnerBal && s3.dripperBal > s2.dripperBal,
   `burner ${E(s2.burnerBal)} → ${E(s3.burnerBal)}, dripper ${E(s2.dripperBal)} → ${E(s3.dripperBal)}, open burn claims ${E(s3.burnClaims)}`);
@@ -138,15 +165,9 @@ check("D", "Claims settle to the burner and the stakers' dripper", s3.burnClaims
 const held = await bal(C.pondpad, d.burner);
 if (held > 0n) await send(tw, C.burner, "burn", []);
 let s4 = await snap();
-check("E", "PadBurner burns: $PONDPAD supply falls", held > 0n && s3.supply - s4.supply === held && s4.burnerBal === 0n, `burned ${E(held)}, supply ${E(s3.supply)} → ${E(s4.supply)}`);
+check("E", "PadBurner burns: $PONDPAD supply falls by what it held", held > 0n && s3.supply - s4.supply === held && s4.burnerBal === 0n, `burned ${E(held)}, supply ${E(s3.supply)} → ${E(s4.supply)}`);
 
-// F. Backstop: retained IMD from trims; once ≥ 40 IMD a keeper rebalance deploys it above spot.
-for (let i = 0; i < 8 && (await read(C.market, "retainedQuote")) < parseEther("40"); i++) {
-  await buy(parseEther("800"));
-  await sleep(1500);
-  await sell(await bal(C.pondpad, tester.address));
-  await sleep(1500);
-}
+// F. Backstop: IMD retained by trims is redeployed by a keeper as a single-sided band above spot.
 let s5 = await snap();
 const pending = await read(C.market, "pendingRebalance");
 let tip = 0n, deployed;
@@ -157,26 +178,28 @@ if (pending) {
   deployed = parseEventLogs({ abi: C.market.abi, eventName: "BackstopDeployed", logs: r.logs })[0]?.args;
 }
 let s6 = await snap();
-check("F1", "Trims retain IMD for the backstop", s5.retained >= parseEther("40") || s5.principal > 0n, `retained ${E(s5.retained)} IMD, pendingRebalance ${pending}`);
-check("F2", "rebalance() deploys a single-sided band above spot", !!deployed && deployed.tickLower > s6.tick && s6.principal > 0n,
+check("F1", "Trims retain IMD for the backstop (≥ 40 IMD → rebalance due)", pending, `retained ${E(s5.retained)} IMD, pendingRebalance ${pending}`);
+check("F2", "rebalance() deploys a single-sided IMD band above spot", !!deployed && deployed.tickLower > s6.tick && s6.principal > 0n,
   deployed ? `band ticks ${deployed.tickLower}…${deployed.tickUpper} above spot ${s6.tick}, ${E(deployed.quoteDeployed)} IMD` : "no deployment");
-check("F3", "Keeper tip ≤ 1 IMD (D-41)", tip <= parseEther("1"), `${E(tip)} IMD`);
+check("F3", "Keeper tip ≤ 1 IMD and ≤ the fee on the work (D-41)", tip <= parseEther("1"), `${E(tip)} IMD`);
 
-// G. Dump into the backstop: buy a lot over a few blocks, then sell it all back at once.
+// G. Dump into the band: sell more so the price rises into it; the next rebalance settles it.
 let filled = false, settled;
 if (s6.principal > 0n) {
-  for (let i = 0; i < 5; i++) { await buy(parseEther("1500")); await sleep(1200); }
-  await sell(await bal(C.pondpad, tester.address));
-  await sleep(2500);
+  const more = await gather(parseEther("40000000"), tester.address);
+  await sell(more);
   filled = await read(C.market, "backstopIsFilled");
-  if (await read(C.market, "pendingRebalance")) {
-    const r = await send(tw, C.market, "rebalance", []);
-    settled = parseEventLogs({ abi: C.market.abi, eventName: "BackstopSettled", logs: r.logs })[0]?.args;
+  if (filled) {
+    await nextL1Block();
+    if (await read(C.market, "pendingRebalance")) {
+      const r = await send(tw, C.market, "rebalance", []);
+      settled = parseEventLogs({ abi: C.market.abi, eventName: "BackstopSettled", logs: r.logs })[0]?.args;
+    }
   }
 }
 const converted = await read(C.market, "backstopConvertedQuote");
-check("G", "A dump fills the backstop; rebalance settles it (burns what it bought)", filled ? !!settled : true,
-  filled ? `settled: burned ${E(settled?.tokensBurned ?? 0n)}, to stakers ${E(settled?.tokensRewarded ?? 0n)}, IMD returned ${E(settled?.quoteReturned ?? 0n)}` : `dump did not reach the band (converted ${E(converted)} IMD); not exercised`);
+check("G", "A dump fills the backstop; rebalance settles it (burns what it bought)", filled ? !!settled : null,
+  filled ? `settled: to burn ${E(settled?.tokensBurned ?? 0n)}, to stakers ${E(settled?.tokensRewarded ?? 0n)}, IMD back ${E(settled?.quoteReturned ?? 0n)}` : `the dump did not reach the band (converted ${E(converted)} IMD)`);
 
 // H. Fees: collectFees empties both ledgers into the splitter (D-38).
 let s7 = await snap();

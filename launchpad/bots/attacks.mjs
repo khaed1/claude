@@ -18,6 +18,7 @@ import { privateKeyToAccount } from "viem/accounts";
 
 const here = (p) => new URL(p, import.meta.url).pathname;
 const group = process.argv[2] ?? "all";
+const ONLY_M4 = group === "market-m4"; // run only the dust-trim attack (with the bots paused)
 const RPC_URL = process.env.RPC_URL ?? "https://rpc.testnet.chain.robinhood.com";
 const MASTER_KEY = process.env.MASTER_KEY;
 if (!MASTER_KEY) throw new Error("MASTER_KEY is required");
@@ -58,7 +59,9 @@ const E = (v) => Number(formatEther(v)).toLocaleString("en-US", { maximumFractio
 
 async function send(wallet, c, functionName, args, value = 0n) {
   const { request } = await client.simulateContract({ ...c, functionName, args, value, account: wallet.account });
-  const hash = await wallet.writeContract(request);
+  // 50% gas headroom: the market hook's afterSwap does more work when claims mature between estimate and inclusion.
+  const gas = await client.estimateContractGas({ ...c, functionName, args, value, account: wallet.account });
+  const hash = await wallet.writeContract({ ...request, gas: (gas * 3n) / 2n });
   const rc = await client.waitForTransactionReceipt({ hash });
   if (rc.status !== "success") throw new Error(`${functionName} reverted onchain ${hash}`);
   return rc;
@@ -79,8 +82,12 @@ async function attempt(c, functionName, args, value = 0n, account = attacker) {
 }
 
 const results = [];
+const OUT = here(`runs/attacks-${group}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
+mkdirSync(here("runs"), { recursive: true });
+const save = () => writeFileSync(OUT, JSON.stringify({ at: new Date().toISOString(), group, attacker: attacker.address, results }, (_, v) => (typeof v === "bigint" ? v.toString() : v), 2));
 const check = (id, name, ok, detail) => {
   results.push({ id, group: id[0], name, ok: ok === null ? null : !!ok, detail });
+  save();
   console.log(`${ok === null ? "SKIP" : ok ? "PASS" : "FAIL"} ${id} ${name}: ${detail}`);
 };
 const blocked = (id, name, reason, want) => check(id, name, reason !== undefined && (!want || want.includes(reason)), reason === undefined ? "**the attack call would succeed**" : `refused: ${reason}`);
@@ -173,7 +180,7 @@ if (group === "sale" || group === "all") {
 }
 
 // ------------------------------------------------------------------ market (POOL4 fork)
-if (group === "market" || group === "all") {
+if (group === "market" || group === "all" || ONLY_M4) {
   if (!(await read(C.market, "marketOpen"))) {
     check("M1", "Market attacks", null, "market not open yet");
   } else {
@@ -182,6 +189,7 @@ if (group === "market" || group === "all") {
     const buy = (imd) => send(aw, C.swapper, "swap", [key, { zeroForOne: true, amountSpecified: -imd, sqrtPriceLimitX96: MIN_SQRT }, NO_CLAIMS, "0x"]);
     const sell = (tok) => send(aw, C.swapper, "swap", [key, { zeroForOne: false, amountSpecified: -tok, sqrtPriceLimitX96: MAX_SQRT }, NO_CLAIMS, "0x"]);
 
+    if (!ONLY_M4) {
     // M5: outside router pays the market's current fee.
     const fee = await read(C.market, "currentFee");
     const q0 = await read(C.market, "feeQuoteClaims");
@@ -192,58 +200,89 @@ if (group === "market" || group === "all") {
     check("M5", "Market fee through an outside router (D-34)", paid > 0n && (paid > expected ? paid - expected : expected - paid) <= expected / 100n,
       `fee ledger +${E(paid)} IMD on 100 IMD at ${Number(fee) / 10000}% (expected ${E(expected)}; 0 means collectFees ran in between)`);
 
-    // M1: sandwich the stakers' buyer: pump $PONDPAD, then trigger PadBuyer.buy() into the pumped price.
-    const buyerImd = await bal(C.imd, d.padBuyer);
-    await buy(parseEther("2500"));
-    const sandwich = await attempt(C.buyer, "buy", []);
-    check("M1", "Sandwich PadBuyer after a pump (price guard, D-43)", sandwich === "PriceOutOfRange" ? true : sandwich === undefined ? false : null,
-      sandwich === undefined ? `**buyer would buy into the pump** (holds ${E(buyerImd)} IMD)` : `refused: ${sandwich}${sandwich !== "PriceOutOfRange" ? " (guard not reached; inconclusive)" : ""}`);
+    }
+    // Tokens for selling above the cap come from the sale crowd's wallets (our own testnet wallets).
+    const gather = async (target) => {
+      for (let i = 79; i >= 0 && (await bal(C.pondpad, attacker.address)) < target; i--) {
+        const w = derive(`crowd-${i}`);
+        const b = await bal(C.pondpad, w.address);
+        if (b === 0n) continue;
+        const need = target - (await bal(C.pondpad, attacker.address));
+        await send(createWalletClient({ account: w, chain, transport: http(RPC_URL) }), C.pondpad, "transfer", [attacker.address, b < need ? b : need]);
+      }
+      return bal(C.pondpad, attacker.address);
+    };
+    const mc = { address: "0xcA11bde05977b3631167028862bE2a173976CA11", abi: [{ type: "function", name: "getBlockNumber", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] }] };
+    const nextL1Block = async () => { const n0 = await read(mc, "getBlockNumber"); for (let i = 0; i < 30 && (await read(mc, "getBlockNumber")) === n0; i++) await sleep(2000); };
+    const aboveCap = async (extra) => {
+      const held = await read(C.market, "tokensInPool"), cap = await read(C.market, "inventoryCap");
+      const have = await gather((cap > held ? cap - held : 0n) + extra);
+      return sell(have);
+    };
+    // Clear the attacker's leftover $PONDPAD first so every attack starts from IMD.
+    const left = await bal(C.pondpad, attacker.address);
+    if (left > 0n) await sell(left);
 
-    // M2: manipulate the backstop placement: with spot pumped, deploy the band; it must not sit below the floor.
+    if (!ONLY_M4) {
+    // M1: sandwich the stakers' buyer: wait until it may buy, pump $PONDPAD, then trigger buy() into the pump.
+    // The keeper also calls buy() every 10 minutes, so retry if it got there first (TooSoon).
+    if ((await bal(C.imd, d.padBuyer)) < parseEther("1")) await send(mw, C.imd, "mint", [d.padBuyer, parseEther("50")]);
+    let sandwich = "TooSoon";
+    for (let attemptNo = 0; attemptNo < 3 && sandwich === "TooSoon"; attemptNo++) {
+      const ready = (await read(C.buyer, "lastBuyAt")) + (await read(C.buyer, "interval"));
+      for (let i = 0; i < 70 && BigInt(Math.floor(Date.now() / 1000)) < ready + 2n; i++) await sleep(5_000);
+      await buy(parseEther("3000"));
+      sandwich = await attempt(C.buyer, "buy", []);
+      await nextL1Block();
+      await sell(await bal(C.pondpad, attacker.address));
+    }
+    check("M1", "Sandwich PadBuyer after a pump (price guard, D-43)", sandwich === "PriceOutOfRange" ? true : sandwich === undefined ? false : null,
+      sandwich === undefined ? "**the buyer would buy into the pump**" : `refused: ${sandwich}${sandwich !== "PriceOutOfRange" ? " (guard not reached; inconclusive)" : ""}`);
+
+    // M3: keeper-tip farming: create rebalance work (trims retain IMD) and collect the tip; it must be < fees paid.
+    const fq0 = await read(C.market, "feeQuoteClaims"), ft0 = await read(C.market, "feeTokenClaims");
+    const quoteFee0 = await read(C.market, "currentFee");
+    const sold1 = await bal(C.pondpad, attacker.address);
+    await aboveCap(parseEther("15000000"));
+    let tip = 0n;
+    const pending = await read(C.market, "pendingRebalance");
+    // M2: before deploying, drag spot down (buy $PONDPAD: lower tick) and only then call rebalance:
+    // the band must still sit at or above the placement floor, not at the dragged spot.
     const floorBefore = await read(C.market, "deploymentFloorTick");
+    await nextL1Block();
+    await buy(parseEther("1500"));
+    const spotDragged = await read(C.market, "currentTick");
     let placed = null;
     if (await read(C.market, "pendingRebalance")) {
+      const b0 = await bal(C.imd, attacker.address);
       const r = await send(aw, C.market, "rebalance", []);
+      tip = (await bal(C.imd, attacker.address)) - b0;
       placed = parseEventLogs({ abi: C.market.abi, eventName: "BackstopDeployed", logs: r.logs })[0]?.args ?? null;
     }
     check("M2", "Backstop placement can't be dragged below its floor", placed ? placed.tickLower >= floorBefore : null,
-      placed ? `band lower tick ${placed.tickLower} ≥ floor ${floorBefore} (spot ${await read(C.market, "currentTick")})` : "no rebalance pending during the pump; not exercised");
+      placed ? `spot dragged to tick ${spotDragged}; band placed at ${placed.tickLower} ≥ floor ${floorBefore}` : `no rebalance due (pending ${pending}); not exercised`);
+    const feesImd = (await read(C.market, "feeQuoteClaims")) - fq0, feesTok = (await read(C.market, "feeTokenClaims")) - ft0;
+    check("M3", "Keeper-tip farming doesn't pay (tip ≤ 1 IMD, below fees paid)", placed ? tip <= parseEther("1") && tip < feesImd + 1n : null,
+      `tip ${E(tip)} IMD; attacker paid ${E(feesImd)} IMD + ${E(feesTok)} $PONDPAD in fees (at ${Number(quoteFee0) / 10000}%) to create the work`);
 
-    // Unwind the pump (sells above the cap get trimmed: that is the attacker's loss).
-    await sleep(1500);
-    await sell(await bal(C.pondpad, attacker.address));
-
-    // M3: keeper-tip farming: churn trades to create rebalance work; the tip must stay below the fees paid.
-    const fq0 = await read(C.market, "feeQuoteClaims"), ft0 = await read(C.market, "feeTokenClaims");
-    for (let i = 0; i < 4 && !(await read(C.market, "pendingRebalance")); i++) {
-      await sleep(1200); await buy(parseEther("600")); await sleep(1200); await sell(await bal(C.pondpad, attacker.address));
     }
-    let tip = 0n;
-    if (await read(C.market, "pendingRebalance")) {
-      const b0 = await bal(C.imd, attacker.address);
-      await send(aw, C.market, "rebalance", []);
-      tip = (await bal(C.imd, attacker.address)) - b0;
-    }
-    const feesPaidImd = (await read(C.market, "feeQuoteClaims")) - fq0;
-    check("M3", "Keeper-tip farming doesn't pay (tip < fees paid)", tip <= feesPaidImd && tip <= parseEther("1"), `tip ${E(tip)} IMD vs ${E(feesPaidImd)} IMD (+${E((await read(C.market, "feeTokenClaims")) - ft0)} $PONDPAD) in fees paid to create it`);
-
-    // M4: dodge the trim with dust: many sells just under minTrimTokens after a ratchet.
-    await sleep(1200);
-    await buy(parseEther("300"));
-    await sleep(1500);
+    // M4: dodge the trim with dust: push inventory to the cap, then many sells just under minTrimTokens.
     const minTrim = await read(C.market, "minTrimTokens");
-    for (let i = 0; i < 5; i++) {
-      const bal0 = await bal(C.pondpad, attacker.address);
-      if (bal0 === 0n) break;
-      await sell(bal0 < minTrim ? bal0 : (minTrim * 9n) / 10n);
+    await nextL1Block();
+    await aboveCap(minTrim);
+    await gather(minTrim * 10n);
+    let worst = 0n;
+    for (let i = 0; i < 10; i++) {
+      await sell((minTrim * 9n) / 10n);
+      const h = await read(C.market, "tokensInPool"), c = await read(C.market, "inventoryCap");
+      if (h > c && h - c > worst) worst = h - c;
     }
-    await sell(await bal(C.pondpad, attacker.address));
-    const held = await read(C.market, "tokensInPool"), cap = await read(C.market, "inventoryCap");
-    check("M4", "Dust sells can't build up untrimmed inventory", held <= cap + minTrim, `inventory ${E(held)} vs cap ${E(cap)} (+ min trim ${E(minTrim)})`);
+    const heldAfter = await read(C.market, "tokensInPool"), capAfter = await read(C.market, "inventoryCap");
+    check("M4", "Dust sells can't build up untrimmed inventory", worst < minTrim, `10 sells of ${E((minTrim * 9n) / 10n)} at the cap: largest untrimmed excess ${E(worst)} (< min trim ${E(minTrim)}); inventory ${E(heldAfter)}, cap ${E(capAfter)}`);
+    const rest = await bal(C.pondpad, attacker.address);
+    if (rest > 0n) await sell(rest);
   }
 }
 
-mkdirSync(here("runs"), { recursive: true });
-const out = here(`runs/attacks-${group}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
-writeFileSync(out, JSON.stringify({ at: new Date().toISOString(), group, attacker: attacker.address, results }, (_, v) => (typeof v === "bigint" ? v.toString() : v), 2));
-console.log(`${results.filter((r) => r.ok === true).length} passed, ${results.filter((r) => r.ok === false).length} failed, ${results.filter((r) => r.ok === null).length} skipped; ${out}`);
+save();
+console.log(`${results.filter((r) => r.ok === true).length} passed, ${results.filter((r) => r.ok === false).length} failed, ${results.filter((r) => r.ok === null).length} skipped; ${OUT}`);

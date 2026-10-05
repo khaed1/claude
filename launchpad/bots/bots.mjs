@@ -106,7 +106,9 @@ async function act(bot, label, c, functionName, args, value = 0n) {
     if (!expected) console.log(`  !! bot ${bot.i} ${label}: ${name}`);
     return undefined;
   }
-  const hash = await bot.wallet.writeContract(sim.request);
+  // 50% gas headroom: hooks (market trims and claim settlement) can need more gas than estimated a block earlier.
+  const gas = await client.estimateContractGas({ ...c, functionName, args, value, account: bot.account });
+  const hash = await bot.wallet.writeContract({ ...sim.request, gas: (gas * 3n) / 2n });
   const rc = await client.waitForTransactionReceipt({ hash });
   if (rc.status !== "success") {
     stats.unexpected++;
