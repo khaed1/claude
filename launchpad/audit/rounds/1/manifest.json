@@ -1,0 +1,187 @@
+{
+  "round": 1,
+  "commit": "b23fdc0cafa766cf206c8c77e97f6983caa3d463",
+  "repo": "https://github.com/khaed1/claude",
+  "files": [
+    {
+      "path": "contracts/script/Deploy.s.sol",
+      "sha256": "581232c30d6508db839d795f86603aaca0e8667fff8cea032cbde10eadbeb073",
+      "lines": 395
+    },
+    {
+      "path": "contracts/src/AirdropDistributor.sol",
+      "sha256": "08baf9922e963bc3923dab75aea05998307d7031f8428cbb31cdfddf90546d9d",
+      "lines": 276
+    },
+    {
+      "path": "contracts/src/AttestationVerifier.sol",
+      "sha256": "6f4853dc2021d90450e354b9fcf4cdea8a66188d5168cd7dc4f8371feef04c58",
+      "lines": 195
+    },
+    {
+      "path": "contracts/src/BondingCurve.sol",
+      "sha256": "184c8cda0128a02cfe55bb8c3b8d714f117bfc2cc6b4aaa7a6df9150818c961d",
+      "lines": 375
+    },
+    {
+      "path": "contracts/src/CTOModule.sol",
+      "sha256": "1d1d3c8339a94b5a89fb7c7e42521e1f52caf77036ad6d34c387acd28a22f724",
+      "lines": 319
+    },
+    {
+      "path": "contracts/src/CreatorVault.sol",
+      "sha256": "da6c7192903fe350f7c2fb01b3f617e8a028f612d8a51350749c0b10dec4fe5f",
+      "lines": 94
+    },
+    {
+      "path": "contracts/src/FeeLib.sol",
+      "sha256": "fab90a930a281f527a353bcc86e59bc5db214696740f6936a5eb4bc9aa03af31",
+      "lines": 50
+    },
+    {
+      "path": "contracts/src/FeeSplitter.sol",
+      "sha256": "b73364ca7e3ca311d12234389302003d2e02141964d7788d5262ebab2696dd0c",
+      "lines": 112
+    },
+    {
+      "path": "contracts/src/GrowthFund.sol",
+      "sha256": "bf4373099b2b46b6301e09741a9172acfe6eb392104b23c3166b56607f89485d",
+      "lines": 137
+    },
+    {
+      "path": "contracts/src/IntegratorVault.sol",
+      "sha256": "71a3372a91835e80055d7181b57546d510bbd80be1d7673d2256319164048ace",
+      "lines": 63
+    },
+    {
+      "path": "contracts/src/MarketController.sol",
+      "sha256": "4416e903ce2fc547ae283113eea2bba8ba1f0b90143d64d9a8c7e8badbb3b546",
+      "lines": 294
+    },
+    {
+      "path": "contracts/src/PadBurner.sol",
+      "sha256": "ab8da80ca864a333a4846a582b2c8e91bd8efced983197354652cf4ed15dca45",
+      "lines": 32
+    },
+    {
+      "path": "contracts/src/PadBuyer.sol",
+      "sha256": "da302a56fd6f1e34e7561a63534068e79ca1cf9c44bc93a97fd20cebf9c94adf",
+      "lines": 156
+    },
+    {
+      "path": "contracts/src/PadConfig.sol",
+      "sha256": "08fa113fe61be4430fb5e901e62915c69c0237bfc2054218e9c7aab845df8774",
+      "lines": 203
+    },
+    {
+      "path": "contracts/src/PadFactory.sol",
+      "sha256": "84425531e4293ebeff9fe3ce191e08b08814284cf1295fdfae823da5f75c563d",
+      "lines": 82
+    },
+    {
+      "path": "contracts/src/PadHook.sol",
+      "sha256": "83d4f0a233cb4c47e29a6236342e76a92a4169aecee21606f3bc76d22d097ecd",
+      "lines": 459
+    },
+    {
+      "path": "contracts/src/PadLens.sol",
+      "sha256": "5178d5c99cba75d973adda547269fa37999192214bdbcb5b22a81f7cadb95b7f",
+      "lines": 213
+    },
+    {
+      "path": "contracts/src/PadMarketHook.sol",
+      "sha256": "34e04de00567c6cf0a4babd547112a5703265989f14b1c77f744762b8b38d4f4",
+      "lines": 1365
+    },
+    {
+      "path": "contracts/src/PadRouter.sol",
+      "sha256": "076ecb942b483ab408736657ad3d9f7639c5be3b5e771529b6936033c065a924",
+      "lines": 188
+    },
+    {
+      "path": "contracts/src/PadSale.sol",
+      "sha256": "f823fa3642821e9b741b1220edd4fd1381799e99408373cb94819aa1fa9c68b0",
+      "lines": 323
+    },
+    {
+      "path": "contracts/src/PadToken.sol",
+      "sha256": "0a23c59a1d3eaa51934152d944b2e125a508f2ff1637557de7ef2a664705c149",
+      "lines": 125
+    },
+    {
+      "path": "contracts/src/PaymentSwapper.sol",
+      "sha256": "c3cd58675384779d44af30c104f3bb34d2fcfa6425501b5cef8748c7d5a34bd1",
+      "lines": 147
+    },
+    {
+      "path": "contracts/src/PondPadToken.sol",
+      "sha256": "c47e7974e16e993fd02af0edb18fe3a2d6568216218baf206a4090b92ff63663",
+      "lines": 36
+    },
+    {
+      "path": "contracts/src/RewardDripper.sol",
+      "sha256": "99d4282c6bab0c2cde38a7c1d593af317fab97a4c733b839b410445e5cfc43ff",
+      "lines": 235
+    },
+    {
+      "path": "contracts/src/Route.sol",
+      "sha256": "055795815564770bd87cbcb3cba88e27da83af7c09dd3cce5ee6af8289ef9fa9",
+      "lines": 10
+    },
+    {
+      "path": "contracts/src/SocialRegistry.sol",
+      "sha256": "32c42879286eaabdf05852d7fbfab9a03cfa2bca08b63601581a71c02fec8f0a",
+      "lines": 136
+    },
+    {
+      "path": "contracts/src/StakedPONDPAD.sol",
+      "sha256": "e9ac7b77acc4dd519a9231cb5b10f41fef9d2b8dd6f3beba72d965aad18cba9c",
+      "lines": 207
+    },
+    {
+      "path": "contracts/src/SwarmBudget.sol",
+      "sha256": "4fd06b9a5cac444e136254ef63ac7f571cb3787782ecae29fc4cc3192fd89fb3",
+      "lines": 136
+    },
+    {
+      "path": "contracts/src/TeamVesting.sol",
+      "sha256": "cca8da2a12acb2246ace8c2347ce588c0dc3febe91567661867382e65513133e",
+      "lines": 71
+    },
+    {
+      "path": "contracts/src/VersionRegistry.sol",
+      "sha256": "290fb6df79cffaba0694a80d39a10edbd7f3c5ab5563912f96d1410712747f32",
+      "lines": 191
+    },
+    {
+      "path": "contracts/src/WorkerFund.sol",
+      "sha256": "999a9e93366c7ccd5c5a293528c4b206635b6185d34d002295f32cfec29f2f7e",
+      "lines": 60
+    },
+    {
+      "path": "contracts/upstream/CappedBurnHook.sol",
+      "sha256": "24a21287731ba9c2d177f47baaf8bc2e3b4ba5fa24cd18e07f95dc0e017a9d70",
+      "lines": 1285
+    },
+    {
+      "path": "contracts/upstream/RewardDripper.sol",
+      "sha256": "d42023cb6fc72c7450ae6913fcd464e91f4e17266747aee9fde2b1b81ad12a19",
+      "lines": 196
+    },
+    {
+      "path": "contracts/upstream/StakedIMD.sol",
+      "sha256": "b53707577be045415570c073d9de8b3290fbe11d1a393b0775949395c367369d",
+      "lines": 169
+    },
+    {
+      "path": "contracts/upstream/make_fork.py",
+      "sha256": "9dbd364b6e4f7f4377d0051e4bfd80d74109cd6560eabf91e59523107c9bac58",
+      "lines": 259
+    },
+    {
+      "path": "contracts/upstream/make_staking.py",
+      "sha256": "65f45a60ce7e3dd8083895daad52f9b7633d60647358e446a9d6803318d5ec91",
+      "lines": 235
+    }
+  ]
+}
