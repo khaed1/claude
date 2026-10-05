@@ -15,6 +15,7 @@ Related files:
 | [`PLAN.md`](PLAN.md) | First plan, superseded; kept for the Pons / Pepes competitor analysis |
 | [`contracts/`](contracts/) | Foundry project (Solidity) |
 | [`airdrop/`](airdrop/) | Airdrop snapshot tool (`snapshot.py`, `config.json`, runbook) |
+| [`keeper/`](keeper/) | Keeper script for the permissionless upkeep calls |
 
 Last updated: 4 October 2026. Branch: `claude/bold-gauss-qhlw86` on `khaed1/claude`.
 
@@ -81,7 +82,7 @@ The owner of the project is the user (IMD ecosystem builder). The IMD / POOL4 de
 - `Fork.t.sol`: **5 fork tests** on live Robinhood Chain (real PoolManager, IMD, IMD/ETH and ETH/USDG pools): full lifecycle with ETH, USDG on the curve and after graduation, the $PONDPAD sale with ETH and USDG, the sale graduating into the market (cancun build, dynamic fee) with a buy and a trimmed sell, and an IMD depth report.
 
 ### Not built yet
-See `ROADMAP.md` section 1. In short: keeper script, frontend, Swarm Relay, indexer, X link service, keeper bot.
+See `ROADMAP.md` section 1. In short: frontend, Swarm Relay, indexer, X link service, keeper bot.
 
 ---
 
@@ -148,7 +149,7 @@ IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`)
 5. ~~`WorkerFund`, `GrowthFund`, `AttestationVerifier`, `VersionRegistry`, `CTOModule`, `SocialRegistry`, `PadLens`~~ (done, D-45 to D-50). Owners at deploy: `AttestationVerifier`, `CTOModule`, `VersionRegistry`, `WorkerFund` = 7-day timelock; `GrowthFund`, `SocialRegistry` = 48 h timelock; `CTOModule.council` and `GrowthFund.granter` = team Safe; `GrowthFund.relay` = Swarm Relay wallet; `SocialRegistry.verifier` = X link service key. Deploy `SocialRegistry` and `CTOModule` (needs the curve, social registry, verifier and the `ipfs://` rules link) before `CreatorVault.initialize` (the vault takes its address once). Splitter `workers` = `WorkerFund`, `growth` = `GrowthFund`; `PadConfig.growthFund` = `GrowthFund`. `PadLens` is registered with each version.
 6. ~~`AirdropDistributor` (5% Merkle) + `TeamVesting` (2%)~~ (done, D-53 to D-55). At deploy: both take `market` = `MarketController` (vesting clock = `openedAt`; the airdrop only opens initiation then); airdrop owner = 48 h timelock, `verifier` = tweet checker key, `unclaimedSink` = `RewardDripper` and the final Merkle root (OZ `StandardMerkleTree` leaves for `(address, uint256)`, built from the snapshot after contract-wallet holders name Robinhood addresses); vesting `beneficiary` = team Safe; fund them with 50M and 20M from the deployer's $PONDPAD in the same script.
 7. ~~Timelock + Safe wiring, deploy script, fork rehearsal~~ (done, D-57). See §5a.
-8. Keeper script (§6).
+8. ~~Keeper script~~ (done, D-58): `keeper/` (§6).
 9. Swarm audit loop, then frontend, Swarm Relay, indexer, X link service.
 
 ## 5a. Deploying
@@ -173,11 +174,11 @@ forge script script/Deploy.s.sol --rpc-url robinhood --sender <deployer> --broad
 
 Order: timelocks → $PONDPAD (CREATE2, address above IMD) → funds, splitter, config (+ ETH and USDG routes) → vaults, curve, `PadHook` (CREATE2, mined flags), factory, router, lens → verifier, social registry, CTO module → initializers → version 1 (registered; activated if `AUDIT_LINK`) → burner, controller, staking, `PadMarketHook` (CREATE2, mined flags), sale, buyer → airdrop, vesting → final splitter recipients and ownership handoff → supply: 900M to the sale, 50M airdrop, 20M vesting, 30M liquidity reserve to the 48 h timelock. The script fails if the deployer keeps any $PONDPAD. Hooks are mined for the standard CREATE2 factory (`0x4e59…956C`, live on Robinhood). Owners: D-57.
 
-After deploy: verify every contract on Blockscout/Sourcify; create and fund the Safe's first proposals as needed (e.g. `AttestationVerifier.setSigner` once the IMD dev gives the signer, via the 7-day timelock).
+The broadcast writes every address to `contracts/deployments/4663.json` (commit it; the keeper reads it). After deploy: verify every contract on Blockscout/Sourcify; start the keeper; create and fund the Safe's first proposals as needed (e.g. `AttestationVerifier.setSigner` once the IMD dev gives the signer, via the 7-day timelock).
 
 ## 6. Keepers (who calls the permissionless functions)
 
-Every upkeep function is permissionless: anyone can call it, nothing depends on one operator. Many also run by themselves during normal trading. A plain script on a timer (cron + `cast` or viem, a hot wallet with a little ETH for gas) is enough; no AI agent is needed for this part. Not built yet (ROADMAP §1 item 15, "keeper bot").
+Every upkeep function is permissionless: anyone can call it, nothing depends on one operator. Many also run by themselves during normal trading. **Built:** `keeper/keeper.mjs` (Node + viem, a hot wallet with a little ETH): checks a view, simulates, sends only what would succeed; cadences and conditions in `keeper/README.md`. No AI agent is needed for this part.
 
 | Call | When | Runs by itself? | Pays the caller |
 |---|---|---|---|

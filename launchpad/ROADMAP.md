@@ -22,7 +22,7 @@ Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), fac
 | 12 | ~~Deploy scripts~~ | **Done** (D-57): `script/Deploy.s.sol` (salt mining for both hooks and $PONDPAD > IMD, full wiring and supply split); rehearsal `DeployFork.t.sol` on a Robinhood fork; `forge script` simulation ~57.6M gas |
 | 13 | Audit loop | Swarm audit (4 auditors + judge) until clean; swarm fuzz campaigns; human audit before large TVL; bug bounty |
 | 14 | Frontend | Pages in `ARCHITECTURE-v1.md` §9; copy in `SITE-COPY.md`; trade box on the coin page (no separate swap page in v1) |
-| 15 | Backend | Indexer (incl. outside-pool volume tracking), Swarm Relay (site jobs with output scan), keeper bot, token auto-verifier, X link service, airdrop tweet checker (D-55), launch/graduation bots |
+| 15 | Backend | ~~Keeper bot~~ (done, D-58: `keeper/`). Indexer (incl. outside-pool volume tracking), Swarm Relay (site jobs with output scan), token auto-verifier, X link service, airdrop tweet checker (D-55), launch/graduation bots |
 | 16 | Pre-launch | Buy pondpad.fun + handles; deepen IMD liquidity on Robinhood; $PONDPAD sale over days |
 
 ## 2. v1.1

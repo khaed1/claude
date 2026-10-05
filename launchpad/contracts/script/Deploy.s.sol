@@ -136,6 +136,7 @@ contract Deploy is Script {
         d = deploy(p);
         vm.stopBroadcast();
         _log(d);
+        _write(d);
     }
 
     /// @notice The whole deployment. `p.deployer` must be the account executing these calls (the broadcaster, or
@@ -331,6 +332,43 @@ contract Deploy is Script {
         (bool ok, bytes memory ret) = CREATE2_FACTORY.call(abi.encodePacked(salt, initCode));
         require(ok && ret.length == 20, "create2");
         addr = address(bytes20(ret));
+    }
+
+    /// @dev Addresses for the keeper, frontend and indexer: deployments/<chainId>.json.
+    function _write(Deployment memory d) internal {
+        string memory k = "deployment";
+        vm.serializeAddress(k, "fastTimelock", address(d.fastTimelock));
+        vm.serializeAddress(k, "slowTimelock", address(d.slowTimelock));
+        vm.serializeAddress(k, "imd", IMD);
+        vm.serializeAddress(k, "poolManager", PM);
+        vm.serializeAddress(k, "pondpad", address(d.pondpad));
+        vm.serializeAddress(k, "feeSplitter", address(d.splitter));
+        vm.serializeAddress(k, "config", address(d.config));
+        vm.serializeAddress(k, "creatorVault", address(d.creatorVault));
+        vm.serializeAddress(k, "swarmBudget", address(d.swarmBudget));
+        vm.serializeAddress(k, "integratorVault", address(d.integrators));
+        vm.serializeAddress(k, "curve", address(d.curve));
+        vm.serializeAddress(k, "hook", address(d.hook));
+        vm.serializeAddress(k, "factory", address(d.factory));
+        vm.serializeAddress(k, "router", address(d.router));
+        vm.serializeAddress(k, "lens", address(d.lens));
+        vm.serializeAddress(k, "attestationVerifier", address(d.verifier));
+        vm.serializeAddress(k, "socialRegistry", address(d.social));
+        vm.serializeAddress(k, "ctoModule", address(d.cto));
+        vm.serializeAddress(k, "versionRegistry", address(d.versions));
+        vm.serializeAddress(k, "workerFund", address(d.workerFund));
+        vm.serializeAddress(k, "growthFund", address(d.growthFund));
+        vm.serializeAddress(k, "burner", address(d.burner));
+        vm.serializeAddress(k, "marketController", address(d.controller));
+        vm.serializeAddress(k, "marketHook", address(d.market));
+        vm.serializeAddress(k, "sale", address(d.sale));
+        vm.serializeAddress(k, "stakedPondpad", address(d.sVault));
+        vm.serializeAddress(k, "rewardDripper", address(d.dripper));
+        vm.serializeAddress(k, "padBuyer", address(d.buyer));
+        vm.serializeAddress(k, "airdrop", address(d.airdrop));
+        vm.serializeAddress(k, "teamVesting", address(d.vesting));
+        string memory json = vm.serializeUint(k, "chainId", block.chainid);
+        vm.writeJson(json, string.concat("deployments/", vm.toString(block.chainid), ".json"));
     }
 
     function _log(Deployment memory d) internal pure {
