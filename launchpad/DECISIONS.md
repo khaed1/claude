@@ -97,6 +97,7 @@ Every decision and change, in the order it was made, with the reason. Numbers (D
 | next after `2f45224` | Airdrop snapshot tool (D-56): `launchpad/airdrop/snapshot.py` (capture / build / selftest, stdlib only), `config.json` with the resolved addresses; `AirdropTreeTest` checks the Python tree against the contract's format; 90 local + 5 fork tests |
 | next after `c5bec14` | Airdrop: pools 70/30 (D-56), IMD on Base included, `capture` reads live balances (explorers, `ownerOf`, Robinhood logs) instead of rebuilding Ethereum history |
 | next after `7a12dd0` | Deployment (D-57): `script/Deploy.s.sol` (timelocks, CREATE2 mining for both hooks and $PONDPAD, full wiring, supply split, ownership handoff), `test/DeployFork.t.sol` rehearsal (3 fork tests); `openzeppelin-contracts` remapping; 90 local + 8 fork tests |
+| `554da9e` | Testnet deployment on 46630: `deployments/46630.json`, `46630-setup.json` |
 | next after `c1066fe` | Trader bots (D-63): `bots/` (`bots.mjs` roles / fund / run, invariant checks); HANDOFF §5b testnet wallet and spend plan |
 | next after `56359a6` | Testnet (D-62): `testnet/TestnetSetup.s.sol` + `testnet/TestToken.sol`; `Deploy.s.sol` takes a `Network` (mainnet locked to `robinhood()`); `test/TestnetFork.t.sol` (2 testnet fork tests); `robinhood_testnet` RPC alias; 90 local + 8 fork + 2 testnet fork tests |
 | next after `b85b4bc` | Keeper (D-58): `keeper/` (keeper.mjs, README); `Deploy.s.sol` writes `deployments/<chainId>.json`; tested end to end on an anvil fork with a broadcast deployment |
