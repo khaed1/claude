@@ -19,6 +19,7 @@ depth = 64
 
 [rpc_endpoints]
 robinhood = "https://rpc.mainnet.chain.robinhood.com"
+robinhood_testnet = "https://rpc.testnet.chain.robinhood.com"
 
 [lint]
 lint_on_build = false

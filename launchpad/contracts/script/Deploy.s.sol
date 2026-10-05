@@ -46,6 +46,10 @@ import {TeamVesting} from "../src/TeamVesting.sol";
 /// AIRDROP_ROOT, SALE_START, CTO_RULES (ipfs://… link). Optional: WORKER_REWARDS (default: not set yet),
 /// AUDIT_LINK (activates version 1 at deploy), POWERS_EXPIRE_AT (staking powers; default SALE_START + 365 days).
 ///
+/// On Robinhood Chain (4663) the chain addresses and the 48 h / 7-day delays are the constants below and cannot be
+/// overridden. On any other chain (the Robinhood testnet, 46630) they come from `deployments/<chainId>-setup.json`,
+/// written by `testnet/TestnetSetup.s.sol`, and the delays from FAST_DELAY / SLOW_DELAY (default 10 / 30 minutes).
+///
 /// The deployer only holds powers during the run: the 48 h and 7-day timelocks (proposer: the Safe, executor:
 /// anyone) own everything at the end, and the deployer keeps no $PONDPAD.
 contract Deploy is Script {
@@ -59,6 +63,8 @@ contract Deploy is Script {
     // ------------------------------------------------------------------ Settings (DECISIONS.md)
     uint256 internal constant FAST_DELAY = 48 hours;
     uint256 internal constant SLOW_DELAY = 7 days;
+    uint256 internal constant TESTNET_FAST_DELAY = 10 minutes; // D-62
+    uint256 internal constant TESTNET_SLOW_DELAY = 30 minutes;
     uint160 internal constant PAD_HOOK_FLAGS = Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG
         | Hooks.BEFORE_REMOVE_LIQUIDITY_FLAG | Hooks.BEFORE_SWAP_FLAG | Hooks.AFTER_SWAP_FLAG
         | Hooks.BEFORE_SWAP_RETURNS_DELTA_FLAG | Hooks.AFTER_SWAP_RETURNS_DELTA_FLAG;
@@ -72,7 +78,20 @@ contract Deploy is Script {
     uint256 internal constant TEAM = 20_000_000e18; // 2%
     uint256 internal constant LIQUIDITY_RESERVE = 30_000_000e18; // 3%, held by the 48 h timelock for fundInventory
 
+    /// @dev Everything that differs between chains. Mainnet: `robinhood()`.
+    struct Network {
+        address poolManager;
+        address imd;
+        address usdg;
+        uint24 ethUsdgFee; // ETH/USDG pool used by the USDG payment route
+        int24 ethUsdgTickSpacing;
+        address ethUsdgHook;
+        uint256 fastDelay;
+        uint256 slowDelay;
+    }
+
     struct Params {
+        Network chain;
         address deployer; // the account that sends every transaction of the run
         address safe;
         address relay;
@@ -119,6 +138,7 @@ contract Deploy is Script {
 
     function run() external returns (Deployment memory d) {
         Params memory p = Params({
+            chain: block.chainid == 4663 ? robinhood() : _chainFromSetup(),
             deployer: msg.sender,
             safe: vm.envAddress("SAFE"),
             relay: vm.envAddress("RELAY"),
@@ -136,7 +156,25 @@ contract Deploy is Script {
         d = deploy(p);
         vm.stopBroadcast();
         _log(d);
-        _write(d);
+        _write(d, p.chain);
+    }
+
+    /// @notice Robinhood Chain mainnet (4663): the only chain values a mainnet run can use.
+    function robinhood() public pure returns (Network memory) {
+        return Network(PM, IMD, USDG, 0x800000, 10, ETH_USDG_HOOK, FAST_DELAY, SLOW_DELAY);
+    }
+
+    /// @dev Test chains: test IMD / USDG and their pools from TestnetSetup's file, short timelock delays.
+    function _chainFromSetup() internal view returns (Network memory c) {
+        string memory json = vm.readFile(string.concat("deployments/", vm.toString(block.chainid), "-setup.json"));
+        c.poolManager = vm.parseJsonAddress(json, ".poolManager");
+        c.imd = vm.parseJsonAddress(json, ".imd");
+        c.usdg = vm.parseJsonAddress(json, ".usdg");
+        c.ethUsdgFee = uint24(vm.parseJsonUint(json, ".ethUsdgFee"));
+        c.ethUsdgTickSpacing = int24(int256(vm.parseJsonUint(json, ".ethUsdgTickSpacing")));
+        c.ethUsdgHook = vm.parseJsonAddress(json, ".ethUsdgHook");
+        c.fastDelay = vm.envOr("FAST_DELAY", TESTNET_FAST_DELAY);
+        c.slowDelay = vm.envOr("SLOW_DELAY", TESTNET_SLOW_DELAY);
     }
 
     /// @notice The whole deployment. `p.deployer` must be the account executing these calls (the broadcaster, or
@@ -145,32 +183,37 @@ contract Deploy is Script {
         require(p.safe != address(0) && p.relay != address(0) && p.xLinkKey != address(0), "params");
         require(p.tweetChecker != address(0) && p.airdropRoot != bytes32(0), "airdrop params");
         require(p.saleStart > block.timestamp && p.powersExpireAt > p.saleStart, "times");
+        require(p.chain.poolManager != address(0) && p.chain.imd != address(0) && p.chain.usdg != address(0), "chain");
+        require(p.chain.fastDelay != 0 && p.chain.slowDelay >= p.chain.fastDelay, "delays");
+        if (block.chainid == 4663) require(keccak256(abi.encode(p.chain)) == keccak256(abi.encode(robinhood())), "mainnet");
+        address imd = p.chain.imd;
+        address pm = p.chain.poolManager;
 
         // 1. Timelocks: the Safe proposes (and can cancel), anyone executes after the delay, no admin.
         address[] memory proposers = new address[](1);
         proposers[0] = p.safe;
         address[] memory executors = new address[](1); // address(0) = anyone
-        d.fastTimelock = new TimelockController(FAST_DELAY, proposers, executors, address(0));
-        d.slowTimelock = new TimelockController(SLOW_DELAY, proposers, executors, address(0));
+        d.fastTimelock = new TimelockController(p.chain.fastDelay, proposers, executors, address(0));
+        d.slowTimelock = new TimelockController(p.chain.slowDelay, proposers, executors, address(0));
         address fast = address(d.fastTimelock);
         address slow = address(d.slowTimelock);
 
         // 2. $PONDPAD at an address above IMD's, so IMD is currency0 in its pool (D-19).
-        d.pondpad = PondPadToken(_create2Above(abi.encodePacked(type(PondPadToken).creationCode, abi.encode(p.deployer)), IMD));
+        d.pondpad = PondPadToken(_create2Above(abi.encodePacked(type(PondPadToken).creationCode, abi.encode(p.deployer)), imd));
         address pondpad = address(d.pondpad);
 
         // 3. Funds and fee routing (recipients finalized in step 9 once PadBuyer exists).
-        d.workerFund = new WorkerFund(slow, IMD, pondpad, p.workerRewards);
-        d.growthFund = new GrowthFund(fast, IMD, pondpad, p.relay, p.safe, 100e18, 1_000e18, 10_000_000e18); // D-47
+        d.workerFund = new WorkerFund(slow, imd, pondpad, p.workerRewards);
+        d.growthFund = new GrowthFund(fast, imd, pondpad, p.relay, p.safe, 100e18, 1_000e18, 10_000_000e18); // D-47
         d.splitter = new FeeSplitter(
             p.deployer,
-            IMD,
+            imd,
             FeeSplitter.Shares({stakers: 4_000, workers: 2_500, growth: 2_000, treasury: 1_500}),
             FeeSplitter.Recipients({stakers: p.safe, workers: address(d.workerFund), growth: address(d.growthFund), treasury: p.safe})
         );
         d.config = new PadConfig(
             p.deployer,
-            IMD,
+            imd,
             address(d.splitter),
             address(d.growthFund),
             p.safe,
@@ -184,27 +227,27 @@ contract Deploy is Script {
                 maxBuyBps: 200
             })
         );
-        _setPaymentRoutes(d.config);
+        _setPaymentRoutes(d.config, p.chain);
 
         // 4. Coin launch and trading (version 1).
-        d.creatorVault = new CreatorVault(IMD);
-        d.swarmBudget = new SwarmBudget(fast, IMD, address(d.creatorVault), p.relay, 100e18);
-        d.integrators = new IntegratorVault(IMD);
-        d.curve = new BondingCurve(IMD, address(d.config), PM);
+        d.creatorVault = new CreatorVault(imd);
+        d.swarmBudget = new SwarmBudget(fast, imd, address(d.creatorVault), p.relay, 100e18);
+        d.integrators = new IntegratorVault(imd);
+        d.curve = new BondingCurve(imd, address(d.config), pm);
         d.hook = PadHook(
             _create2Hook(
                 abi.encodePacked(
                     type(PadHook).creationCode,
                     abi.encode(
-                        IPoolManager(PM), IMD, address(d.config), address(d.creatorVault), address(d.swarmBudget),
+                        IPoolManager(pm), imd, address(d.config), address(d.creatorVault), address(d.swarmBudget),
                         address(d.integrators), p.deployer
                     )
                 ),
                 PAD_HOOK_FLAGS
             )
         );
-        d.factory = new PadFactory(address(d.curve), address(d.hook), PM, IMD);
-        d.router = new PadRouter(IMD, PM, address(d.config), address(d.curve), address(d.hook), address(d.factory));
+        d.factory = new PadFactory(address(d.curve), address(d.hook), pm, imd);
+        d.router = new PadRouter(imd, pm, address(d.config), address(d.curve), address(d.hook), address(d.factory));
         d.lens = new PadLens(address(d.curve), address(d.hook), address(d.creatorVault), address(d.swarmBudget));
 
         // 5. Oracle, X links and takeovers (the vault takes the CTO module once, so it comes first).
@@ -232,7 +275,7 @@ contract Deploy is Script {
 
         // 7. $PONDPAD market, sale and staking.
         d.burner = new PadBurner(pondpad);
-        d.controller = new MarketController(fast, slow, IMD, pondpad, address(d.splitter), address(d.burner), CAP_FLOOR, CAP_DECAY);
+        d.controller = new MarketController(fast, slow, imd, pondpad, address(d.splitter), address(d.burner), CAP_FLOOR, CAP_DECAY);
         d.sVault = new StakedPONDPAD(pondpad, slow, p.powersExpireAt);
         d.dripper = new RewardDripper(pondpad, address(d.sVault), fast, 7 days, 1 days, 10e18, 1_000e18, p.powersExpireAt);
         d.market = PadMarketHook(
@@ -240,7 +283,7 @@ contract Deploy is Script {
                 abi.encodePacked(
                     type(PadMarketHook).creationCode,
                     abi.encode(
-                        address(d.controller), IPoolManager(PM), IMD, pondpad, address(d.burner), address(d.dripper),
+                        address(d.controller), IPoolManager(pm), imd, pondpad, address(d.burner), address(d.dripper),
                         uint256(1_500), uint256(1_000e18), int24(200)
                     )
                 ),
@@ -248,11 +291,11 @@ contract Deploy is Script {
             )
         );
         d.sale = new PadSale(
-            IMD, PM, address(d.config), pondpad, address(d.controller), address(d.integrators), SALE_TARGET, p.saleStart
+            imd, pm, address(d.config), pondpad, address(d.controller), address(d.integrators), SALE_TARGET, p.saleStart
         );
         d.integrators.setSale(address(d.sale));
         d.controller.initialize(address(d.market), address(d.sale));
-        d.buyer = new PadBuyer(fast, IMD, pondpad, PM, address(d.controller), address(d.dripper));
+        d.buyer = new PadBuyer(fast, imd, pondpad, pm, address(d.controller), address(d.dripper));
 
         // 8. Airdrop and team vesting (D-53 to D-56).
         d.airdrop = new AirdropDistributor(fast, pondpad, p.airdropRoot, address(d.controller), address(d.dripper), p.tweetChecker);
@@ -281,18 +324,20 @@ contract Deploy is Script {
 
     // ------------------------------------------------------------------ Helpers
 
-    /// @dev ETH via the hookless IMD/ETH pool; USDG via the dynamic-fee ETH/USDG pool, then IMD/ETH (D-30).
-    function _setPaymentRoutes(PadConfig config) internal {
-        PoolKey memory imdEth = PoolKey(Currency.wrap(address(0)), Currency.wrap(IMD), 10_000, 100, IHooks(address(0)));
-        PoolKey memory ethUsdg =
-            PoolKey(Currency.wrap(address(0)), Currency.wrap(USDG), 0x800000, 10, IHooks(ETH_USDG_HOOK));
+    /// @dev ETH via the hookless IMD/ETH pool; USDG via the ETH/USDG pool (on mainnet the dynamic-fee one), then
+    ///      IMD/ETH (D-30).
+    function _setPaymentRoutes(PadConfig config, Network memory c) internal {
+        PoolKey memory imdEth = PoolKey(Currency.wrap(address(0)), Currency.wrap(c.imd), 10_000, 100, IHooks(address(0)));
+        PoolKey memory ethUsdg = PoolKey(
+            Currency.wrap(address(0)), Currency.wrap(c.usdg), c.ethUsdgFee, c.ethUsdgTickSpacing, IHooks(c.ethUsdgHook)
+        );
         Hop[] memory eth = new Hop[](1);
         eth[0] = Hop(imdEth, true);
         config.setPaymentRoute(address(0), eth);
         Hop[] memory usdg = new Hop[](2);
         usdg[0] = Hop(ethUsdg, false);
         usdg[1] = Hop(imdEth, true);
-        config.setPaymentRoute(USDG, usdg);
+        config.setPaymentRoute(c.usdg, usdg);
     }
 
     function create2Address(bytes32 salt, bytes32 initCodeHash) public pure returns (address addr) {
@@ -335,12 +380,13 @@ contract Deploy is Script {
     }
 
     /// @dev Addresses for the keeper, frontend and indexer: deployments/<chainId>.json.
-    function _write(Deployment memory d) internal {
+    function _write(Deployment memory d, Network memory c) internal {
         string memory k = "deployment";
         vm.serializeAddress(k, "fastTimelock", address(d.fastTimelock));
         vm.serializeAddress(k, "slowTimelock", address(d.slowTimelock));
-        vm.serializeAddress(k, "imd", IMD);
-        vm.serializeAddress(k, "poolManager", PM);
+        vm.serializeAddress(k, "imd", c.imd);
+        vm.serializeAddress(k, "usdg", c.usdg);
+        vm.serializeAddress(k, "poolManager", c.poolManager);
         vm.serializeAddress(k, "pondpad", address(d.pondpad));
         vm.serializeAddress(k, "feeSplitter", address(d.splitter));
         vm.serializeAddress(k, "config", address(d.config));
@@ -372,8 +418,8 @@ contract Deploy is Script {
     }
 
     function _log(Deployment memory d) internal pure {
-        console2.log("fast timelock (48 h)", address(d.fastTimelock));
-        console2.log("slow timelock (7 d)  ", address(d.slowTimelock));
+        console2.log("fast timelock        ", address(d.fastTimelock));
+        console2.log("slow timelock        ", address(d.slowTimelock));
         console2.log("PONDPAD              ", address(d.pondpad));
         console2.log("PadConfig            ", address(d.config));
         console2.log("FeeSplitter          ", address(d.splitter));

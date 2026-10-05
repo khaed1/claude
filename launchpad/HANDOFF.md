@@ -17,6 +17,7 @@ Related files:
 | [`airdrop/`](airdrop/) | Airdrop snapshot tool (`snapshot.py`, `config.json`, runbook) |
 | [`keeper/`](keeper/) | Keeper script for the permissionless upkeep calls |
 | [`audit/`](audit/) | Swarm audit loop: threat model, findings ledger, job templates, `make_jobs.py` |
+| [`contracts/testnet/`](contracts/testnet/) | Robinhood testnet setup: test IMD / USDG with faucets, IMD/ETH and ETH/USDG pools (§5b) |
 
 Last updated: 5 October 2026. Branch: `claude/bold-gauss-qhlw86` on `khaed1/claude`.
 
@@ -80,6 +81,7 @@ The owner of the project is the user (IMD ecosystem builder). The IMD / POOL4 de
 - `Distribution.t.sol`: **8 local tests**: initiation closed before market open, market open alone starts nothing, 99 initiators don't activate, the 100th does, no more initiations after; everyone (initiator or not) claims over 30 days from activation, no bonus; initiation guards (stranger, wrong checker key, voucher for another wallet or tweet, expired, wrong amount, repeat wallet, reused X account or tweet, not on the list, claim wallet initiates, distinct codes); only the timelock replaces the checker key; claim guards (strangers, wrong amount or proof); claim wallet set by a gasless signature and claimed in one transaction (main wallet never transacts, later claims still pay the claim wallet, used nonce, expired signature, direct re-pointing); claims end 180 days after activation and the rest is swept to the dripper; team vesting nothing before day 30, 1/6 at the cliff, half at day 90, all at day 180, permissionless release, only the beneficiary moves it. `Market.t.sol` also checks that a migration leaves `openedAt` unchanged.
 - `AirdropTree.t.sol`: **1 local test**: the Merkle tree built by `airdrop/snapshot.py` (fixture) verifies with the contract's leaf and proof format.
 - `DeployFork.t.sol`: **3 fork tests**, the deployment rehearsal: runs `script/Deploy.s.sol`'s `deploy()` exactly as the broadcast does on live Robinhood state, then checks every owner and route (nothing left with the deployer; supply split 900M / 50M / 20M / 30M), the mined hook flags and $PONDPAD > IMD; the Safe changing a setting only through the 48 h timelock (anyone executes after the delay; splitter shares need 7 days); and a lifecycle: coin launch with ETH, sale closed before its start, sale graduating into the market at `openedAt`, market fees → splitter → treasury, workers and `PadBuyer`, which buys $PONDPAD for the dripper once the price reference catches up, airdrop waiting for initiators, team vesting 1/6 at day 30.
+- `TestnetFork.t.sol`: **2 testnet fork tests** on live Robinhood Chain Testnet (46630), skipped unless `TESTNET_RPC` is set: runs `testnet/TestnetSetup.s.sol`'s `setup()` and then `Deploy.deploy` with the testnet values, exactly as the two broadcasts do; checks test IMD below $PONDPAD, the faucet and its cooldown, the IMD/ETH pool price (~411 IMD per ETH), 10 / 30-minute timelocks with the mainnet owners, a Safe change through the 10-minute timelock; lifecycle: coin launch with ETH, USDG buy, curve filled with test IMD, ETH buy after the Leap, the sale graduating into the market, market fees reaching `PadBuyer` and the treasury.
 - `Fork.t.sol`: **5 fork tests** on live Robinhood Chain (real PoolManager, IMD, IMD/ETH and ETH/USDG pools): full lifecycle with ETH, USDG on the curve and after graduation, the $PONDPAD sale with ETH and USDG, the sale graduating into the market (cancun build, dynamic fee) with a buy and a trimmed sell, and an IMD depth report.
 
 ### Audit package (`audit/`, D-60, D-61)
@@ -98,6 +100,7 @@ git submodule update --init --recursive        # forge-std v1.9.7, solady v0.1.9
 forge build
 forge test --no-match-contract Fork            # 90 local tests
 FORK_RPC=https://rpc.mainnet.chain.robinhood.com forge test --match-contract Fork -vv   # 8 fork tests (incl. the deployment rehearsal)
+TESTNET_RPC=https://rpc.testnet.chain.robinhood.com forge test --match-contract TestnetFork -vv   # 2 testnet fork tests
 ```
 
 **Installing Foundry in the cloud sandbox:** `foundryup` fails there (its attestation download is blocked). Install the release binaries directly:
@@ -155,7 +158,8 @@ IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`)
 7. ~~Timelock + Safe wiring, deploy script, fork rehearsal~~ (done, D-57). See §5a.
 8. ~~Keeper script~~ (done, D-58): `keeper/` (§6).
 9. **Swarm audit loop**: package built (D-60, `audit/`). Next: the user submits round 1's four jobs in the explorer's Audit form (2 IMD; `audit/README.md`), we fix findings with a failing test each and rerun until the judge says CLEAN.
-10. Frontend, Swarm Relay, indexer, X link service, airdrop tweet checker.
+10. **Robinhood testnet run** (D-62): setup script, deploy change and testnet rehearsal built and passing (§5b). Next: fund a testnet wallet, broadcast both scripts, commit `deployments/46630*.json`, then scripted trader bots, then the frontend against the testnet.
+11. Frontend, Swarm Relay, indexer, X link service, airdrop tweet checker.
 
 ## 5a. Deploying
 
@@ -180,6 +184,26 @@ forge script script/Deploy.s.sol --rpc-url robinhood --sender <deployer> --broad
 Order: timelocks → $PONDPAD (CREATE2, address above IMD) → funds, splitter, config (+ ETH and USDG routes) → vaults, curve, `PadHook` (CREATE2, mined flags), factory, router, lens → verifier, social registry, CTO module → initializers → version 1 (registered; activated if `AUDIT_LINK`) → burner, controller, staking, `PadMarketHook` (CREATE2, mined flags), sale, buyer → airdrop, vesting → final splitter recipients and ownership handoff → supply: 900M to the sale, 50M airdrop, 20M vesting, 30M liquidity reserve to the 48 h timelock. The script fails if the deployer keeps any $PONDPAD. Hooks are mined for the standard CREATE2 factory (`0x4e59…956C`, live on Robinhood). Owners: D-57 (defaults confirmed in D-59).
 
 The broadcast writes every address to `contracts/deployments/4663.json` (commit it; the keeper reads it). After deploy: verify every contract on Blockscout/Sourcify; start the keeper; create and fund the Safe's first proposals as needed (e.g. `AttestationVerifier.setSigner` once the IMD dev gives the signer, via the 7-day timelock).
+
+## 5b. Robinhood testnet (D-62)
+
+Chain 46630, RPC `https://rpc.testnet.chain.robinhood.com` (`robinhood_testnet` in `foundry.toml`), explorer `explorer.testnet.chain.robinhood.com`. The PoolManager (same address as mainnet), the CREATE2 factory, Permit2, Multicall3 and the Safe contracts are there; IMD and USDG are not, so `contracts/testnet/` makes stand-ins. That folder is outside the audit scope (`make_jobs.py` covers `src/`, `script/`, `upstream/`) and is never used on mainnet.
+
+**Built and checked:** `TestnetFork.t.sol` passes on live testnet state, and both broadcasts were run against an anvil fork of the testnet (setup → `46630-setup.json` → `Deploy.s.sol` read it, 10 / 30-minute timelocks, ~57.6M gas). **Not yet broadcast on the real testnet** (needs a funded wallet).
+
+1. **Testnet ETH:** Sepolia ETH from a faucet, then the Arbitrum bridge in testnet mode (Sepolia → Robinhood Chain Testnet). About 1 ETH covers the pools (0.7 ETH by default) and the deploy (~0.003 ETH); 2–3 ETH with the bots.
+2. **Setup** (test IMD at an address below 2^152, test USDG with 6 decimals, both with a public `faucet()`: 500 tIMD / 5,000 tUSDG per address per hour, owner mints freely; hookless IMD/ETH pool, 1%, tick spacing 100, ~411 IMD/ETH; hookless ETH/USDG pool, 0.05%, tick spacing 10, ~2,590 USDG/ETH; plus a v4 test liquidity router and swap router for bots):
+   ```bash
+   cd launchpad/contracts
+   export IMD_POOL_ETH=500000000000000000 USDG_POOL_ETH=200000000000000000   # optional, in wei; the defaults
+   forge script testnet/TestnetSetup.s.sol --rpc-url robinhood_testnet --sender <wallet> --account <keystore> --broadcast
+   ```
+   Writes `deployments/46630-setup.json` (commit it).
+3. **Deploy:** the same command and env as §5a with `--rpc-url robinhood_testnet`. Off mainnet, `Deploy.s.sol` takes the PoolManager, IMD, USDG and the ETH/USDG pool from `deployments/<chainId>-setup.json` and the delays from `FAST_DELAY` / `SLOW_DELAY` (default 600 / 1800 s). On 4663 it always uses the mainnet constants and 48 h / 7 days (`deploy()` reverts otherwise). For testnet, `SAFE` can be a plain wallet the operator controls so timelock proposals can be scripted; `AIRDROP_ROOT` and `CTO_RULES` can be placeholders. Writes `deployments/46630.json` (commit it).
+4. **Keeper:** `DEPLOYMENT=../contracts/deployments/46630.json RPC_URL=https://rpc.testnet.chain.robinhood.com node keeper.mjs`.
+5. **Next (not built):** trader bots (many wallets funded by the setup owner's `mint`, different behaviours, invariants checked each round), the frontend against the testnet, later AI adversarial agents. The testnet can't show the 7-day fee decay, vesting, the 180-day sweep or the 12-month expiries quickly; the fork tests cover those.
+
+Audit note: `Deploy.s.sol` changed after round 1's commit (`b23fdc0`). Round 1 still audits `b23fdc0` as generated; the change is audited in round 2.
 
 ## 6. Keepers (who calls the permissionless functions)
 
@@ -219,7 +243,7 @@ Nothing below is built. Each needs the user's go-ahead.
   - Ethereum mainnet is too expensive for curve trading.
   - ROADMAP still lists Base and Ethereum under "Later" until the user decides.
 - **Can start before the audit ends:** frontend, indexer, X link service, tweet checker and Swarm Relay. They don't change contracts; an audit fix may need small frontend updates.
-- **Robinhood testnet run (proposed next step):**
+- **Robinhood testnet run:** *go-ahead given and steps 1–2 built (D-62, §5b); the text below is the original proposal.*
   - Testnet: chain 46630, RPC `https://rpc.testnet.chain.robinhood.com`, explorer `explorer.testnet.chain.robinhood.com`, gas ~0.05 gwei. Already there: the v4 PoolManager (same address as mainnet), the CREATE2 factory, Permit2, Multicall3 and the Safe contracts. Not there: IMD, USDG and their pools.
   - Plan:
     1. `script/TestnetSetup.s.sol`: deploy test IMD and test USDG with public faucets, then create and fill the IMD/ETH pool (~411 IMD per ETH) and an ETH/USDG pool.
@@ -230,9 +254,9 @@ Nothing below is built. Each needs the user's go-ahead.
   - Testnet ETH: Sepolia faucets, then the Arbitrum bridge in testnet mode (Sepolia → Robinhood Chain Testnet). About 2–3 ETH covers the pool and the bots; the deploy itself is ~0.004 ETH.
   - Things the testnet can't show quickly (7-day fee decay, vesting, 180-day sweep, 12-month expiries) stay covered by the fork tests.
   - Open questions for the user:
-    1. Go-ahead for the testnet setup.
-    2. Testnet timelocks at 10 and 30 minutes?
-    3. Who runs it: Claude with a testnet-only key saved as an environment secret, or the user with their own wallet?
+    1. ~~Go-ahead for the testnet setup.~~ Given (5 Oct 2026).
+    2. ~~Testnet timelocks at 10 and 30 minutes?~~ Used as the defaults (D-62); `FAST_DELAY` / `SLOW_DELAY` change them.
+    3. **Still open:** who broadcasts: Claude with a testnet-only key saved as an environment secret, or the user with their own wallet?
 - **Timelocks need no activating:** `Deploy.s.sol` creates both and hands them ownership in the same run. A change is `schedule` by the Safe, then the delay, then anyone calls `execute`. A small helper that turns a setting change into a ready Safe transaction was offered, not built.
 
 ## 7. Open items waiting on someone
@@ -248,5 +272,6 @@ Nothing below is built. Each needs the user's go-ahead.
 | Deepen IMD liquidity on Robinhood before the $PONDPAD sale | User + IMD dev / holders |
 | Buy pondpad.fun, X and Telegram handles | User |
 | Airdrop snapshot (D-56): rules decided and the tool is built (`airdrop/`, see its README). To do: pick the moment and run `capture` secretly, then `build`, review `review.csv` (exchange hot wallets, team wallets, contract wallets that want a Robinhood address), announce, root into the deploy | User |
+| Testnet: who broadcasts (Claude with a testnet-only key as an environment secret, or the user's wallet), and testnet ETH for that wallet (§5b) | User |
 | Swarm audit round 1 (D-61): submit `audit/rounds/1/A1`–`A4` at explorer.imd.fun/launch → Audit (2 IMD on Ethereum mainnet), then share the four job links | User |
 | Airdrop tweet checker (D-55): service that reads the initiation post (X API or link fetch), checks the phrase and `initiationCode`, signs the voucher; its key goes into `AirdropDistributor` at deploy | Us (backend) |

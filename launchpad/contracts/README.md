@@ -36,7 +36,7 @@ Core launch-and-trade path and the $PONDPAD sale and market, tested end to end a
 | `AirdropDistributor` | 5% $PONDPAD airdrop: Merkle list fixed at deploy; after market open 100 listed wallets initiate it with verified X posts, then everyone on the list claims over 30 days; gasless claim-wallet delegation; unclaimed swept to stakers after 180 days |
 | `TeamVesting` | 2% team $PONDPAD: 1-month cliff, linear to month 6 from market open, to the team Safe, not revocable |
 
-`script/Deploy.s.sol` deploys and wires all of it (rehearsed on a Robinhood fork in `test/DeployFork.t.sol`).
+`script/Deploy.s.sol` deploys and wires all of it (rehearsed on a Robinhood fork in `test/DeployFork.t.sol`). `testnet/TestnetSetup.s.sol` prepares Robinhood Chain Testnet (46630) for it (HANDOFF §5b).
 
 ## Build and test
 
@@ -47,6 +47,8 @@ forge test
 
 # Against live Robinhood Chain (real PoolManager, IMD and IMD/ETH pool):
 FORK_RPC=https://rpc.mainnet.chain.robinhood.com forge test --match-contract Fork -vv
+# testnet rehearsal (test tokens, pools, full deploy on live Robinhood Chain Testnet; HANDOFF §5b)
+TESTNET_RPC=https://rpc.testnet.chain.robinhood.com forge test --match-contract TestnetFork -vv
 
 # Deploy (simulate without --broadcast); env vars in ../HANDOFF.md §5a:
 forge script script/Deploy.s.sol --rpc-url robinhood --sender <deployer>

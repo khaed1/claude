@@ -42,6 +42,7 @@ contract DeployForkTest is Test {
         saleStart = block.timestamp + 3 days;
         script = new Deploy();
         Deploy.Params memory p = Deploy.Params({
+            chain: script.robinhood(),
             deployer: address(script),
             safe: safe,
             relay: relay,
