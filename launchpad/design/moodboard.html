@@ -1,0 +1,195 @@
+<title>PondPad Mood Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@400;600;700;800&family=Martian+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one night-pond world (single theme by choice). A live pond scene opens, then a loose collage of tiles: textures, palette, type, moments, and the feels-like / never-like pair. */
+:root {
+  --pond-deep: #0a1719; --pond: #0f2326; --pond-raised: #163238; --reed: #264a50;
+  --ink: #e6f2ec; --ink-muted: #97b4ad;
+  --lily: #6fd08c; --lily-deep: #17784a; --firefly: #ffd166; --lotus: #f2a6c8; --coral: #ff8a80; --ripple: #4fb3bf;
+  --day: #eef5f1; --day-ink: #0d2624;
+  --display: "Lilita One", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --sans: "Nunito", "Segoe UI", system-ui, sans-serif;
+  --mono: "Martian Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--pond-deep); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.6; }
+::selection { background: #173d2b; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 0 64px; }
+header.hero { position: relative; height: clamp(320px, 52vw, 520px); border-radius: 0 0 28px 28px; overflow: hidden; margin: 0 -16px; }
+header.hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.hero-words { position: absolute; left: clamp(16px, 5vw, 56px); bottom: clamp(20px, 5vw, 48px); max-width: 560px; }
+h1 { font-family: var(--display); font-weight: 400; font-size: clamp(44px, 8vw, 92px); line-height: .95; margin: 0; letter-spacing: .5px; text-wrap: balance; }
+.hero-words p { margin: 12px 0 0; font-size: clamp(16px, 2vw, 19px); color: var(--ink-muted); max-width: 46ch; font-weight: 600; }
+h2 { font-family: var(--display); font-weight: 400; font-size: 32px; line-height: 1.1; margin: 0 0 8px; text-wrap: balance; }
+h3 { font-size: 15px; font-weight: 800; margin: 0 0 4px; }
+section { margin-top: 56px; }
+.lede { color: var(--ink-muted); max-width: 64ch; margin: 0 0 24px; }
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+.tile { position: relative; border-radius: 22px; overflow: hidden; background: var(--pond); border: 1px solid var(--reed); min-height: 200px; }
+.tile .cap { position: absolute; left: 16px; bottom: 14px; right: 16px; font-size: 13px; font-weight: 700; color: var(--ink); text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+.tile canvas, .tile svg { display: block; width: 100%; height: 100%; position: absolute; inset: 0; }
+.s4 { grid-column: span 4; } .s5 { grid-column: span 5; } .s6 { grid-column: span 6; } .s7 { grid-column: span 7; } .s8 { grid-column: span 8; } .s3 { grid-column: span 3; } .s12 { grid-column: span 12; }
+.tall { min-height: 300px; }
+.words { padding: 20px; display: grid; gap: 10px; align-content: start; }
+.words ul { margin: 0; padding-left: 18px; }
+.words li { margin: 2px 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-size: 13px; font-weight: 800; padding: 5px 12px; border-radius: 999px; background: var(--pond-raised); color: var(--ink); }
+.chip.no { color: var(--ink-muted); text-decoration: line-through; text-decoration-color: var(--coral); }
+.sw { display: grid; grid-template-rows: 1fr auto; min-height: 220px; }
+.sw .fill { min-height: 140px; }
+.sw .meta { padding: 12px 14px; font-size: 13px; line-height: 1.4; }
+.sw .meta b { display: block; font-size: 15px; }
+.sw .meta code { font-family: var(--mono); font-size: 11px; color: var(--ink-muted); }
+.type-big { font-family: var(--display); font-size: clamp(56px, 9vw, 112px); line-height: .9; margin: 0; color: var(--lily); }
+.type-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; margin-top: 12px; }
+.mono { font-family: var(--mono); font-size: 13px; color: var(--ink-muted); }
+.num { font-weight: 800; font-size: 34px; font-variant-numeric: tabular-nums; }
+.leap { height: 16px; border-radius: 999px; background: var(--pond-raised); box-shadow: inset 0 0 0 1px var(--reed); position: relative; margin: 14px 0 6px; }
+.leap i { position: absolute; inset: 0 auto 0 0; width: 94%; border-radius: 999px; background: var(--firefly) repeating-linear-gradient(115deg, transparent 0 10px, rgba(255,255,255,.18) 10px 14px); }
+.leap b { position: absolute; left: 94%; top: 50%; width: 24px; height: 24px; margin-left: -12px; transform: translateY(-50%) rotate(-45deg); border-radius: 50% 50% 50% 8px; background: var(--firefly); box-shadow: 0 0 0 3px var(--pond); }
+.moment { padding: 20px; display: grid; gap: 10px; align-content: start; }
+.moment .row { display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: var(--ink-muted); }
+.ripchip { display: inline-flex; gap: 6px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: var(--pond-raised); color: var(--ink-muted); margin: 3px 4px 3px 0; }
+.ripchip b.b { color: var(--lily); } .ripchip b.s { color: var(--coral); } .ripchip.l { background: #3a3014; color: var(--firefly); }
+.tick { font-family: var(--mono); color: var(--ink); }
+.day { background: var(--day); color: var(--day-ink); border-color: #c5d8cf; }
+.day .cap { color: var(--day-ink); text-shadow: none; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+footer { margin-top: 56px; color: var(--ink-muted); font-size: 13px; }
+@media (max-width: 860px) { .s3, .s4, .s5 { grid-column: span 6; } .s6, .s7, .s8 { grid-column: span 12; } }
+@media (max-width: 560px) { .grid > * { grid-column: span 12 !important; } .pair { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .still-note { display: inline; } }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <canvas id="pond" aria-label="A night pond: lily pads drifting on dark water, ripples and fireflies"></canvas>
+    <div class="hero-words">
+      <h1>A pond at night, lit by fireflies.</h1>
+      <p>The mood PondPad sets before any layout exists: calm deep water underneath, small living things on top.</p>
+    </div>
+  </header>
+
+  <section>
+    <h2>The feeling</h2>
+    <p class="lede">Deep water is the rules: fixed, locked, nothing hidden. Lily pads, ripples and fireflies are the coins and the moments: hatching, trading, leaping. The UI stays dark and quiet so the life on it can glow.</p>
+    <div class="pair">
+      <div class="tile words" style="min-height:0">
+        <h3>Feels like</h3>
+        <div class="chips"><span class="chip">calm water</span><span class="chip">fireflies at dusk</span><span class="chip">a friend in the know</span><span class="chip">rounded, soft, chunky</span><span class="chip">small wins, celebrated</span><span class="chip">every number shown</span><span class="chip">a nature doc at night</span><span class="chip">the leap</span></div>
+      </div>
+      <div class="tile words" style="min-height:0">
+        <h3>Never like</h3>
+        <div class="chips"><span class="chip no">casino lights</span><span class="chip no">rocket emojis</span><span class="chip no">neon on black</span><span class="chip no">hidden fees</span><span class="chip no">blinking LIVE</span><span class="chip no">stock photos</span><span class="chip no">3D coins</span><span class="chip no">"to the moon"</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Textures from the pond</h2>
+    <p class="lede">Shapes we borrow for illustration, empty states and the Leap moment. Flat, geometric, made from the palette.</p>
+    <div class="grid">
+      <div class="tile s7 tall"><canvas data-scene="ripples"></canvas><span class="cap">Ripples: a trade landing in the pond</span></div>
+      <div class="tile s5 tall"><canvas data-scene="duckweed"></canvas><span class="cap">Duckweed: many small coins, one surface</span></div>
+      <div class="tile s4"><canvas data-scene="skin"></canvas><span class="cap">Frog skin: speckle for backgrounds, never under text</span></div>
+      <div class="tile s4"><canvas data-scene="pads"></canvas><span class="cap">Lily pads: the round shapes behind every card</span></div>
+      <div class="tile s4"><canvas data-scene="fireflies"></canvas><span class="cap">Fireflies: gold means the Leap</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Palette, with its story</h2>
+    <p class="lede">Eighty percent water, ten percent ink, ten percent life. Each color has one job.</p>
+    <div class="grid">
+      <div class="tile sw s3"><div class="fill" style="background:var(--pond-deep)"></div><div class="meta"><b>Deep water</b>The page. Night is the default; trading happens after dark.<br><code>pond-deep #0a1719</code></div></div>
+      <div class="tile sw s3"><div class="fill" style="background:var(--lily)"></div><div class="meta"><b>Lily</b>The brand, buys, the one primary button.<br><code>lily #6fd08c</code></div></div>
+      <div class="tile sw s3"><div class="fill" style="background:var(--firefly)"></div><div class="meta"><b>Firefly</b>The Leap and $PONDPAD. Rare on purpose.<br><code>firefly #ffd166</code></div></div>
+      <div class="tile sw s3"><div class="fill" style="background:var(--lotus)"></div><div class="meta"><b>Lotus</b>The Chorus (the IMD swarm) and X verified.<br><code>lotus #f2a6c8</code></div></div>
+      <div class="tile sw s4"><div class="fill" style="background:var(--ripple)"></div><div class="meta"><b>Ripple</b>Water in the Leap meter, IMD in charts.<br><code>ripple #4fb3bf</code></div></div>
+      <div class="tile sw s4"><div class="fill" style="background:var(--coral)"></div><div class="meta"><b>Coral</b>Sells and errors, always with a word or arrow.<br><code>coral #ff8a80</code></div></div>
+      <div class="tile sw s4 day"><div class="fill" style="background:linear-gradient(90deg,#eef5f1 0 60%,#17784a 60% 80%,#e8a400 80%)"></div><div class="meta"><b>Day pond</b>The same world in morning light, for light-mode devices.<br><code style="color:#46635e">#eef5f1 · #17784a · #e8a400</code></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Type</h2>
+    <div class="grid">
+      <div class="tile s7 words" style="min-height:0">
+        <p class="type-big">pondpad</p>
+        <div class="type-row"><span style="font-family:var(--display);font-size:28px">Lilita One</span><span class="mono">display · wordmark, titles, the Leap</span></div>
+        <p style="margin:6px 0 0;max-width:52ch">Round, chunky, a little silly: a frog you'd trust with your lunch money. Used big and rarely; never for numbers.</p>
+      </div>
+      <div class="tile s5 words" style="min-height:0">
+        <span class="num">1,297 / 2,060 IMD</span>
+        <div class="type-row"><b style="font-size:20px">Nunito</b><span class="mono">text · tabular numbers</span></div>
+        <p style="margin:0">Fee: 2.0% (1.5% base + 0.5% to holders)</p>
+        <div class="type-row"><span class="tick">$RIBBIT · 0x4b91…6821</span><span class="mono">Martian Mono · data</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Moments</h2>
+    <p class="lede">Where the pond shows its personality. Everything else stays quiet.</p>
+    <div class="grid">
+      <div class="tile s6 moment" style="min-height:0">
+        <h3>Almost there</h3>
+        <div class="leap"><i></i><b></b></div>
+        <div class="row"><span><b style="color:var(--ink)">1,936</b> / 2,060 IMD</span><span>94% to the Leap</span></div>
+        <p style="margin:0;color:var(--ink-muted)">From 90% the water turns gold. Everyone holding it is pushing the same way.</p>
+      </div>
+      <div class="tile s6 moment" style="min-height:0">
+        <h3>Ripples</h3>
+        <div><span class="ripchip">0x4b9…21 <b class="b">bought</b> 12.5 IMD of <span class="tick">$RIBBIT</span></span><span class="ripchip l"><span class="tick">$CROAK</span> just leapt</span><span class="ripchip">0x91a…0c <b class="s">sold</b> 3.1 IMD of <span class="tick">$LOTUS</span></span><span class="ripchip">0xc0f…9e spawned <span class="tick">$PIP</span></span></div>
+        <p style="margin:0;color:var(--ink-muted)">One slow line of what just happened. A soft ring when something new lands, no flashing.</p>
+      </div>
+      <div class="tile s12 moment" style="min-height:0;grid-template-columns:120px minmax(0,1fr);align-items:center;column-gap:20px">
+        <svg viewBox="0 0 120 96" width="120" height="96" style="position:static" aria-hidden="true"><path d="M14 70c0-22 20-38 46-38s46 16 46 38z" fill="#6fd08c"/><circle cx="36" cy="36" r="17" fill="#6fd08c"/><circle cx="84" cy="36" r="17" fill="#6fd08c"/><circle cx="36" cy="36" r="10" fill="#e6f2ec"/><circle cx="84" cy="36" r="10" fill="#e6f2ec"/><circle cx="38" cy="38" r="5" fill="#0a1719"/><circle cx="86" cy="38" r="5" fill="#0a1719"/><path d="M44 58q16 9 32 0" stroke="#0a1719" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M0 70h120v26H0z" fill="#4fb3bf"/></svg>
+        <div><h3 style="font-family:var(--display);font-weight:400;font-size:28px">It leapt!</h3><p style="margin:0;color:var(--ink-muted)">Pip, our frog, appears only for moments like this, empty ponds and the 404. Never in the header, never on a button.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>PondPad design, October 2026. Brand book and tokens: <code class="mono">launchpad/design/system/</code>. Copy: <code class="mono">launchpad/SITE-COPY.md</code>.</footer>
+</div>
+
+<script>
+(() => {
+  const C = { deep: '#0a1719', pond: '#0f2326', raised: '#163238', reed: '#264a50', lily: '#6fd08c', lilyDeep: '#2f8a57', gold: '#ffd166', lotus: '#f2a6c8', ripple: '#4fb3bf' };
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  function fit(cv) { const r = cv.getBoundingClientRect(), d = Math.min(devicePixelRatio || 1, 2); cv.width = Math.max(1, r.width * d); cv.height = Math.max(1, r.height * d); const g = cv.getContext('2d'); g.setTransform(d, 0, 0, d, 0, 0); return [g, r.width, r.height]; }
+  function pad(g, x, y, r, rot, fill) { g.save(); g.translate(x, y); g.rotate(rot); g.scale(1, .82); g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, r, -1.05, -1.05 - 2 * Math.PI + .38, true); g.closePath(); g.fillStyle = fill; g.fill(); g.restore(); }
+
+  // Hero: drifting pads, slow ripples, fireflies.
+  const hero = document.getElementById('pond');
+  const pads = Array.from({ length: 14 }, (_, i) => ({ x: rnd(), y: .2 + rnd() * .75, r: 18 + rnd() * 46, rot: rnd() * 6.28, v: (rnd() - .5) * .00004, c: i % 4 === 0 ? C.lilyDeep : C.lily }));
+  const flies = Array.from({ length: 26 }, () => ({ x: rnd(), y: rnd() * .7, p: rnd() * 6.28, s: .5 + rnd() }));
+  const rings = [];
+  function drawHero(t) {
+    const [g, w, h] = fit(hero);
+    const grad = g.createLinearGradient(0, 0, 0, h); grad.addColorStop(0, '#071214'); grad.addColorStop(1, '#10282b'); g.fillStyle = grad; g.fillRect(0, 0, w, h);
+    if (!still && Math.floor(t / 1400) !== drawHero.k) { drawHero.k = Math.floor(t / 1400); rings.push({ x: .15 + rnd() * .8, y: .3 + rnd() * .65, b: t }); if (rings.length > 6) rings.shift(); }
+    for (const r of (still ? [{ x: .7, y: .6, b: t - 900 }, { x: .4, y: .8, b: t - 2200 }] : rings)) { const a = (t - r.b) / 4000; if (a > 1) continue; g.strokeStyle = `rgba(79,179,191,${.5 * (1 - a)})`; g.lineWidth = 1.5; for (const k of [1, .7, .4]) { g.beginPath(); g.ellipse(r.x * w, r.y * h, a * 120 * k + 2, a * 40 * k + 1, 0, 0, 6.29); g.stroke(); } }
+    for (const p of pads) { const x = ((p.x + (still ? 0 : t * p.v)) % 1 + 1) % 1; pad(g, x * w, p.y * h, p.r, p.rot + (still ? 0 : Math.sin(t / 3000 + p.r) * .05), p.c); }
+    for (const f of flies) { const a = still ? .8 : .45 + .55 * Math.sin(t / 700 * f.s + f.p); const x = f.x * w + (still ? 0 : Math.sin(t / 2000 + f.p) * 12), y = f.y * h + (still ? 0 : Math.cos(t / 2600 + f.p) * 8); g.fillStyle = `rgba(255,209,102,${.18 * a})`; g.beginPath(); g.arc(x, y, 9, 0, 6.29); g.fill(); g.fillStyle = `rgba(255,209,102,${a})`; g.beginPath(); g.arc(x, y, 2.2, 0, 6.29); g.fill(); }
+    const shade = g.createLinearGradient(0, h * .45, 0, h); shade.addColorStop(0, 'rgba(10,23,25,0)'); shade.addColorStop(1, 'rgba(10,23,25,.85)'); g.fillStyle = shade; g.fillRect(0, 0, w, h);
+  }
+
+  const scenes = {
+    ripples(g, w, h) { g.fillStyle = C.pond; g.fillRect(0, 0, w, h); const pts = [[.3, .45], [.7, .6], [.55, .25]]; pts.forEach(([x, y], i) => { for (let k = 1; k <= 7; k++) { g.strokeStyle = i === 0 ? C.ripple : C.reed; g.globalAlpha = 1 - k / 8; g.lineWidth = 2; g.beginPath(); g.ellipse(x * w, y * h, k * 22, k * 8, 0, 0, 6.29); g.stroke(); } }); g.globalAlpha = 1; pad(g, .3 * w, .45 * h, 16, 1, C.lily); },
+    duckweed(g, w, h) { g.fillStyle = '#0c1d1f'; g.fillRect(0, 0, w, h); for (let i = 0; i < 520; i++) { const x = rnd() * w, y = rnd() * h * .9; g.fillStyle = rnd() > .9 ? C.gold : rnd() > .5 ? C.lily : C.lilyDeep; g.beginPath(); g.ellipse(x, y, 3 + rnd() * 4, 2 + rnd() * 3, rnd() * 3, 0, 6.29); g.fill(); } },
+    skin(g, w, h) { g.fillStyle = C.lilyDeep; g.fillRect(0, 0, w, h); for (let i = 0; i < 160; i++) { g.fillStyle = rnd() > .6 ? '#1f6b44' : C.lily; g.beginPath(); g.arc(rnd() * w, rnd() * h, 2 + rnd() * 9, 0, 6.29); g.fill(); } },
+    pads(g, w, h) { g.fillStyle = C.raised; g.fillRect(0, 0, w, h); [[.25, .35, 46], [.62, .5, 60], [.85, .22, 28], [.4, .8, 34], [.9, .78, 22]].forEach(([x, y, r], i) => pad(g, x * w, y * h, r, i * 1.3, i % 2 ? C.lilyDeep : C.lily)); g.fillStyle = C.lotus; g.beginPath(); g.arc(.62 * w + 10, .5 * h - 6, 9, 0, 6.29); g.fill(); },
+    fireflies(g, w, h) { const gr = g.createRadialGradient(w * .5, h * .4, 10, w * .5, h * .4, w * .7); gr.addColorStop(0, '#16302f'); gr.addColorStop(1, C.deep); g.fillStyle = gr; g.fillRect(0, 0, w, h); for (let i = 0; i < 40; i++) { const x = rnd() * w, y = rnd() * h * .85, r = 1.5 + rnd() * 2; g.fillStyle = 'rgba(255,209,102,.16)'; g.beginPath(); g.arc(x, y, r * 5, 0, 6.29); g.fill(); g.fillStyle = C.gold; g.beginPath(); g.arc(x, y, r, 0, 6.29); g.fill(); } },
+  };
+  function drawScenes() { seed = 11; document.querySelectorAll('canvas[data-scene]').forEach(cv => { const [g, w, h] = fit(cv); scenes[cv.dataset.scene](g, w, h); }); }
+
+  drawScenes(); drawHero(0);
+  addEventListener('resize', () => { drawScenes(); drawHero(performance.now()); });
+  if (!still) { const loop = t => { drawHero(t); requestAnimationFrame(loop); }; requestAnimationFrame(loop); }
+})();
+</script>

@@ -69,7 +69,7 @@ My pick for the hero: **"Every frog starts as a tadpole."** It tells the whole s
 
 **Header**
 > ## Lay an egg
-> Takes about a minute. Costs 1 IMD, plus gas. You can pay with ETH. We'll swap it for you in the same transaction.
+> Takes about a minute. Costs 1 IMD, plus gas. You can pay with IMD, ETH or USDG. We'll swap it for you in the same transaction.
 
 **Field hints**
 - Name: *"What will the pond call it?"*
@@ -160,7 +160,7 @@ Small print, in plain words:
 >
 > - 60% sold on the curve
 > - 30% into the pool, locked
-> - 5% airdropped to IMD seat holders and sIMD stakers, switched on by 100 of them after the Leap, then released over 30 days
+> - 5% airdropped to the IMD community: 70% to active IMD workers (seats with real recent work), 30% to IMD holders with at least 7,000 IMD. The snapshot is taken in secret and announced only after it's taken. Switched on by 100 wallets from the list after the Leap, then released over 30 days
 > - 3% kept for adding liquidity later
 > - 2% team, locked for the first month after the Leap, fully released by month 6
 >
@@ -207,7 +207,7 @@ Line under the timelock list:
 > Nothing in crypto is safe, and coins here can go to zero. What we can say: liquidity is locked forever after the Leap, contracts can't be upgraded, the swarm audits every version, and every rule change waits in a public timelock. Read the risks before you trade.
 
 **Why IMD and not ETH?**
-> Because we're IMD people. Every coin here pairs with IMD, so the whole pond grows together. You can still pay with ETH; we swap it in the same transaction.
+> Because we're IMD people. Every coin here pairs with IMD, so the whole pond grows together. You can still pay with ETH or USDG; we swap it in the same transaction.
 
 **What's the swarm, really?**
 > A network of AI agents, run by real people with IMD seats, that take on jobs and get paid for good work. On PondPad they build websites, audit our code and settle disputes. Every job is public on the IMD explorer.
@@ -229,7 +229,7 @@ Line under the timelock list:
 |---|---|
 | Wallet not connected | `Connect a wallet to hop in.` |
 | Wrong network | `You're in the wrong pond. Switch to Robinhood Chain.` |
-| Not enough balance | `Not enough IMD for that. Try a smaller amount or pay with ETH.` |
+| Not enough balance | `Not enough IMD for that. Try a smaller amount or pay with ETH or USDG.` |
 | Slippage error | `The price moved while you were deciding. Try again or raise slippage a little.` |
 | Transaction failed (generic) | `That didn't go through. Nothing was lost except a bit of gas.` |
 | Empty search | `No frogs by that name. Maybe it's still an egg?` |

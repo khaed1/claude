@@ -1,0 +1,158 @@
+/* PondPad components. Every value comes from a token (tokens.css). Class prefix: pp-. The frontend imports this file as is. */
+
+body { margin: 0; font-family: var(--font-sans); font-size: 15px; line-height: 24px; background: var(--pond-deep); color: var(--ink); font-variant-numeric: tabular-nums; }
+.pp-demo { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; padding: var(--space-4); }
+.pp-demo-col { display: grid; gap: var(--space-3); padding: var(--space-4); max-width: 420px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+::selection { background: var(--lily-soft); color: var(--ink); }
+html { accent-color: var(--lily); caret-color: var(--lily); scrollbar-color: var(--reed-strong) var(--pond-deep); }
+a { color: var(--lily); text-underline-offset: 3px; }
+.pp-ico { width: 18px; height: 18px; flex: none; fill: currentColor; }
+
+/* ---- Button ---- */
+.pp-btn { font: inherit; font-weight: 800; font-size: 15px; line-height: 20px; min-height: 44px; padding: 0 var(--space-5); border-radius: var(--radius-md);
+  border: 1px solid var(--reed); background: var(--pond-raised); color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  transition: transform .12s ease, filter .12s ease; }
+.pp-btn:hover { filter: brightness(1.08); }
+.pp-btn:active { transform: translateY(1px) scale(.99); }
+.pp-btn[disabled] { opacity: .5; cursor: not-allowed; filter: none; transform: none; }
+.pp-btn-primary, .pp-btn-buy { background: var(--lily); border-color: var(--lily); color: var(--on-lily); }
+.pp-btn-sell { background: var(--coral); border-color: var(--coral); color: var(--on-coral); }
+.pp-btn-leap { background: var(--firefly); border-color: var(--firefly); color: var(--on-firefly); }
+.pp-btn-ghost { background: transparent; border-color: transparent; color: var(--ink-muted); }
+.pp-btn-ghost:hover { color: var(--ink); background: var(--pond-raised); filter: none; }
+.pp-btn-sm { min-height: 32px; padding: 0 var(--space-3); font-size: 13px; border-radius: var(--radius-sm); }
+.pp-btn-block { width: 100%; }
+
+/* ---- Stage chip: Egg / Tadpole / Frog ---- */
+.pp-stage { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; line-height: 16px; font-weight: 800; padding: 4px 10px; border-radius: var(--radius-pill); white-space: nowrap; }
+.pp-stage::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.pp-stage-egg { background: var(--pond-raised); color: var(--ink-muted); }
+.pp-stage-egg::before { width: 7px; height: 9px; border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; }
+.pp-stage-tadpole { background: var(--lily-soft); color: var(--lily); }
+.pp-stage-tadpole::before { border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+.pp-stage-frog { background: var(--firefly-soft); color: var(--firefly-ink); }
+
+/* ---- Badge ---- */
+.pp-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; line-height: 16px; font-weight: 700; padding: 3px 8px; border-radius: var(--radius-sm); background: var(--pond-raised); color: var(--ink-muted); white-space: nowrap; }
+.pp-badge svg { width: 12px; height: 12px; fill: currentColor; }
+.pp-badge-x, .pp-badge-chorus { background: var(--lotus-soft); color: var(--lotus); }
+.pp-badge-tax { background: var(--pond-raised); color: var(--ink); }
+.pp-badge-warn { background: var(--coral-soft); color: var(--coral); }
+
+/* ---- Leap meter: the curve's progress to the Leap ---- */
+.pp-leap { display: grid; gap: 6px; }
+.pp-leap-track { position: relative; height: 14px; border-radius: var(--radius-pill); background: var(--pond-raised); box-shadow: inset 0 0 0 1px var(--reed); overflow: visible; }
+.pp-leap-fill { position: absolute; inset: 0 auto 0 0; border-radius: var(--radius-pill); background: var(--ripple);
+  background-image: repeating-linear-gradient(115deg, transparent 0 10px, rgba(255,255,255,.14) 10px 14px); }
+.pp-leap-head { position: absolute; top: 50%; width: 22px; height: 22px; margin-left: -11px; transform: translateY(-50%); border-radius: 50% 50% 50% 8px; rotate: -45deg;
+  background: var(--lily); box-shadow: 0 0 0 3px var(--pond); }
+.pp-leap.is-near .pp-leap-fill { background-color: var(--firefly); }
+.pp-leap.is-near .pp-leap-head { background: var(--firefly); }
+.pp-leap.is-done .pp-leap-fill { background-color: var(--firefly); }
+.pp-leap.is-done .pp-leap-head { border-radius: 50%; background: var(--firefly); }
+.pp-leap-pads { position: absolute; inset: 0; pointer-events: none; }
+.pp-leap-pads i { position: absolute; top: 50%; width: 6px; height: 6px; margin-left: -3px; transform: translateY(-50%); border-radius: 50%; background: var(--reed-strong); }
+.pp-leap-row { display: flex; justify-content: space-between; gap: var(--space-2); font-size: 12px; line-height: 16px; font-weight: 700; color: var(--ink-muted); }
+.pp-leap-row b { color: var(--ink); font-weight: 800; }
+
+/* ---- Coin card ---- */
+.pp-coin { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: var(--space-3); padding: var(--space-4); border-radius: var(--radius-lg); background: var(--pond); border: 1px solid var(--reed);
+  color: inherit; text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
+.pp-coin:hover { border-color: var(--reed-strong); transform: translateY(-2px); }
+.pp-coin-img { width: 64px; height: 64px; border-radius: var(--radius-md); object-fit: cover; background: var(--pond-raised); }
+.pp-coin-body { display: grid; gap: 6px; min-width: 0; }
+.pp-coin-top { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.pp-coin-name { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-coin-ticker { font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .4px; color: var(--ink-muted); }
+.pp-coin-desc { font-size: 13px; line-height: 18px; color: var(--ink-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pp-coin-stats { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); font-size: 12px; line-height: 16px; color: var(--ink-muted); }
+.pp-coin-stats b { color: var(--ink); font-weight: 800; }
+.pp-up { color: var(--lily); font-weight: 800; }
+.pp-down { color: var(--coral); font-weight: 800; }
+.pp-coin-badges { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.pp-coin.is-spotlight { border-color: var(--firefly); background: linear-gradient(var(--firefly-soft), var(--pond) 70%); }
+
+/* ---- Segmented control and tabs ---- */
+.pp-seg { display: inline-flex; padding: 4px; gap: 4px; border-radius: var(--radius-md); background: var(--pond-raised); }
+.pp-seg button { font: inherit; font-size: 13px; font-weight: 800; border: 0; border-radius: 10px; padding: 6px 14px; background: transparent; color: var(--ink-muted); cursor: pointer; }
+.pp-seg button[aria-pressed="true"] { background: var(--pond); color: var(--ink); box-shadow: 0 0 0 1px var(--reed); }
+.pp-seg.is-trade { display: grid; grid-template-columns: 1fr 1fr; width: 100%; box-sizing: border-box; }
+.pp-seg.is-trade button[data-side="buy"][aria-pressed="true"] { background: var(--lily-soft); color: var(--lily); box-shadow: none; }
+.pp-seg.is-trade button[data-side="sell"][aria-pressed="true"] { background: var(--coral-soft); color: var(--coral); box-shadow: none; }
+.pp-tabs { display: flex; gap: var(--space-4); border-bottom: 1px solid var(--reed); overflow-x: auto; }
+.pp-tabs button { font: inherit; font-weight: 800; font-size: 14px; background: none; border: 0; padding: 10px 0; color: var(--ink-muted); border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
+.pp-tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--lily); }
+
+/* ---- Amount input with token picker ---- */
+.pp-field { display: grid; gap: 6px; }
+.pp-field label, .pp-label { font-size: 13px; line-height: 18px; font-weight: 700; color: var(--ink-muted); }
+.pp-amount { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--pond-raised); border: 1px solid var(--reed); }
+.pp-amount:focus-within { border-color: var(--reed-strong); }
+.pp-amount input { flex: 1; min-width: 0; font: inherit; font-size: 22px; font-weight: 800; line-height: 30px; border: 0; background: transparent; color: var(--ink); outline: none; }
+.pp-token { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-weight: 800; font-size: 14px; padding: 6px 10px; border-radius: var(--radius-pill); border: 1px solid var(--reed); background: var(--pond); color: var(--ink); cursor: pointer; }
+.pp-token i { width: 18px; height: 18px; border-radius: 50%; background: var(--ripple); display: inline-block; }
+.pp-presets { display: flex; flex-wrap: wrap; gap: var(--space-1); }
+.pp-presets button { font: inherit; font-size: 12px; font-weight: 800; padding: 4px 10px; border-radius: var(--radius-pill); border: 1px solid var(--reed); background: transparent; color: var(--ink-muted); cursor: pointer; }
+.pp-presets button:hover { color: var(--ink); border-color: var(--reed-strong); }
+
+/* ---- Trade box ---- */
+.pp-trade { display: grid; gap: var(--space-4); padding: var(--space-5); border-radius: var(--radius-lg); background: var(--pond); border: 1px solid var(--reed); }
+.pp-quote { display: grid; gap: 6px; font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.pp-quote > div { display: flex; justify-content: space-between; gap: var(--space-3); }
+.pp-quote b { color: var(--ink); font-weight: 800; text-align: right; }
+.pp-fee { padding-top: 6px; border-top: 1px dashed var(--reed); }
+
+/* ---- Notice ---- */
+.pp-notice { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-3); align-items: start; padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--pond-raised); color: var(--ink); font-size: 14px; line-height: 20px; }
+.pp-notice > .pp-ico { margin-top: 1px; color: var(--ink-muted); }
+.pp-notice-tax > .pp-ico { color: var(--firefly-ink); }
+.pp-notice-danger > .pp-ico { color: var(--coral); }
+.pp-notice-chorus > .pp-ico { color: var(--lotus); }
+.pp-notice b { font-weight: 800; }
+.pp-notice-tax { background: var(--firefly-soft); }
+.pp-notice-tax b { color: var(--firefly-ink); }
+.pp-notice-danger { background: var(--coral-soft); }
+.pp-notice-danger b { color: var(--coral); }
+.pp-notice-chorus { background: var(--lotus-soft); }
+.pp-notice-chorus b { color: var(--lotus); }
+
+/* ---- Ripple feed: live trades ---- */
+.pp-ripples { display: flex; gap: var(--space-2); overflow: hidden; padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--reed); background: var(--pond); mask-image: linear-gradient(90deg, transparent, #000 4%, #000 96%, transparent); }
+.pp-ripple { display: inline-flex; align-items: center; gap: 6px; flex: none; font-size: 12px; line-height: 16px; font-weight: 700; padding: 4px 10px; border-radius: var(--radius-pill); background: var(--pond-raised); color: var(--ink-muted); white-space: nowrap; }
+.pp-ripple.is-buy b { color: var(--lily); }
+.pp-ripple.is-sell b { color: var(--coral); }
+.pp-ripple.is-leap { background: var(--firefly-soft); color: var(--firefly-ink); }
+.pp-ripple .pp-ico { width: 14px; height: 14px; }
+.pp-ripple .pp-coin-ticker { color: var(--ink); }
+@media (prefers-reduced-motion: no-preference) { .pp-ripple.is-new { animation: pp-ripple-in .5s ease-out; } }
+@keyframes pp-ripple-in { from { box-shadow: 0 0 0 6px var(--lily-soft); } to { box-shadow: 0 0 0 0 transparent; } }
+
+/* ---- Stat ---- */
+.pp-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-3); }
+.pp-stat { display: grid; gap: 2px; padding: var(--space-4); border-radius: var(--radius-lg); background: var(--pond); border: 1px solid var(--reed); }
+.pp-stat span { font-size: 13px; line-height: 18px; font-weight: 700; color: var(--ink-muted); }
+.pp-stat b { font-size: 24px; line-height: 30px; font-weight: 800; }
+.pp-stat small { font-size: 12px; line-height: 16px; color: var(--ink-muted); }
+
+/* ---- Navigation ---- */
+.pp-top { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--reed); background: var(--pond-deep); }
+.pp-logo { display: inline-flex; align-items: center; gap: var(--space-2); font-family: var(--font-display); font-size: 24px; line-height: 28px; color: var(--ink); text-decoration: none; letter-spacing: .3px; }
+.pp-logo img, .pp-logo svg { width: 30px; height: 30px; }
+.pp-nav { display: flex; gap: var(--space-1); }
+.pp-nav a { font-weight: 800; font-size: 14px; padding: 8px 12px; border-radius: var(--radius-sm); color: var(--ink-muted); text-decoration: none; }
+.pp-nav a:hover { color: var(--ink); background: var(--pond-raised); }
+.pp-nav a[aria-current="page"] { color: var(--ink); background: var(--pond-raised); }
+.pp-search { flex: 1; min-width: 0; max-width: 360px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: var(--space-2); padding: 8px 12px; border-radius: var(--radius-pill); background: var(--pond-raised); color: var(--ink-faint); font-size: 14px; }
+.pp-spacer { flex: 1; }
+.pp-tabbar { display: grid; grid-template-columns: repeat(5, 1fr); padding: 6px var(--space-2) calc(6px + env(safe-area-inset-bottom, 0px)); border-top: 1px solid var(--reed); background: var(--pond); }
+.pp-tabbar a { display: grid; justify-items: center; gap: 2px; font-size: 11px; line-height: 14px; font-weight: 800; color: var(--ink-muted); text-decoration: none; padding: 4px 0; }
+.pp-tabbar a svg { width: 22px; height: 22px; fill: currentColor; }
+.pp-tabbar a[aria-current="page"] { color: var(--lily); }
+.pp-tabbar a.is-spawn span:first-child { display: grid; place-items: center; width: 40px; height: 28px; border-radius: var(--radius-pill); background: var(--lily); color: var(--on-lily); }
+
+/* ---- Toast ---- */
+.pp-toast { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-radius: var(--radius-md); background: var(--pond); border: 1px solid var(--reed); box-shadow: var(--shadow-card); font-weight: 700; max-width: 420px; }
+.pp-toast.is-ok { border-color: var(--lily); }
+.pp-toast.is-error { border-color: var(--coral); }
+.pp-toast a { color: var(--lily); font-weight: 800; }

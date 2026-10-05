@@ -1,0 +1,3 @@
+# TradeBox
+
+Buying and selling on the coin page (and the $PONDPAD sale and market, with `pp-btn-leap`). Order: Buy / Sell, amount with pay-with token, presets, then the quote: minimum received, route ("ETH → IMD → $RIBBIT"), price impact, slippage (default 1%, editable), and the **fee line, always visible** ("Fee: 2.0% (1.5% base + 0.5% to holders)"). The button names the coin. Above the box, when active: the early-bird tax notice and the max-buy limit. Quotes come from `PadLens` (curve and pool, IMD leg) plus the v4 Quoter for ETH/USDG legs. Transactions on the $PONDPAD market and keeper-like calls are sent with **50% gas headroom** over the estimate (testnet finding, D-64). Desktop: sticky in the right column. Phone: a bottom sheet opened by a fixed Buy / Sell bar.
