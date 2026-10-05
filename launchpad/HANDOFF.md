@@ -77,10 +77,11 @@ The owner of the project is the user (IMD ecosystem builder). The IMD / POOL4 de
 - `Funds.t.sol`: **2 local tests**: WorkerFund accrues IMD and $PONDPAD from real coin and market fees until the address is set, then releases both; GrowthFund relay and grant caps per epoch, uncapped tokens refused, caps reset each epoch.
 - `Distribution.t.sol`: **8 local tests**: initiation closed before market open, market open alone starts nothing, 99 initiators don't activate, the 100th does, no more initiations after; everyone (initiator or not) claims over 30 days from activation, no bonus; initiation guards (stranger, wrong checker key, voucher for another wallet or tweet, expired, wrong amount, repeat wallet, reused X account or tweet, not on the list, claim wallet initiates, distinct codes); only the timelock replaces the checker key; claim guards (strangers, wrong amount or proof); claim wallet set by a gasless signature and claimed in one transaction (main wallet never transacts, later claims still pay the claim wallet, used nonce, expired signature, direct re-pointing); claims end 180 days after activation and the rest is swept to the dripper; team vesting nothing before day 30, 1/6 at the cliff, half at day 90, all at day 180, permissionless release, only the beneficiary moves it. `Market.t.sol` also checks that a migration leaves `openedAt` unchanged.
 - `AirdropTree.t.sol`: **1 local test**: the Merkle tree built by `airdrop/snapshot.py` (fixture) verifies with the contract's leaf and proof format.
+- `DeployFork.t.sol`: **3 fork tests**, the deployment rehearsal: runs `script/Deploy.s.sol`'s `deploy()` exactly as the broadcast does on live Robinhood state, then checks every owner and route (nothing left with the deployer; supply split 900M / 50M / 20M / 30M), the mined hook flags and $PONDPAD > IMD; the Safe changing a setting only through the 48 h timelock (anyone executes after the delay; splitter shares need 7 days); and a lifecycle: coin launch with ETH, sale closed before its start, sale graduating into the market at `openedAt`, market fees → splitter → treasury, workers and `PadBuyer`, which buys $PONDPAD for the dripper once the price reference catches up, airdrop waiting for initiators, team vesting 1/6 at day 30.
 - `Fork.t.sol`: **5 fork tests** on live Robinhood Chain (real PoolManager, IMD, IMD/ETH and ETH/USDG pools): full lifecycle with ETH, USDG on the curve and after graduation, the $PONDPAD sale with ETH and USDG, the sale graduating into the market (cancun build, dynamic fee) with a buy and a trimmed sell, and an IMD depth report.
 
 ### Not built yet
-See `ROADMAP.md` section 1. In short: timelock/Safe wiring, deploy scripts, frontend, Swarm Relay, indexer, X link service, keeper bot.
+See `ROADMAP.md` section 1. In short: keeper script, frontend, Swarm Relay, indexer, X link service, keeper bot.
 
 ---
 
@@ -91,7 +92,7 @@ cd launchpad/contracts
 git submodule update --init --recursive        # forge-std v1.9.7, solady v0.1.9, v4-core @ 46c6834 (+ its solmate, openzeppelin)
 forge build
 forge test --no-match-contract Fork            # 90 local tests
-FORK_RPC=https://rpc.mainnet.chain.robinhood.com forge test --match-contract Fork -vv   # 5 fork tests
+FORK_RPC=https://rpc.mainnet.chain.robinhood.com forge test --match-contract Fork -vv   # 8 fork tests (incl. the deployment rehearsal)
 ```
 
 **Installing Foundry in the cloud sandbox:** `foundryup` fails there (its attestation download is blocked). Install the release binaries directly:
@@ -146,8 +147,33 @@ IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`)
 4. ~~Staking~~ (done, D-42, D-43). `python3 upstream/make_staking.py` regenerates the vault and dripper from POOL4's sources. At deploy: market hook `rewardsRecipient` = `RewardDripper`, splitter `stakers` = `PadBuyer`, `powersExpireAt` = market open + 12 months.
 5. ~~`WorkerFund`, `GrowthFund`, `AttestationVerifier`, `VersionRegistry`, `CTOModule`, `SocialRegistry`, `PadLens`~~ (done, D-45 to D-50). Owners at deploy: `AttestationVerifier`, `CTOModule`, `VersionRegistry`, `WorkerFund` = 7-day timelock; `GrowthFund`, `SocialRegistry` = 48 h timelock; `CTOModule.council` and `GrowthFund.granter` = team Safe; `GrowthFund.relay` = Swarm Relay wallet; `SocialRegistry.verifier` = X link service key. Deploy `SocialRegistry` and `CTOModule` (needs the curve, social registry, verifier and the `ipfs://` rules link) before `CreatorVault.initialize` (the vault takes its address once). Splitter `workers` = `WorkerFund`, `growth` = `GrowthFund`; `PadConfig.growthFund` = `GrowthFund`. `PadLens` is registered with each version.
 6. ~~`AirdropDistributor` (5% Merkle) + `TeamVesting` (2%)~~ (done, D-53 to D-55). At deploy: both take `market` = `MarketController` (vesting clock = `openedAt`; the airdrop only opens initiation then); airdrop owner = 48 h timelock, `verifier` = tweet checker key, `unclaimedSink` = `RewardDripper` and the final Merkle root (OZ `StandardMerkleTree` leaves for `(address, uint256)`, built from the snapshot after contract-wallet holders name Robinhood addresses); vesting `beneficiary` = team Safe; fund them with 50M and 20M from the deployer's $PONDPAD in the same script.
-7. Timelock + Safe wiring, deploy scripts (hook address mining for `PadHook` and `PadMarketHook`, $PONDPAD address above IMD's), fork rehearsal of a full deployment.
-8. Swarm audit loop, then frontend, Swarm Relay, indexer, X link service.
+7. ~~Timelock + Safe wiring, deploy script, fork rehearsal~~ (done, D-57). See §5a.
+8. Keeper script (§6).
+9. Swarm audit loop, then frontend, Swarm Relay, indexer, X link service.
+
+## 5a. Deploying
+
+`contracts/script/Deploy.s.sol` deploys and wires everything in one run (48 transactions, ~57.6M gas, ~0.0023 ETH at 0.04 gwei on 5 Oct 2026; largest transaction 7.5M gas):
+
+```bash
+cd launchpad/contracts
+export SAFE=0x…            # team Safe on Robinhood: timelock proposer, council, granter, guardian, treasury, team vesting
+export RELAY=0x…           # Swarm Relay hot wallet
+export X_LINK_KEY=0x…      # X link service signing key (SocialRegistry)
+export TWEET_CHECKER=0x…   # airdrop tweet checker key (AirdropDistributor)
+export AIRDROP_ROOT=0x…    # from airdrop/snapshot.py build
+export SALE_START=…        # unix time the $PONDPAD sale opens
+export CTO_RULES=ipfs://…  # frozen CTO-RULES.md
+export AUDIT_LINK=…        # optional: swarm audit link, activates version 1 at deploy
+export WORKER_REWARDS=0x…  # optional: IMD worker rewards address (else set later by the 7-day timelock)
+export POWERS_EXPIRE_AT=…  # optional: staking owner powers end (default SALE_START + 365 days)
+forge script script/Deploy.s.sol --rpc-url robinhood --sender <deployer>             # simulate
+forge script script/Deploy.s.sol --rpc-url robinhood --sender <deployer> --broadcast --account <keystore>
+```
+
+Order: timelocks → $PONDPAD (CREATE2, address above IMD) → funds, splitter, config (+ ETH and USDG routes) → vaults, curve, `PadHook` (CREATE2, mined flags), factory, router, lens → verifier, social registry, CTO module → initializers → version 1 (registered; activated if `AUDIT_LINK`) → burner, controller, staking, `PadMarketHook` (CREATE2, mined flags), sale, buyer → airdrop, vesting → final splitter recipients and ownership handoff → supply: 900M to the sale, 50M airdrop, 20M vesting, 30M liquidity reserve to the 48 h timelock. The script fails if the deployer keeps any $PONDPAD. Hooks are mined for the standard CREATE2 factory (`0x4e59…956C`, live on Robinhood). Owners: D-57.
+
+After deploy: verify every contract on Blockscout/Sourcify; create and fund the Safe's first proposals as needed (e.g. `AttestationVerifier.setSigner` once the IMD dev gives the signer, via the 7-day timelock).
 
 ## 6. Keepers (who calls the permissionless functions)
 

@@ -443,7 +443,7 @@ There is no separate swap page in v1; trading happens on coin pages.
 1. **Contracts:** core (token, curve, hook, router, lens, vault, splitter, config, registry), then staking, funds and CTO, then `PadSale` and adapters.
 2. **Swarm testnet run:** `workflow.open` on Sepolia (contracts + adversarial review + site) for a public testnet.
 3. **Audit loop** (section 10).
-4. **Deploy** to Robinhood: config, timelock and Safe first; then version 1 with its swarm audit attestation; then funds and staking.
+4. **Deploy** to Robinhood with `contracts/script/Deploy.s.sol` (one run: timelocks, everything wired, version 1 registered and activated with the audit link, supply split, all powers handed to the timelocks; HANDOFF §5a).
 5. **$PONDPAD sale** opens and the airdrop snapshot is published. Coin launches can open at the same time, since the stakers' share waits in the dripper until staking opens.
 6. **$PONDPAD graduates** into `PadMarketHook`, ownership moves to `MarketController`, staking opens, and the dripper starts streaming.
 7. **Coin launches go public** (optionally a short allowlist beta first).

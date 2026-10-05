@@ -18,8 +18,8 @@ Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), fac
 | 8 | ~~`CTOModule`~~ | **Done** (D-46, D-50 to D-52): X-verified proposer + oracle "yes" (or council fallback, 7-day notice, until retired) → 3-day notice (contest: +7 days and a ≥ 75 panel) → 3-day window; new recipient a multisig or the holders. **Before launch:** finalize `CTO-RULES.md`, pin it to IPFS, deploy with that link |
 | 9 | ~~`SocialRegistry`~~ | **Done** (D-50): voucher-signed handle links, duplicates flagged. The X link service that signs vouchers is backend work (item 15) |
 | 10 | ~~`PadLens`~~ | **Done** (D-50): coin lists, coin state, exact curve and pool quotes in IMD, wallet positions. ETH/USDG legs quoted with the v4 Quoter |
-| 11 | Governance wiring | OpenZeppelin `TimelockController` (48 h / 7 days) owned by a Safe; guardian for launch pause |
-| 12 | Deploy scripts | CREATE2 salt mining for both hooks and for $PONDPAD's address (> IMD); full deployment rehearsal on a Robinhood fork |
+| 11 | ~~Governance wiring~~ | **Done** (D-57): OpenZeppelin `TimelockController` 48 h and 7 days, Safe proposes, anyone executes, no admin; guardian = Safe |
+| 12 | ~~Deploy scripts~~ | **Done** (D-57): `script/Deploy.s.sol` (salt mining for both hooks and $PONDPAD > IMD, full wiring and supply split); rehearsal `DeployFork.t.sol` on a Robinhood fork; `forge script` simulation ~57.6M gas |
 | 13 | Audit loop | Swarm audit (4 auditors + judge) until clean; swarm fuzz campaigns; human audit before large TVL; bug bounty |
 | 14 | Frontend | Pages in `ARCHITECTURE-v1.md` §9; copy in `SITE-COPY.md`; trade box on the coin page (no separate swap page in v1) |
 | 15 | Backend | Indexer (incl. outside-pool volume tracking), Swarm Relay (site jobs with output scan), keeper bot, token auto-verifier, X link service, airdrop tweet checker (D-55), launch/graduation bots |
