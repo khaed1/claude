@@ -1,0 +1,98 @@
+{
+  "at": "2026-10-05T11:52:53.822Z",
+  "tester": "0x99135dF51fA80a58764E8b3794CAbcfc0990d048",
+  "results": [
+    {
+      "id": "A",
+      "name": "Fee schedule 3% → 1% over 7 days",
+      "ok": true,
+      "detail": "2.9986% at 435 s after open (expected 2.9986%)"
+    },
+    {
+      "id": "B",
+      "name": "Ratchet: cap follows buys down at most 500k/day, never below the floor",
+      "ok": true,
+      "detail": "inventory 273,971,594.2412 → 256,738,935.1655; cap 299,997,425.6944 → 299,997,153.7037 (allowed drop 284.5648), floor 150,000,000"
+    },
+    {
+      "id": "C1",
+      "name": "Trim: inventory back at the cap after a sell above it",
+      "ok": true,
+      "detail": "sold 68,258,218.5382; inventory 299,997,066.8981, cap 299,997,066.8981; trimmed 22,953,368.2735 $PONDPAD + 555.0564 IMD retained"
+    },
+    {
+      "id": "C2",
+      "name": "Trim split 85% burn / 15% stakers (D-21)",
+      "ok": true,
+      "detail": "to burn 19,510,363.0325, to stakers 3,443,005.241 (14.99%)"
+    },
+    {
+      "id": "D",
+      "name": "Claims settle to the burner and the stakers' dripper",
+      "ok": true,
+      "detail": "burner 0 → 19,510,363.0325, dripper 982,726.4773 → 4,425,731.7183, open burn claims 0"
+    },
+    {
+      "id": "E",
+      "name": "PadBurner burns: $PONDPAD supply falls by what it held",
+      "ok": true,
+      "detail": "burned 19,510,363.0325, supply 999,197,457.267 → 979,687,094.2346"
+    },
+    {
+      "id": "F1",
+      "name": "Trims retain IMD for the backstop (≥ 40 IMD → rebalance due)",
+      "ok": true,
+      "detail": "retained 581.5053 IMD, pendingRebalance true"
+    },
+    {
+      "id": "F2",
+      "name": "rebalance() deploys a single-sided IMD band above spot",
+      "ok": true,
+      "detail": "band ticks 106400…887200 above spot 106187, 580.5053 IMD"
+    },
+    {
+      "id": "F3",
+      "name": "Keeper tip ≤ 1 IMD and ≤ the fee on the work (D-41)",
+      "ok": true,
+      "detail": "1 IMD"
+    },
+    {
+      "id": "G",
+      "name": "A dump fills the backstop; rebalance settles it (burns what it bought)",
+      "ok": true,
+      "detail": "settled: to burn 2,252,463.8393, to stakers 397,493.6187, IMD back 523.2899"
+    },
+    {
+      "id": "H",
+      "name": "collectFees: both fee ledgers to the 40/25/20/15 split",
+      "ok": true,
+      "detail": "collected 189.2979 IMD + 7,447,526.4452 $PONDPAD"
+    },
+    {
+      "id": "I",
+      "name": "Outsiders can't add liquidity or open another pool on the hook",
+      "ok": true,
+      "detail": "addLiquidity → 0x90bfb865; initialize → 0x90bfb865"
+    }
+  ],
+  "final": {
+    "fee": 29984,
+    "held": "299997003240740740740740676",
+    "cap": "299997003240740740740740607",
+    "floor": "150000000000000000000000000",
+    "retained": "0",
+    "burned": "51801743301510103008066531",
+    "rewarded": "9141484112031194648482327",
+    "burnClaims": "31489137536081367521044322",
+    "rewardClaims": "5556906624014358974301938",
+    "principal": "1191741406174241050386",
+    "tick": 108475,
+    "feeTok": "0",
+    "feeQuote": "0",
+    "supply": "979687094234571264512977647",
+    "burnerBal": "0",
+    "dripperBal": "4425731718288945300292058",
+    "splitterImd": "0",
+    "splitterTok": "0"
+  }
+}

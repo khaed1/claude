@@ -1,0 +1,84 @@
+{
+  "at": "2026-10-05T11:40:40.623Z",
+  "group": "sale",
+  "attacker": "0x5020afB3BAE3FD8137D53E9dee191D76c322228b",
+  "results": [
+    {
+      "id": "S1",
+      "group": "S",
+      "name": "Wallet cap not freed by moving tokens away",
+      "ok": true,
+      "detail": "allowance 2,747,083.1602 before and 2,747,083.1602 after moving 12,252,916.8398 $PONDPAD out"
+    },
+    {
+      "id": "S2",
+      "group": "S",
+      "name": "Force the sale to graduate early",
+      "ok": true,
+      "detail": "refused: NotFull"
+    },
+    {
+      "id": "S3",
+      "group": "S",
+      "name": "Open the market without the sale",
+      "ok": true,
+      "detail": "refused: Unauthorized"
+    },
+    {
+      "id": "G1",
+      "group": "G",
+      "name": "Stranger changes launch settings",
+      "ok": true,
+      "detail": "refused: Unauthorized"
+    },
+    {
+      "id": "G2",
+      "group": "G",
+      "name": "Stranger migrates the market (D-40)",
+      "ok": true,
+      "detail": "refused: Unauthorized"
+    },
+    {
+      "id": "G3",
+      "group": "G",
+      "name": "Stranger withdraws the market's retained IMD",
+      "ok": true,
+      "detail": "refused: Unauthorized"
+    },
+    {
+      "id": "G4",
+      "group": "G",
+      "name": "Stranger rescues staked $PONDPAD",
+      "ok": true,
+      "detail": "refused: Unauthorized"
+    },
+    {
+      "id": "G5",
+      "group": "G",
+      "name": "Stranger rescues the dripper's rewards",
+      "ok": true,
+      "detail": "refused: Unauthorized"
+    },
+    {
+      "id": "G6",
+      "group": "G",
+      "name": "Fake airdrop claim",
+      "ok": true,
+      "detail": "refused: NotActive"
+    },
+    {
+      "id": "G7",
+      "group": "G",
+      "name": "Stranger pays itself from GrowthFund",
+      "ok": true,
+      "detail": "refused: Unauthorized"
+    },
+    {
+      "id": "G8",
+      "group": "G",
+      "name": "Stranger closes the market backstop",
+      "ok": true,
+      "detail": "refused: Unauthorized"
+    }
+  ]
+}

@@ -92,7 +92,10 @@ async function send(label, address, kind, functionName, args = []) {
     log(`would call ${label}`);
     return true;
   }
-  const hash = await wallet.writeContract({ address, abi: abi[kind], functionName, args });
+  // 50% gas headroom: the market hook's rebalance / settle work depends on state that can change between the
+  // estimate and inclusion (seen on the testnet: a rebalance ran out of gas at 98% of its estimate).
+  const gas = await client.estimateContractGas({ address, abi: abi[kind], functionName, args, account });
+  const hash = await wallet.writeContract({ address, abi: abi[kind], functionName, args, gas: (gas * 3n) / 2n });
   const r = await client.waitForTransactionReceipt({ hash });
   log(`${r.status === "success" ? "ok" : "FAILED"} ${label} ${hash} (gas ${r.gasUsed})`);
   return r.status === "success";

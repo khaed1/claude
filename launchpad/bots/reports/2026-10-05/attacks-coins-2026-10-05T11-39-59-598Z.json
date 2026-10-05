@@ -1,0 +1,56 @@
+{
+  "at": "2026-10-05T11:39:59.598Z",
+  "group": "coins",
+  "attacker": "0x5020afB3BAE3FD8137D53E9dee191D76c322228b",
+  "results": [
+    {
+      "id": "K1",
+      "group": "K",
+      "name": "Curve bypass: buy directly from BondingCurve with the exemption flag",
+      "ok": true,
+      "detail": "refused: Unauthorized"
+    },
+    {
+      "id": "K2",
+      "group": "K",
+      "name": "Graduation front-run: initialize a trading coin's pool",
+      "ok": true,
+      "detail": "refused: OnlySelf (via hook)"
+    },
+    {
+      "id": "K3",
+      "group": "K",
+      "name": "Outside liquidity in a graduated coin pool",
+      "ok": true,
+      "detail": "refused: OnlySelf (via hook)"
+    },
+    {
+      "id": "K4",
+      "group": "K",
+      "name": "Partial fill with IMD specified (D-26)",
+      "ok": true,
+      "detail": "refused: PartialFill (via hook)"
+    },
+    {
+      "id": "K5",
+      "group": "K",
+      "name": "Fee through an outside router (any router pays, D-26)",
+      "ok": true,
+      "detail": "fee 0.15 IMD on 10 IMD = 150 bps (coin: 150 bps)"
+    },
+    {
+      "id": "K6",
+      "group": "K",
+      "name": "Self-referral earns nothing (unregistered referrer, D-33)",
+      "ok": true,
+      "detail": "vault 0 IMD, pending 0 IMD"
+    },
+    {
+      "id": "K7",
+      "group": "K",
+      "name": "ETH amount mismatch",
+      "ok": true,
+      "detail": "refused: WrongEthAmount"
+    }
+  ]
+}
