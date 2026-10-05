@@ -99,6 +99,12 @@ const health = [
 const { readdirSync } = await import("node:fs");
 const pool4File = existsSync(here("runs")) ? readdirSync(here("runs")).filter((f) => f.startsWith("pool4-")).sort().at(-1) : undefined;
 const pool4 = pool4File ? JSON.parse(readFileSync(here(`runs/${pool4File}`), "utf8")) : undefined;
+// Attack suite (attacks.mjs): the latest run of each group.
+const attackRuns = existsSync(here("runs")) ? readdirSync(here("runs")).filter((f) => f.startsWith("attacks-")).sort() : [];
+const latestByGroup = {};
+for (const f of attackRuns) { const r = JSON.parse(readFileSync(here(`runs/${f}`), "utf8")); latestByGroup[r.group] = r; }
+const attacks = Object.values(latestByGroup).flatMap((r) => r.results.map((x) => ({ ...x, at: r.at })));
+if (attacks.length) health.push(["Attack suite", attacks.every((x) => x.ok !== false), `${attacks.filter((x) => x.ok === true).length} blocked, ${attacks.filter((x) => x.ok === false).length} succeeded, ${attacks.filter((x) => x.ok === null).length} not exercised`]);
 if (pool4) health.push(["POOL4 mechanics (market)", pool4.results.every((x) => x.ok), `${pool4.results.filter((x) => x.ok).length}/${pool4.results.length} checks`]);
 
 const out = [];
@@ -150,6 +156,16 @@ if (pool4) {
   p(`| # | Mechanism | Result | Detail |`);
   p(`|---|---|---|---|`);
   for (const x of pool4.results) p(`| ${x.id} | ${x.name} | ${x.ok ? "OK" : "**FAIL**"} | ${x.detail} |`);
+}
+if (attacks.length) {
+  p();
+  p(`## Attack suite`);
+  p();
+  p(`An attacker wallet tried each attack on the live contracts. OK = refused or bounded as THREAT-MODEL.md §2 requires.`);
+  p();
+  p(`| # | Attack | Result | Detail |`);
+  p(`|---|---|---|---|`);
+  for (const x of attacks) p(`| ${x.id} | ${x.name} | ${x.ok === null ? "not exercised" : x.ok ? "OK" : "**ATTACK WORKED**"} | ${x.detail} |`);
 }
 if (unexpected.length || violations.length) {
   p();
