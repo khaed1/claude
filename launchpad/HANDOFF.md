@@ -20,6 +20,8 @@ Related files:
 | [`contracts/testnet/`](contracts/testnet/) | Robinhood testnet setup: test IMD / USDG with faucets, IMD/ETH and ETH/USDG pools (§5b) |
 | [`bots/`](bots/) | Testnet trader bots with invariant checks after every round (§5b) |
 | [`design/`](design/) | Site design: UX research, mood board, brand book, design system (tokens, `pp-` components, logos, fonts), page layouts (§5c) |
+| [`frontend/`](frontend/) | The site (Vite + React + wagmi), running against the testnet; see its README (§5c) |
+| [`legal/`](legal/) | Terms of Use and Privacy Policy drafts (D-69) |
 
 Last updated: 5 October 2026. Branch: `claude/bold-gauss-qhlw86` on `khaed1/claude`.
 
@@ -90,10 +92,13 @@ The owner of the project is the user (IMD ecosystem builder). The IMD / POOL4 de
 Ready to run, not run yet. `THREAT-MODEL.md` (actors, trust, 22 invariants, deliberate behaviour that is not a finding, severity scale), `FINDINGS.md` (ledger, empty), `jobs/` (four areas), `make_jobs.py` (pins a pushed commit, checks scope coverage and size, writes each area's objective for the explorer's Audit form and its API body; `--check` runs IMD's free check). Each job is IMD's native audit template (4 specialists + judge, 0.5 IMD). Runbook in `audit/README.md`. `rounds/1/` is generated for the commit that added the package.
 
 ### Design (`design/`, D-66)
-Done before any layout, as the user asked: UX research of Pump.fun and Pons, a mood board, a brand book, a design system and the layout of every page (§5c). Not code yet.
+Done before any layout, as the user asked: UX research of Pump.fun and Pons, a mood board, a brand book, a design system and the layout of every page (§5c). Approved by the user (D-70).
+
+### Frontend (`frontend/`, D-70)
+Built against the testnet: Explore, Coin (trade box with IMD / ETH / USDG), Spawn, Profile (holdings, Claim all creator fees, rewards, activity), Docs (first pages), Terms, Privacy, faucet, and the wallet's legal acceptance gate (D-69). Tested on the live testnet with the testnet wallet (faucet, buys, sell, dividends, spawn with a dev buy, claim all). `npm run dev` in `frontend/`.
 
 ### Not built yet
-See `ROADMAP.md` section 1. In short: frontend (designed, not built), Swarm Relay, indexer, X link service, airdrop tweet checker.
+See `ROADMAP.md` section 1. In short: the rest of the frontend ($PONDPAD, Pond, Transparency), Swarm Relay, indexer, X link service, airdrop tweet checker.
 
 ---
 
@@ -164,7 +169,7 @@ IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`)
 8. ~~Keeper script~~ (done, D-58): `keeper/` (§6).
 9. **Swarm audit loop**: package built (D-60, `audit/`). Next: the user submits round 1's four jobs in the explorer's Audit form (2 IMD; `audit/README.md`), we fix findings with a failing test each and rerun until the judge says CLEAN.
 10. **Robinhood testnet run** (D-62, D-63): setup script, deploy change, testnet rehearsal and trader bots built and passing on a fork (§5b). **Live on 46630** (5 Oct 2026): full run done and reported (`bots/reports/2026-10-05/REPORT.md`): healthy, no contract bug, POOL4 12/12, 46/46 attacks refused; findings in §5b step 8. THREAT-MODEL `block.number` note added (D-65). Audit round 1 was generated at `b23fdc0`, before this note and the `Deploy.s.sol` change: regenerate it at the latest commit before submitting (`python3 audit/make_jobs.py round 1 --check`). Next: the frontend against the testnet (with gas headroom on market swaps).
-11. **Frontend**: design done (D-66, §5c). Next: build it with Vite + React + TypeScript + viem/wagmi against the testnet (`deployments/46630.json`), page by page as in `design/system/Pages.md`: Explore, Coin, Spawn, $PONDPAD, Pond, Profile, Transparency, Docs.
+11. **Frontend**: design done (D-66), first pages built and tested on the testnet (D-70, `frontend/README.md`). Next: $PONDPAD (sale → market → airdrop), the Pond, Transparency, more Docs; then WalletConnect, IPFS image upload, an indexer, an IPFS deploy.
 12. Swarm Relay, indexer, X link service, airdrop tweet checker.
 
 ## 5a. Deploying
@@ -282,8 +287,7 @@ Nothing below is built. Each needs the user's go-ahead.
     1. ~~Go-ahead for the testnet setup.~~ Given (5 Oct 2026).
     2. ~~Testnet timelocks at 10 and 30 minutes?~~ Used as the defaults (D-62); `FAST_DELAY` / `SLOW_DELAY` change them.
     3. ~~Who broadcasts?~~ Claude, with a testnet-only wallet it created (§5b step 6); the user funds it with 7 ETH.
-- **Staking hold wording (asked 5 Oct 2026):** the Pond copy says "not in the same block you joined". On Robinhood that block is Ethereum's (D-65), so the wait is 0–12 s. Proposed wording "Leave when you like (a few seconds after joining)" and a UI that enables the withdrawal button when `maxRedeem` > 0. Awaiting the user's decision; the code hold itself stays (it stops flash-loan reward capture).
-- **Coin page comments:** proposed none in v1 (spam and moderation cost; link the coin's verified X). Awaiting the user.
+- **Decided 5 Oct 2026 (D-70):** Pond wording "a few seconds after joining" (the hold stays in code: it stops flash-loan reward capture); no coin page comments in v1; keep the Egg stage.
 - **Timelocks need no activating:** `Deploy.s.sol` creates both and hands them ownership in the same run. A change is `schedule` by the Safe, then the delay, then anyone calls `execute`. A small helper that turns a setting change into a ready Safe transaction was offered, not built.
 
 ## 7. Open items waiting on someone
@@ -299,6 +303,7 @@ Nothing below is built. Each needs the user's go-ahead.
 | Deepen IMD liquidity on Robinhood before the $PONDPAD sale | User + IMD dev / holders |
 | Buy pondpad.fun, X and Telegram handles | User |
 | Airdrop snapshot (D-56): rules decided and the tool is built (`airdrop/`, see its README). To do: pick the moment and run `capture` secretly, then `build`, review `review.csv` (exchange hot wallets, team wallets, contract wallets that want a Robinhood address), announce, root into the deploy | User |
-| Testnet: save the testnet wallet's key (sent as a file in the session) as the environment variable `PONDPAD_TESTNET_KEY`, so later sessions can restart the bots and keeper (§5b). 7 ETH received. **5 Oct 2026:** not visible under that name in the session; check the variable's name in the environment settings and start a new session | User |
+| Testnet: save the testnet wallet's key as the environment variable `PONDPAD_TESTNET_KEY`, so later sessions can restart the bots and keeper (§5b). In the environment settings the line must be `PONDPAD_TESTNET_KEY=0x…` (one `NAME=value` line). On 5 Oct 2026 the user gave the key in the session instead; it was kept in the session's scratchpad only, never in the repo | User |
+| Legal: have counsel review `legal/TERMS.md` and `legal/PRIVACY.md` and fill the operator name, governing law, restricted jurisdictions and contact before mainnet (D-69) | User |
 | Swarm audit round 1 (D-61): submit `audit/rounds/1/A1`–`A4` at explorer.imd.fun/launch → Audit (2 IMD on Ethereum mainnet), then share the four job links | User |
 | Airdrop tweet checker (D-55): service that reads the initiation post (X API or link fetch), checks the phrase and `initiationCode`, signs the voucher; its key goes into `AirdropDistributor` at deploy | Us (backend) |

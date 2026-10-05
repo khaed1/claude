@@ -412,7 +412,9 @@ The swarm customizes design and content only. This keeps cost, quality and safet
 7. **Profile** (replaces the separate creator dashboard, D-66): holdings (every coin held, value, dividends), **created coins with a creator-fee claim section** (claim all, change recipient, link X, request swarm jobs), rewards (dividends, integrator earnings, airdrop), activity.
 8. **Docs, inside the site** (same navigation): start here, how it works, $PONDPAD, safety, developers.
 
-Layouts for every page: [`design/system/Pages.md`](design/system/Pages.md); brand and components: [`design/`](design/).
+9. **Terms and Privacy:** every connected wallet accepts them (and confirms age and jurisdiction) before using the site; kept in a session cookie per wallet and text version (D-69).
+
+No on-site comment threads in v1 (D-70). Layouts for every page: [`design/system/Pages.md`](design/system/Pages.md); brand and components: [`design/`](design/); the built site: [`frontend/`](frontend/).
 
 There is no separate swap page in v1; trading happens on coin pages.
 

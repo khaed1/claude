@@ -10,7 +10,7 @@ a { color: var(--lily); text-underline-offset: 3px; }
 .pp-ico { width: 18px; height: 18px; flex: none; fill: currentColor; }
 
 /* ---- Button ---- */
-.pp-btn { font: inherit; font-weight: 800; font-size: 15px; line-height: 20px; min-height: 44px; padding: 0 var(--space-5); border-radius: var(--radius-md);
+.pp-btn { text-decoration: none; font: inherit; font-weight: 800; font-size: 15px; line-height: 20px; min-height: 44px; padding: 0 var(--space-5); border-radius: var(--radius-md);
   border: 1px solid var(--reed); background: var(--pond-raised); color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
   transition: transform .12s ease, filter .12s ease; }
 .pp-btn:hover { filter: brightness(1.08); }
@@ -53,7 +53,7 @@ a { color: var(--lily); text-underline-offset: 3px; }
 .pp-leap.is-done .pp-leap-head { border-radius: 50%; background: var(--firefly); }
 .pp-leap-pads { position: absolute; inset: 0; pointer-events: none; }
 .pp-leap-pads i { position: absolute; top: 50%; width: 6px; height: 6px; margin-left: -3px; transform: translateY(-50%); border-radius: 50%; background: var(--reed-strong); }
-.pp-leap-row { display: flex; justify-content: space-between; gap: var(--space-2); font-size: 12px; line-height: 16px; font-weight: 700; color: var(--ink-muted); }
+.pp-leap-row { display: flex; justify-content: space-between; gap: var(--space-2); white-space: nowrap; font-size: 12px; line-height: 16px; font-weight: 700; color: var(--ink-muted); }
 .pp-leap-row b { color: var(--ink); font-weight: 800; }
 
 /* ---- Coin card ---- */
@@ -65,6 +65,9 @@ a { color: var(--lily); text-underline-offset: 3px; }
 .pp-coin-top { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .pp-coin-name { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pp-coin-ticker { font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .4px; color: var(--ink-muted); }
+.pp-coin-top .pp-coin-name { flex: 0 1 auto; min-width: 2em; }
+.pp-coin-top .pp-coin-ticker { flex: none; white-space: nowrap; }
+.pp-coin-top .pp-stage { flex: none; }
 .pp-coin-desc { font-size: 13px; line-height: 18px; color: var(--ink-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pp-coin-stats { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); font-size: 12px; line-height: 16px; color: var(--ink-muted); }
 .pp-coin-stats b { color: var(--ink); font-weight: 800; }
@@ -86,10 +89,11 @@ a { color: var(--lily); text-underline-offset: 3px; }
 
 /* ---- Amount input with token picker ---- */
 .pp-field { display: grid; gap: 6px; }
+.pp-field > * { min-width: 0; }
 .pp-field label, .pp-label { font-size: 13px; line-height: 18px; font-weight: 700; color: var(--ink-muted); }
 .pp-amount { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3); border-radius: var(--radius-md); background: var(--pond-raised); border: 1px solid var(--reed); }
 .pp-amount:focus-within { border-color: var(--reed-strong); }
-.pp-amount input { flex: 1; min-width: 0; font: inherit; font-size: 22px; font-weight: 800; line-height: 30px; border: 0; background: transparent; color: var(--ink); outline: none; }
+.pp-amount input { flex: 1; min-width: 0; width: 100%; font: inherit; font-size: 22px; font-weight: 800; line-height: 30px; border: 0; background: transparent; color: var(--ink); outline: none; }
 .pp-token { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-weight: 800; font-size: 14px; padding: 6px 10px; border-radius: var(--radius-pill); border: 1px solid var(--reed); background: var(--pond); color: var(--ink); cursor: pointer; }
 .pp-token i { width: 18px; height: 18px; border-radius: 50%; background: var(--ripple); display: inline-block; }
 .pp-presets { display: flex; flex-wrap: wrap; gap: var(--space-1); }
@@ -98,6 +102,8 @@ a { color: var(--lily); text-underline-offset: 3px; }
 
 /* ---- Trade box ---- */
 .pp-trade { display: grid; gap: var(--space-4); padding: var(--space-5); border-radius: var(--radius-lg); background: var(--pond); border: 1px solid var(--reed); }
+.pp-trade > * { min-width: 0; }
+.pp-quote b { overflow-wrap: anywhere; }
 .pp-quote { display: grid; gap: 6px; font-size: 13px; line-height: 18px; color: var(--ink-muted); }
 .pp-quote > div { display: flex; justify-content: space-between; gap: var(--space-3); }
 .pp-quote b { color: var(--ink); font-weight: 800; text-align: right; }

@@ -141,7 +141,7 @@ My pick for the hero: **"Every frog starts as a tadpole."** It tells the whole s
 ## 6. The Pond (staking) page
 
 > ## The Pond
-> Stake $PONDPAD, get sPONDPAD. Part of every trade on PondPad buys $PONDPAD and drips it into the pond, so each sPONDPAD is slowly worth more $PONDPAD. Nothing to claim. Leave when you like (just not in the same block you joined).
+> Stake $PONDPAD, get sPONDPAD. Part of every trade on PondPad buys $PONDPAD and drips it into the pond, so each sPONDPAD is slowly worth more $PONDPAD. Nothing to claim. Leave when you like (a few seconds after joining).
 >
 > **Your sPONDPAD:** 12,400 (≈ 13,018 $PONDPAD)
 > **Dripping in right now:** ~41,000 $PONDPAD/day
