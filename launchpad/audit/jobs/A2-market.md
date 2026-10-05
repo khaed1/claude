@@ -1,0 +1,21 @@
+ID: A2
+TITLE: $PONDPAD sale and market
+FILES:
+contracts/src/PondPadToken.sol
+contracts/src/PadSale.sol
+contracts/src/PaymentSwapper.sol
+contracts/src/IntegratorVault.sol
+contracts/src/PadMarketHook.sol
+contracts/upstream/CappedBurnHook.sol
+contracts/upstream/make_fork.py
+contracts/src/MarketController.sol
+contracts/src/PadBurner.sol
+contracts/src/FeeSplitter.sol
+FOCUS:
+$PONDPAD (1B fixed supply) is sold on PadSale, an IMD bonding curve (600M sold, 300M to the pool, target ~8,460 IMD, 1% fee, snipe tax 80% -> 0 over 30 min, 15M per-wallet cap). At graduation the raise and 300M go to MarketController.launch, which opens PadMarketHook: our fork of POOL4's CappedBurnHook (upstream/CappedBurnHook.sol is the original; upstream/make_fork.py generates PadMarketHook.sol from it, so every change is in that script). Changes: IMD is currency0 ($PONDPAD address mined above IMD), ERC-20 quote instead of native ETH, dynamic LP fee 3% -> 1% over 7 days returned from beforeSwap, IMD-sized constants (cap floor 150M, decay 500k/day, 15% of trims to stakers). MarketController owns the hook forever; the only exit is migrate() (7-day timelock, first 12 months).
+Look hardest at:
+- Did make_fork.py change anything beyond its listed changes? Does the ETH -> ERC-20 quote conversion keep every settle/take/sync correct? Does the dynamic fee leak into cap, trim, burn, backstop or keeper-tip math?
+- PadSale solvency, cap accounting across buyWith/sellFor and payment tokens, snipe tax timing, the completing buy's refund, graduation exactly once with the exact amounts and sqrt price.
+- MarketController: can launch, collectFees, fundInventory, policy setters or migrate ever send pool assets to a wallet, open twice, change openedAt, or migrate into a hostile or already-open hook?
+- Trim/burn/settleClaims/rebalance under adversarial keepers and outside routers (ordering, same block, partial settlement), PadBurner.
+- Sell-side $PONDPAD fees and their split (collectFees -> FeeSplitter.distributeToken).
