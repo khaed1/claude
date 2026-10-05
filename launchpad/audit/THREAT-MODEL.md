@@ -4,6 +4,12 @@ Read this before the code. It says who can do what, what must always hold, and w
 
 Chain: Robinhood Chain (4663), Uniswap v4 PoolManager `0x8366…0951`, IMD `0x5F7B…7127` (LayerZero OFT, 18 decimals), USDG `0x5fc5…d168` (6 decimals). Solidity 0.8.26, cancun, via-IR. No proxies (D-6).
 
+**Block numbers (D-65).** Robinhood Chain is an Arbitrum Orbit chain: `block.number` returns the **Ethereum** block number (about every 12 s), not Robinhood's own block (several per second); `block.timestamp` is Robinhood's. Checked on mainnet and testnet (5 Oct 2026). So every "block" in the code is an Ethereum block shared by many Robinhood blocks:
+- `PadMarketHook` `refTick` (used by `PadBuyer`'s price guard and the backstop placement) moves at most `maxRefStep` per Ethereum block toward the close of the previous one, the same real-time pace as POOL4 on Ethereum. The "close" of an Ethereum block is the last swap before `block.number` changes, which many Robinhood transactions can reach.
+- `lastClaimBlock`: trim claims are redeemed in a later Ethereum block (≤ ~12 s later).
+- `StakedPONDPAD` hold: a deposit can't be redeemed until `block.number` changes (0–12 s).
+Keeping Ethereum blocks is deliberate (D-65): Robinhood's own block number would let `refTick` move 50–100× faster in real time. In scope: any way to exploit the shared block (e.g. capturing the last swap before the number changes to drag `refTick`, or anything that assumes one block = one transaction batch). Known and accepted: if the reported Ethereum block number stalls, `refTick` freezes (PadBuyer may refuse to buy), claims wait and new deposits can't be redeemed until it moves; no funds are at risk. Fork tests advance blocks with `vm.roll`, which does not model this.
+
 ## 1. Actors and what they can do
 
 | Actor | Powers | Trust |
