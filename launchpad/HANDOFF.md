@@ -23,7 +23,7 @@ Related files:
 | [`frontend/`](frontend/) | The site (Vite + React + wagmi), running against the testnet; see its README (§5c) |
 | [`legal/`](legal/) | Terms of Use and Privacy Policy drafts (D-69) |
 
-Last updated: 5 October 2026. Branch: `claude/bold-gauss-qhlw86` on `khaed1/claude`.
+Last updated: 6 October 2026. Branch: `claude/bold-gauss-qhlw86` on `khaed1/claude`.
 
 ---
 
@@ -95,10 +95,10 @@ Ready to run, not run yet. `THREAT-MODEL.md` (actors, trust, 22 invariants, deli
 Done before any layout, as the user asked: UX research of Pump.fun and Pons, a mood board, a brand book, a design system and the layout of every page (§5c). Approved by the user (D-70).
 
 ### Frontend (`frontend/`, D-70)
-Built against the testnet: Explore, Coin (trade box with IMD / ETH / USDG), Spawn, Profile (holdings, Claim all creator fees, rewards, activity), Docs (first pages), Terms, Privacy, faucet, and the wallet's legal acceptance gate (D-69). Tested on the live testnet with the testnet wallet (faucet, buys, sell, dividends, spawn with a dev buy, claim all). `npm run dev` in `frontend/`.
+Built against the testnet: Explore, Coin (trade box with IMD / ETH / USDG), Spawn, Profile (holdings, Claim all creator fees, rewards, activity), **$PONDPAD** (sale → market → airdrop, D-72), Docs (first pages + $PONDPAD sale, market, airdrop), Terms, Privacy, faucet, and the wallet's legal acceptance gate (D-69). Tested on the live testnet with the testnet wallet (faucet, buys, sell, dividends, spawn with a dev buy, claim all) and, for $PONDPAD, with listed test wallets (airdrop claim, market buy and sell, gasless claim wallet). `npm run dev` in `frontend/`.
 
 ### Not built yet
-See `ROADMAP.md` section 1. In short: the rest of the frontend ($PONDPAD, Pond, Transparency), Swarm Relay, indexer, X link service, airdrop tweet checker.
+See `ROADMAP.md` section 1. In short: the rest of the frontend (Pond, Transparency), Swarm Relay, indexer, X link service, airdrop tweet checker; for mainnet, a router for the $PONDPAD market (D-72).
 
 ---
 
@@ -169,7 +169,7 @@ IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`)
 8. ~~Keeper script~~ (done, D-58): `keeper/` (§6).
 9. **Swarm audit loop**: package built (D-60, `audit/`). Next: the user submits round 1's four jobs in the explorer's Audit form (2 IMD; `audit/README.md`), we fix findings with a failing test each and rerun until the judge says CLEAN.
 10. **Robinhood testnet run** (D-62, D-63): setup script, deploy change, testnet rehearsal and trader bots built and passing on a fork (§5b). **Live on 46630** (5 Oct 2026): full run done and reported (`bots/reports/2026-10-05/REPORT.md`): healthy, no contract bug, POOL4 12/12, 46/46 attacks refused; findings in §5b step 8. THREAT-MODEL `block.number` note added (D-65). Audit round 1 was generated at `b23fdc0`, before this note and the `Deploy.s.sol` change: regenerate it at the latest commit before submitting (`python3 audit/make_jobs.py round 1 --check`). Next: the frontend against the testnet (with gas headroom on market swaps).
-11. **Frontend**: design done (D-66), first pages built and tested on the testnet (D-70, `frontend/README.md`). Next: $PONDPAD (sale → market → airdrop), the Pond, Transparency, more Docs; then WalletConnect, IPFS image upload, an indexer, an IPFS deploy.
+11. **Frontend**: design done (D-66), first pages built and tested on the testnet (D-70, `frontend/README.md`); **$PONDPAD page built and tested (D-72)**. Next: the Pond, then Transparency, more Docs; then WalletConnect, IPFS image upload, an indexer, an IPFS deploy.
 12. Swarm Relay, indexer, X link service, airdrop tweet checker.
 
 ## 5a. Deploying
@@ -287,6 +287,7 @@ Nothing below is built. Each needs the user's go-ahead.
     1. ~~Go-ahead for the testnet setup.~~ Given (5 Oct 2026).
     2. ~~Testnet timelocks at 10 and 30 minutes?~~ Used as the defaults (D-62); `FAST_DELAY` / `SLOW_DELAY` change them.
     3. ~~Who broadcasts?~~ Claude, with a testnet-only wallet it created (§5b step 6); the user funds it with 7 ETH.
+- **$PONDPAD page (D-72), open for mainnet:** (1) which router trades the $PONDPAD market. The testnet page uses Uniswap's v4 test swap router (`PoolSwapTest`: IMD only, no minimum-out, slippage turned into a price limit). Mainnet needs a real router with a minimum-out, and ETH / USDG through IMD: options are the Uniswap v4 router on Robinhood if it exists (not in §4 yet), or a small market route in `PadRouter` (a contract change, so it needs your go-ahead and an audit). (2) The claims file for the real list (`frontend/public/airdrop-4663.json` from `snapshot.py build`'s `claims.json` + the distributor address); if the list is large, split it by address prefix. (3) The tweet checker (`POST /voucher`) for the wake step.
 - **Future versions (D-71):** v2 mechanics menu starting with POOL4-style burn per coin, custom hooks after that behind swarm audits; holder rewards in other tokens (stocks, gold) at v3+ or on demand; no delegate.xyz rule for the airdrop.
 - **Decided 5 Oct 2026 (D-70):** Pond wording "a few seconds after joining" (the hold stays in code: it stops flash-loan reward capture); no coin page comments in v1; keep the Egg stage.
 - **Timelocks need no activating:** `Deploy.s.sol` creates both and hands them ownership in the same run. A change is `schedule` by the Safe, then the delay, then anyone calls `execute`. A small helper that turns a setting change into a ready Safe transaction was offered, not built.
