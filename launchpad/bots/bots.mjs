@@ -35,6 +35,11 @@ if (cmd === "roles") {
   console.log(`export SAFE=${roles.safe.address} RELAY=${roles.relay.address} X_LINK_KEY=${roles.xLinkKey.address} TWEET_CHECKER=${roles.tweetChecker.address}`);
   process.exit(0);
 }
+// The keeper runs from its own derived wallet, so it never races the bots' funding transactions on the master nonce.
+if (cmd === "keeper-key") {
+  console.log(keccak256(concat([MASTER_KEY, toHex("pondpad-testnet:keeper")])));
+  process.exit(0);
+}
 
 const d = JSON.parse(readFileSync(process.env.DEPLOYMENT ?? here("../contracts/deployments/46630.json"), "utf8"));
 const s = JSON.parse(readFileSync(process.env.SETUP ?? here("../contracts/deployments/46630-setup.json"), "utf8"));
@@ -140,6 +145,21 @@ async function fund() {
       await client.waitForTransactionReceipt({ hash });
     }
     console.log(`bot ${b.i} (${b.profile}) ${b.account.address} funded`);
+  }
+}
+
+/// Tops a bot back up (test tokens minted by the master wallet, ETH sent) before it runs dry.
+const MASTER = { i: "master", account: master, wallet: walletOf(master) };
+async function refill(bot) {
+  for (const [tok, low, target] of [[C.imd, IMD(2_000), IMD(20_000)], [C.usdg, 1_000n * 10n ** 6n, 50_000n * 10n ** 6n]]) {
+    const bal = await read(tok, "balanceOf", [bot.account.address]);
+    if (bal < low) await act(MASTER, `refill bot ${bot.i}`, tok, "mint", [bot.account.address, target - bal]);
+  }
+  const eth = await client.getBalance({ address: bot.account.address });
+  if (eth < BOT_ETH / 4n) {
+    const hash = await MASTER.wallet.sendTransaction({ to: bot.account.address, value: BOT_ETH - eth });
+    await client.waitForTransactionReceipt({ hash });
+    log({ kind: "tx", bot: "master", label: `refill eth bot ${bot.i}`, hash });
   }
 }
 
@@ -366,6 +386,7 @@ if (cmd === "fund") {
     const list = await coins();
     for (const b of [...bots].sort(() => Math.random() - 0.5)) {
       try {
+        await refill(b);
         await step(b, list);
       } catch (e) {
         stats.unexpected++;
