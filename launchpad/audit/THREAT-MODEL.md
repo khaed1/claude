@@ -82,4 +82,4 @@ Trusted externals: the v4 PoolManager, IMD and USDG tokens, the ETH/USDG pool's 
 | Low | Edge cases with no realistic loss, missing checks with no impact today |
 | Info | Style, gas, docs |
 
-A round is **clean** when the judge confirms no open Critical or High. Every Medium is fixed or accepted by the project owner in writing in `FINDINGS.md`.
+A round is **clean** when all four jobs' judges report no open Critical or High. Every Medium is fixed or accepted by the project owner in writing in `FINDINGS.md`.

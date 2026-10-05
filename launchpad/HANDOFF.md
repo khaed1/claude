@@ -82,8 +82,8 @@ The owner of the project is the user (IMD ecosystem builder). The IMD / POOL4 de
 - `DeployFork.t.sol`: **3 fork tests**, the deployment rehearsal: runs `script/Deploy.s.sol`'s `deploy()` exactly as the broadcast does on live Robinhood state, then checks every owner and route (nothing left with the deployer; supply split 900M / 50M / 20M / 30M), the mined hook flags and $PONDPAD > IMD; the Safe changing a setting only through the 48 h timelock (anyone executes after the delay; splitter shares need 7 days); and a lifecycle: coin launch with ETH, sale closed before its start, sale graduating into the market at `openedAt`, market fees → splitter → treasury, workers and `PadBuyer`, which buys $PONDPAD for the dripper once the price reference catches up, airdrop waiting for initiators, team vesting 1/6 at day 30.
 - `Fork.t.sol`: **5 fork tests** on live Robinhood Chain (real PoolManager, IMD, IMD/ETH and ETH/USDG pools): full lifecycle with ETH, USDG on the curve and after graduation, the $PONDPAD sale with ETH and USDG, the sale graduating into the market (cancun build, dynamic fee) with a buy and a trimmed sell, and an IMD depth report.
 
-### Audit package (`audit/`, D-60)
-Ready to run, not run yet. `THREAT-MODEL.md` (actors, trust, 22 invariants, deliberate behaviour that is not a finding, severity scale), `FINDINGS.md` (ledger, empty), `jobs/` (four auditor areas + judge), `make_jobs.py` (pins a pushed commit, checks every in-scope file is covered and each objective fits the API, writes `rounds/<n>/*.request.json` for `POST /requests/quote`). Runbook in `audit/README.md`. `rounds/1/` is generated for the commit that added the package.
+### Audit package (`audit/`, D-60, D-61)
+Ready to run, not run yet. `THREAT-MODEL.md` (actors, trust, 22 invariants, deliberate behaviour that is not a finding, severity scale), `FINDINGS.md` (ledger, empty), `jobs/` (four areas), `make_jobs.py` (pins a pushed commit, checks scope coverage and size, writes each area's objective for the explorer's Audit form and its API body; `--check` runs IMD's free check). Each job is IMD's native audit template (4 specialists + judge, 0.5 IMD). Runbook in `audit/README.md`. `rounds/1/` is generated for the commit that added the package.
 
 ### Not built yet
 See `ROADMAP.md` section 1. In short: frontend, Swarm Relay, indexer, X link service, airdrop tweet checker.
@@ -154,7 +154,7 @@ IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`)
 6. ~~`AirdropDistributor` (5% Merkle) + `TeamVesting` (2%)~~ (done, D-53 to D-55). At deploy: both take `market` = `MarketController` (vesting clock = `openedAt`; the airdrop only opens initiation then); airdrop owner = 48 h timelock, `verifier` = tweet checker key, `unclaimedSink` = `RewardDripper` and the final Merkle root (OZ `StandardMerkleTree` leaves for `(address, uint256)`, built from the snapshot after contract-wallet holders name Robinhood addresses); vesting `beneficiary` = team Safe; fund them with 50M and 20M from the deployer's $PONDPAD in the same script.
 7. ~~Timelock + Safe wiring, deploy script, fork rehearsal~~ (done, D-57). See §5a.
 8. ~~Keeper script~~ (done, D-58): `keeper/` (§6).
-9. **Swarm audit loop**: package built (D-60, `audit/`). Next: the user pays and submits round 1 (A1 alone as a 0.5 IMD pilot, then A2–A4, then the judge; `audit/README.md`), we fix findings with a failing test each and rerun until the judge says CLEAN.
+9. **Swarm audit loop**: package built (D-60, `audit/`). Next: the user submits round 1's four jobs in the explorer's Audit form (2 IMD; `audit/README.md`), we fix findings with a failing test each and rerun until the judge says CLEAN.
 10. Frontend, Swarm Relay, indexer, X link service, airdrop tweet checker.
 
 ## 5a. Deploying
@@ -216,6 +216,5 @@ Every upkeep function is permissionless: anyone can call it, nothing depends on 
 | Deepen IMD liquidity on Robinhood before the $PONDPAD sale | User + IMD dev / holders |
 | Buy pondpad.fun, X and Telegram handles | User |
 | Airdrop snapshot (D-56): rules decided and the tool is built (`airdrop/`, see its README). To do: pick the moment and run `capture` secretly, then `build`, review `review.csv` (exchange hot wallets, team wallets, contract wallets that want a Robinhood address), announce, root into the deploy | User |
-| Swarm audit round 1 (D-60): run `python3 audit/make_jobs.py round 1` (or use the generated `audit/rounds/1/`), pay and submit A1 as a pilot, then A2–A4 and the judge (2.5 IMD a round, Ethereum mainnet) | User |
-| Audit jobs: confirm a `job.open` job can read GitHub (fetch or shell), how its output file comes back, and whether `job.continue` can re-check a fix | IMD dev (or the A1 pilot) |
+| Swarm audit round 1 (D-61): submit `audit/rounds/1/A1`–`A4` at explorer.imd.fun/launch → Audit (2 IMD on Ethereum mainnet), then share the four job links | User |
 | Airdrop tweet checker (D-55): service that reads the initiation post (X API or link fetch), checks the phrase and `initiationCode`, signs the voucher; its key goes into `AirdropDistributor` at deploy | Us (backend) |

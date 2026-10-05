@@ -16,7 +16,7 @@ contracts/src/IntegratorVault.sol
 contracts/src/FeeSplitter.sol
 contracts/src/PadLens.sol
 FOCUS:
-Coins launch on an IMD bonding curve (80% sold, 20% to the pool, graduation at ~2,060 IMD) and graduate into a Uniswap v4 pool run by PadHook with full-range liquidity locked forever. Fees: 1% protocol + 0.5% creator + optional 0-3% coin tax, always on the IMD side, through any router. Users pay with IMD, ETH or USDG (PaymentSwapper routes up to 3 hops).
+Context: coins launch on an IMD bonding curve (80% sold, 20% to the pool, graduation at ~2,060 IMD) and graduate into a Uniswap v4 pool run by PadHook with full-range liquidity locked forever. Fees: 1% protocol + 0.5% creator + optional 0-3% coin tax, always on the IMD side, through any router. Users pay with IMD, ETH or USDG (PaymentSwapper routes up to 3 hops).
 Look hardest at:
 - Curve math and rounding: can any buy/sell sequence (incl. the completing buy and its refund, dev buy, snipe tax) make the curve insolvent or move graduation off the final price?
 - Graduation: front-running pool init, inline vs. permissionless graduate() under an outside PoolManager unlock, the 1% fee / 1% reserve burn.

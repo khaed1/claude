@@ -6,7 +6,7 @@ Status: `open` → `fixed` (commit) or `accepted` (the project owner's reason, i
 
 ## Rounds
 
-| Round | Commit | Jobs (A1, A2, A3, A4, judge) | Verdict | Date |
+| Round | Commit | Jobs (A1, A2, A3, A4) | Verdict | Date |
 |---|---|---|---|---|
 | – | – | – | – | – |
 
