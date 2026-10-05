@@ -287,6 +287,7 @@ Nothing below is built. Each needs the user's go-ahead.
     1. ~~Go-ahead for the testnet setup.~~ Given (5 Oct 2026).
     2. ~~Testnet timelocks at 10 and 30 minutes?~~ Used as the defaults (D-62); `FAST_DELAY` / `SLOW_DELAY` change them.
     3. ~~Who broadcasts?~~ Claude, with a testnet-only wallet it created (§5b step 6); the user funds it with 7 ETH.
+- **Future versions (D-71):** v2 mechanics menu starting with POOL4-style burn per coin, custom hooks after that behind swarm audits; holder rewards in other tokens (stocks, gold) at v3+ or on demand; no delegate.xyz rule for the airdrop.
 - **Decided 5 Oct 2026 (D-70):** Pond wording "a few seconds after joining" (the hold stays in code: it stops flash-loan reward capture); no coin page comments in v1; keep the Egg stage.
 - **Timelocks need no activating:** `Deploy.s.sol` creates both and hands them ownership in the same run. A change is `schedule` by the Safe, then the delay, then anyone calls `execute`. A small helper that turns a setting change into a ready Safe transaction was offered, not built.
 

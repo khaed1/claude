@@ -39,14 +39,17 @@ Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), fac
 
 ## 3. v2
 
-- **Custom coins** built by the swarm, accepted only with a bytecode-hash audit attestation.
+- **Coin mechanics menu** (D-71): a `PadHook` v2 with audited add-ons the creator picks at launch, the first being **POOL4-style burn on sells**, then e.g. buybacks, time-based fees, anti-sniper rules. Each add-on is approved through the timelock; the core hook keeps enforcing the fee, locked liquidity and the right to sell. Ships as a new curve + hook version via `VersionRegistry`; v1 coins are unchanged.
+- **Custom coins** built by the swarm, accepted only with a bytecode-hash audit attestation (after the mechanics menu; each custom hook must also collect our fee and block liquidity removal).
 - **Swarm review** published for every timelocked settings change.
-- **POOL4-style burn mode per coin** (needs IMD-quoted, one-sided POOL4 variant).
+- **POOL4-style burn mode per coin** (needs IMD-quoted, one-sided POOL4 variant): the first add-on of the mechanics menu above.
 - **Boosted / locked sPONDPAD tiers**.
 - **Outside LPs into our pools** (earn an LP fee in the canonical pool instead of opening rival pools).
 - Optional lower post-graduation fee schedules if outside-pool leakage grows (the user prefers leaving fees to creators; revisit only with data).
 
 ## 4. Later
+
+- **Holder rewards in other tokens** (v3+, or sooner only if people ask; D-71): the creator picks at launch a reward token from a timelock-approved list (e.g. tokenized stocks, gold) instead of IMD; the holders' share builds up in IMD and a permissionless, price-guarded `convert()` swaps it in chunks (like `PadBuyer`), paid by a new `PadToken` template. Before building: each token's transfer restrictions, route liquidity, and a legal review (stock tokens as "dividends").
 
 - **Dead-coin migration** (Pons-style epochs, vesting claims, refunds).
 - **Base and Ethereum** deployments (IMD exists on both; same contracts, deterministic addresses).
