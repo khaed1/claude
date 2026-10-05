@@ -184,5 +184,4 @@ Every upkeep function is permissionless: anyone can call it, nothing depends on 
 | Deepen IMD liquidity on Robinhood before the $PONDPAD sale | User + IMD dev / holders |
 | Buy pondpad.fun, X and Telegram handles | User |
 | Airdrop snapshot (D-56): rules decided and the tool is built (`airdrop/`, see its README). To do: pick the moment and run `capture` secretly, then `build`, review `review.csv` (exchange hot wallets, team wallets, contract wallets that want a Robinhood address), announce, root into the deploy | User |
-| IMD on Base: both IMD OFTs name `0xab15…690a` as their Base peer, but it is an adapter for a "Fren Pet" token. Which contract is IMD on Base? (Base balances aren't counted until then) | IMD dev |
 | Airdrop tweet checker (D-55): service that reads the initiation post (X API or link fetch), checks the phrase and `initiationCode`, signs the voucher; its key goes into `AirdropDistributor` at deploy | Us (backend) |

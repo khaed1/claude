@@ -2,19 +2,19 @@
 """PondPad airdrop snapshot (D-53, D-55, D-56). Python 3.9+, standard library only.
 
   capture  Run once, at the snapshot moment, without telling anyone (option A: the snapshot is announced only
-           after it was taken). Records each chain's current block, the live sIMD share price and the IMD
-           worker API data.
-  build    Any time later. Rebuilds IMD / sIMD balances and seat NFT owners at the captured blocks from Transfer
-           logs (no archive node needed), applies the rules and writes the list, a review file and the Merkle
-           tree (OpenZeppelin StandardMerkleTree format, as AirdropDistributor expects).
+           after it was taken). Reads everything live: each chain's block, the sIMD share price, the IMD worker
+           API, seat NFT owners (ownerOf) and IMD / sIMD balances (Blockscout holder lists on Ethereum and Base,
+           Transfer logs on Robinhood, whose RPC serves them). Saves it all in the folder.
+  build    Any time later, offline (only contract checks at `latest`). Applies the rules and writes the list, a
+           review file and the Merkle tree (OpenZeppelin StandardMerkleTree format, as AirdropDistributor
+           expects). Rerunning it on the same capture gives the same root.
   selftest Checks the keccak implementation and the tree, and with --fixture writes a small tree that the
            Foundry test `AirdropTreeTest` verifies against the contract's leaf and proof format.
 
 Rules (config.json):
-  Workers pool (30M): seats with >= minAcceptedJobs accepted jobs that worked within activeWithinDays before
-  the capture. Per seat: half of the pool equally, half by sqrt(accepted). Paid to the seat NFT's owner at the
-  Ethereum block.
-  Holders pool (20M): wallets whose IMD on Ethereum + Base + Robinhood plus sIMD (at its IMD value) total
+  Workers pool (35M): seats with >= minAcceptedJobs accepted jobs that worked within activeWithinDays before
+  the capture. Per seat: half of the pool equally, half by sqrt(accepted). Paid to the seat NFT's owner at capture.
+  Holders pool (15M): wallets whose IMD on Ethereum + Base + Robinhood plus sIMD (at its IMD value) total
   >= holderMinImd. Weight sqrt(total).
   A wallet in both pools gets both. Cap per wallet overall (700k); what the cap cuts is shared out again in
   proportion to the uncapped amounts. Contracts (pools, bridges, vaults, Safes) are left out unless remapped
@@ -29,6 +29,7 @@ import os
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 # ---------------------------------------------------------------------------------------------- keccak-256
@@ -215,34 +216,86 @@ def erc20_balances(transfers):
     return {a: v for a, v in bal.items() if v > 0}
 
 
-def nft_owners(transfers):
-    owner = {}
-    for lg in sorted(transfers, key=lambda l: (int(l["blockNumber"], 16), int(l["logIndex"], 16))):
-        if len(lg["topics"]) != 4:
-            continue
-        owner[int(lg["topics"][3], 16)] = "0x" + lg["topics"][2][26:]
-    return owner
-
-
 # ---------------------------------------------------------------------------------------------- capture
 
 
+def rpc_batch(url, calls, size=50):
+    """eth_call batches at `latest`: calls = [(to, data)]. Returns results in order (None on error)."""
+    out = []
+    for i in range(0, len(calls), size):
+        chunk = calls[i:i + size]
+        payload = [{"jsonrpc": "2.0", "id": j, "method": "eth_call", "params": [{"to": t, "data": d}, "latest"]}
+                   for j, (t, d) in enumerate(chunk)]
+        res = {r["id"]: r.get("result") for r in http_json(url, payload)}
+        out.extend(res.get(j) for j in range(len(chunk)))
+    return out
+
+
+def explorer_holders(explorer, token, floor_wei):
+    """Current holders of `token` from a Blockscout explorer, largest first, down to `floor_wei`."""
+    out, params = {}, None
+    while True:
+        url = f"{explorer}/api/v2/tokens/{token}/holders"
+        if params:
+            url += "?" + urllib.parse.urlencode(params)
+        d = http_json(url)
+        items = d.get("items", [])
+        for it in items:
+            out[it["address"]["hash"].lower()] = out.get(it["address"]["hash"].lower(), 0) + int(it["value"])
+        print(f"  {token[:10]}… {len(out):,} holders", file=sys.stderr, end="\r")
+        params = d.get("next_page_params")
+        if not params or not items or int(items[-1]["value"]) < floor_wei:
+            print(file=sys.stderr)
+            return {a: v for a, v in out.items() if v >= floor_wei}
+
+
 def capture(cfg, out_dir):
+    """Everything the list needs, read live at one moment: blocks, sIMD price, worker data, seat owners and
+    balances. Nothing here needs old state, so any RPC and the public explorers are enough."""
     os.makedirs(out_dir, exist_ok=True)
     now = dt.datetime.now(dt.timezone.utc)
-    blocks = {}
-    for name, ch in cfg["chains"].items():
-        blocks[name] = int(rpc(ch["rpc"], "eth_blockNumber", []), 16)
-    eth = cfg["chains"]["ethereum"]
-    simd = eth["sImd"]["address"]
-    total_assets = int(call(eth["rpc"], simd, selector("totalAssets()"), blocks["ethereum"]), 16)
-    total_supply = int(call(eth["rpc"], simd, selector("totalSupply()"), blocks["ethereum"]), 16)
+    chains, tokens = cfg["chains"], cfg["tokens"]
+    blocks = {name: int(rpc(ch["rpc"], "eth_blockNumber", []), 16) for name, ch in chains.items()}
+
+    print("worker data…", file=sys.stderr)
     seats = http_json(cfg["workerApi"])
     with open(os.path.join(out_dir, "seats_records.json"), "w") as f:
         json.dump(seats, f)
+
+    print("seat owners…", file=sys.stderr)
+    nft = tokens["seatNft"]
+    ids = sorted({int(x["tokenId"]) for x in seats["seats"]})
+    res = rpc_batch(chains[nft["chain"]]["rpc"],
+                    [(nft["address"], selector("ownerOf(uint256)") + f"{i:064x}") for i in ids])
+    owners = {str(i): "0x" + r[-40:] for i, r in zip(ids, res) if r and len(r) >= 66}
+
+    simd = tokens["sImd"]
+    srpc = chains[simd["chain"]]["rpc"]
+    total_assets = int(call(srpc, simd["address"], selector("totalAssets()")), 16)
+    total_supply = int(call(srpc, simd["address"], selector("totalSupply()")), 16)
+
+    floor = units(cfg["listFloorImd"])
+    balances = {}
+    for chain, tok in tokens["imd"].items():
+        print(f"IMD holders ({chain})…", file=sys.stderr)
+        ch = chains[chain]
+        if ch.get("explorer"):
+            balances[chain] = explorer_holders(ch["explorer"], tok["address"], floor)
+        else:
+            transfers = logs(ch["rpc"], tok["address"], tok.get("fromBlock", 0), blocks[chain], tok["maxRange"])
+            balances[chain] = {a: v for a, v in erc20_balances(transfers).items() if v >= floor}
+    print("sIMD holders…", file=sys.stderr)
+    balances["sImd"] = explorer_holders(chains[simd["chain"]]["explorer"], simd["address"],
+                                        floor * total_supply // total_assets)
+
+    with open(os.path.join(out_dir, "owners.json"), "w") as f:
+        json.dump(owners, f)
+    with open(os.path.join(out_dir, "balances.json"), "w") as f:
+        json.dump({k: {a: str(v) for a, v in b.items()} for k, b in balances.items()}, f)
     cap = {"capturedAt": now.isoformat(), "blocks": blocks,
            "sImd": {"totalAssets": str(total_assets), "totalSupply": str(total_supply)},
-           "seatCount": len(seats["seats"])}
+           "seatCount": len(seats["seats"]), "seatOwners": len(owners),
+           "holders": {k: len(b) for k, b in balances.items()}}
     with open(os.path.join(out_dir, "capture.json"), "w") as f:
         json.dump(cap, f, indent=2)
     print(json.dumps(cap, indent=2))
@@ -285,10 +338,10 @@ def cap_water_fill(amounts, cap):
 def build(cfg, in_dir):
     cap = json.load(open(os.path.join(in_dir, "capture.json")))
     seats = json.load(open(os.path.join(in_dir, "seats_records.json")))["seats"]
-    blocks = cap["blocks"]
+    owners = {int(k): v for k, v in json.load(open(os.path.join(in_dir, "owners.json"))).items()}
+    balances = json.load(open(os.path.join(in_dir, "balances.json")))
     captured = dt.datetime.fromisoformat(cap["capturedAt"])
     chains = cfg["chains"]
-    eth = chains["ethereum"]
     exclude = {a.lower() for a in cfg.get("exclude", [])}
     remap = {k.lower(): v.lower() for k, v in cfg.get("remap", {}).items()}
     code_cache = {}
@@ -308,9 +361,6 @@ def build(cfg, in_dir):
         return addr
 
     # Workers ------------------------------------------------------------------------------------------
-    print("seat NFT owners (Ethereum)…", file=sys.stderr)
-    nft = eth["seatNft"]
-    owners = nft_owners(logs(eth["rpc"], nft["address"], nft["fromBlock"], blocks["ethereum"], eth["maxRange"]))
     cutoff = captured - dt.timedelta(days=cfg["activeWithinDays"])
     eligible = []
     for s in seats:
@@ -321,7 +371,7 @@ def build(cfg, in_dir):
             continue
         tid = int(s["tokenId"])
         if tid not in owners:
-            review.append((f"seat {tid}", "ethereum", "worker", "no owner found at the snapshot block"))
+            review.append((f"seat {tid}", "ethereum", "worker", "no owner found at capture"))
             continue
         to = resolve(owners[tid], "ethereum", f"worker seat {tid}")
         if to is not None:
@@ -336,23 +386,15 @@ def build(cfg, in_dir):
         worker_seats.setdefault(to, []).append(tid)
 
     # Holders ------------------------------------------------------------------------------------------
-    holdings = {}  # address -> {chain: wei}
-    for name, ch in chains.items():
-        tok = ch.get("imd")
-        if not tok:
-            continue
-        print(f"IMD balances ({name})…", file=sys.stderr)
-        for a, v in erc20_balances(logs(ch["rpc"], tok["address"], tok["fromBlock"], blocks[name], ch["maxRange"])).items():
-            holdings.setdefault(a, {}).setdefault(name, 0)
-            holdings[a][name] += v
-    print("sIMD balances (Ethereum)…", file=sys.stderr)
-    simd = eth["sImd"]
+    holdings = {}  # address -> {chain or "sImd": IMD wei}
     ta, ts = int(cap["sImd"]["totalAssets"]), int(cap["sImd"]["totalSupply"])
-    for a, shares in erc20_balances(logs(eth["rpc"], simd["address"], simd["fromBlock"], blocks["ethereum"], eth["maxRange"])).items():
-        holdings.setdefault(a, {}).setdefault("sImd", 0)
-        holdings[a]["sImd"] += shares * ta // ts
+    for source, bals in balances.items():
+        for a, v in bals.items():
+            v = int(v) * ta // ts if source == "sImd" else int(v)
+            holdings.setdefault(a, {}).setdefault(source, 0)
+            holdings[a][source] += v
     # The IMD inside the sIMD vault belongs to its stakers, counted above.
-    holdings.pop(simd["address"].lower(), None)
+    holdings.pop(cfg["tokens"]["sImd"]["address"].lower(), None)
 
     minimum = units(cfg["holderMinImd"])
     holder_w, holder_total = {}, {}
@@ -361,7 +403,7 @@ def build(cfg, in_dir):
         if total < minimum:
             continue
         chain = max(parts, key=parts.get)
-        to = resolve(a, "ethereum" if chain == "sImd" else chain, f"holder {total / 1e18:,.0f} IMD")
+        to = resolve(a, cfg["tokens"]["sImd"]["chain"] if chain == "sImd" else chain, f"holder {total / 1e18:,.0f} IMD")
         if to is None:
             continue
         holder_total[to] = holder_total.get(to, 0) + total

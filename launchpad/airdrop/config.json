@@ -1,42 +1,26 @@
 {
   "airdropTotal": "50000000",
-  "workersPool": "30000000",
-  "holdersPool": "20000000",
+  "workersPool": "35000000",
+  "holdersPool": "15000000",
   "walletCap": "700000",
   "minAcceptedJobs": 100,
   "activeWithinDays": 30,
   "holderMinImd": "7000",
+  "listFloorImd": "1",
   "workerApi": "https://api.imd.fun/seats/records",
   "chains": {
-    "ethereum": {
-      "rpc": "https://rpc.mevblocker.io",
-      "maxRange": 20000,
-      "imd": {
-        "address": "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7",
-        "fromBlock": 23501863
-      },
-      "sImd": {
-        "address": "0x9efa934d9fad4ae28c998a40195646b965a97247",
-        "fromBlock": 25887017
-      },
-      "seatNft": {
-        "address": "0x0000ec93127baa929e58e97dd0095a2bfb38ec1d",
-        "fromBlock": 25090085
-      }
+    "ethereum": {"rpc": "https://ethereum-rpc.publicnode.com", "explorer": "https://eth.blockscout.com"},
+    "base": {"rpc": "https://base-rpc.publicnode.com", "explorer": "https://base.blockscout.com"},
+    "robinhood": {"rpc": "https://rpc.mainnet.chain.robinhood.com", "explorer": null}
+  },
+  "tokens": {
+    "imd": {
+      "ethereum": {"address": "0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7"},
+      "base": {"address": "0xff0c532fdb8cd566ae169c1cb157ff2bdc83e105", "note": "IMD on Base (the dev's earlier token, merged into IMD; bridged through the OFT adapter 0xab15…690a)"},
+      "robinhood": {"address": "0x5f7bb59365ce557c26dbcaa4ee9d39a4b95b7127", "fromBlock": 0, "maxRange": 10000000}
     },
-    "robinhood": {
-      "rpc": "https://rpc.mainnet.chain.robinhood.com",
-      "maxRange": 10000000,
-      "imd": {
-        "address": "0x5f7bb59365ce557c26dbcaa4ee9d39a4b95b7127",
-        "fromBlock": 0
-      }
-    },
-    "base": {
-      "rpc": "https://base.drpc.org",
-      "maxRange": 5000,
-      "imd": null
-    }
+    "sImd": {"chain": "ethereum", "address": "0x9efa934d9fad4ae28c998a40195646b965a97247"},
+    "seatNft": {"chain": "ethereum", "address": "0x0000ec93127baa929e58e97dd0095a2bfb38ec1d"}
   },
   "exclude": [],
   "remap": {}
