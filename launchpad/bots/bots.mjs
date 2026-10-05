@@ -49,7 +49,7 @@ const walletOf = (account) => createWalletClient({ account, chain, transport: ht
 
 // ------------------------------------------------------------------ ABIs (with every error, so reverts decode)
 const art = (name) => JSON.parse(readFileSync(here(`../contracts/out/${name}.sol/${name}.json`), "utf8")).abi;
-const names = ["PoolSwapTest", "PadMarketHook", "MarketController", "PadRouter", "BondingCurve", "PadHook", "PadSale", "PadToken", "PondPadToken", "StakedPONDPAD", "TestToken", "PaymentSwapper", "PadLens"];
+const names = ["PoolModifyLiquidityTest", "PoolSwapTest", "PadMarketHook", "MarketController", "PadRouter", "BondingCurve", "PadHook", "PadSale", "PadToken", "PondPadToken", "StakedPONDPAD", "TestToken", "PaymentSwapper", "PadLens"];
 const raw = Object.fromEntries(names.map((n) => [n, art(n)]));
 const errors = Object.values(raw).flat().filter((x) => x.type === "error");
 const uniq = (list) => [...new Map(list.map((x) => [JSON.stringify(x), x])).values()];
@@ -192,6 +192,7 @@ async function launch(bot) {
 }
 
 const launchedAt = new Map();
+const saleOpen = async () => Number(await read(C.sale, "status")) === TRADING && BigInt(Math.floor(Date.now() / 1000)) >= (await read(C.sale, "startTime"));
 /// Trade $PONDPAD in its market (IMD is currency0): buy with IMD, or sell part of the bot's $PONDPAD.
 const MIN_SQRT = 4295128739n + 1n, MAX_SQRT = 1461446703485210103287273052203988822378723970342n - 1n;
 const NO_CLAIMS = { takeClaims: false, settleUsingBurn: false };
@@ -227,9 +228,21 @@ async function step(bot, list) {
       if (coin) return buy(bot, coin, "imd", IMD(300 + rnd(900)));
       return;
     case "ethUser":
+      if (Math.random() < 0.35 && (await saleOpen())) {
+        const amt = parseEther("0.002") + parseEther(String(rnd(30) / 1000));
+        const out = await act(bot, "sale buy eth", C.sale, "buyWith", [zeroAddress, amt, 0n, deadline(), zeroAddress], amt);
+        if (out) bot.saleBought += out;
+        return;
+      }
       if (!coin || Math.random() < 0.15) return launch(bot);
       return Math.random() < 0.75 || !bot.held.size ? buy(bot, coin, "eth", parseEther("0.0005") + parseEther(String(rnd(20) / 10000))) : sell(bot, pick([...bot.held]), "eth", 0.5);
     case "usdgUser":
+      if (Math.random() < 0.35 && (await saleOpen())) {
+        await approveOnce(bot, C.usdg, d.sale);
+        const out = await act(bot, "sale buy usdg", C.sale, "buyWith", [s.usdg, BigInt(5 + rnd(100)) * 10n ** 6n, 0n, deadline(), zeroAddress]);
+        if (out) bot.saleBought += out;
+        return;
+      }
       if (!coin) return;
       return Math.random() < 0.75 || !bot.held.size ? buy(bot, coin, "usdg", BigInt(1 + rnd(20)) * 10n ** 6n) : sell(bot, pick([...bot.held]), "usdg", 0.5);
     case "saleBuyer": {
@@ -336,6 +349,17 @@ async function checkInvariants() {
 // ------------------------------------------------------------------ main
 if (cmd === "fund") {
   await fund();
+} else if (cmd === "deepen") {
+  // Add ~ETH_IN of full-range liquidity to the IMD/ETH pool (priced near 411 IMD/ETH; spare ETH is refunded).
+  const eth = parseEther(process.env.ETH_IN ?? "1");
+  const m = { i: "master", account: master, wallet: walletOf(master) };
+  const lp = { address: s.liquidityRouter, abi: abi.PoolModifyLiquidityTest };
+  const key = { currency0: zeroAddress, currency1: s.imd, fee: 10_000, tickSpacing: 100, hooks: zeroAddress };
+  const liquidity = (eth * 202731n) / 10000n * 90n / 100n; // eth · sqrt(411) · 0.9
+  await act(m, "mint for liquidity", C.imd, "mint", [master.address, (eth * 411n * 12n) / 10n]);
+  await approveOnce(m, C.imd, s.liquidityRouter);
+  const r = await act(m, "deepen IMD/ETH", lp, "modifyLiquidity", [key, { tickLower: -887200, tickUpper: 887200, liquidityDelta: liquidity, salt: "0x" + "00".repeat(32) }, "0x"], eth);
+  console.log(r ? `added ${formatEther(liquidity)} liquidity (~${formatEther(eth)} ETH)` : "failed, see log");
 } else if (cmd === "run") {
   console.log(`${N} bots, log ${LOG}`);
   for (let r = 1; r <= ROUNDS; r++) {
