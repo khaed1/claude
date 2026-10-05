@@ -49,7 +49,7 @@ const walletOf = (account) => createWalletClient({ account, chain, transport: ht
 
 // ------------------------------------------------------------------ ABIs (with every error, so reverts decode)
 const art = (name) => JSON.parse(readFileSync(here(`../contracts/out/${name}.sol/${name}.json`), "utf8")).abi;
-const names = ["PadRouter", "BondingCurve", "PadHook", "PadSale", "PadToken", "PondPadToken", "StakedPONDPAD", "TestToken", "PaymentSwapper", "PadLens"];
+const names = ["PoolSwapTest", "PadMarketHook", "MarketController", "PadRouter", "BondingCurve", "PadHook", "PadSale", "PadToken", "PondPadToken", "StakedPONDPAD", "TestToken", "PaymentSwapper", "PadLens"];
 const raw = Object.fromEntries(names.map((n) => [n, art(n)]));
 const errors = Object.values(raw).flat().filter((x) => x.type === "error");
 const uniq = (list) => [...new Map(list.map((x) => [JSON.stringify(x), x])).values()];
@@ -61,6 +61,9 @@ const C = {
   sale: { address: d.sale, abi: abi.PadSale },
   pondpad: { address: d.pondpad, abi: abi.PondPadToken },
   vault: { address: d.stakedPondpad, abi: abi.StakedPONDPAD },
+  market: { address: d.marketHook, abi: abi.PadMarketHook },
+  controller: { address: d.marketController, abi: abi.MarketController },
+  swapper: { address: s.swapRouter, abi: abi.PoolSwapTest },
   imd: { address: s.imd, abi: abi.TestToken },
   usdg: { address: s.usdg, abi: abi.TestToken },
 };
@@ -189,6 +192,20 @@ async function launch(bot) {
 }
 
 const launchedAt = new Map();
+/// Trade $PONDPAD in its market (IMD is currency0): buy with IMD, or sell part of the bot's $PONDPAD.
+const MIN_SQRT = 4295128739n + 1n, MAX_SQRT = 1461446703485210103287273052203988822378723970342n - 1n;
+const NO_CLAIMS = { takeClaims: false, settleUsingBurn: false };
+async function marketTrade(bot) {
+  const key = await read(C.market, "poolKey");
+  const bal = await read(C.pondpad, "balanceOf", [bot.account.address]);
+  if (Math.random() < 0.6 || bal === 0n) {
+    await approveOnce(bot, C.imd, s.swapRouter);
+    return act(bot, "market buy", C.swapper, "swap", [key, { zeroForOne: true, amountSpecified: -IMD(5 + rnd(150)), sqrtPriceLimitX96: MIN_SQRT }, NO_CLAIMS, "0x"]);
+  }
+  await approveOnce(bot, C.pondpad, s.swapRouter);
+  return act(bot, "market sell", C.swapper, "swap", [key, { zeroForOne: false, amountSpecified: -frac(bal, 0.1, 0.4), sqrtPriceLimitX96: MAX_SQRT }, NO_CLAIMS, "0x"]);
+}
+
 async function step(bot, list) {
   // Mostly trade coins past their 60 s max-buy window; sometimes snipe a fresh one (tests snipe tax and max-buy).
   const now = Math.floor(Date.now() / 1000);
@@ -231,7 +248,8 @@ async function step(bot, list) {
         }
         return;
       }
-      return coin && buy(bot, coin, "imd", IMD(5 + rnd(20)));
+      if (status === GRADUATED) return marketTrade(bot);
+      return;
     }
     case "staker": {
       const bal = await read(C.pondpad, "balanceOf", [bot.account.address]);
@@ -241,7 +259,8 @@ async function step(bot, list) {
         return act(bot, "stake", C.vault, "deposit", [frac(bal, 0.5, 1), bot.account.address]);
       }
       if (shares > 0n && Math.random() < 0.3) return act(bot, "unstake", C.vault, "redeem", [frac(shares, 0.2, 0.6), bot.account.address, bot.account.address]);
-      // No $PONDPAD yet: buy some in the sale.
+      // No $PONDPAD yet: buy some in the sale, or in the market after the Leap.
+      if (Number(await read(C.sale, "status")) === GRADUATED) return marketTrade(bot);
       if (Number(await read(C.sale, "status")) === TRADING) {
         await approveOnce(bot, C.imd, d.sale);
         const out = await act(bot, "sale buy", C.sale, "buyWith", [s.imd, IMD(50 + rnd(100)), 0n, deadline(), zeroAddress]);
@@ -254,14 +273,21 @@ async function step(bot, list) {
 
 // ------------------------------------------------------------------ invariants (THREAT-MODEL §2), from onchain state
 let lastSharePrice = 0n;
+let openedAt = 0n;
 function violation(id, detail) {
   stats.violations++;
   log({ kind: "INVARIANT-VIOLATION", id, detail });
   console.log(`  XX ${id}: ${detail}`);
 }
 
-async function checkInvariants(list) {
+async function checkInvariants() {
   const SUPPLY = 10n ** 27n;
+  // All reads at one block (coin list included): a consistent snapshot even if anyone trades meanwhile.
+  const blockNumber = (await client.getBlockNumber()) - 1n;
+  const read = (c, functionName, args = []) => client.readContract({ ...c, functionName, args, blockNumber });
+  const n = Number(await read(C.curve, "coinCount"));
+  const list = [];
+  for (let i = Math.max(0, n - 30); i < n; i++) list.push(await read(C.curve, "coinAt", [BigInt(i)]));
   // I1: the curve holds at least the IMD raised by every coin still trading; I-supply: coins never inflate.
   let owed = 0n;
   for (const coin of list) {
@@ -281,7 +307,7 @@ async function checkInvariants(list) {
     const b = await read(tok, "balanceOf", [d.router]);
     if (b !== 0n) violation("I9", `router holds ${b} ${name}`);
   }
-  const routerEth = await client.getBalance({ address: d.router });
+  const routerEth = await client.getBalance({ address: d.router, blockNumber });
   if (routerEth !== 0n) violation("I9", `router holds ${routerEth} wei`);
   // I10: the sale is solvent while trading, never sells past its curve, and caps every bot at 15M.
   const saleStatus = Number(await read(C.sale, "status"));
@@ -296,11 +322,15 @@ async function checkInvariants(list) {
   // I22: the deployer (setup wallet) holds no $PONDPAD from the deploy; $PONDPAD supply only falls (burns).
   const pp = await read(C.pondpad, "totalSupply");
   if (pp > SUPPLY) violation("I22", `$PONDPAD supply ${pp}`);
+  // I11: the market opens once and its open time never changes.
+  const opened = await read(C.controller, "openedAt");
+  if (openedAt !== 0n && opened !== openedAt) violation("I11", `openedAt moved ${openedAt} -> ${opened}`);
+  if (opened !== 0n) openedAt = opened;
   // I13: sPONDPAD's value per share never falls.
   const price = await read(C.vault, "convertToAssets", [10n ** 18n]);
   if (price < lastSharePrice) violation("I13", `share price fell ${lastSharePrice} -> ${price}`);
   lastSharePrice = price;
-  log({ kind: "invariants", coins: list.length, curveImd, owed, saleStatus, sharePrice: price });
+  log({ kind: "invariants", block: blockNumber, coins: list.length, curveImd, owed, saleStatus, sharePrice: price, openedAt: opened });
 }
 
 // ------------------------------------------------------------------ main
@@ -319,7 +349,7 @@ if (cmd === "fund") {
         console.log(`  !! bot ${b.i}: ${errorName(e)}`);
       }
     }
-    await checkInvariants(await coins());
+    await checkInvariants();
     const grads = [];
     for (const c of await coins()) if (Number(await read(C.curve, "statusOf", [c])) === GRADUATED) grads.push(c);
     console.log(`round ${r}: ${JSON.stringify(stats)}; coins ${(await coins()).length}, graduated ${grads.length}, sale status ${await read(C.sale, "status")}, curve IMD ${formatEther(await read(C.imd, "balanceOf", [d.curve]))}`);
