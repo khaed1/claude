@@ -304,6 +304,34 @@ async function step(bot, list) {
   }
 }
 
+// ------------------------------------------------------------------ sale crowd
+// The sale caps every wallet at 15M $PONDPAD (D-35), so filling 600M takes at least 40 buyers. A crowd of small
+// wallets (derived like the bots) buys in the sale each round until each reaches its cap.
+const CROWD = Number(process.env.CROWD ?? 80);
+const crowd = Array.from({ length: CROWD }, (_, i) => {
+  const account = derive(`crowd-${i}`);
+  return { i: `crowd-${i}`, account, wallet: walletOf(account), profile: "crowd", held: new Set(), saleBought: 0n, done: false };
+});
+let crowdNext = 0;
+async function crowdStep(perRound = 10) {
+  if (!(await saleOpen())) return;
+  for (let k = 0; k < perRound; k++) {
+    const b = crowd[crowdNext++ % CROWD];
+    if (b.done) continue;
+    if ((await read(C.sale, "remainingAllowance", [b.account.address])) === 0n) { b.done = true; continue; }
+    const eth = await client.getBalance({ address: b.account.address });
+    if (eth < parseEther("0.001")) {
+      const hash = await MASTER.wallet.sendTransaction({ to: b.account.address, value: parseEther("0.003") });
+      await client.waitForTransactionReceipt({ hash });
+    }
+    const amount = IMD(100 + rnd(200));
+    if ((await read(C.imd, "balanceOf", [b.account.address])) < amount) await act(MASTER, "refill crowd", C.imd, "mint", [b.account.address, IMD(1_000)]);
+    await approveOnce(b, C.imd, d.sale);
+    const out = await act(b, "sale buy crowd", C.sale, "buyWith", [s.imd, amount, 0n, deadline(), zeroAddress]);
+    if (out) b.saleBought += out;
+  }
+}
+
 // ------------------------------------------------------------------ invariants (THREAT-MODEL §2), from onchain state
 let lastSharePrice = 0n;
 let openedAt = 0n;
@@ -351,7 +379,7 @@ async function checkInvariants() {
     const sold = await read(C.sale, "sold");
     if (sold > 600_000_000n * 10n ** 18n) violation("I10", `sale sold ${sold}`);
   }
-  for (const b of bots) if (b.saleBought > 15_000_000n * 10n ** 18n) violation("I10-cap", `bot ${b.i} bought ${b.saleBought}`);
+  for (const b of [...bots, ...crowd]) if (b.saleBought > 15_000_000n * 10n ** 18n) violation("I10-cap", `${b.i} bought ${b.saleBought}`);
   // I22: the deployer (setup wallet) holds no $PONDPAD from the deploy; $PONDPAD supply only falls (burns).
   const pp = await read(C.pondpad, "totalSupply");
   if (pp > SUPPLY) violation("I22", `$PONDPAD supply ${pp}`);
@@ -393,6 +421,13 @@ if (cmd === "fund") {
         log({ kind: "BOT-ERROR", bot: b.i, error: errorName(e) });
         console.log(`  !! bot ${b.i}: ${errorName(e)}`);
       }
+    }
+    try {
+      await crowdStep();
+    } catch (e) {
+      stats.unexpected++;
+      log({ kind: "BOT-ERROR", bot: "crowd", error: errorName(e) });
+      console.log(`  !! crowd: ${errorName(e)}`);
     }
     await checkInvariants();
     const grads = [];

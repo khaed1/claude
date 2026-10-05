@@ -95,6 +95,12 @@ const health = [
   ["Bots: invariant violations", violations.length === 0, `${violations.length} in ${checks} checks`],
 ];
 
+// POOL4 mechanics (pool4.mjs): the latest run, if any.
+const { readdirSync } = await import("node:fs");
+const pool4File = existsSync(here("runs")) ? readdirSync(here("runs")).filter((f) => f.startsWith("pool4-")).sort().at(-1) : undefined;
+const pool4 = pool4File ? JSON.parse(readFileSync(here(`runs/${pool4File}`), "utf8")) : undefined;
+if (pool4) health.push(["POOL4 mechanics (market)", pool4.results.every((x) => x.ok), `${pool4.results.filter((x) => x.ok).length}/${pool4.results.length} checks`]);
+
 const out = [];
 const p = (x = "") => out.push(x);
 p(`# PondPad testnet report`);
@@ -135,6 +141,16 @@ p();
 p(`## ETH`);
 p();
 p(`Testnet wallet ${E(masterEth, 4)} ETH; bots ${E(botEth, 4)} ETH in total.`);
+if (pool4) {
+  p();
+  p(`## POOL4 mechanics ($PONDPAD market, ${pool4.at})`);
+  p();
+  p(`${pool4.results.filter((x) => x.ok).length} of ${pool4.results.length} checks passed (tester ${pool4.tester}).`);
+  p();
+  p(`| # | Mechanism | Result | Detail |`);
+  p(`|---|---|---|---|`);
+  for (const x of pool4.results) p(`| ${x.id} | ${x.name} | ${x.ok ? "OK" : "**FAIL**"} | ${x.detail} |`);
+}
 if (unexpected.length || violations.length) {
   p();
   p(`## Problems`);
