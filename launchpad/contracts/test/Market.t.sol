@@ -103,7 +103,7 @@ abstract contract MarketBase is Base {
             imd.mint(buyer, 100e18);
             vm.startPrank(buyer);
             imd.approve(address(sale), type(uint256).max);
-            sale.buyWith(address(imd), 100e18, 0, block.timestamp, address(0));
+            sale.buyWith(address(imd), 100e18, 0, 0, block.timestamp, address(0));
             vm.stopPrank();
         }
     }
@@ -516,5 +516,73 @@ contract MarketTest is MarketBase {
             assertLe(market.tokensInPool(), market.inventoryCap() + market.minTrimTokens());
             assertGe(market.inventoryCap(), market.capFloor());
         }
+    }
+
+    /// @dev Audit R2-A2-1: IMD that an owner `closeBackstop` returns to the retained balance earns no keeper tip, so
+    ///      the 48 h owner can't pay the backstop out to itself with closeBackstop + rebalance in a loop, even with
+    ///      the largest tip and lowest threshold its powers allow.
+    function test_market_ownerBackstopCloseEarnsNoTip() public {
+        _graduate();
+        _swap(false, 40_000_000e18); // trims: retained IMD
+        _nextBlock();
+        market.rebalance(); // real work by a keeper
+        uint256 held = market.retainedQuote() + market.backstopQuotePrincipal();
+        assertGt(held, 100e18);
+        vm.startPrank(timelock);
+        controller.setRebalance(true, 40e18 + 1);
+        controller.setKeeperReward(40e18);
+        uint256 before = imd.balanceOf(timelock);
+        for (uint256 i; i < 10; i++) {
+            controller.closeBackstop();
+            market.rebalance();
+        }
+        vm.stopPrank();
+        assertEq(imd.balanceOf(timelock), before, "no tip for IMD an owner close returned");
+        assertApproxEqRel(market.retainedQuote() + market.backstopQuotePrincipal(), held, 1e12, "backstop kept");
+    }
+
+    /// @dev Audits R2-A2-1 (migration instance) and R2-A2-5: IMD seeded into the new market earns no keeper tip, and
+    ///      the closed hook keeps no allowance on the controller.
+    function test_market_migrationSeedEarnsNoTipAndOldHookLosesAllowances() public {
+        _graduate();
+        _swap(false, 40_000_000e18);
+        _nextBlock();
+        market.rebalance();
+        PadMarketHook next = _newHook(0x8888, address(controller), address(burner));
+        _approveAndMigrate(address(next));
+        assertEq(imd.allowance(address(controller), address(market)), 0, "old hook: no IMD allowance");
+        assertEq(pondpad.allowance(address(controller), address(market)), 0, "old hook: no $PONDPAD allowance");
+        assertGe(next.retainedQuote(), next.rebalanceQuoteThreshold(), "backstop IMD seeded");
+        uint256 before = imd.balanceOf(migrator);
+        vm.prank(migrator);
+        next.rebalance();
+        assertEq(imd.balanceOf(migrator), before, "seeded IMD earns no tip");
+        (,, uint128 band) = next.backstop();
+        assertGt(band, 0, "the seed is deployed as the new backstop");
+    }
+
+    /// @dev Audit R2-A2-7: a closed market hook can never be opened again (the fee clock and guards would restart).
+    function test_market_closedHookNeverReopens() public {
+        PadMarketHook h = _newHook(0x9999, address(this), address(burner));
+        uint160 p = sale.openingSqrtPriceX96(SALE_TARGET);
+        h.initializePool(p);
+        imd.mint(address(this), 10_000e18);
+        imd.approve(address(h), type(uint256).max);
+        pondpad.approve(address(h), type(uint256).max);
+        uint128 liquidity = controller.fullRangeLiquidity(p, 1_000e18, 10_000_000e18, 200);
+        h.openMarket(liquidity, 10_000_000e18, 1_000e18, CAP_FLOOR, CAP_DECAY);
+        h.closeMarket(address(this));
+        assertFalse(h.marketOpen());
+        vm.expectRevert(PadMarketHook.AlreadyOpen.selector);
+        h.openMarket(liquidity, 10_000_000e18, 1_000e18, CAP_FLOOR, CAP_DECAY);
+    }
+
+    /// @dev Audit R1-A2-5: the sink admin (7-day timelock) is fixed; it can't hand the sink and migration-approval
+    ///      powers to an undelayed address.
+    function test_market_sinkAdminIsFixed() public {
+        vm.prank(slowTimelock);
+        (bool ok,) = address(controller).call(abi.encodeWithSignature("setSinkAdmin(address)", address(this)));
+        assertFalse(ok, "no setSinkAdmin");
+        assertEq(controller.sinkAdmin(), slowTimelock);
     }
 }

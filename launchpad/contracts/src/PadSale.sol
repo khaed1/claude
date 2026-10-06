@@ -136,17 +136,22 @@ contract PadSale is PaymentSwapper, ReentrancyGuard {
 
     /// @notice Buys $PONDPAD paying `amountIn` of `tokenIn` (IMD, ETH or another payment token). If the buy
     ///         completes the curve, the unused part is refunded in IMD and the market opens in the same call.
+    /// @param minImd Minimum IMD the payment must convert to (0 for IMD payments). The completing buy gets the same
+    ///        tokens whatever IMD arrives and refunds the rest, so `minTokensOut` alone can't bound the payment swap
+    ///        there (audit R2-A2-2: a sandwich took the unused payment).
     /// @param referrer Registered integrator that routed the trade (earns its share of the fee), or address(0).
-    function buyWith(address tokenIn, uint256 amountIn, uint256 minTokensOut, uint256 deadline, address referrer)
-        external
-        payable
-        nonReentrant
-        checkDeadline(deadline)
-        returns (uint256 out)
-    {
+    function buyWith(
+        address tokenIn,
+        uint256 amountIn,
+        uint256 minImd,
+        uint256 minTokensOut,
+        uint256 deadline,
+        address referrer
+    ) external payable nonReentrant checkDeadline(deadline) returns (uint256 out) {
         if (status != Status.Trading) revert NotTrading();
         if (block.timestamp < startTime) revert NotStarted();
         uint256 imdIn = _collectImd(tokenIn, amountIn, address(this), referrer);
+        if (imdIn < minImd) revert Slippage();
         out = _buy(imdIn, minTokensOut, msg.sender, referrer);
     }
 
@@ -260,7 +265,11 @@ contract PadSale is PaymentSwapper, ReentrancyGuard {
         raised = 0;
         uint160 sqrtPriceX96 = openingSqrtPriceX96(poolImd);
         imd.safeTransfer(address(market), poolImd);
-        token.safeTransfer(address(market), POOL_SUPPLY);
+        // Anything sent here outside buyWith / fund (audit R2-A2-4) goes to the market too, which sends leftover
+        // IMD to the fee splitter and burns leftover $PONDPAD, as it does with its own dust (R1-A2-1).
+        uint256 imdLeft = imd.balanceOf(address(this));
+        if (imdLeft != 0) imd.safeTransfer(address(market), imdLeft);
+        token.safeTransfer(address(market), token.balanceOf(address(this)));
         market.launch(sqrtPriceX96, poolImd, POOL_SUPPLY);
         emit Graduated(poolImd, POOL_SUPPLY, sqrtPriceX96);
     }
@@ -297,14 +306,23 @@ contract PadSale is PaymentSwapper, ReentrancyGuard {
         return uint160(sqrtPrice);
     }
 
-    /// @notice Tokens out, fee and snipe tax for a buy of `grossIn` IMD right now (before the wallet cap).
+    /// @notice Tokens out, fee and snipe tax for a buy of `grossIn` IMD right now (before the wallet cap). For a buy
+    ///         that completes the curve, fee and snipe tax are on the IMD it needs, as `buyWith` charges them; the
+    ///         rest is refunded (audit R2-A2-3, as R1-A1-4 for coin curves).
     function quoteBuy(uint256 grossIn) external view returns (uint256 out, uint256 fee, uint256 snipe) {
         if (status != Status.Trading) return (0, 0, 0);
-        fee = (grossIn * FEE_BPS) / BPS;
-        snipe = (grossIn * snipeTaxBps()) / BPS;
-        out = y - FixedPointMathLib.divUp(k, x + grossIn - fee - snipe);
+        uint256 snipeBps = snipeTaxBps();
+        uint256 gross = grossIn;
+        out = y - FixedPointMathLib.divUp(k, x + gross - (gross * FEE_BPS) / BPS - (gross * snipeBps) / BPS);
         uint256 remaining = CURVE_SUPPLY - sold;
-        if (out > remaining) out = remaining;
+        if (out >= remaining) {
+            out = remaining;
+            uint256 netNeeded = FixedPointMathLib.divUp(k, y - remaining) - x;
+            uint256 grossNeeded = FixedPointMathLib.divUp(netNeeded * BPS, BPS - FEE_BPS - snipeBps);
+            if (grossNeeded < gross) gross = grossNeeded;
+        }
+        fee = (gross * FEE_BPS) / BPS;
+        snipe = (gross * snipeBps) / BPS;
     }
 
     /// @notice IMD out and fee for selling `tokensIn` right now.

@@ -274,6 +274,58 @@ rep('''    5. `seedRetainedQuote` and `inheritFeeSchedule`: let MarketController
        the fee clock, the backstop placement floor, the reference tick and the cap into a new market when it
        migrates (D-40, audit R1-A2-2/3).''')
 
+# ---------- 15. audit round 2 (R2-A2-1, R2-A2-6, R2-A2-7)
+# R2-A2-1: IMD that reaches retainedQuote without a trade (an owner closeBackstop, a migration seed) earns no keeper
+# tip, so closeBackstop + rebalance in a loop can no longer pay the backstop out as tips.
+rep('''    uint256 public retainedQuote;
+''', '''    uint256 public retainedQuote;
+    /// @notice PondPad (audit R2-A2-1): the part of `retainedQuote` that came back without a trade (an owner
+    /// `closeBackstop`, a migration's `seedRetainedQuote`). Nobody paid a fee on it, so deploying it earns no
+    /// keeper tip; otherwise `closeBackstop` + `rebalance` in a loop would pay the backstop out as tips.
+    uint256 public untippedQuote;
+''')
+rep('''        uint256 tip = _keeperRewardDue(idleReady ? idle : 0, converted);
+        if (_rebalanceGuarded(tip) && tip != 0) _payKeeper(msg.sender, tip);
+    }''', '''        // PondPad (audit R2-A2-1): only idle IMD that came from trims qualifies for the tip.
+        uint256 tippable = idle > untippedQuote ? idle - untippedQuote : 0;
+        uint256 tip = _keeperRewardDue(idleReady ? tippable : 0, converted);
+        if (_rebalanceGuarded(tip) && tip != 0) _payKeeper(msg.sender, tip);
+        if (untippedQuote > retainedQuote) untippedQuote = retainedQuote; // what was deployed is no longer idle
+    }''')
+rep('''    /// the gate is only re-armed by fresh trims (or an owner `closeBackstop`, which is real work).''',
+    '''    /// the gate is only re-armed by fresh trims (or an owner `closeBackstop`, which is real work but earns no
+    /// tip: PondPad, audit R2-A2-1).''')
+rep('''    function closeBackstop() external onlyOwner {
+        if (backstop.liquidity == 0) return;
+        _unlock(abi.encode(ACTION_CLOSE_BACKSTOP, bytes("")));
+    }''', '''    function closeBackstop() external onlyOwner {
+        if (backstop.liquidity == 0) return;
+        uint256 before = retainedQuote;
+        _unlock(abi.encode(ACTION_CLOSE_BACKSTOP, bytes("")));
+        if (retainedQuote > before) untippedQuote += retainedQuote - before; // PondPad (audit R2-A2-1)
+    }''')
+rep('''        retainedQuote += amount;
+        emit RetainedQuoteSeeded(amount);''', '''        retainedQuote += amount;
+        untippedQuote += amount; // PondPad (audit R2-A2-1): no trade paid a fee on it
+        emit RetainedQuoteSeeded(amount);''')
+# R2-A2-7: a closed market stays closed (openMarket once per hook; migration targets are fresh hooks).
+rep('''        if (marketOpen) revert AlreadyOpen();
+        if (liquidity == 0) revert InvalidLiquidity();''', '''        if (marketOpen || marketOpenedAt != 0) revert AlreadyOpen(); // PondPad (R2-A2-7): never reopened
+        if (liquidity == 0) revert InvalidLiquidity();''')
+# R2-A2-6: two upstream comments that the fork made false.
+rep('''    /// @dev The IMD leg of `_redeemClaims`, standalone. `take` to `address(this)` (via the PM-only
+    /// `receive()`) can never be blocked by a token, so this always succeeds — it is the escape hatch's
+    /// guarantee that a blacklisting/reverting token cannot strand retained IMD. Must run inside unlock.''',
+    '''    /// @dev The IMD leg of `_redeemClaims`, standalone. PondPad (audit R2-A2-6): upstream took native ETH through
+    /// a PoolManager-only `receive()`, which no token could block. Here the quote is IMD, an ERC-20: this succeeds
+    /// as long as IMD (a LayerZero OFT, trusted in the threat model) never refuses a transfer to the hook. It still
+    /// separates the IMD leg from the $PONDPAD leg, so a $PONDPAD settle failure can't strand retained IMD.
+    /// Must run inside unlock.''')
+rep('''    // The pool's 1% LP fee is the protocol's revenue.''', '''    // PondPad (audit R2-A2-6): the pool's LP fee (3% at open, falling to 1% over 7 days, D-34) is the protocol's revenue.''')
+rep('''       migrates (D-40, audit R1-A2-2/3).''', '''       migrates (D-40, audit R1-A2-2/3).
+    6. Audit round 2: an owner `closeBackstop` or a migration seed earns no keeper tip (`untippedQuote`, R2-A2-1); a
+       closed market can never be reopened (R2-A2-7); two upstream comments corrected (R2-A2-6).''')
+
 code = '\n'.join(l.split('//')[0] for l in s.splitlines())
 for bad in ['msg.value', 'settle{value', 'safeTransferETH', 'lpFee', ' ether', 'external payable']:
     assert bad not in code, (bad, [l for l in s.splitlines() if bad in l.split('//')[0]])

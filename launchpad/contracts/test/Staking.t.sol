@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import {Ownable} from "solady/auth/Ownable.sol";
 import {ERC4626} from "solady/tokens/ERC4626.sol";
+import {ERC20} from "solady/tokens/ERC20.sol";
 import {MarketBase} from "./Market.t.sol";
 import {MockIMD} from "./Base.t.sol";
 import {StakedPONDPAD} from "../src/StakedPONDPAD.sol";
@@ -154,6 +155,9 @@ contract StakingTest is MarketBase {
         rewards.drip();
 
         _stake(1_000_000e18);
+        // The hour before anyone staked is forfeited, not banked (audit R2-A3-3): the stream starts now.
+        assertFalse(rewards.canDrip());
+        vm.warp(t0 + 2 hours);
         uint256 assetsBefore = sVault.totalAssets();
         vm.prank(keeper);
         (uint256 toVault, uint256 tip) = rewards.drip();
@@ -220,6 +224,8 @@ contract StakingTest is MarketBase {
         vm.expectRevert(RewardDripper.VaultEmpty.selector);
         rewards.drip();
         _stake(1e18); // one whole $PONDPAD: real stake
+        assertFalse(rewards.canDrip(), "the day before the stake is not banked (R2-A3-3)");
+        vm.warp(START + 30 minutes + 2 days);
         assertTrue(rewards.canDrip());
         rewards.drip();
         _nextBlock();
@@ -238,8 +244,8 @@ contract StakingTest is MarketBase {
         rewards.setMaxCatchup(8 days);
         vm.expectRevert(RewardDripper.CannotRescueRewards.selector);
         rewards.rescueERC20(address(pondpad), timelock, 1);
-        rewards.setSmoothingPeriod(3 days);
-        assertEq(rewards.smoothingPeriod(), 3 days);
+        rewards.setSmoothingPeriod(14 days);
+        assertEq(rewards.smoothingPeriod(), 14 days);
         vm.stopPrank();
         assertEq(rewards.vault(), address(sVault));
 
@@ -247,6 +253,81 @@ contract StakingTest is MarketBase {
         vm.prank(timelock);
         vm.expectRevert(RewardDripper.PowersExpired.selector);
         rewards.setSmoothingPeriod(7 days);
+    }
+
+    /// @dev Audit R2-A3-1: dust sent to the empty vault must not move the share price, so a real stake still opens
+    ///      the reward stream (the dripper's gate used to become unreachable for ever).
+    function test_vault_dustDonationCannotFreezeRewards() public {
+        address griefer = makeAddr("griefer");
+        pondpad.transfer(griefer, 1e18);
+        vm.prank(griefer);
+        pondpad.transfer(address(sVault), 1e12); // one millionth of a $PONDPAD into the empty vault
+        pondpad.transfer(address(rewards), 1_000_000e18);
+        uint256 shares = _stake(1_000_000e18);
+        assertEq(shares, 1_000_000e18 * 1e6, "the dust did not change the starting price");
+        vm.warp(START + 30 minutes + 1 days);
+        _nextBlock();
+        assertTrue(rewards.canDrip(), "a real stake opens the stream");
+        (uint256 toVault, uint256 tip) = rewards.drip();
+        assertEq(toVault + tip, uint256(1_000_000e18) / 7);
+        assertGt(sVault.convertToAssets(shares), 1_000_000e18 + toVault - 1e18);
+    }
+
+    /// @dev Audit R2-A3-3: time without stakers is forfeited, so a 1-$PONDPAD first staker can't drip a banked
+    ///      catch-up window (1/7 of the buffer) to itself.
+    function test_dripper_firstStakerGetsNoBankedWindow() public {
+        pondpad.transfer(address(rewards), 7_000_000e18);
+        vm.warp(START + 30 minutes + 10 days); // nobody staked for 10 days
+        _stake(1e18);
+        assertEq(rewards.drippable(), 0, "nothing banked for the first staker");
+        vm.expectRevert(RewardDripper.BelowMinDrip.selector);
+        rewards.drip();
+        vm.warp(START + 30 minutes + 10 days + 1 hours);
+        (uint256 toVault, uint256 tip) = rewards.drip();
+        assertEq(toVault + tip, uint256(7_000_000e18) * 1 hours / 7 days, "only the hour since the vault opened");
+    }
+
+    /// @dev Audits R2-A3-2, R2-A3-4, R1-A3-8: one drip releases at most 1/7 of the buffer (catch-up <= smoothing / 7),
+    ///      the min-drip floor fires at most hourly (catch-up >= 1 hour) and the floor itself is at most 100,000.
+    function test_dripper_catchupAndMinDripBounded() public {
+        bytes4 tooLow = bytes4(keccak256("CatchupTooLow()"));
+        bytes4 minTooHigh = bytes4(keccak256("MinDripTooHigh()"));
+        vm.startPrank(timelock);
+        vm.expectRevert(tooLow);
+        rewards.setMaxCatchup(1);
+        vm.expectRevert(tooLow);
+        rewards.setMaxCatchup(1 hours - 1);
+        rewards.setMaxCatchup(1 hours);
+        vm.expectRevert(RewardDripper.CatchupTooHigh.selector);
+        rewards.setMaxCatchup(1 days + 1); // above smoothing / 7
+        rewards.setMaxCatchup(1 days);
+        vm.expectRevert(RewardDripper.CatchupTooHigh.selector);
+        rewards.setSmoothingPeriod(1 days); // a 1-day catch-up would release the whole buffer in one drip
+        vm.expectRevert(minTooHigh);
+        rewards.setMinDripAmount(100_001e18);
+        rewards.setMinDripAmount(100_000e18);
+        vm.stopPrank();
+        vm.expectRevert(tooLow);
+        new RewardDripper(address(pondpad), address(sVault), timelock, 7 days, 59 minutes, 10e18, 1_000e18, expiry);
+        vm.expectRevert(RewardDripper.CatchupTooHigh.selector);
+        new RewardDripper(address(pondpad), address(sVault), timelock, 1 days, 1 days, 10e18, 1_000e18, expiry);
+        vm.expectRevert(minTooHigh);
+        new RewardDripper(address(pondpad), address(sVault), timelock, 7 days, 1 days, 10e18, 100_001e18, expiry);
+    }
+
+    /// @dev Audit R2-A3-5: an over-balance transfer reverts with Solady's InsufficientBalance(), not an underflow
+    ///      in the hold bookkeeping.
+    function test_vault_overBalanceTransferRevertsWithSoladyError() public {
+        uint256 shares = _stake(100e18);
+        _nextBlock();
+        vm.prank(staker);
+        vm.expectRevert(ERC20.InsufficientBalance.selector);
+        sVault.transfer(bob, shares + 1);
+        vm.prank(staker);
+        sVault.approve(bob, type(uint256).max);
+        vm.prank(bob);
+        vm.expectRevert(ERC20.InsufficientBalance.selector);
+        sVault.transferFrom(staker, bob, shares + 1);
     }
 
     // ------------------------------------------------------------------ Buyer

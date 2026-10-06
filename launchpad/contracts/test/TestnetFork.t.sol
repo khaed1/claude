@@ -138,7 +138,7 @@ contract TestnetForkTest is Test {
         vm.warp(saleStart - 55 minutes); // past the coin's snipe and max-buy windows
         vm.startPrank(usdgBuyer);
         s.usdg.approve(address(d.router), type(uint256).max);
-        assertGt(d.router.buyWith(coin, address(s.usdg), 20e6, 1, saleStart, address(0)), 0);
+        assertGt(d.router.buyWith(coin, address(s.usdg), 20e6, 0, 1, saleStart, address(0)), 0);
         vm.stopPrank();
 
         for (uint256 i; d.curve.statusOf(coin) == BondingCurve.Status.Trading; i++) {
@@ -146,13 +146,13 @@ contract TestnetForkTest is Test {
             _mintImd(b, 1_000e18);
             vm.startPrank(b);
             s.imd.approve(address(d.router), type(uint256).max);
-            d.router.buyWith(coin, address(s.imd), 1_000e18, 0, saleStart, address(0));
+            d.router.buyWith(coin, address(s.imd), 1_000e18, 0, 0, saleStart, address(0));
             vm.stopPrank();
         }
         assertEq(uint8(d.curve.statusOf(coin)), uint8(BondingCurve.Status.Graduated));
         // After the Leap the same router trades in the pool, paid in ETH.
         vm.prank(creator);
-        assertGt(d.router.buyWith{value: 0.001 ether}(coin, address(0), 0.001 ether, 1, saleStart, address(0)), 0);
+        assertGt(d.router.buyWith{value: 0.001 ether}(coin, address(0), 0.001 ether, 0, 1, saleStart, address(0)), 0);
 
         // The $PONDPAD sale opens at its start and graduates into the market.
         uint256 t = saleStart + 30 minutes;
@@ -162,7 +162,7 @@ contract TestnetForkTest is Test {
             _mintImd(b, 100e18);
             vm.startPrank(b);
             s.imd.approve(address(d.sale), type(uint256).max);
-            d.sale.buyWith(address(s.imd), 100e18, 0, t, address(0));
+            d.sale.buyWith(address(s.imd), 100e18, 0, 0, t, address(0));
             vm.stopPrank();
         }
         assertTrue(d.market.marketOpen());

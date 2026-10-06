@@ -250,7 +250,7 @@ abstract contract Base is Test {
 
     function _buy(address who, address coin, uint256 imdIn) internal returns (uint256 out) {
         vm.prank(who);
-        out = router.buyWith(coin, address(imd), imdIn, 0, block.timestamp, address(0));
+        out = router.buyWith(coin, address(imd), imdIn, 0, 0, block.timestamp, address(0));
     }
 
     function _sell(address who, address coin, uint256 tokensIn) internal returns (uint256 out) {
@@ -269,7 +269,7 @@ abstract contract Base is Test {
             imd.mint(buyer, 1_000e18);
             vm.startPrank(buyer);
             imd.approve(address(router), type(uint256).max);
-            router.buyWith(coin, address(imd), 1_000e18, 0, block.timestamp, address(0));
+            router.buyWith(coin, address(imd), 1_000e18, 0, 0, block.timestamp, address(0));
             vm.stopPrank();
         }
     }

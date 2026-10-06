@@ -43,7 +43,7 @@ contract UnlockWrapper {
 
     function unlockCallback(bytes calldata data) external returns (bytes memory) {
         (address coin, uint256 amount) = abi.decode(data, (address, uint256));
-        router.buyWith(coin, imd, amount, 0, block.timestamp, address(0));
+        router.buyWith(coin, imd, amount, 0, 0, block.timestamp, address(0));
         return "";
     }
 }
@@ -96,7 +96,7 @@ contract PondPadTest is Base {
         vm.warp(t0 + 30); // snipe tax over, max-buy window still on
         vm.prank(alice);
         vm.expectRevert(BondingCurve.MaxBuyExceeded.selector);
-        router.buyWith(coin, address(imd), 200e18, 0, block.timestamp, address(0));
+        router.buyWith(coin, address(imd), 200e18, 0, 0, block.timestamp, address(0));
 
         vm.warp(t0 + 61);
         _buy(alice, coin, 200e18);
@@ -105,10 +105,12 @@ contract PondPadTest is Base {
     function test_buy_splitsFees() public {
         address coin = _launch(_holderTax(50), 0);
         vm.warp(block.timestamp + 1 hours);
+        _buy(bob, coin, 10e18); // a first holder (the first buy's own holder tax goes to growth, audit R2-A1-3)
         uint256 splitterBefore = imd.balanceOf(address(splitter));
+        uint256 vaultBefore = vault.balanceOf(coin);
         _buy(alice, coin, 100e18);
         assertEq(imd.balanceOf(address(splitter)) - splitterBefore, 1e18, "protocol 1%");
-        assertEq(vault.balanceOf(coin), 0.5e18, "creator 0.5%");
+        assertEq(vault.balanceOf(coin) - vaultBefore, 0.5e18, "creator 0.5%");
         assertEq(imd.balanceOf(coin), 0.5e18, "holders 0.5%");
     }
 
@@ -367,7 +369,7 @@ contract PondPadTest is Base {
         vm.warp(block.timestamp + 1 hours);
         uint256 ethBefore = alice.balance;
         vm.prank(alice);
-        uint256 out = router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, 0, block.timestamp, address(0));
+        uint256 out = router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, 0, 0, block.timestamp, address(0));
         assertGt(out, 0);
         // ~0.2 ETH × 423 IMD, minus the 1% IMD/ETH pool fee and price impact, minus 1.5%.
         assertApproxEqRel(curve.coinInfo(coin).raised, 0.2e18 * 423 * 99 / 100 * 9850 / 10_000, 2e16);
@@ -387,7 +389,7 @@ contract PondPadTest is Base {
         _fillCurve(coin);
         uint256 splitterBefore = imd.balanceOf(address(splitter));
         vm.prank(alice);
-        uint256 out = router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, 0, block.timestamp, address(0));
+        uint256 out = router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, 0, 0, block.timestamp, address(0));
         assertGt(out, 0);
         assertGt(imd.balanceOf(address(splitter)), splitterBefore, "coin fee charged and flushed");
 
@@ -406,7 +408,7 @@ contract PondPadTest is Base {
         vm.warp(block.timestamp + 1 hours);
         vm.prank(alice);
         vm.expectRevert();
-        router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, type(uint256).max, block.timestamp, address(0));
+        router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, 0, type(uint256).max, block.timestamp, address(0));
     }
 
     // ------------------------------------------------------------------ USDG payments (two hops: USDG → ETH → IMD)
@@ -421,7 +423,7 @@ contract PondPadTest is Base {
         uint256 usdgBefore = usdg.balanceOf(alice);
         uint256 raisedBefore = curve.coinInfo(coin).raised;
         vm.prank(alice);
-        uint256 out = router.buyWith(coin, address(usdg), 500e6, 0, block.timestamp, address(0));
+        uint256 out = router.buyWith(coin, address(usdg), 500e6, 0, 0, block.timestamp, address(0));
         assertEq(usdgBefore - usdg.balanceOf(alice), 500e6);
         // 500 USDG ≈ 0.1875 ETH ≈ 79 IMD, minus pool fees and 1.5%.
         assertApproxEqRel(curve.coinInfo(coin).raised - raisedBefore, 79.3e18 * 99 / 100 * 9850 / 10_000, 3e16);
@@ -439,7 +441,7 @@ contract PondPadTest is Base {
         address coin = _launch(_noTax(), 0);
         _fillCurve(coin);
         vm.prank(alice);
-        uint256 out = router.buyWith(coin, address(usdg), 500e6, 0, block.timestamp, address(0));
+        uint256 out = router.buyWith(coin, address(usdg), 500e6, 0, 0, block.timestamp, address(0));
         assertGt(out, 0);
         vm.startPrank(alice);
         ERC20(coin).approve(address(router), out);
@@ -452,17 +454,17 @@ contract PondPadTest is Base {
         address coin = _launch(_noTax(), 0);
         vm.prank(alice);
         vm.expectRevert(PaymentSwapper.UnsupportedToken.selector);
-        router.buyWith(coin, address(0xdead), 1e18, 0, block.timestamp, address(0));
+        router.buyWith(coin, address(0xdead), 1e18, 0, 0, block.timestamp, address(0));
     }
 
     function test_ethAmountMustMatchValue() public {
         address coin = _launch(_noTax(), 0);
         vm.prank(alice);
         vm.expectRevert(PaymentSwapper.WrongEthAmount.selector);
-        router.buyWith{value: 0.1 ether}(coin, address(0), 0.2 ether, 0, block.timestamp, address(0));
+        router.buyWith{value: 0.1 ether}(coin, address(0), 0.2 ether, 0, 0, block.timestamp, address(0));
         vm.prank(alice);
         vm.expectRevert(PaymentSwapper.WrongEthAmount.selector);
-        router.buyWith{value: 0.1 ether}(coin, address(imd), 1e18, 0, block.timestamp, address(0));
+        router.buyWith{value: 0.1 ether}(coin, address(imd), 1e18, 0, 0, block.timestamp, address(0));
     }
 
     function test_paymentRoutes_validatedAndRemovable() public {
@@ -492,7 +494,7 @@ contract PondPadTest is Base {
 
         uint256 splitterBefore = imd.balanceOf(address(splitter));
         vm.prank(alice);
-        router.buyWith(coin, address(imd), 100e18, 0, block.timestamp, app);
+        router.buyWith(coin, address(imd), 100e18, 0, 0, block.timestamp, app);
         assertEq(integrators.balanceOf(app), 0.15e18, "15% of the 1% protocol fee");
         assertEq(imd.balanceOf(address(splitter)) - splitterBefore, 0.85e18, "splitter gets the rest");
         assertEq(vault.balanceOf(coin), 0.5e18, "creator untouched");
@@ -506,7 +508,7 @@ contract PondPadTest is Base {
         vm.warp(block.timestamp + 1 hours);
         uint256 splitterBefore = imd.balanceOf(address(splitter));
         vm.prank(alice);
-        router.buyWith(coin, address(imd), 100e18, 0, block.timestamp, makeAddr("stranger"));
+        router.buyWith(coin, address(imd), 100e18, 0, 0, block.timestamp, makeAddr("stranger"));
         assertEq(imd.balanceOf(address(splitter)) - splitterBefore, 1e18);
         assertEq(imd.balanceOf(address(integrators)), 0);
     }
@@ -519,7 +521,7 @@ contract PondPadTest is Base {
 
         uint256 splitterBefore = imd.balanceOf(address(splitter));
         vm.prank(alice);
-        router.buyWith(coin, address(imd), 100e18, 0, block.timestamp, app);
+        router.buyWith(coin, address(imd), 100e18, 0, 0, block.timestamp, app);
         assertEq(integrators.balanceOf(app), 0.15e18, "flushed to the vault after the pool trade");
         assertEq(imd.balanceOf(address(splitter)) - splitterBefore, 0.85e18);
         assertEq(hook.pendingIntegrator(app), 0);
@@ -594,5 +596,94 @@ contract PondPadTest is Base {
                 assertGe(uint256(c.x) * c.y, c.k, "x*y >= k");
             }
         }
+    }
+
+    /// @dev Audit R2-A2-2 (router side): a curve buy paid in ETH can bound what the payment swap delivers, because a
+    ///      buy that completes the curve gets the same tokens whatever IMD arrives and refunds the rest.
+    function test_router_minImdBoundsThePaymentSwap() public {
+        address coin = _launch(_noTax(), 0);
+        vm.warp(block.timestamp + 1 hours);
+        vm.prank(alice);
+        vm.expectRevert(PadRouter.Slippage.selector);
+        router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, 1_000e18, 0, block.timestamp, address(0));
+        vm.prank(alice);
+        uint256 out = router.buyWith{value: 0.2 ether}(coin, address(0), 0.2 ether, 80e18, 0, block.timestamp, address(0));
+        assertGt(out, 0);
+    }
+
+    /// @dev Audit R2-A1-3: the first buy of a holder-tax coin (here the creator's dev buy) can't get its own holder
+    ///      tax back: with nobody eligible yet it goes to the growth fund instead of waiting for the next trade.
+    function test_holderTax_firstBuyDoesNotPayItsOwnTaxBack() public {
+        uint256 growthBefore = imd.balanceOf(growth);
+        address coin = _launch(_holderTax(300), 1_000e18);
+        assertEq(imd.balanceOf(coin), 0, "nothing parked on the coin");
+        assertApproxEqAbs(imd.balanceOf(growth) - growthBefore, 30e18, 1e6, "the dev buy's holder tax went to growth");
+        vm.warp(block.timestamp + 1 hours);
+        _buy(alice, coin, 1e18);
+        vm.prank(creator);
+        uint256 got = PadToken(coin).claim();
+        assertLt(got, 0.1e18, "the creator earns only from the later buy");
+    }
+
+    /// @dev Audit R1-A1-10: exact-output swaps through an outside router, both directions and both currency orderings:
+    ///      the trader gets exactly what it asked for and the fee is charged on the IMD side.
+    function test_outsideRouter_exactOutputSwaps_imdFirst() public {
+        _exactOutputSwaps(true);
+    }
+
+    function test_outsideRouter_exactOutputSwaps_coinFirst() public {
+        _exactOutputSwaps(false);
+    }
+
+    function _exactOutputSwaps(bool imdFirst) internal {
+        address coin = _launchOrdered(_noTax(), imdFirst);
+        _fillCurve(coin);
+        PoolKey memory key = hook.poolKey(coin);
+        PoolSwapTest swapper = new PoolSwapTest(IPoolManager(address(pm)));
+        imd.mint(address(this), 1_000e18);
+        imd.approve(address(swapper), type(uint256).max);
+        ERC20(coin).approve(address(swapper), type(uint256).max);
+        PoolSwapTest.TestSettings memory settings = PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+
+        // Exact-output buy: exactly 1M tokens; 1.5% of what the buyer pays in total is the fee (1% protocol).
+        uint256 imdBefore = imd.balanceOf(address(this));
+        uint256 splitterBefore = imd.balanceOf(address(splitter));
+        swapper.swap(
+            key,
+            SwapParams({
+                zeroForOne: imdFirst,
+                amountSpecified: int256(1_000_000e18),
+                sqrtPriceLimitX96: imdFirst ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
+            }),
+            settings,
+            ""
+        );
+        assertEq(ERC20(coin).balanceOf(address(this)), 1_000_000e18, "exactly the tokens asked for");
+        uint256 paid = imdBefore - imd.balanceOf(address(this));
+        hook.flush(coin);
+        assertApproxEqRel(imd.balanceOf(address(splitter)) - splitterBefore, paid / 100, 1e15, "protocol 1% of what was paid");
+        assertEq(imd.balanceOf(address(hook)), 0);
+
+        // Exact-output sell: exactly 1 IMD out; the fee is 1.5% of the gross the pool pays out.
+        imdBefore = imd.balanceOf(address(this));
+        splitterBefore = imd.balanceOf(address(splitter));
+        uint256 tokensBefore = ERC20(coin).balanceOf(address(this));
+        swapper.swap(
+            key,
+            SwapParams({
+                zeroForOne: !imdFirst,
+                amountSpecified: int256(1e18),
+                sqrtPriceLimitX96: imdFirst ? TickMath.MAX_SQRT_PRICE - 1 : TickMath.MIN_SQRT_PRICE + 1
+            }),
+            settings,
+            ""
+        );
+        assertEq(imd.balanceOf(address(this)) - imdBefore, 1e18, "exactly the IMD asked for");
+        assertLt(ERC20(coin).balanceOf(address(this)), tokensBefore);
+        hook.flush(coin);
+        assertApproxEqRel(
+            imd.balanceOf(address(splitter)) - splitterBefore, uint256(1e18) * 100 / 9_850, 1e15, "protocol 1% of the gross"
+        );
+        assertEq(imd.balanceOf(address(hook)), 0);
     }
 }

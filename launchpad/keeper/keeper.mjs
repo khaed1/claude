@@ -66,6 +66,7 @@ const abi = {
   vault: parseAbi(["function claim(address) returns (uint256)", "function recipientOf(address) view returns (address)", "function balanceOf(address) view returns (uint256)", "function releaseToHolders(address) returns (uint256)", "function releasableToHolders(address) view returns (uint256)"]),
   budget: parseAbi(["function sweepToHolders(address) returns (uint256)", "function balanceOf(address) view returns (uint256)"]),
   vesting: parseAbi(["function release() returns (uint256)", "function releasable() view returns (uint256)"]),
+  reserve: parseAbi(["function release() returns (uint256)"]),
   airdrop: parseAbi(["function sweep() returns (uint256)", "function claimDeadline() view returns (uint256)"]),
 };
 
@@ -154,6 +155,8 @@ async function pass() {
       return i + t > 0n ? send("WorkerFund.release", a.workerFund, "workerFund", "release") : null;
     }],
     ["TeamVesting.release", DAY, async () => ((await read(a.teamVesting, "vesting", "releasable")) > 0n ? send("TeamVesting.release", a.teamVesting, "vesting", "release") : null)],
+    // The 30M liquidity reserve goes to the 48 h timelock once the market is open (D-79; older deployments have none).
+    ["LiquidityReserve.release", HOUR, async () => (a.liquidityReserve && marketOpen && (await erc20(a.pondpad, a.liquidityReserve)) > 0n ? send("LiquidityReserve.release", a.liquidityReserve, "reserve", "release") : null)],
     ["AirdropDistributor.sweep", DAY, async () => {
       const deadline = Number(await read(a.airdrop, "airdrop", "claimDeadline"));
       if (deadline === 0 || now < deadline || (await erc20(a.pondpad, a.airdrop)) === 0n) return null;

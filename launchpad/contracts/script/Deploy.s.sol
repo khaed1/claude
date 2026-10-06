@@ -35,6 +35,7 @@ import {CTOModule} from "../src/CTOModule.sol";
 import {VersionRegistry} from "../src/VersionRegistry.sol";
 import {AirdropDistributor} from "../src/AirdropDistributor.sol";
 import {TeamVesting} from "../src/TeamVesting.sol";
+import {LiquidityReserve} from "../src/LiquidityReserve.sol";
 
 /// @notice Deploys and wires all of PondPad v1 on Robinhood Chain in one run, then hands every owner power to the
 ///         timelocks (D-6, HANDOFF §5). Numbers come from DECISIONS.md; addresses and links from the environment.
@@ -43,7 +44,8 @@ import {TeamVesting} from "../src/TeamVesting.sol";
 ///
 /// Required env: SAFE (team Safe: timelock proposer, council, granter, guardian, treasury, team vesting),
 /// RELAY (Swarm Relay wallet), X_LINK_KEY (X link service key), TWEET_CHECKER (airdrop tweet checker key),
-/// AIRDROP_ROOT, SALE_START, CTO_RULES (ipfs://… link). Optional: WORKER_REWARDS (default: not set yet),
+/// AIRDROP_CLAIMS (claims.json from airdrop/snapshot.py build; test chains may give AIRDROP_ROOT instead), SALE_START,
+/// CTO_RULES (ipfs://… link). Optional: WORKER_REWARDS (default: not set yet),
 /// AUDIT_LINK (activates version 1 at deploy), POWERS_EXPIRE_AT (staking powers; default SALE_START + 365 days).
 ///
 /// On Robinhood Chain (4663) the chain addresses and the 48 h / 7-day delays are the constants below and cannot be
@@ -76,7 +78,7 @@ contract Deploy is Script {
     uint256 internal constant SALE_SUPPLY = 900_000_000e18; // 60% curve + 30% pool (D-17)
     uint256 internal constant AIRDROP = 50_000_000e18; // 5%
     uint256 internal constant TEAM = 20_000_000e18; // 2%
-    uint256 internal constant LIQUIDITY_RESERVE = 30_000_000e18; // 3%, held by the 48 h timelock for fundInventory
+    uint256 internal constant LIQUIDITY_RESERVE = 30_000_000e18; // 3%, LiquidityReserve → 48 h timelock once the market opens
 
     /// @dev Everything that differs between chains. Mainnet: `robinhood()`.
     struct Network {
@@ -135,6 +137,7 @@ contract Deploy is Script {
         PadBuyer buyer;
         AirdropDistributor airdrop;
         TeamVesting vesting;
+        LiquidityReserve reserve;
     }
 
     function run() external returns (Deployment memory d) {
@@ -146,7 +149,7 @@ contract Deploy is Script {
             xLinkKey: vm.envAddress("X_LINK_KEY"),
             tweetChecker: vm.envAddress("TWEET_CHECKER"),
             workerRewards: vm.envOr("WORKER_REWARDS", address(0)),
-            airdropRoot: vm.envBytes32("AIRDROP_ROOT"),
+            airdropRoot: _airdropRoot(),
             saleStart: vm.envUint("SALE_START"),
             powersExpireAt: 0,
             ctoRules: vm.envString("CTO_RULES"),
@@ -158,6 +161,28 @@ contract Deploy is Script {
         vm.stopBroadcast();
         _log(d);
         _write(d, p.chain);
+    }
+
+    /// @dev The airdrop root. With AIRDROP_CLAIMS (path to the claims.json that `airdrop/snapshot.py build` writes)
+    ///      the root comes from that file after its list total is checked against the 50M the distributor gets
+    ///      (audit R2-A3-7: nothing onchain ties the root to the balance). Required on mainnet; AIRDROP_ROOT, if
+    ///      also set, must match. Test chains may pass a placeholder AIRDROP_ROOT alone.
+    function _airdropRoot() internal view returns (bytes32 root) {
+        string memory path = vm.envOr("AIRDROP_CLAIMS", string(""));
+        if (bytes(path).length == 0) {
+            require(block.chainid != 4663, "AIRDROP_CLAIMS required on mainnet");
+            return vm.envBytes32("AIRDROP_ROOT");
+        }
+        root = airdropRootFromClaims(vm.readFile(path));
+        bytes32 given = vm.envOr("AIRDROP_ROOT", bytes32(0));
+        require(given == bytes32(0) || given == root, "AIRDROP_ROOT differs from the claims file");
+    }
+
+    /// @notice The root of a `snapshot.py build` claims.json, after checking its list total fits the airdrop.
+    function airdropRootFromClaims(string memory json) public pure returns (bytes32 root) {
+        root = vm.parseJsonBytes32(json, ".root");
+        uint256 total = vm.parseUint(vm.parseJsonString(json, ".total"));
+        require(total <= AIRDROP, "airdrop list exceeds 50M");
     }
 
     /// @notice Robinhood Chain mainnet (4663): the only chain values a mainnet run can use.
@@ -323,6 +348,8 @@ contract Deploy is Script {
         // 8. Airdrop and team vesting (D-53 to D-56).
         d.airdrop = new AirdropDistributor(fast, pondpad, p.airdropRoot, address(d.controller), address(d.dripper), p.tweetChecker);
         d.vesting = new TeamVesting(pondpad, address(d.controller), p.safe);
+        // The liquidity reserve waits for the market to open, then goes to the 48 h timelock (audit R1-A2-4).
+        d.reserve = new LiquidityReserve(pondpad, address(d.controller), fast);
 
         // 9. Final fee routing, then hand the deployer's powers to the timelocks.
         d.splitter.setRecipients(
@@ -341,7 +368,7 @@ contract Deploy is Script {
         d.sale.fund();
         d.pondpad.transfer(address(d.airdrop), AIRDROP);
         d.pondpad.transfer(address(d.vesting), TEAM);
-        d.pondpad.transfer(fast, LIQUIDITY_RESERVE);
+        d.pondpad.transfer(address(d.reserve), LIQUIDITY_RESERVE);
         require(d.pondpad.balanceOf(p.deployer) == 0, "supply left");
     }
 
@@ -442,6 +469,7 @@ contract Deploy is Script {
         vm.serializeAddress(k, "padBuyer", address(d.buyer));
         vm.serializeAddress(k, "airdrop", address(d.airdrop));
         vm.serializeAddress(k, "teamVesting", address(d.vesting));
+        vm.serializeAddress(k, "liquidityReserve", address(d.reserve));
         string memory json = vm.serializeUint(k, "chainId", block.chainid);
         vm.writeJson(json, string.concat("deployments/", vm.toString(block.chainid), ".json"));
     }
@@ -466,5 +494,6 @@ contract Deploy is Script {
         console2.log("PadBuyer             ", address(d.buyer));
         console2.log("AirdropDistributor   ", address(d.airdrop));
         console2.log("TeamVesting          ", address(d.vesting));
+        console2.log("LiquidityReserve     ", address(d.reserve));
     }
 }

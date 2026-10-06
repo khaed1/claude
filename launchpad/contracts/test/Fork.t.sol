@@ -128,14 +128,14 @@ contract ForkTest is Test {
         address buyer = makeAddr("saleBuyer");
         vm.deal(buyer, 1 ether);
         vm.prank(buyer);
-        uint256 out = sale.buyWith{value: 0.1 ether}(address(0), 0.1 ether, 1, block.timestamp, address(0));
+        uint256 out = sale.buyWith{value: 0.1 ether}(address(0), 0.1 ether, 0, 1, block.timestamp, address(0));
         assertGt(out, 0);
         console2.log("PONDPAD for 0.1 ETH:", out / 1e18);
 
         deal(USDG, buyer, 100e6);
         vm.startPrank(buyer);
         ERC20(USDG).approve(address(sale), type(uint256).max);
-        uint256 outUsdg = sale.buyWith(USDG, 100e6, 1, block.timestamp, address(0));
+        uint256 outUsdg = sale.buyWith(USDG, 100e6, 0, 1, block.timestamp, address(0));
         assertGt(outUsdg, 0);
 
         pondpad.approve(address(sale), type(uint256).max);
@@ -194,7 +194,7 @@ contract ForkTest is Test {
             deal(IMD, buyer, 100e18);
             vm.startPrank(buyer);
             ERC20(IMD).approve(address(sale), type(uint256).max);
-            sale.buyWith(IMD, 100e18, 0, block.timestamp, address(0));
+            sale.buyWith(IMD, 100e18, 0, 0, block.timestamp, address(0));
             vm.stopPrank();
         }
         assertTrue(market.marketOpen());
@@ -248,7 +248,7 @@ contract ForkTest is Test {
             address buyer = address(uint160(0xF0000 + i));
             vm.deal(buyer, 2 ether);
             vm.prank(buyer);
-            router.buyWith{value: 1 ether}(coin, address(0), 1 ether, 0, block.timestamp, address(0));
+            router.buyWith{value: 1 ether}(coin, address(0), 1 ether, 0, 0, block.timestamp, address(0));
             ethSpent += 1 ether;
         }
         console2.log("ETH spent by buyers to graduate one coin (incl. refund in IMD):", ethSpent);
@@ -258,7 +258,7 @@ contract ForkTest is Test {
         address alice = makeAddr("alice");
         vm.deal(alice, 1 ether);
         vm.prank(alice);
-        uint256 tokens = router.buyWith{value: 0.1 ether}(coin, address(0), 0.1 ether, 0, block.timestamp, address(0));
+        uint256 tokens = router.buyWith{value: 0.1 ether}(coin, address(0), 0.1 ether, 0, 0, block.timestamp, address(0));
         vm.startPrank(alice);
         ERC20(coin).approve(address(router), tokens);
         uint256 ethBack = router.sellFor(coin, address(0), tokens, 0, block.timestamp, address(0));
@@ -272,7 +272,7 @@ contract ForkTest is Test {
         deal(USDG, alice, 1_000e6);
         vm.startPrank(alice);
         ERC20(USDG).approve(address(router), type(uint256).max);
-        tokens = router.buyWith(coin, USDG, 300e6, 0, block.timestamp, address(0));
+        tokens = router.buyWith(coin, USDG, 300e6, 0, 0, block.timestamp, address(0));
         ERC20(coin).approve(address(router), tokens);
         uint256 usdgBack = router.sellFor(coin, USDG, tokens, 0, block.timestamp, address(0));
         vm.stopPrank();
@@ -290,7 +290,7 @@ contract ForkTest is Test {
         (address coin,) = router.launchWith(
             LaunchParams("Usdg Frog", "UFROG", "ipfs://x", address(0), CoinFees(0, 0, 0, 0), 0), USDG, 50e6, true, 0, 0, address(0));
         vm.warp(block.timestamp + 1 hours);
-        uint256 tokens = router.buyWith(coin, USDG, 200e6, 0, block.timestamp, address(0));
+        uint256 tokens = router.buyWith(coin, USDG, 200e6, 0, 0, block.timestamp, address(0));
         ERC20(coin).approve(address(router), tokens);
         uint256 usdgBack = router.sellFor(coin, USDG, tokens, 0, block.timestamp, address(0));
         vm.stopPrank();

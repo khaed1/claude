@@ -30,6 +30,7 @@ Addresses come from `../contracts/deployments/4663.json`, which `script/Deploy.s
 | `PadBurner.burn()` | hourly | the burner holds $PONDPAD |
 | `WorkerFund.release()` | weekly | the worker rewards address is set and the fund holds IMD or $PONDPAD |
 | `TeamVesting.release()` | daily | something is releasable (always pays the team Safe) |
+| `LiquidityReserve.release()` | hourly, once | the market is open and the reserve still holds $PONDPAD (sends all 30M to the 48 h timelock; D-79) |
 | `AirdropDistributor.sweep()` | daily | the claim window is over and tokens are left (to stakers) |
 | `BondingCurve.graduate(coin)` | 5 min | a coin's curve is full but not graduated |
 | `PadHook.flush(coin)` | hourly | a graduated coin has pending fees (trades through outside routers) |

@@ -33,3 +33,22 @@ contract DeployCreate2Test is Test {
         assertEq(PondPadToken(got).balanceOf(deployer), PondPadToken(got).totalSupply(), "supply is the deployer's");
     }
 }
+
+/// @dev Audit R2-A3-7: the deploy takes the airdrop root from the snapshot tool's claims.json only if the list's total
+///      fits the 50M the distributor is funded with.
+contract DeployAirdropListTest is Test {
+    bytes32 internal constant ROOT = 0x1111111111111111111111111111111111111111111111111111111111111111;
+
+    function _claims(string memory total) internal pure returns (string memory) {
+        return string.concat(
+            '{"root":"0x1111111111111111111111111111111111111111111111111111111111111111","total":"', total, '","claims":{}}'
+        );
+    }
+
+    function test_deploy_airdropListMustFitTheAirdrop() public {
+        Deploy d = new Deploy();
+        assertEq(d.airdropRootFromClaims(_claims("50000000000000000000000000")), ROOT);
+        vm.expectRevert(bytes("airdrop list exceeds 50M"));
+        d.airdropRootFromClaims(_claims("50000000000000000000000001"));
+    }
+}

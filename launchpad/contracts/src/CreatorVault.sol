@@ -9,6 +9,8 @@ import {TransientStateLibrary} from "v4-core/libraries/TransientStateLibrary.sol
 interface IHolderCoin {
     function distribute() external;
     function poolManager() external view returns (IPoolManager);
+    function eligibleSupply() external view returns (uint256);
+    function MIN_ELIGIBLE() external view returns (uint256);
 }
 
 interface IFeeFlusher {
@@ -59,6 +61,7 @@ contract CreatorVault is ReentrancyGuard {
     error AlreadyInitialized();
     error ZeroAddress();
     error UnknownCoin();
+    error PoolManagerUnlocked();
 
     constructor(address imd_) {
         imd = imd_;
@@ -128,24 +131,34 @@ contract CreatorVault is ReentrancyGuard {
         if (amount > st.remaining) amount = st.remaining;
     }
 
-    /// @dev Releases what is due, then adds `amount` and resets the rate so the whole remainder pays out over
-    ///      `HOLDER_STREAM_PERIOD` from now.
+    /// @dev Releases what is due, then adds `amount`. The rate becomes what pays the whole remainder over
+    ///      `HOLDER_STREAM_PERIOD` from now, but never drops while the stream runs: a top-up (even 1 wei) can't
+    ///      stretch a lump past ~7 days (audit R2-A4-3). Refused while an outside caller holds the PoolManager
+    ///      unlock: the release is skipped there, and moving the clock would erase the time it was owed (audit
+    ///      R2-A1-1 / R2-A4-2).
     function _fundHolders(address coin, uint256 amount, address from) internal {
+        if (IHolderCoin(coin).poolManager().isUnlocked()) revert PoolManagerUnlocked();
         _releaseToHolders(coin);
         HolderStream storage st = holderStreamOf[coin];
-        uint256 remaining = st.remaining + amount;
+        uint256 before = st.remaining;
+        uint256 remaining = before + amount;
+        uint256 rate = (remaining + HOLDER_STREAM_PERIOD - 1) / HOLDER_STREAM_PERIOD;
+        if (before != 0 && st.ratePerSecond > rate) rate = st.ratePerSecond;
         st.remaining = uint128(remaining);
-        st.ratePerSecond = uint128((remaining + HOLDER_STREAM_PERIOD - 1) / HOLDER_STREAM_PERIOD);
+        st.ratePerSecond = uint128(rate);
         st.lastReleaseAt = uint64(block.timestamp);
         emit HolderStreamFunded(coin, from, amount, remaining);
     }
 
     /// @dev Waits (releases nothing) while an outside caller holds the PoolManager unlock: the coin skips its
     ///      dividend accounting then, so released IMD would be credited later to whoever holds at that moment.
+    ///      Also waits while the coin has nobody eligible for dividends, so a release is never parked on the coin
+    ///      for its next buyer (audit R2-A1-3).
     function _releaseToHolders(address coin) internal returns (uint256 amount) {
         amount = releasableToHolders(coin);
         if (amount == 0) return 0;
         if (IHolderCoin(coin).poolManager().isUnlocked()) return 0;
+        if (IHolderCoin(coin).eligibleSupply() < IHolderCoin(coin).MIN_ELIGIBLE()) return 0;
         HolderStream storage st = holderStreamOf[coin];
         st.remaining -= uint128(amount);
         st.lastReleaseAt = uint64(block.timestamp);
@@ -171,6 +184,9 @@ contract CreatorVault is ReentrancyGuard {
     function ctoSetRecipient(address coin, address newRecipient) external nonReentrant {
         if (msg.sender != ctoModule || ctoModule == address(0)) revert Unauthorized();
         if (newRecipient == address(0)) revert ZeroAddress();
+        // Inside an outside caller's unlock the hook flush would do nothing, and fees pending in the hook would go
+        // to the new recipient (audit R2-A1-2 / R2-A4-1): refused there, so the executor can't pick that moment.
+        if (IHolderCoin(coin).poolManager().isUnlocked()) revert PoolManagerUnlocked();
         if (hook.code.length != 0) IFeeFlusher(hook).flush(coin); // credits this vault before the switch
         address current = recipientOf[coin];
         uint256 amount = balanceOf[coin];

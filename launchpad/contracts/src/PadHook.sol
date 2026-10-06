@@ -46,6 +46,8 @@ contract PadHook is IHooks, IUnlockCallback {
 
     int24 public constant TICK_SPACING = 200;
     uint256 internal constant BPS = 10_000;
+    /// @dev `PadToken.MIN_ELIGIBLE`: below it a coin can't distribute dividends (audit R2-A1-3).
+    uint256 internal constant MIN_ELIGIBLE_HOLDERS = 1e18;
     uint256 internal constant Q96 = 0x1000000000000000000000000;
     uint8 internal constant ACTION_SEED = 1;
     uint8 internal constant ACTION_FLUSH = 2;
@@ -188,7 +190,9 @@ contract PadHook is IHooks, IUnlockCallback {
         _pay(key.currency0, uint256(int256(-delta.amount0())));
         _pay(key.currency1, uint256(int256(-delta.amount1())));
 
-        // Rounding dust: leftover coin tokens are burned, leftover IMD goes to growth.
+        // Rounding dust: leftover coin tokens are burned, leftover IMD goes to growth. The hook's whole balance is
+        // swept, so the hook address is a sink: IMD or a coin's tokens sent to it by mistake go to growth or are
+        // burned at the next graduation (audit R2-A1-4, documented). The hook never holds IMD between calls.
         uint256 tokenDust = SafeTransferLib.balanceOf(coin, address(this));
         if (tokenDust != 0) PadToken(coin).burn(tokenDust);
         uint256 imdDust = SafeTransferLib.balanceOf(imd, address(this));
@@ -377,8 +381,14 @@ contract PadHook is IHooks, IUnlockCallback {
             IFeeSinkHook(swarmBudget).credit(coin, p.swarm);
         }
         if (p.holders != 0) {
-            imd.safeTransfer(coin, p.holders);
-            PadToken(coin).distribute();
+            // As on the curve (audit R2-A1-3): with nobody eligible, the holder tax goes to growth, not to the next
+            // buyer's own balance.
+            if (PadToken(coin).eligibleSupply() < MIN_ELIGIBLE_HOLDERS) {
+                imd.safeTransfer(config.growthFund(), p.holders);
+            } else {
+                imd.safeTransfer(coin, p.holders);
+                PadToken(coin).distribute();
+            }
         }
         emit FeesFlushed(coin, p.protocol, p.creator, p.holders, p.swarm);
     }

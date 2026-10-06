@@ -17,6 +17,7 @@ import {FeeSplitter} from "../src/FeeSplitter.sol";
 import {BondingCurve} from "../src/BondingCurve.sol";
 import {LaunchParams} from "../src/PadFactory.sol";
 import {CoinFees} from "../src/FeeLib.sol";
+import {LiquidityReserve} from "../src/LiquidityReserve.sol";
 import {AirdropDistributor} from "../src/AirdropDistributor.sol";
 
 /// @notice Full deployment rehearsal on live Robinhood Chain: runs `Deploy.deploy` exactly as the broadcast does,
@@ -114,11 +115,15 @@ contract DeployForkTest is Test {
         assertEq(uint160(address(d.hook)) & Hooks.ALL_HOOK_MASK, _padFlags());
         assertEq(uint160(address(d.market)) & Hooks.ALL_HOOK_MASK, _marketFlags());
 
-        // Supply: 90% sale, 5% airdrop, 2% team, 3% liquidity reserve with the 48 h timelock, none with the deployer.
+        // Supply: 90% sale, 5% airdrop, 2% team, 3% liquidity reserve (for the 48 h timelock once the market opens,
+        // audit R1-A2-4), none with the deployer.
         assertEq(d.pondpad.balanceOf(address(d.sale)), 900_000_000e18);
         assertEq(d.pondpad.balanceOf(address(d.airdrop)), 50_000_000e18);
         assertEq(d.pondpad.balanceOf(address(d.vesting)), 20_000_000e18);
-        assertEq(d.pondpad.balanceOf(fast), 30_000_000e18);
+        assertEq(d.pondpad.balanceOf(address(d.reserve)), 30_000_000e18);
+        assertEq(d.pondpad.balanceOf(fast), 0);
+        assertEq(d.reserve.beneficiary(), fast);
+        assertEq(address(d.reserve.market()), address(d.controller));
         assertEq(d.pondpad.balanceOf(address(script)), 0);
 
         // Version 1 registered and activated with the audit link.
@@ -189,9 +194,13 @@ contract DeployForkTest is Test {
         );
         assertEq(uint8(d.curve.statusOf(coin)), uint8(BondingCurve.Status.Trading));
 
+        // The liquidity reserve can't move while the sale runs (audit R1-A2-4).
+        vm.expectRevert(LiquidityReserve.MarketNotOpen.selector);
+        d.reserve.release();
+
         // The sale is closed until its start, then graduates into the market.
         vm.expectRevert();
-        d.sale.buyWith(IMD, 100e18, 0, block.timestamp, address(0));
+        d.sale.buyWith(IMD, 100e18, 0, 0, block.timestamp, address(0));
         uint256 t = saleStart + 30 minutes;
         vm.warp(t);
         for (uint256 i; d.sale.status() == PadSale.Status.Trading; i++) {
@@ -199,11 +208,13 @@ contract DeployForkTest is Test {
             deal(IMD, b, 100e18);
             vm.startPrank(b);
             ERC20(IMD).approve(address(d.sale), type(uint256).max);
-            d.sale.buyWith(IMD, 100e18, 0, t, address(0));
+            d.sale.buyWith(IMD, 100e18, 0, 0, t, address(0));
             vm.stopPrank();
         }
         assertTrue(d.market.marketOpen());
         assertEq(d.controller.openedAt(), t);
+        assertEq(d.reserve.release(), 30_000_000e18, "reserve to the 48 h timelock once the market is open");
+        assertEq(d.pondpad.balanceOf(address(d.fastTimelock)), 30_000_000e18);
         assertEq(d.market.currentFee(), 30_000);
 
         // A market buy pays fees; they reach the splitter and the stakers' buyer turns IMD into $PONDPAD.

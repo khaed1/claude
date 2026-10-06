@@ -23,7 +23,9 @@ interface ICTOSocial {
 ///         - A proposer with a verified X account (SocialRegistry) submits an IMD oracle attestation answering "yes"
 ///           to this module's question for that exact coin, new recipient and proposer.
 ///         - The new recipient must be a contract: the community's multisig, or the coin itself, which routes the
-///           creator fees to holders as IMD dividends (D-52).
+///           creator fees to holders as IMD dividends (D-52). That choice is final: a coin whose fees go to its
+///           holders can't be taken over again (audit R1-A4-12: nobody could contest it). The recipient is
+///           checked again, code included, at execution (audit R2-A4-6).
 ///         - The coin must be at least 30 days old and not taken over in the last 90 days.
 ///         - A 3-day public notice follows. During it the current recipient can contest; a contested takeover then
 ///           needs a second "yes" from a panel of at least 75 members, and gets 7 more days.
@@ -44,6 +46,8 @@ contract CTOModule is Ownable {
     uint256 public constant COOLDOWN = 90 days;
     uint256 public constant MIN_COIN_AGE = 30 days;
     uint16 public constant CONFIRM_MIN_PANEL = 75;
+    /// @notice Longest rules link: every takeover question must fit the verifier's 2,000-character limit (R2-A4-7).
+    uint256 public constant MAX_RULES_URI = 256;
 
     struct Takeover {
         address newRecipient;
@@ -72,6 +76,8 @@ contract CTOModule is Ownable {
     /// @dev The proposer's X handle as it was at propose time; the confirmation question names the same one.
     mapping(address coin => string) internal _proposerX;
     mapping(bytes32 requestId => bool) public usedRequest;
+    /// @dev The new recipient's code hash at propose; execute requires the same code (audit R2-A4-6).
+    mapping(address coin => bytes32) internal _recipientCodehash;
 
     event Proposed(
         address indexed coin,
@@ -90,6 +96,8 @@ contract CTOModule is Ownable {
     event VerifierUpdated(address verifier);
     event CouncilUpdated(address council);
     event CouncilRetired();
+    /// @notice The evidence chain and block window of an attestation used here (audit R2-A4-4).
+    event AttestationWindow(address indexed coin, bytes32 indexed requestId, uint256 chainId, uint64 fromBlock, uint64 toBlock);
 
     error Pending();
     error NotPending();
@@ -110,6 +118,7 @@ contract CTOModule is Ownable {
     error PanelTooSmall();
     error BadRulesURI();
     error AnswerBeforeContest();
+    error FeesGoToHolders();
 
     constructor(
         address owner_,
@@ -127,7 +136,10 @@ contract CTOModule is Ownable {
         verifier = AttestationVerifier(verifier_);
         council = council_;
         verifier.checkQuestionText(rulesURI_);
-        if (!LibString.startsWith(rulesURI_, "ipfs://") || bytes(rulesURI_).length < 10) revert BadRulesURI();
+        if (
+            !LibString.startsWith(rulesURI_, "ipfs://") || bytes(rulesURI_).length < 10
+                || bytes(rulesURI_).length > MAX_RULES_URI
+        ) revert BadRulesURI();
         rulesURI = rulesURI_;
     }
 
@@ -150,15 +162,20 @@ contract CTOModule is Ownable {
         );
     }
 
-    /// @notice The question a second, larger panel answers when the current recipient contests.
+    /// @notice The question a second, larger panel answers when the current recipient contests. It names the time
+    ///         of the contest, so it can't be asked before the contest happens (audit R2-A4-5); reverts until then.
     function confirmQuestion(address coin, address newRecipient, string memory proposerX)
         public
         view
         returns (string memory)
     {
+        uint256 contestedAt = _pending[coin].contestedAt;
+        if (contestedAt == 0) revert NotContested();
         return string.concat(
             _subject(proposerX),
-            ", contested by the current fee recipient: under the PondPad takeover rules at ",
+            ", contested by the current fee recipient at unix time ",
+            LibString.toString(contestedAt),
+            ": under the PondPad takeover rules at ",
             rulesURI,
             ", including the rules for contested takeovers, should the creator fees of coin ",
             coin.toHexString(),
@@ -192,6 +209,7 @@ contract CTOModule is Ownable {
         if (bytes(handle).length == 0) revert NoXAccount();
         _use(att.requestId);
         if (!verifier.verifyBool(att, signature, question(coin, newRecipient, handle))) revert AnswerNo();
+        emit AttestationWindow(coin, att.requestId, att.chainId, att.fromBlock, att.toBlock);
         _propose(coin, newRecipient, msg.sender, handle, false, NOTICE, att.requestId, "");
     }
 
@@ -215,6 +233,7 @@ contract CTOModule is Ownable {
     ) internal {
         address current = creatorVault.recipientOf(coin);
         if (current == address(0)) revert UnknownCoin();
+        if (current == coin) revert FeesGoToHolders(); // final (audit R1-A4-12)
         if (newRecipient == current || newRecipient.code.length == 0 || _isDelegatedAccount(newRecipient)) {
             revert InvalidRecipient();
         }
@@ -239,6 +258,7 @@ contract CTOModule is Ownable {
             contestedAt: 0
         });
         _proposerX[coin] = handle;
+        _recipientCodehash[coin] = newRecipient.codehash;
         emit Proposed(coin, newRecipient, proposer, handle, executableAt, requestId, evidence);
     }
 
@@ -270,6 +290,7 @@ contract CTOModule is Ownable {
         _use(att.requestId);
         string memory q = confirmQuestion(coin, t.newRecipient, _proposerX[coin]);
         if (!verifier.verifyBool(att, signature, q)) revert AnswerNo();
+        emit AttestationWindow(coin, att.requestId, att.chainId, att.fromBlock, att.toBlock);
         t.confirmed = true;
         emit Confirmed(coin, att.requestId);
     }
@@ -299,6 +320,14 @@ contract CTOModule is Ownable {
         if (t.contested && !t.confirmed) revert NotContested();
         // A retired council path can't land a proposal made before retirement (audit R1-A4-9).
         if (t.byCouncil && councilRetired) revert NotCouncil();
+        // Fees routed to holders during the notice stay with the holders (audit R1-A4-12: final, nobody could contest).
+        if (creatorVault.recipientOf(coin) == coin) revert FeesGoToHolders();
+        // Still the same contract that was proposed: not emptied (EIP-6780 self-destruct in its creation
+        // transaction), not redeployed with other code, not an EIP-7702 wallet (audit R2-A4-6).
+        if (
+            t.newRecipient.code.length == 0 || _isDelegatedAccount(t.newRecipient)
+                || t.newRecipient.codehash != _recipientCodehash[coin]
+        ) revert InvalidRecipient();
         delete _pending[coin];
         lastTakeoverAt[coin] = block.timestamp;
         creatorVault.ctoSetRecipient(coin, t.newRecipient);

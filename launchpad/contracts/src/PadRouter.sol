@@ -88,10 +88,15 @@ contract PadRouter is PaymentSwapper, ReentrancyGuard {
 
     /// @notice Buys `coin` paying `amountIn` of `tokenIn` (IMD, ETH or another payment token). If the buy completes
     ///         the bonding curve, the unused part is refunded in IMD.
+    /// @param minImd Minimum IMD the payment must convert to on a curve buy (0 for IMD payments). A buy that completes
+    ///        the curve gets the same tokens whatever IMD arrives and refunds the rest, so `minTokensOut` alone can't
+    ///        bound the payment swap there (audit R2-A2-2). After graduation every IMD buys tokens in the pool, so
+    ///        `minTokensOut` bounds the whole route and `minImd` is not used.
     function buyWith(
         address coin,
         address tokenIn,
         uint256 amountIn,
+        uint256 minImd,
         uint256 minTokensOut,
         uint256 deadline,
         address referrer
@@ -108,6 +113,7 @@ contract PadRouter is PaymentSwapper, ReentrancyGuard {
             _flushFees(coin, referrer);
         } else {
             uint256 imdIn = _collectImd(tokenIn, amountIn, address(curve), referrer);
+            if (imdIn < minImd) revert Slippage();
             (tokensOut,) = curve.buy(coin, imdIn, minTokensOut, msg.sender, msg.sender, false, referrer);
         }
         if (tokensOut < minTokensOut) revert Slippage();

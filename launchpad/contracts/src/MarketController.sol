@@ -27,7 +27,8 @@ interface IPadBurner {
 ///         by this same controller, at the same price, keeping the old market's guards. No path sends the
 ///         position or the retained IMD to any wallet.
 /// @dev Roles: `owner` is the 48-hour timelock (policy, extra inventory, backstop close); `sinkAdmin` is the
-///      7-day timelock (burn sink and rewards recipient). Neither can move the position or the retained IMD.
+///      7-day timelock (burn sink, rewards recipient, migration approval), fixed at deploy (audit R1-A2-5: it can't
+///      hand these powers to an undelayed address). Neither can move the position or the retained IMD.
 contract MarketController is Ownable, IPadMarketLauncher {
     using SafeTransferLib for address;
 
@@ -43,9 +44,11 @@ contract MarketController is Ownable, IPadMarketLauncher {
     ///         (audit R1-A2-2).
     address public immutable migrator;
 
+    /// @notice The 7-day timelock. Fixed (audit R1-A2-5).
+    address public immutable sinkAdmin;
+
     PadMarketHook public hook;
     address public sale;
-    address public sinkAdmin;
     bool public launched;
     /// @notice When the market opened (PadSale graduated). Zero before launch. Starts the airdrop and team vesting
     ///         clocks (D-53, D-54); unlike the hook's fee clock it never changes, even after a migration.
@@ -58,7 +61,6 @@ contract MarketController is Ownable, IPadMarketLauncher {
 
     event Launched(uint160 sqrtPriceX96, uint128 liquidity, uint256 imdDeposited, uint256 tokensDeposited);
     event FeesCollected(uint256 imd, uint256 token);
-    event SinkAdminUpdated(address sinkAdmin);
     event MigrationApproved(address indexed newHook);
     event Migrated(
         address indexed oldHook, address indexed newHook, uint160 sqrtPriceX96, uint256 imdMoved, uint256 tokensMoved
@@ -222,7 +224,8 @@ contract MarketController is Ownable, IPadMarketLauncher {
         hook.setRewardShareBps(bps);
     }
 
-    /// @notice Burns what the backstop bought and returns its IMD to the retained balance. Moves nothing out.
+    /// @notice Burns what the backstop bought and returns its IMD to the retained balance. Moves nothing out: the
+    ///         returned IMD earns no keeper tip when it is redeployed (audit R2-A2-1).
     function closeBackstop() external onlyOwner {
         hook.closeBackstop();
     }
@@ -286,6 +289,8 @@ contract MarketController is Ownable, IPadMarketLauncher {
         (int24 oldFloor, int24 oldRef, uint256 oldCap) = (old.deploymentFloorTick(), old.refTick(), old.inventoryCap());
         old.closeMarket(address(this)); // settles claims, closes the backstop, returns position + retained IMD
         _collectFees(old); // fees realised by the close go to the splitter, as always
+        imd.safeApprove(address(old), 0); // the closed hook keeps no allowance (audit R2-A2-5)
+        token.safeApprove(address(old), 0);
 
         hook = nh;
         imd.safeApprove(newHook_, type(uint256).max);
@@ -317,11 +322,5 @@ contract MarketController is Ownable, IPadMarketLauncher {
         nh.setKeeperReward(0); // keeper tip must stay below the threshold while both change
         nh.setRebalance(old.rebalanceEnabled(), old.rebalanceQuoteThreshold());
         nh.setKeeperReward(old.keeperReward());
-    }
-
-    function setSinkAdmin(address newSinkAdmin) external onlySinkAdmin {
-        if (newSinkAdmin == address(0)) revert InvalidSetup();
-        sinkAdmin = newSinkAdmin;
-        emit SinkAdminUpdated(newSinkAdmin);
     }
 }

@@ -67,6 +67,7 @@ contract AttestationVerifier is Ownable, EIP712 {
     error Expired();
     error InvalidSetting();
     error BadQuestionText();
+    error BadWindow();
 
     constructor(address owner_) {
         _initializeOwner(owner_);
@@ -86,6 +87,8 @@ contract AttestationVerifier is Ownable, EIP712 {
     {
         if (!isSigner[ECDSA.recoverCalldata(_hashTypedData(hashAttestation(att)), signature)]) revert UnknownSigner();
         if (att.questionHash != questionHash(question, att.chainId, att.fromBlock, att.toBlock)) revert WrongQuestion();
+        // The evidence window the panel was given must be a real range (audit R2-A4-4); consumers log it.
+        if (att.fromBlock > att.toBlock) revert BadWindow();
         if (att.answerType != ANSWER_BOOL || att.answer.length != 32) revert NotBool();
         if (att.panelSize < minPanelSize) revert PanelTooSmall();
         // The agreeing share is rounded up to whole bps, so exactly two thirds (34 of 51, 50 of 75) meets 6,667

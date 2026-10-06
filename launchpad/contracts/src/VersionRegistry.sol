@@ -39,6 +39,8 @@ contract VersionRegistry is Ownable {
 
     event Registered(uint256 indexed version, bytes32 codeHash, address factory, address router, address curve, address hook, address lens);
     event Activated(uint256 indexed version, bytes32 requestId, string auditRef);
+    /// @notice The evidence chain and block window of the attestation behind an activation (audit R2-A4-4).
+    event AttestationWindow(bytes32 indexed requestId, uint256 chainId, uint64 fromBlock, uint64 toBlock);
     event CurrentSet(uint256 indexed version);
     event VerifierUpdated(address verifier);
     event ManualActivationRetired();
@@ -117,6 +119,7 @@ contract VersionRegistry is Ownable {
         if (usedRequest[att.requestId]) revert RequestUsed();
         usedRequest[att.requestId] = true;
         if (!verifier.verifyBool(att, signature, question(version, auditJobId))) revert AnswerNo();
+        emit AttestationWindow(att.requestId, att.chainId, att.fromBlock, att.toBlock);
         _activate(version, att.requestId, auditJobId);
     }
 

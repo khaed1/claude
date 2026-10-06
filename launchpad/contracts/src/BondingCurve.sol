@@ -42,6 +42,8 @@ contract BondingCurve is ReentrancyGuard {
     /// @dev Virtual tokens left on the curve when it completes: S·R/(S−R). Chosen so the curve ends at price E/R.
     uint256 public constant VIRTUAL_TOKENS_AT_END = (CURVE_SUPPLY * POOL_SUPPLY) / (CURVE_SUPPLY - POOL_SUPPLY);
     uint256 internal constant BPS = 10_000;
+    /// @dev `PadToken.MIN_ELIGIBLE`: below it a coin can't distribute dividends (audit R2-A1-3).
+    uint256 internal constant MIN_ELIGIBLE_HOLDERS = 1e18;
 
     enum Status {
         None,
@@ -321,8 +323,14 @@ contract BondingCurve is ReentrancyGuard {
             IFeeSink(swarmBudget).credit(coin, p.swarm);
         }
         if (p.holders != 0) {
-            imd.safeTransfer(coin, p.holders);
-            PadToken(coin).distribute();
+            // Nobody eligible yet (the coin's first buy) or any more: a holder tax parked on the coin would be
+            // credited at the next trade to whoever holds then, i.e. back to this buyer (audit R2-A1-3).
+            if (PadToken(coin).eligibleSupply() < MIN_ELIGIBLE_HOLDERS) {
+                imd.safeTransfer(config.growthFund(), p.holders);
+            } else {
+                imd.safeTransfer(coin, p.holders);
+                PadToken(coin).distribute();
+            }
         }
     }
 

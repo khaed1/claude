@@ -19,8 +19,10 @@ contract PadToken is ERC20, ReentrancyGuard {
     using TransientStateLibrary for IPoolManager;
 
     uint256 public constant TOTAL_SUPPLY = 1_000_000_000e18;
-    /// @dev Distributions wait until at least one whole token is eligible, which also bounds the per-share math.
-    uint256 internal constant MIN_ELIGIBLE = 1e18;
+    /// @notice Distributions wait until at least one whole token is eligible, which also bounds the per-share math.
+    ///         While fewer are eligible, the curve and the hook send the holder tax to the growth fund instead of
+    ///         parking it here for the next buyer's first holders (audit R2-A1-3).
+    uint256 public constant MIN_ELIGIBLE = 1e18;
     uint256 internal constant MAGNITUDE = 2 ** 128;
     address internal constant DEAD = 0x000000000000000000000000000000000000dEaD;
 

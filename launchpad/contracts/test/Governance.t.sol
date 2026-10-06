@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {Ownable} from "solady/auth/Ownable.sol";
+import {LibString} from "solady/utils/LibString.sol";
 import {Base} from "./Base.t.sol";
 import {BondingCurve} from "../src/BondingCurve.sol";
 import {AttestationVerifier, OracleAttestation} from "../src/AttestationVerifier.sol";
@@ -21,6 +22,30 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 
 /// @dev Stands in for a community Safe: takeovers only go to contracts.
 contract MockSafe {}
+
+/// @dev Calls `target` from inside its own PoolManager unlock, as an outside router or attacker contract would.
+contract UnlockCaller {
+    IPoolManager internal immutable pm;
+
+    constructor(IPoolManager pm_) {
+        pm = pm_;
+    }
+
+    function run(address target, bytes calldata data) external {
+        pm.unlock(abi.encode(target, data));
+    }
+
+    function unlockCallback(bytes calldata raw) external returns (bytes memory) {
+        (address target, bytes memory data) = abi.decode(raw, (address, bytes));
+        (bool ok, bytes memory ret) = target.call(data);
+        if (!ok) {
+            assembly ("memory-safe") {
+                revert(add(ret, 32), mload(ret))
+            }
+        }
+        return "";
+    }
+}
 
 contract GovernanceTest is Base {
     address internal constant CTO_ADDR = address(0xC70C70);
@@ -622,15 +647,15 @@ contract GovernanceTest is Base {
         address coin = _coinWithCreatorFees(_noTax());
         _linkX(bob, "frogdao");
         vm.warp(P);
-        OracleAttestation memory early = _att(cto.confirmQuestion(coin, newOwner, "frogdao"), true);
-        early.panelSize = 80;
-        early.agreed = 60;
-        early.issuedAt = uint64(P);
-        bytes memory earlySig = _sign(early, oracleKey);
         _proposeAsBob(coin, newOwner);
         vm.warp(P + 5 hours);
         vm.prank(creator);
         cto.contest(coin);
+        OracleAttestation memory early = _att(cto.confirmQuestion(coin, newOwner, "frogdao"), true);
+        early.panelSize = 80;
+        early.agreed = 60;
+        early.issuedAt = uint64(P); // issued before the contest
+        bytes memory earlySig = _sign(early, oracleKey);
         vm.expectRevert(CTOModule.AnswerBeforeContest.selector);
         cto.confirm(coin, early, earlySig);
         assertFalse(cto.pendingOf(coin).confirmed);
@@ -703,6 +728,176 @@ contract GovernanceTest is Base {
         new CTOModule(
             slowTimelock, address(vault), address(curve), address(social), address(verifier), council, "https://pondpad.fun/rules"
         );
+    }
+
+    /// @dev Audit R2-A4-5: the confirmation question names the time of the contest, so it can't be put to the oracle
+    ///      before the contest (and then count once a contest happens); before a contest it doesn't exist.
+    function test_cto_confirmQuestionNamesTheContest() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        vm.warp(P);
+        _proposeAsBob(coin, newOwner);
+        vm.expectRevert(CTOModule.NotContested.selector);
+        cto.confirmQuestion(coin, newOwner, "frogdao");
+        vm.warp(P + 5 hours);
+        vm.prank(creator);
+        cto.contest(coin);
+        string memory q = cto.confirmQuestion(coin, newOwner, "frogdao");
+        assertTrue(LibString.contains(q, string.concat("contested by the current fee recipient at unix time ", vm.toString(P + 5 hours))));
+        OracleAttestation memory big = _att(q, true);
+        big.panelSize = 80;
+        big.agreed = 60;
+        big.issuedAt = uint64(P + 6 hours);
+        vm.warp(P + 6 hours);
+        cto.confirm(coin, big, _sign(big, oracleKey));
+        assertTrue(cto.pendingOf(coin).confirmed);
+    }
+
+    /// @dev Audit R1-A4-12: routing a coin's fees to its holders is final; nobody could contest a later takeover.
+    function test_cto_holdersRoutingIsFinal() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        vm.prank(creator);
+        vault.setRecipient(coin, coin);
+        _linkX(bob, "frogdao");
+        vm.warp(P);
+        OracleAttestation memory a = _att(cto.question(coin, newOwner, "frogdao"), true);
+        bytes memory sig = _sign(a, oracleKey);
+        vm.prank(bob);
+        vm.expectRevert(bytes4(keccak256("FeesGoToHolders()")));
+        cto.propose(coin, newOwner, a, sig);
+        vm.prank(council);
+        vm.expectRevert(bytes4(keccak256("FeesGoToHolders()")));
+        cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
+
+        // Routing to holders during a takeover's notice also stands: the takeover can't execute.
+        vm.prank(creator);
+        (address other,) =
+            router.launchWith(_params("TOAD", _noTax(), bytes32(uint256(1))), address(imd), 1e18, false, 0, 0, address(0));
+        vm.warp(P + 31 days);
+        vm.prank(council);
+        cto.proposeByCouncil(other, newOwner, "ipfs://evidence");
+        vm.prank(creator);
+        vault.setRecipient(other, other);
+        vm.warp(P + 31 days + 7 days);
+        vm.expectRevert(bytes4(keccak256("FeesGoToHolders()")));
+        cto.execute(other);
+        assertEq(vault.recipientOf(other), other);
+    }
+
+    /// @dev Audit R2-A4-6: the recipient must still be the contract that was proposed when the takeover executes: not
+    ///      emptied (an EIP-6780 self-destruct in its creation transaction) and not replaced by other code.
+    function test_cto_recipientCheckedAgainAtExecute() public {
+        address coin = _coinWithCreatorFees(_noTax());
+        address c = address(new MockSafe());
+        vm.warp(P);
+        vm.prank(council);
+        cto.proposeByCouncil(coin, c, "ipfs://evidence");
+        vm.etch(c, "");
+        vm.warp(P + 7 days);
+        vm.expectRevert(CTOModule.InvalidRecipient.selector);
+        cto.execute(coin);
+        vm.etch(c, hex"00");
+        vm.expectRevert(CTOModule.InvalidRecipient.selector);
+        cto.execute(coin);
+        assertEq(vault.recipientOf(coin), creator);
+    }
+
+    /// @dev Audit R2-A4-7: a rules link too long for the takeover questions is refused at deploy.
+    function test_cto_rulesLinkMustFitTheQuestions() public {
+        bytes memory long = new bytes(1_700);
+        for (uint256 i; i < long.length; i++) {
+            long[i] = "a";
+        }
+        vm.expectRevert(CTOModule.BadRulesURI.selector);
+        new CTOModule(
+            slowTimelock, address(vault), address(curve), address(social), address(verifier), council,
+            string.concat("ipfs://", string(long))
+        );
+    }
+
+    /// @dev Audit R2-A4-4: an attestation whose evidence window is inverted is refused.
+    function test_verifier_refusesAnInvertedWindow() public {
+        _approveOracle();
+        string memory q = "Is this a test question?";
+        OracleAttestation memory a = _att(q, true);
+        a.fromBlock = 300;
+        a.toBlock = 200;
+        a.questionHash = verifier.questionHash(q, a.chainId, a.fromBlock, a.toBlock);
+        bytes memory sig = _sign(a, oracleKey);
+        vm.expectRevert(bytes4(keccak256("BadWindow()")));
+        verifier.verifyBool(a, sig, q);
+    }
+
+    /// @dev Audits R2-A1-1 / R2-A4-2: funding a holder stream from inside an outside PoolManager unlock is refused,
+    ///      so it can't move the stream's clock and erase the share holders were owed.
+    function test_holderStream_fundingInsideAnUnlockCantStallIt() public {
+        address coin = _coinWithCreatorFees(_noTax());
+        vm.prank(creator);
+        vault.setRecipient(coin, coin);
+        vault.claim(coin);
+        vm.warp(T0 + 1 hours + 1 days);
+        uint256 due = vault.releasableToHolders(coin);
+        assertGt(due, 0);
+        UnlockCaller g = new UnlockCaller(IPoolManager(address(pm)));
+        imd.mint(address(g), 1);
+        g.run(address(imd), abi.encodeWithSignature("approve(address,uint256)", address(vault), 1));
+        vm.expectRevert(bytes4(keccak256("PoolManagerUnlocked()")));
+        g.run(address(vault), abi.encodeWithSignature("fundHolders(address,uint256)", coin, 1));
+        assertEq(vault.releasableToHolders(coin), due, "the day's share is still owed");
+        assertEq(vault.releaseToHolders(coin), due);
+    }
+
+    /// @dev Audits R2-A1-2 / R2-A4-1: a takeover can't be executed from inside an outside PoolManager unlock, where
+    ///      the pre-switch hook flush would do nothing and pending creator fees would go to the new recipient.
+    function test_cto_executeInsideAnUnlockIsRefused() public {
+        _approveOracle();
+        address coin = _launch(_noTax(), 0);
+        _fillCurve(coin);
+        vault.claim(coin);
+        _linkX(bob, "frogdao");
+        vm.warp(P);
+        _proposeAsBob(coin, newOwner);
+        vm.warp(P + 3 days);
+        PoolKey memory key = hook.poolKey(coin);
+        bool imdIs0 = Currency.unwrap(key.currency0) == address(imd);
+        PoolSwapTest swapper = new PoolSwapTest(IPoolManager(address(pm)));
+        imd.mint(address(this), 100e18);
+        imd.approve(address(swapper), type(uint256).max);
+        swapper.swap(
+            key,
+            SwapParams({
+                zeroForOne: imdIs0,
+                amountSpecified: -100e18,
+                sqrtPriceLimitX96: imdIs0 ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
+            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            ""
+        );
+        UnlockCaller g = new UnlockCaller(IPoolManager(address(pm)));
+        vm.expectRevert(bytes4(keccak256("PoolManagerUnlocked()")));
+        g.run(address(cto), abi.encodeCall(CTOModule.execute, (coin)));
+        uint256 before = imd.balanceOf(creator);
+        cto.execute(coin);
+        assertEq(imd.balanceOf(creator) - before, 0.5e18, "old recipient paid the fees pending in the hook");
+    }
+
+    /// @dev Audit R2-A4-3: 1-wei top-ups can't stretch a holder lump: it still pays out in about 7 days.
+    function test_holderStream_dustTopUpsCantStretchIt() public {
+        address coin = _coinWithCreatorFees(_noTax());
+        vm.prank(creator);
+        vault.setRecipient(coin, coin);
+        imd.mint(address(this), 701e18);
+        imd.approve(address(vault), type(uint256).max);
+        vault.fundHolders(coin, 700e18);
+        for (uint256 d = 1; d <= 7; d++) {
+            vm.warp(T0 + 1 hours + d * 1 days);
+            vault.releaseToHolders(coin);
+            vault.fundHolders(coin, 1); // a stranger's top-up
+        }
+        (uint128 remaining,,) = vault.holderStreamOf(coin);
+        assertLe(remaining, 7, "the lump paid out in ~7 days");
     }
 
     // ------------------------------------------------------------------ VersionRegistry
