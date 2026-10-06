@@ -9,7 +9,7 @@ const page = (slug: string) => files[`../docs/${slug}.md`];
 const NAV: { group: string; items: [string, string][] }[] = [
   { group: 'Start here', items: [['', 'What is PondPad'], ['first-trade', 'Your first trade'], ['spawn', 'Spawn a coin']] },
   { group: 'How it works', items: [['curve', 'The curve and the Leap'], ['fees', 'Fees and where they go']] },
-  { group: '$PONDPAD', items: [['pondpad-sale', 'The sale'], ['pondpad-market', 'The market: fee, cap, burns'], ['airdrop', 'The airdrop']] },
+  { group: '$PONDPAD', items: [['pondpad-sale', 'The sale'], ['pondpad-market', 'The market: fee, cap, burns'], ['pond', 'Staking: the Pond'], ['airdrop', 'The airdrop']] },
   { group: 'Safety', items: [['risks', 'Risks'], ['admin', 'Admin powers and timelocks'], ['contracts', 'Contracts and addresses']] },
   { group: 'Testnet', items: [['testnet', 'Testnet and faucet']] },
 ];

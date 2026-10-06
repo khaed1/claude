@@ -1,5 +1,7 @@
 # PondPad frontend
 
+Testnet site: **https://khaed1.github.io/claude/** (GitHub Pages, built by `.github/workflows/pondpad-site.yml` on every push to `claude/bold-gauss-qhlw86` that touches the site).
+
 The PondPad site: Vite + React + TypeScript + wagmi/viem (D-66), styled with the design system in `../design/` (tokens, `pp-` components, self-hosted fonts). Static build, hash routes, so it can be served from IPFS. Runs against Robinhood Chain Testnet (`../contracts/deployments/46630.json`).
 
 ```bash
@@ -22,7 +24,8 @@ npm run abis         # after `forge build`: refresh src/abi/*.ts from ../contrac
 | `/terms`, `/privacy` | Legal texts from `../legal/` | Built |
 | `/faucet` | Testnet faucet for test IMD and USDG | Built (testnet only) |
 | `/pondpad` | $PONDPAD: before the sale (countdown, list checker), sale (Leap meter, trade box IMD / ETH / USDG, early-bird tax, 15M limit, trades), market (trade box, fee today, burned, cap / backstop), airdrop (wake with code and post, claim with vesting, gasless claim wallet by signed link `#/pondpad?handover=…`). Testnet: a preview switch shows the phases that already passed (D-72) | Built |
-| `/pond`, `/transparency` | Staking, transparency | Next |
+| `/pond` | The Pond: your sPONDPAD, value per sPONDPAD, dripping in now, total staked; Stake / Leave with the short wait after joining; where rewards come from; anyone can drip or run PadBuyer from the page (D-73) | Built |
+| `/transparency` | Transparency | Next |
 
 ## How it reads the chain
 

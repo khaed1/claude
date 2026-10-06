@@ -2,7 +2,7 @@
 // arrays, so viem infers argument and return types. Run after `forge build` when an interface changes: npm run abis
 import { readFileSync, writeFileSync } from 'node:fs';
 const OUT = new URL('../../contracts/out/', import.meta.url);
-const NAMES = ['PadLens', 'PadRouter', 'BondingCurve', 'PadHook', 'PadFactory', 'CreatorVault', 'PadToken', 'PadConfig', 'SocialRegistry', 'IntegratorVault', 'PadSale', 'PadMarketHook', 'MarketController', 'AirdropDistributor', 'PondPadToken', 'PoolSwapTest'];
+const NAMES = ['PadLens', 'PadRouter', 'BondingCurve', 'PadHook', 'PadFactory', 'CreatorVault', 'PadToken', 'PadConfig', 'SocialRegistry', 'IntegratorVault', 'PadSale', 'PadMarketHook', 'MarketController', 'AirdropDistributor', 'PondPadToken', 'PoolSwapTest', 'StakedPONDPAD', 'RewardDripper', 'PadBuyer'];
 const index = [];
 for (const n of NAMES) {
   const { abi } = JSON.parse(readFileSync(new URL(`${n}.sol/${n}.json`, OUT)));

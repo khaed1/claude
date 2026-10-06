@@ -14,4 +14,7 @@ export { MarketControllerAbi } from './MarketController';
 export { AirdropDistributorAbi } from './AirdropDistributor';
 export { PondPadTokenAbi } from './PondPadToken';
 export { PoolSwapTestAbi } from './PoolSwapTest';
+export { StakedPONDPADAbi } from './StakedPONDPAD';
+export { RewardDripperAbi } from './RewardDripper';
+export { PadBuyerAbi } from './PadBuyer';
 export { QuoterAbi } from './Quoter';
