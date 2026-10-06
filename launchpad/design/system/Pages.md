@@ -45,7 +45,7 @@ About to Leap                                     (spotlight row: ≥ 75% of tar
 
 ```
 [img] Ribbit Republic $RIBBIT  [Tadpole · 63%]  [X verified] [Site by the Chorus]   [share] [copy address]
-MC 6,420 IMD ($40.4k) · ▲ 18.2% 24h · Fee 2.0% · created by 0x4b91…6821 · 12 min ago
+MC 10,440 IMD ($65.8k) · ▲ 18.2% 24h · Fee 2.0% · created by 0x4b91…6821 · 12 min ago
 
 ┌ left (2/3) ─────────────────────────────┐ ┌ right (1/3, sticky) ───────┐
 │ [takeover banner, if any]               │ │ [early-bird tax notice]     │
@@ -76,7 +76,7 @@ One page in four short steps (not a multi-page wizard), with a live preview card
 3. **Buy first? (optional):** dev buy, pay with IMD / ETH / USDG.
 4. **Website now? (optional):** 5 IMD website add-on.
 
-Summary box: launch fee (1 IMD), dev buy, website add-on, total, paid with, fee per trade for this coin ("Traders will pay 2.0%"). Button: **Spawn it** → "Laying your egg…" → toast "It's alive. Your tadpole is swimming." → the coin page.
+Summary box: launch fee (0.35 IMD), dev buy, website add-on, total, paid with, fee per trade for this coin ("Traders will pay 2.0%"). Button: **Spawn it** → "Laying your egg…" → toast "It's alive. Your tadpole is swimming." → the coin page.
 
 ## $PONDPAD `/pondpad`
 

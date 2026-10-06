@@ -30,7 +30,7 @@ Use these words everywhere: in the UI, docs, posts and swarm-built sites.
 
 - Short sentences. Plain words. Sentence case for everything except the wordmark and tickers.
 - Second person to the reader ("your coin"), first person plural for PondPad ("we checked").
-- Numbers are exact and carry units: "1,297 / 2,060 IMD", "Fee: 2.0% (1.5% base + 0.5% to holders)". Never "low fees".
+- Numbers are exact and carry units: "2,520 / 4,000 IMD", "Fee: 2.0% (1.5% base + 0.5% to holders)". Never "low fees".
 - Never: "revolutionary", "unlock", "moon", "guaranteed", "safe", price promises, APY promises. Say "rewards depend on how much trading happens".
 - Buttons say exactly what happens: "Spawn it", "Buy $RIBBIT", "Collect your IMD", "Leave the pond". The toast confirms in the same words.
 - Errors say what went wrong and what to do, without blame: "The price moved while you were deciding. Try again or raise slippage a little."

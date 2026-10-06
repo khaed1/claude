@@ -88,6 +88,7 @@ contract Deploy is Script {
         address ethUsdgHook;
         uint256 fastDelay;
         uint256 slowDelay;
+        PadConfig.LaunchSettings launch; // coin launch settings at deploy (mainnet: D-76)
     }
 
     struct Params {
@@ -161,7 +162,34 @@ contract Deploy is Script {
 
     /// @notice Robinhood Chain mainnet (4663): the only chain values a mainnet run can use.
     function robinhood() public pure returns (Network memory) {
-        return Network(PM, IMD, USDG, 0x800000, 10, ETH_USDG_HOOK, FAST_DELAY, SLOW_DELAY);
+        return Network(PM, IMD, USDG, 0x800000, 10, ETH_USDG_HOOK, FAST_DELAY, SLOW_DELAY, launchForMainnet());
+    }
+
+    /// @notice Coin launch settings for mainnet (D-76): 0.35 IMD launch fee, Leap at 4,000 IMD, early-bird tax 70%
+    ///         falling to zero over 80 s, max-buy 2% of supply for the first 80 s, 1% Leap cut to growth.
+    function launchForMainnet() public pure returns (PadConfig.LaunchSettings memory) {
+        return PadConfig.LaunchSettings({
+            launchFee: 0.35e18,
+            graduationTarget: 4_000e18,
+            graduationFeeBps: 100,
+            snipeTaxStartBps: 7_000,
+            snipeTaxDuration: 80,
+            maxBuyWindow: 80,
+            maxBuyBps: 200
+        });
+    }
+
+    /// @notice Coin launch settings for test chains: the ones the Robinhood testnet runs with (D-11, D-14, D-76).
+    function launchForTestnet() public pure returns (PadConfig.LaunchSettings memory) {
+        return PadConfig.LaunchSettings({
+            launchFee: 1e18,
+            graduationTarget: 2_060e18,
+            graduationFeeBps: 100,
+            snipeTaxStartBps: 5_000,
+            snipeTaxDuration: 20,
+            maxBuyWindow: 60,
+            maxBuyBps: 200
+        });
     }
 
     /// @dev Test chains: test IMD / USDG and their pools from TestnetSetup's file, short timelock delays.
@@ -175,6 +203,7 @@ contract Deploy is Script {
         c.ethUsdgHook = vm.parseJsonAddress(json, ".ethUsdgHook");
         c.fastDelay = vm.envOr("FAST_DELAY", TESTNET_FAST_DELAY);
         c.slowDelay = vm.envOr("SLOW_DELAY", TESTNET_SLOW_DELAY);
+        c.launch = launchForTestnet();
     }
 
     /// @notice The whole deployment. `p.deployer` must be the account executing these calls (the broadcaster, or
@@ -217,15 +246,7 @@ contract Deploy is Script {
             address(d.splitter),
             address(d.growthFund),
             p.safe,
-            PadConfig.LaunchSettings({
-                launchFee: 1e18,
-                graduationTarget: 2_060e18,
-                graduationFeeBps: 100,
-                snipeTaxStartBps: 5_000,
-                snipeTaxDuration: 20,
-                maxBuyWindow: 60,
-                maxBuyBps: 200
-            })
+            p.chain.launch
         );
         _setPaymentRoutes(d.config, p.chain);
 

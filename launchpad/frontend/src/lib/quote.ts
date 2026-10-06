@@ -12,25 +12,39 @@ function routeToImd(pc: PublicClient, token: Address) {
   return routeCache.get(token)!;
 }
 
-async function quoter(pc: PublicClient, exactCurrency: Address, path: { intermediateCurrency: Address; fee: number; tickSpacing: number; hooks: Address; hookData: `0x${string}` }[], amount: bigint) {
+/** One hop of a v4 path (v4-periphery PathKey), as the Quoter and the Universal Router take it. */
+export type PathKey = { intermediateCurrency: Address; fee: number; tickSpacing: number; hooks: Address; hookData: `0x${string}` };
+
+/** Exact-in quote along a v4 path. */
+export async function quoter(pc: PublicClient, exactCurrency: Address, path: PathKey[], amount: bigint) {
   const { result } = await pc.simulateContract({ address: QUOTER, abi: QuoterAbi, functionName: 'quoteExactInput', args: [{ exactCurrency, path, exactAmount: amount }] });
   return result[0];
+}
+
+/** v4 path from a payment token to IMD along PadConfig's route (empty for IMD). */
+export async function pathToImd(pc: PublicClient, token: Address): Promise<PathKey[]> {
+  if (token === addr.imd) return [];
+  const hops = await routeToImd(pc, token);
+  return hops.map((h) => ({ intermediateCurrency: h.zeroForOne ? h.key.currency1 : h.key.currency0, fee: h.key.fee, tickSpacing: h.key.tickSpacing, hooks: h.key.hooks, hookData: '0x' as const }));
+}
+
+/** v4 path from IMD to a payment token: the route reversed (empty for IMD). */
+export async function pathFromImd(pc: PublicClient, token: Address): Promise<PathKey[]> {
+  if (token === addr.imd) return [];
+  const hops = [...(await routeToImd(pc, token))].reverse();
+  return hops.map((h) => ({ intermediateCurrency: h.zeroForOne ? h.key.currency0 : h.key.currency1, fee: h.key.fee, tickSpacing: h.key.tickSpacing, hooks: h.key.hooks, hookData: '0x' as const }));
 }
 
 /** IMD received for `amount` of a payment token, along PadConfig's route (what PadRouter swaps through). */
 export async function toImd(pc: PublicClient, token: PayToken, amount: bigint): Promise<bigint> {
   if (token.address === addr.imd || amount === 0n) return amount;
-  const hops = await routeToImd(pc, token.address);
-  const path = hops.map((h) => ({ intermediateCurrency: h.zeroForOne ? h.key.currency1 : h.key.currency0, fee: h.key.fee, tickSpacing: h.key.tickSpacing, hooks: h.key.hooks, hookData: '0x' as const }));
-  return quoter(pc, token.address, path, amount);
+  return quoter(pc, token.address, await pathToImd(pc, token.address), amount);
 }
 
 /** Payment token received for `imd` IMD, along the route reversed. */
 export async function fromImd(pc: PublicClient, token: PayToken, imd: bigint): Promise<bigint> {
   if (token.address === addr.imd || imd === 0n) return imd;
-  const hops = [...(await routeToImd(pc, token.address))].reverse();
-  const path = hops.map((h) => ({ intermediateCurrency: h.zeroForOne ? h.key.currency0 : h.key.currency1, fee: h.key.fee, tickSpacing: h.key.tickSpacing, hooks: h.key.hooks, hookData: '0x' as const }));
-  return quoter(pc, addr.imd, path, imd);
+  return quoter(pc, addr.imd, await pathFromImd(pc, token.address), imd);
 }
 
 export type Quote = {

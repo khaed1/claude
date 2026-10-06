@@ -1,6 +1,5 @@
 import { defineChain, type Address } from 'viem';
 import testnet from '../../contracts/deployments/46630.json';
-import testnetSetup from '../../contracts/deployments/46630-setup.json';
 
 // Which deployment the site runs against. Testnet only until mainnet is deployed (deployments/4663.json).
 export const robinhoodTestnet = defineChain({
@@ -19,10 +18,12 @@ export const rpcUrl: string = import.meta.env.VITE_RPC_URL ?? (import.meta.env.D
 
 type Deployment = typeof testnet;
 export const addr = testnet as unknown as { [K in keyof Deployment]: K extends 'chainId' ? number : Address };
-export const setup = testnetSetup as unknown as { swapRouter: Address; liquidityRouter: Address };
 
 export const ETH = '0x0000000000000000000000000000000000000000' as Address;
 export const QUOTER = '0x8Dc178eFB8111BB0973Dd9d722ebeFF267c98F94' as Address; // v4 Quoter, same address on mainnet and testnet
+// Uniswap's Universal Router: trades the $PONDPAD market (D-77). This one is on mainnet and the testnet, on the same PoolManager.
+export const UNIVERSAL_ROUTER = '0x8876789976decbfcbbbe364623c63652db8c0904' as Address;
+export const PERMIT2 = '0x000000000022D473030F116dDEE9F6B43aC78BA3' as Address;
 
 export type PayToken = { symbol: 'IMD' | 'ETH' | 'USDG'; address: Address; decimals: number };
 export const PAY_TOKENS: PayToken[] = [
@@ -36,7 +37,7 @@ export const BASE_FEE_BPS = 150;
 export const MARKET_GAS_HEADROOM = 150n; // percent of the estimate for $PONDPAD market swaps and keeper-type calls
 
 // Bump when the Terms or Privacy Policy change: everyone accepts again (legal/TERMS.md, legal/PRIVACY.md).
-export const LEGAL_VERSION = '2026-10-05';
+export const LEGAL_VERSION = '2026-10-06';
 
 export const explorerTx = (h: string) => `${chain.blockExplorers.default.url}/tx/${h}`;
 export const explorerAddr = (a: string) => `${chain.blockExplorers.default.url}/address/${a}`;

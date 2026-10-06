@@ -37,7 +37,7 @@ We may block access to the Interface from any place or wallet, at any time, to c
 Using the Protocol costs fees set in its smart contracts, shown in the Interface before you sign:
 
 - every trade pays a **1.5% base fee** (1% to the protocol, 0.5% to the coin's creator) plus any **coin tax** (0–3%) chosen by the creator at launch;
-- a launch fee (currently 1 IMD), an optional website add-on, and, for buys right after a launch or during the $PONDPAD sale, a temporary early-bird tax;
+- a launch fee (shown in the Interface before you sign), an optional website add-on, and, for buys right after a launch or during the $PONDPAD sale, a temporary early-bird tax;
 - swaps between IMD, ETH and USDG pay the fees of the pools they go through, and every transaction pays network gas.
 
 Protocol fees are distributed by the smart contracts as described in the Docs. Fees are not refundable.

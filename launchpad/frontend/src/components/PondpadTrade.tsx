@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { useAccount, useBalance, usePublicClient, useReadContract } from 'wagmi';
 import { useQuery } from '@tanstack/react-query';
 import { erc20Abi, formatUnits, type Abi, type PublicClient } from 'viem';
-import { PadSaleAbi, PoolSwapTestAbi } from '../abi';
-import { addr, ETH, MARKET_GAS_HEADROOM, PAY_TOKENS, setup, type PayToken } from '../config';
+import { PadSaleAbi, UniversalRouterAbi } from '../abi';
+import { addr, ETH, MARKET_GAS_HEADROOM, PAY_TOKENS, UNIVERSAL_ROUTER, type PayToken } from '../config';
 import { fmtAmount, parseAmount } from '../lib/format';
 import { fromImd, toImd } from '../lib/quote';
-import { approveIfNeeded, useSend, type Call } from '../lib/tx';
-import { marketPriceLimit, quoteMarket, saleQuoteBuy, saleQuoteSell, type MarketState, type SaleState } from '../lib/pondpad';
+import { approveIfNeeded, approveViaPermit2, useSend, type Call } from '../lib/tx';
+import { marketRoute, marketSwapArgs, quoteMarket, saleQuoteBuy, saleQuoteSell, type MarketState, type SaleState } from '../lib/pondpad';
 
 // Trade boxes for $PONDPAD: the sale curve (IMD / ETH / USDG, gold button) and, after the Leap, the market pool.
 
@@ -145,54 +145,74 @@ export function SaleTradeBox({ sale }: { sale: SaleState }) {
   );
 }
 
-/** The market after the Leap: $PONDPAD ↔ IMD in its own pool (testnet: through the v4 test swap router). */
+/** The market after the Leap: buy or sell $PONDPAD with IMD, ETH or USDG through Uniswap's Universal Router (D-77). */
 export function MarketTradeBox({ market }: { market: MarketState }) {
   const { address, isConnected } = useAccount();
   const pc = usePublicClient() as PublicClient;
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
+  const [paySym, setPaySym] = remember<PayToken['symbol']>('pp-pay', 'IMD');
   const [slip, setSlip] = remember<string>('pp-slippage', '1');
   const [text, setText] = useState('');
-  const amount = parseAmount(text, 18);
-  const { send, pending } = useSend();
-  useEffect(() => setText(''), [side]);
+  const pay = PAY_TOKENS.find((t) => t.symbol === paySym) ?? PAY_TOKENS[0];
   const buy = side === 'buy';
+  const inDecimals = buy ? pay.decimals : 18;
+  const amount = parseAmount(text, inDecimals);
+  const { send, pending } = useSend();
+  useEffect(() => setText(''), [side, paySym]);
 
-  const { data: out, isFetching, error: qErr } = useQuery({
-    queryKey: ['marketQuote', side, amount?.toString()],
+  // One quote along the whole path (what the router swaps), plus the IMD that enters or leaves the market for the impact.
+  const { data: q, isFetching, error: qErr } = useQuery({
+    queryKey: ['marketQuote', side, pay.symbol, amount?.toString()],
     enabled: !!amount && amount > 0n,
     refetchInterval: 10_000,
     retry: false,
-    queryFn: () => quoteMarket(pc, market.key, buy, amount!),
+    queryFn: async () => {
+      const route = await marketRoute(pc, market.key, buy, pay.address);
+      const out = await quoteMarket(pc, route, amount!);
+      let imd = buy ? amount! : out;
+      if (pay.address !== addr.imd) imd = buy ? await toImd(pc, pay, amount!) : await quoteMarket(pc, await marketRoute(pc, market.key, false, addr.imd), amount!);
+      return { route, out, imd };
+    },
   });
 
-  const imdBal = useReadContract({ address: addr.imd, abi: erc20Abi, functionName: 'balanceOf', args: [address!], query: { enabled: !!address } });
+  const ethBal = useBalance({ address, query: { enabled: !!address } });
+  const tokBal = useReadContract({ address: pay.address === ETH ? addr.imd : pay.address, abi: erc20Abi, functionName: 'balanceOf', args: [address!], query: { enabled: !!address && pay.address !== ETH } });
   const ppBal = useReadContract({ address: addr.pondpad, abi: erc20Abi, functionName: 'balanceOf', args: [address!], query: { enabled: !!address } });
-  const balance = buy ? imdBal.data : ppBal.data;
+  const balance = buy ? (pay.address === ETH ? ethBal.data?.value : tokBal.data) : ppBal.data;
   const slipBps = slipOf(slip);
-  const minOut = out !== undefined ? (out * BigInt(10000 - slipBps)) / 10000n : 0n;
+  const minOut = q ? (q.out * BigInt(10000 - slipBps)) / 10000n : 0n;
+  const outSym = buy ? '$PONDPAD' : pay.symbol;
+  const outDecimals = buy ? 18 : pay.decimals;
   const over = amount !== undefined && balance !== undefined && amount > balance;
   const feePct = (market.feePips / 10_000).toFixed(2);
-  const ideal = amount && market.priceE18 > 0n ? (buy ? (amount * 10n ** 18n) / market.priceE18 : (amount * market.priceE18) / 10n ** 18n) : 0n;
-  const impactBps = out !== undefined && ideal > 0n && out < ideal ? Number(((ideal - out) * 10000n) / ideal) : 0;
+  // Impact of the market leg only, after its fee (the IMD / ETH / USDG legs have their own pool fees and depth).
+  const marketOut = q ? (buy ? q.out : q.imd) : undefined;
+  const marketIn = q ? (buy ? q.imd : amount!) : undefined;
+  const spot = marketIn && market.priceE18 > 0n ? (buy ? (marketIn * 10n ** 18n) / market.priceE18 : (marketIn * market.priceE18) / 10n ** 18n) : 0n;
+  const ideal = (spot * BigInt(1_000_000 - market.feePips)) / 1_000_000n;
+  const impactBps = marketOut !== undefined && ideal > 0n && marketOut < ideal ? Number(((ideal - marketOut) * 10000n) / ideal) : 0;
+  const presets = !buy ? ['25%', '50%', '100%'] : pay.symbol === 'ETH' ? ['0.05', '0.1', '0.5'] : pay.symbol === 'USDG' ? ['50', '100', '500'] : ['10', '50', '100', '250'];
+  const legs = pay.symbol === 'IMD' ? '' : pay.symbol === 'ETH' ? 'ETH → IMD' : 'USDG → ETH → IMD';
+  const routeText = buy ? `${legs ? `${legs} → ` : 'IMD → '}$PONDPAD pool` : `$PONDPAD pool → ${legs ? legs.split(' → ').reverse().join(' → ') : 'IMD'}`;
 
   async function go() {
-    if (!address || !amount || out === undefined) return;
-    const token = buy ? addr.imd : addr.pondpad;
-    const limit = marketPriceLimit(market, buy, amount, out, slipBps);
-    const calls: (Call & { label: string })[] = [...(await approveIfNeeded(pc, token, address, setup.swapRouter, amount))];
+    if (!address || !amount || !q) return;
+    const deadline = BigInt(Math.floor(Date.now() / 1000) + 600);
+    const tokenIn = buy ? pay.address : addr.pondpad;
+    const calls: (Call & { label: string })[] = tokenIn === ETH ? [] : await approveViaPermit2(pc, tokenIn, address, UNIVERSAL_ROUTER, amount);
     calls.push({
-      address: setup.swapRouter, abi: PoolSwapTestAbi as Abi, functionName: 'swap', gasPct: MARKET_GAS_HEADROOM, label: buy ? 'Buying…' : 'Selling…',
-      args: [market.key, { zeroForOne: buy, amountSpecified: -amount, sqrtPriceLimitX96: limit }, { takeClaims: false, settleUsingBurn: false }, '0x'],
+      address: UNIVERSAL_ROUTER, abi: UniversalRouterAbi as Abi, functionName: 'execute', args: marketSwapArgs(q.route, amount, minOut, deadline),
+      value: tokenIn === ETH ? amount : undefined, gasPct: MARKET_GAS_HEADROOM, label: buy ? 'Buying…' : 'Selling…',
     });
-    await send(calls, { ok: buy ? `Bought about ${fmtAmount(out)} $PONDPAD.` : `Sold for about ${fmtAmount(out)} IMD.` }).catch(() => {});
+    await send(calls, { ok: buy ? `Bought about ${fmtAmount(q.out)} $PONDPAD.` : `Sold for about ${fmtAmount(q.out, pay.decimals)} ${pay.symbol}.` }).catch(() => {});
     setText('');
   }
 
   let button = buy ? 'Buy $PONDPAD' : 'Sell $PONDPAD';
-  let disabled = out === undefined || isFetching || !amount;
+  let disabled = !q || isFetching || !amount;
   if (!isConnected) { button = 'Connect a wallet to hop in'; disabled = true; }
   else if (pending) { button = pending; disabled = true; }
-  else if (over) { button = buy ? 'Not enough IMD' : 'Not enough $PONDPAD'; disabled = true; }
+  else if (over) { button = buy ? `Not enough ${pay.symbol}` : 'Not enough $PONDPAD'; disabled = true; }
 
   return (
     <div className="pp-trade">
@@ -200,17 +220,22 @@ export function MarketTradeBox({ market }: { market: MarketState }) {
         <button data-side="buy" aria-pressed={buy} onClick={() => setSide('buy')}>Buy</button>
         <button data-side="sell" aria-pressed={!buy} onClick={() => setSide('sell')}>Sell</button>
       </div>
-      <Amount id="market-amount" label={buy ? 'You pay' : 'You sell'} text={text} setText={setText} balance={balance} unit={buy ? 'IMD' : '$PONDPAD'} decimals={18} presets={buy ? ['10', '50', '100', '250'] : ['25%', '50%', '100%']} />
+      <Amount id="market-amount" label={buy ? 'You pay' : 'You sell'} text={text} setText={setText} balance={balance} unit={buy ? pay.symbol : '$PONDPAD'} decimals={inDecimals} presets={presets} />
+      <div className="pp-field">
+        <span className="pp-label">{buy ? 'Pay with' : 'Receive'}</span>
+        <div className="pp-seg" role="group" aria-label="Payment token">
+          {PAY_TOKENS.map((t) => <button key={t.symbol} aria-pressed={t.symbol === pay.symbol} onClick={() => setPaySym(t.symbol)}>{t.symbol}</button>)}
+        </div>
+      </div>
       <div className="pp-quote" aria-live="polite">
-        <div><span>You get (about)</span><b>{out !== undefined ? `${fmtAmount(minOut)}–${fmtAmount(out)} ${buy ? '$PONDPAD' : 'IMD'}` : amount ? (qErr ? 'No quote' : '…') : '–'}</b></div>
-        <div><span>Route</span><b>{buy ? 'IMD → $PONDPAD pool' : '$PONDPAD pool → IMD'}</b></div>
-        {out !== undefined && <div><span>Price impact</span><b className={impactBps > 500 ? 'pp-down' : ''}>{(impactBps / 100).toFixed(2)}%</b></div>}
+        <div><span>You get (at least)</span><b>{q ? `${fmtAmount(minOut, outDecimals)} ${outSym}` : amount ? (qErr ? 'No quote' : '…') : '–'}</b></div>
+        <div><span>Route</span><b>{routeText}</b></div>
+        {q && <div><span>Price impact</span><b className={impactBps > 500 ? 'pp-down' : ''}>{(impactBps / 100).toFixed(2)}%</b></div>}
         <Slippage slip={slip} setSlip={setSlip} />
-        <div className="pp-fee"><span>Fee</span><b>{feePct}% today, falling to 1% by day 7</b></div>
+        <div className="pp-fee"><span>Fee</span><b>{feePct}% today, falling to 1% by day 7{pay.symbol === 'IMD' ? '' : `, plus the ${pay.symbol} route's pool fees`}</b></div>
       </div>
       <button className={`pp-btn pp-btn-block ${buy ? 'pp-btn-leap' : 'pp-btn-sell'}`} disabled={disabled} onClick={go}>{button}</button>
-      <p className="t-caption muted center">If the price moves past your slippage, the swap stops there and the rest stays in your wallet. Sells above the pool's cap are partly burned.</p>
+      <p className="t-caption muted center">Trades go through Uniswap's router in one transaction. If the price moves past your slippage, nothing is swapped. Sells above the pool's cap are partly burned.</p>
     </div>
   );
 }
-

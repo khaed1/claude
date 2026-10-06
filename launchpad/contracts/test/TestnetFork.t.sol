@@ -50,7 +50,8 @@ contract TestnetForkTest is Test {
                 ethUsdgTickSpacing: 10,
                 ethUsdgHook: address(0),
                 fastDelay: 10 minutes,
-                slowDelay: 30 minutes
+                slowDelay: 30 minutes,
+                launch: script.launchForTestnet()
             }),
             deployer: address(script),
             safe: safe,
@@ -95,6 +96,10 @@ contract TestnetForkTest is Test {
         );
         uint256 got = s.imd.balanceOf(user) - 500e18;
         assertApproxEqRel(got, 0.411e18 * 99 / 100, 0.01e18);
+
+        // The testnet keeps its own coin launch settings (D-76 changes mainnet only).
+        assertEq(keccak256(abi.encode(d.config.launchSettings())), keccak256(abi.encode(script.launchForTestnet())));
+        assertEq(d.config.launchSettings().graduationTarget, 2_060e18);
 
         // Short testnet delays, same owners as mainnet.
         assertEq(d.fastTimelock.getMinDelay(), 10 minutes);

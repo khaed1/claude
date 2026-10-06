@@ -81,11 +81,11 @@ launch ──► CURVE phase ─────────────────
 | Total supply | 1,000,000,000 (18 decimals), no mint, no owner | No (fixed per version) |
 | Sold on curve (S) | 800,000,000 (80%) | No |
 | Reserved for pool (R) | 200,000,000 (20%) | No |
-| Graduation target (E) | **2,060 IMD** of net raise (≈ $65k market cap at graduation, ≈ $4k at launch, at IMD ≈ $6.30) | Yes, 1,000–10,000 IMD, timelocked |
+| Graduation target (E) | **4,000 IMD** of net raise (≈ $126k market cap at graduation, ≈ $7.9k at launch, at IMD ≈ $6.30; D-76) | Yes, 1,000–10,000 IMD, timelocked |
 | Graduation fee | 1% of raised IMD → GrowthFund | Yes, 0–2% |
-| Launch fee | 1 IMD → FeeSplitter | Yes, 0–10 IMD |
-| Snipe tax | 50% → 0% linear over 20 s from launch, buys only | Yes, start ≤ 90%, duration ≤ 120 s |
-| Max buy window | first 60 s: ≤ 2% of supply per wallet | Yes, bounded |
+| Launch fee | 0.35 IMD → FeeSplitter (D-76) | Yes, 0–10 IMD |
+| Snipe tax | 70% → 0% linear over 80 s from launch, buys only (D-76) | Yes, start ≤ 90%, duration ≤ 120 s |
+| Max buy window | first 80 s (the Egg stage): ≤ 2% of supply per wallet (D-76) | Yes, bounded |
 | Initial dev buy | Optional, atomic, exempt from snipe tax and max-buy | – |
 
 ### 3.2 Curve math (constant product with virtual reserves)
@@ -97,8 +97,8 @@ y0 = S + S·R/(S−R)       = 800M + 266.67M = 1,066.67M   (virtual token reserv
 x0 = E/3                 (for S = 4R)                     (virtual IMD reserve)
 k  = x0 · y0
 price(t)  = x / y
-start mcap = 1B · x0/y0  ≈ 0.3125 · E   (≈ 644 IMD ≈ $4k)
-final price = E / R      → graduation mcap = 5 · E (≈ 10,300 IMD ≈ $65k)
+start mcap = 1B · x0/y0  ≈ 0.3125 · E   (≈ 1,250 IMD ≈ $7.9k)
+final price = E / R      → graduation mcap = 5 · E (≈ 20,000 IMD ≈ $126k)
 ```
 
 - Buy `dx` IMD (after fees): `dy = y − k/(x+dx)`. Sell `dy` tokens: `dx = x − k/(y+dy)`.

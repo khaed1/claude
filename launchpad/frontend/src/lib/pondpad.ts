@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useAccount, usePublicClient } from 'wagmi';
-import { getAbiItem, getAddress, type Address, type Hex, type PublicClient } from 'viem';
-import { AirdropDistributorAbi, MarketControllerAbi, PadMarketHookAbi, PadSaleAbi, PondPadTokenAbi, QuoterAbi } from '../abi';
-import { addr, chain, DEPLOY_BLOCK, QUOTER } from '../config';
+import { encodeAbiParameters, encodePacked, getAbiItem, getAddress, type Address, type Hex, type PublicClient } from 'viem';
+import { AirdropDistributorAbi, MarketControllerAbi, PadMarketHookAbi, PadSaleAbi, PondPadTokenAbi } from '../abi';
+import { addr, chain, DEPLOY_BLOCK } from '../config';
+import { pathFromImd, pathToImd, quoter, type PathKey } from './quote';
 import { scan } from './chain';
 
 // Everything the $PONDPAD page reads: the sale (PadSale), the market (PadMarketHook + MarketController) and the
@@ -141,34 +142,55 @@ export function useMarket() {
   });
 }
 
-/** Exact market quote through the v4 Quoter (runs the hook, so the dynamic fee and trims are included). */
-export async function quoteMarket(pc: PublicClient, key: PoolKey, buy: boolean, amountIn: bigint): Promise<bigint> {
-  const exactCurrency = buy ? key.currency0 : key.currency1;
-  const intermediateCurrency = buy ? key.currency1 : key.currency0;
-  const { result } = await pc.simulateContract({
-    address: QUOTER, abi: QuoterAbi, functionName: 'quoteExactInput',
-    args: [{ exactCurrency, path: [{ intermediateCurrency, fee: key.fee, tickSpacing: key.tickSpacing, hooks: key.hooks, hookData: '0x' }], exactAmount: amountIn }],
-  });
-  return result[0];
+/** A $PONDPAD market trade as one v4 path: the payment token's route to IMD (if any), then the market pool; sells reversed. */
+export type MarketRoute = { currencyIn: Address; currencyOut: Address; path: PathKey[] };
+
+export async function marketRoute(pc: PublicClient, key: PoolKey, buy: boolean, pay: Address): Promise<MarketRoute> {
+  const pool = (to: Address): PathKey => ({ intermediateCurrency: to, fee: key.fee, tickSpacing: key.tickSpacing, hooks: key.hooks, hookData: '0x' });
+  if (buy) return { currencyIn: pay, currencyOut: key.currency1, path: [...(await pathToImd(pc, pay)), pool(key.currency1)] };
+  return { currencyIn: key.currency1, currencyOut: pay, path: [pool(key.currency0), ...(await pathFromImd(pc, pay))] };
 }
 
-const MIN_SQRT = 4295128739n + 1n;
-const MAX_SQRT = 1461446703485210103287273052203988822378723970342n - 1n;
+/** Exact market quote through the v4 Quoter (runs the hooks, so the dynamic fee and trims are included). */
+export async function quoteMarket(pc: PublicClient, route: MarketRoute, amountIn: bigint): Promise<bigint> {
+  return quoter(pc, route.currencyIn, route.path, amountIn);
+}
+
+// Universal Router command and v4 router actions (universal-router Commands.sol, v4-periphery Actions.sol), as verified
+// on Sourcify for the router on Robinhood (its ExactInputParams carries minHopPriceX36).
+const V4_SWAP = 0x10;
+const SWAP_EXACT_IN = 0x07;
+const SETTLE_ALL = 0x0c;
+const TAKE_ALL = 0x0f;
+const EXACT_INPUT = [{
+  type: 'tuple',
+  components: [
+    { name: 'currencyIn', type: 'address' },
+    { name: 'path', type: 'tuple[]', components: [
+      { name: 'intermediateCurrency', type: 'address' }, { name: 'fee', type: 'uint24' }, { name: 'tickSpacing', type: 'int24' },
+      { name: 'hooks', type: 'address' }, { name: 'hookData', type: 'bytes' },
+    ] },
+    { name: 'minHopPriceX36', type: 'uint256[]' }, // per-hop floor; empty = only the final minimum-out applies
+    { name: 'amountIn', type: 'uint128' },
+    { name: 'amountOutMinimum', type: 'uint128' },
+  ],
+}] as const;
+const CURRENCY_AMOUNT = [{ type: 'address' }, { type: 'uint256' }] as const;
+
 /**
- * Price limit for a market swap through the testnet swap router (which has no minimum-out): the swap stops at
- * this price and the rest of the input stays in the wallet. Set so the last unit trades no worse than the quote's
- * average price moved by the slippage (for a constant-product range the marginal price moves about twice the average).
+ * `execute` arguments for Uniswap's Universal Router: one exact-in swap along the route with a minimum out (the router
+ * reverts with V4TooLittleReceived below it), paid from the wallet (Permit2, or ETH sent with the call) and paid out
+ * to the wallet.
  */
-export function marketPriceLimit(m: MarketState, buy: boolean, amountIn: bigint, quotedOut: bigint, slipBps: number): bigint {
-  if (quotedOut === 0n || amountIn === 0n) return buy ? MIN_SQRT : MAX_SQRT;
-  const p0 = Number(m.priceE18) / 1e18; // IMD per $PONDPAD now
-  const avg = buy ? Number(amountIn) / Number(quotedOut) : Number(quotedOut) / Number(amountIn);
-  const s = slipBps / 10_000;
-  const limit = buy ? p0 * (avg / p0) ** 2 * (1 + s) ** 2 : p0 * (avg / p0) ** 2 * (1 - s) ** 2;
-  // sqrtPriceX96 = sqrt($PONDPAD per IMD) · 2^96
-  const sq = BigInt(Math.floor(Math.sqrt(1 / limit) * 2 ** 48)) * 2n ** 48n;
-  if (buy) return sq <= MIN_SQRT ? MIN_SQRT : sq >= m.sqrtPriceX96 ? m.sqrtPriceX96 - 1n : sq;
-  return sq >= MAX_SQRT ? MAX_SQRT : sq <= m.sqrtPriceX96 ? m.sqrtPriceX96 + 1n : sq;
+export function marketSwapArgs(route: MarketRoute, amountIn: bigint, minOut: bigint, deadline: bigint) {
+  const actions = encodePacked(['uint8', 'uint8', 'uint8'], [SWAP_EXACT_IN, SETTLE_ALL, TAKE_ALL]);
+  const params = [
+    encodeAbiParameters(EXACT_INPUT, [{ currencyIn: route.currencyIn, path: route.path, minHopPriceX36: [], amountIn, amountOutMinimum: minOut }]),
+    encodeAbiParameters(CURRENCY_AMOUNT, [route.currencyIn, amountIn]),
+    encodeAbiParameters(CURRENCY_AMOUNT, [route.currencyOut, minOut]),
+  ];
+  const input = encodeAbiParameters([{ type: 'bytes' }, { type: 'bytes[]' }], [actions, params]);
+  return [encodePacked(['uint8'], [V4_SWAP]), [input], deadline] as const;
 }
 
 // ------------------------------------------------------------------ Airdrop

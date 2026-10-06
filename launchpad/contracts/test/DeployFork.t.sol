@@ -68,6 +68,16 @@ contract DeployForkTest is Test {
         assertTrue(d.fastTimelock.hasRole(d.fastTimelock.EXECUTOR_ROLE(), address(0))); // anyone executes
         assertFalse(d.fastTimelock.hasRole(d.fastTimelock.DEFAULT_ADMIN_ROLE(), address(script)));
 
+        // Coin launch settings (D-76): 0.35 IMD, Leap at 4,000 IMD, tax 70% over 80 s, max-buy 2% for 80 s.
+        PadConfig.LaunchSettings memory ls = d.config.launchSettings();
+        assertEq(ls.launchFee, 0.35e18);
+        assertEq(ls.graduationTarget, 4_000e18);
+        assertEq(ls.graduationFeeBps, 100);
+        assertEq(ls.snipeTaxStartBps, 7_000);
+        assertEq(ls.snipeTaxDuration, 80);
+        assertEq(ls.maxBuyWindow, 80);
+        assertEq(ls.maxBuyBps, 200);
+
         // Owners (HANDOFF §5): nothing is left with the deployer.
         assertEq(d.config.owner(), fast);
         assertEq(d.splitter.owner(), slow);

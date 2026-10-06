@@ -69,7 +69,7 @@ My pick for the hero: **"Every frog starts as a tadpole."** It tells the whole s
 
 **Header**
 > ## Lay an egg
-> Takes about a minute. Costs 1 IMD, plus gas. You can pay with IMD, ETH or USDG. We'll swap it for you in the same transaction.
+> Takes about a minute. Costs 0.35 IMD, plus gas. You can pay with IMD, ETH or USDG. We'll swap it for you in the same transaction.
 
 **Field hints**
 - Name: *"What will the pond call it?"*
@@ -108,7 +108,7 @@ My pick for the hero: **"Every frog starts as a tadpole."** It tells the whole s
 - Graduated: `🐸 Frog · Leapt 3 days ago`
 
 **Progress bar caption**
-> 1,297 / 2,060 IMD. Every buy brings the Leap closer.
+> 2,520 / 4,000 IMD. Every buy brings the Leap closer.
 
 **Trade box**
 - Buttons: `Buy` / `Sell`

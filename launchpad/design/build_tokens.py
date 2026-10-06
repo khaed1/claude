@@ -98,7 +98,7 @@ TYPE_GROUPS = [
         {"name": "caption", "fontSize": "12px", "lineHeight": "16px", "fontWeight": 600,
          "sample": "3 min ago", "usage": "Timestamps, footnotes, chip text."},
         {"name": "number-xl", "fontSize": "32px", "lineHeight": "36px", "fontWeight": 800,
-         "sample": "1,297 IMD", "usage": "The one key figure in a panel (curve raised, sPONDPAD value). Tabular numbers."},
+         "sample": "2,520 IMD", "usage": "The one key figure in a panel (curve raised, sPONDPAD value). Tabular numbers."},
     ]},
     {"name": "Data", "family": "mono", "styles": [
         {"name": "address", "fontSize": "12px", "lineHeight": "16px", "fontWeight": 400,

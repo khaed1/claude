@@ -9,7 +9,7 @@ You can pay with **IMD, ETH or USDG** everywhere; the router swaps to IMD in the
 | Word | Meaning |
 |---|---|
 | Spawn | Launch a coin |
-| Egg | A coin in its first minute, while the early max-buy applies |
+| Egg | A coin in its first seconds (80 on mainnet), while the early max-buy applies |
 | Tadpole | A coin on its bonding curve |
 | The Leap | Graduation: the curve is full and the coin moves into its locked pool |
 | Frog | A coin that has leapt |

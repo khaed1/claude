@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useAccount, usePublicClient, useWalletClient } from 'wagmi';
 import { BaseError, ContractFunctionRevertedError, erc20Abi, type Abi, type Address, type PublicClient } from 'viem';
-import { chain, explorerTx } from '../config';
+import { chain, explorerTx, PERMIT2 } from '../config';
+import { Permit2Abi } from '../abi';
 import { useToast } from '../components/Toasts';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -20,9 +21,11 @@ const ERRORS: Record<string, string> = {
   Slippage: 'The price moved while you were deciding. Try again or raise slippage a little.',
   Expired: 'That quote expired. Try again.',
   LaunchesPaused: 'New launches are paused for a moment. Trading still works.',
-  InsufficientForFee: 'That payment doesn’t cover the 1 IMD launch fee.',
+  InsufficientForFee: 'That payment doesn’t cover the launch fee.',
   MaxBuyExceeded: 'That’s over this coin’s early max-buy. Try a smaller amount or wait a minute.',
   PartialFill: 'The pool can’t fill all of that at once. Try a smaller amount.',
+  V4TooLittleReceived: 'The price moved while you were deciding. Try again or raise slippage a little.',
+  TransactionDeadlinePassed: 'That quote expired. Try again.',
   TransferFromFailed: 'Not enough balance or allowance for that.',
   InvalidName: 'Name must be 1–32 characters and ticker 1–12.',
 };
@@ -78,4 +81,18 @@ export function useSend() {
 export async function approveIfNeeded(pc: PublicClient, token: Address, owner: Address, spender: Address, amount: bigint): Promise<(Call & { label: string })[]> {
   const allowance = await pc.readContract({ address: token, abi: erc20Abi, functionName: 'allowance', args: [owner, spender] });
   return allowance >= amount ? [] : [{ address: token, abi: erc20Abi as Abi, functionName: 'approve', args: [spender, amount], label: 'Approving…' }];
+}
+
+/**
+ * Approval steps for a router that pulls through Permit2 (Uniswap's Universal Router): an exact ERC-20 approval to
+ * Permit2 and an exact Permit2 allowance for the router, valid 30 minutes, each only when short.
+ */
+export async function approveViaPermit2(pc: PublicClient, token: Address, owner: Address, spender: Address, amount: bigint): Promise<(Call & { label: string })[]> {
+  const steps = await approveIfNeeded(pc, token, owner, PERMIT2, amount);
+  const [allowed, expiration] = await pc.readContract({ address: PERMIT2, abi: Permit2Abi, functionName: 'allowance', args: [owner, token, spender] });
+  const now = Math.floor(Date.now() / 1000);
+  if (allowed < amount || expiration < now + 120) {
+    steps.push({ address: PERMIT2, abi: Permit2Abi as Abi, functionName: 'approve', args: [token, spender, amount, now + 1800], label: 'Approving…' });
+  }
+  return steps;
 }

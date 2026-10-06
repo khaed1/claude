@@ -1,6 +1,6 @@
 # Spawn a coin
 
-Spawning takes one transaction and costs a **1 IMD** launch fee plus gas. You can pay with IMD, ETH or USDG.
+Spawning takes one transaction and costs a **0.35 IMD** launch fee on mainnet (1 IMD on the testnet) plus gas. You can pay with IMD, ETH or USDG.
 
 - **Name and ticker:** 1–32 and 1–12 characters. They can't be changed later.
 - **Image, description and links:** shown on the coin page. Links must be https or ipfs.

@@ -8,4 +8,4 @@
 
 **Slippage** is how far the price can move before your trade gives up. 1% is the default. Raise it a little if a trade fails because the price moved.
 
-**Early-bird tax.** In the first seconds after a coin launches, buys pay an extra tax that falls to zero (50% → 0 over 20 seconds by default) and each wallet can buy at most 2% of the supply in the first minute. It's there to keep bots honest. Selling is never restricted.
+**Early-bird tax.** In the first seconds after a coin launches, buys pay an extra tax that falls to zero (70% → 0 over 80 seconds on mainnet; 50% → 0 over 20 seconds on the testnet) and each wallet can buy at most 2% of the supply while the coin is an Egg (the first 80 seconds on mainnet, 60 on the testnet). It's there to keep bots honest. Selling is never restricted.

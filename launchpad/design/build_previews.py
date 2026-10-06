@@ -5,7 +5,7 @@ and design/preview-all.html (every preview on one page with tokens.css and bundl
   python3 build_previews.py
 
 Previews are static HTML using the pp- classes from system/components/bundle.css; the coin images are small
-generated SVGs. Example numbers are illustrative (curve target 2,060 IMD, fees 1.5% + tax, D-9, D-14).
+generated SVGs. Example numbers are illustrative (curve target 4,000 IMD, fees 1.5% + tax, D-9, D-76).
 """
 import base64
 from pathlib import Path
@@ -47,7 +47,7 @@ def leap(pct, raised, near=False, done=False, pads=True):
     label = "Leapt" if done else f"{pct}% to the Leap"
     return (f'<div class="{cls}" role="progressbar" aria-valuenow="{pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Progress to the Leap">'
             f'<div class="pp-leap-track">{pad_html}<div class="pp-leap-fill" style="width:{pct}%"></div><div class="pp-leap-head" style="left:{pct}%"></div></div>'
-            f'<div class="pp-leap-row"><span><b>{raised}</b> / 2,060 IMD</span><span>{label}</span></div></div>')
+            f'<div class="pp-leap-row"><span><b>{raised}</b> / 4,000 IMD</span><span>{label}</span></div></div>')
 
 
 def coin(name, ticker, img, stage, desc, mcap, change, pct=None, raised=None, badges="", spotlight=False, near=False, fee="1.5%"):
@@ -80,7 +80,7 @@ PREVIEWS = {
                '<button class="pp-btn pp-btn-primary" disabled>Laying your egg…</button></div>'),
     "StageChip": ("Lifecycle", 64, '<div class="pp-demo"><span class="pp-stage pp-stage-egg">Egg</span>'
                   '<span class="pp-stage pp-stage-tadpole">Tadpole · 63%</span><span class="pp-stage pp-stage-frog">Frog · leapt 3d ago</span></div>'),
-    "LeapMeter": ("Lifecycle", 200, '<div class="pp-demo-col">' + leap(8, "164") + leap(63, "1,297") + leap(94, "1,936", near=True) + leap(100, "2,060", done=True) + "</div>"),
+    "LeapMeter": ("Lifecycle", 200, '<div class="pp-demo-col">' + leap(8, "320") + leap(63, "2,520") + leap(94, "3,760", near=True) + leap(100, "4,000", done=True) + "</div>"),
     "Badge": ("Status", 64, '<div class="pp-demo">' + ALL_BADGES + '<span class="pp-badge pp-badge-warn">Takeover notice</span><span class="pp-badge">Paid in ETH</span></div>'),
     "Notice": ("Status", 260, '<div class="pp-demo-col">'
                '<div class="pp-notice pp-notice-tax">'+ICON["clock"]+'<div><b>Early-bird tax is on for 14 more seconds.</b> It\'s there to keep bots honest.</div></div>'
@@ -90,7 +90,7 @@ PREVIEWS = {
     "Toast": ("Status", 150, '<div class="pp-demo-col"><div class="pp-toast is-ok">It\'s alive. Your tadpole is swimming. <a href="#">View</a></div>'
               '<div class="pp-toast is-error">That didn\'t go through. Nothing was lost except a bit of gas.</div></div>'),
     "CoinCard": ("Coins", 560, '<div class="pp-demo-col" style="max-width:440px">'
-                 + coin("Ribbit Republic", "RIBBIT", "ribbit", "tadpole", "A frog-run state. Every holder gets a vote, nobody reads the constitution.", "6,420 IMD", "+18.2%", 63, "1,297", BADGES, fee="2.0%")
+                 + coin("Ribbit Republic", "RIBBIT", "ribbit", "tadpole", "A frog-run state. Every holder gets a vote, nobody reads the constitution.", "10,440 IMD", "+18.2%", 63, "2,520", BADGES, fee="2.0%")
                  + coin("Golden Croak", "CROAK", "gold", "tadpole", "One croak away from the Leap.", "9,710 IMD", "+41.0%", 94, "1,936", '<span class="pp-badge pp-badge-x">' + ICON["x"] + 'X verified</span>', spotlight=True, near=True)
                  + coin("Lotus Lounge", "LOTUS", "lotus", "frog", "Leapt last week. Site built by the Chorus.", "48,200 IMD", "-6.4%", badges='<span class="pp-badge pp-badge-chorus">' + ICON["web"] + 'Site by the Chorus</span>')
                  + "</div>"),
