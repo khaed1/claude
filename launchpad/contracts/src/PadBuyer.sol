@@ -98,8 +98,11 @@ contract PadBuyer is Ownable, IUnlockCallback {
             (uint256, uint256)
         );
         tokensOut = out;
-        // A partial fill (price limit hit) spends less; the tip shrinks with it.
+        // A partial fill (price limit hit) spends less; the tip shrinks with it, and never exceeds what was
+        // reserved for it (audit R1-A3-6: the recomputed tip could round 1 wei above it).
+        uint256 reserved = tip;
         tip = (spent * keeperTipBps) / (10_000 - keeperTipBps);
+        if (tip > reserved) tip = reserved;
         if (tip != 0) imd.safeTransfer(msg.sender, tip);
         emit Bought(spent, out, tip, msg.sender);
     }

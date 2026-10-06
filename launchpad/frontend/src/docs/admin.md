@@ -8,5 +8,6 @@ PondPad has no upgradeable contracts. The few settings that can change are held 
 | The protocol fee split, within fixed ranges | Locked liquidity: there is no way to remove it |
 | Payment routes for ETH, USDG and future tokens | Pausing trading, freezing or minting tokens |
 | Registering and activating new versions, after a swarm audit | Taking creator fees, dividends or staked funds |
+| A move of the $PONDPAD market into a new hook in its first 12 months: approved by the 7-day timelock, then run by the team's Safe, at the same price and guards | Where coin fees go: the fee splitter and growth fund are fixed at deploy |
 
 The team's Safe can pause **new launches** instantly (never trading) and register integrators.

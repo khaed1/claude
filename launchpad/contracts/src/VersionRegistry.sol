@@ -131,9 +131,13 @@ contract VersionRegistry is Ownable {
         if (v.activatedAt != 0) revert AlreadyActive();
         v.activatedAt = uint64(block.timestamp);
         v.auditRef = auditRef;
-        currentVersion = version;
         emit Activated(version, requestId, auditRef);
-        emit CurrentSet(version);
+        // Activation only moves new launches forward (audit R1-A4-6): activating an older version (anyone can
+        // submit an attestation) marks it activated, but only the owner's `setCurrent` rolls back.
+        if (version > currentVersion) {
+            currentVersion = version;
+            emit CurrentSet(version);
+        }
     }
 
     /// @notice Points new launches at an earlier activated version (rollback).

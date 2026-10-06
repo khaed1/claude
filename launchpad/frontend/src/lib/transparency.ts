@@ -94,13 +94,13 @@ export function useFlows() {
 
 /** Contracts with an owner, and what that owner can do (D-57, D-59; HANDOFF §5). */
 export const OWNED: { key: keyof typeof addr; name: string; can: string }[] = [
-  { key: 'config', name: 'PadConfig', can: 'launch settings within fixed bounds, payment routes, integrators' },
+  { key: 'config', name: 'PadConfig', can: 'launch settings within fixed bounds, payment routes, integrators (fee splitter and growth fund are fixed)' },
   { key: 'feeSplitter', name: 'FeeSplitter', can: 'the 40/25/20/15 split within fixed ranges, recipients' },
   { key: 'growthFund', name: 'GrowthFund', can: 'relay, granter and weekly caps' },
   { key: 'workerFund', name: 'WorkerFund', can: 'set the IMD worker rewards address' },
   { key: 'swarmBudget', name: 'SwarmBudget', can: 'the Swarm Relay address' },
   { key: 'socialRegistry', name: 'SocialRegistry', can: 'the X link service key' },
-  { key: 'marketController', name: 'MarketController', can: 'market settings within bounds; migrate to a new hook (first 12 months)' },
+  { key: 'marketController', name: 'MarketController', can: 'market settings within bounds; approve a move to a new hook that the Safe then runs (first 12 months)' },
   { key: 'stakedPondpad', name: 'StakedPONDPAD', can: 'pause up to 3 days; never move stake; ends after 12 months' },
   { key: 'rewardDripper', name: 'RewardDripper', can: 'drip pace within bounds; never move rewards; ends after 12 months' },
   { key: 'padBuyer', name: 'PadBuyer', can: 'chunk size, interval, price guards within bounds' },

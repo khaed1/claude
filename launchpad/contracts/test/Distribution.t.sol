@@ -341,6 +341,36 @@ contract DistributionTest is MarketBase {
         assertEq(airdrop.claimWalletOf(seat), staker);
     }
 
+    /// @dev Audit R1-A3-4: re-pointing the claim wallet directly voids a delegation signed earlier but not submitted.
+    function test_airdrop_directClaimWalletVoidsUnsubmittedDelegation() public {
+        _activate();
+        vm.warp(ACT + 30 days);
+        uint256 deadline = ACT + 60 days;
+        bytes memory sig = _delegateSig(hot, 0, deadline); // signed, never submitted
+        vm.prank(seat);
+        airdrop.setClaimWallet(staker);
+        bytes32[] memory p = _proof(0);
+        vm.prank(hot);
+        vm.expectRevert(AirdropDistributor.BadSignature.selector);
+        airdrop.setClaimWalletAndClaim(seat, deadline, sig, amounts[0], p);
+        assertEq(airdrop.claimWalletOf(seat), staker);
+    }
+
+    /// @dev Audit R1-A3-5: if someone already submitted the delegation, the claim wallet's one-transaction claim
+    ///      still works.
+    function test_airdrop_combinedClaimWorksAfterDelegationWasSubmitted() public {
+        _activate();
+        vm.warp(ACT + 30 days);
+        uint256 deadline = ACT + 31 days;
+        bytes memory sig = _delegateSig(hot, 0, deadline);
+        airdrop.setClaimWalletBySig(seat, hot, deadline, sig); // a relay (anyone) submits it first
+        bytes32[] memory p = _proof(0);
+        vm.prank(hot);
+        uint256 paid = airdrop.setClaimWalletAndClaim(seat, deadline, sig, amounts[0], p);
+        assertEq(paid, amounts[0]);
+        assertEq(pondpad.balanceOf(hot), amounts[0]);
+    }
+
     function test_airdrop_unclaimedSweptToStakersAfter180Days() public {
         vm.expectRevert(AirdropDistributor.ClaimWindowNotOver.selector); // not even active
         airdrop.sweep();

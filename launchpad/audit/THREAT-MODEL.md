@@ -17,9 +17,9 @@ Keeping Ethereum blocks is deliberate (D-65): Robinhood's own block number would
 | Traders, creators, sale buyers, stakers | Trade through `PadRouter` / `PadSale` / any v4 router (after graduation), launch coins, stake | Untrusted. Assume flash loans, MEV, many wallets, contracts as wallets |
 | Outside routers and hooks callers | Swap in graduated coin pools and the $PONDPAD market through the PoolManager | Untrusted. May unlock the PoolManager and call anything in the callback |
 | Keepers | Every upkeep call (HANDOFF §6) is permissionless | Untrusted; may call in any order, at any time, repeatedly, or never |
-| Team Safe | Proposes to both timelocks; guardian (pause **new** launches, register integrators); council (CTO fallback until retired); granter (GrowthFund, capped); treasury; team-vesting beneficiary | Semi-trusted: powers must stay inside the bounds in code. A finding is anything that lets it exceed them |
-| 48 h timelock | Owner of `PadConfig`, `SwarmBudget`, `SocialRegistry`, `GrowthFund`, `MarketController` (policy), `RewardDripper`, `PadBuyer`, `AirdropDistributor`; holds the 30M liquidity reserve | Same as the Safe, delayed |
-| 7-day timelock | Owner of `FeeSplitter`, `AttestationVerifier`, `CTOModule`, `VersionRegistry`, `WorkerFund`, `StakedPONDPAD`; `MarketController.sinkAdmin` (sinks, migration) | Same as the Safe, delayed |
+| Team Safe | Proposes to both timelocks; guardian (pause **new** launches, register integrators); council (CTO fallback until retired; 90-day per-coin wait after a cancel; an attested proposal replaces its pending one); granter (GrowthFund, capped); treasury; team-vesting beneficiary; `MarketController.migrator` (runs a migration only into the hook the 7-day timelock approved, D-78) | Semi-trusted: powers must stay inside the bounds in code. A finding is anything that lets it exceed them |
+| 48 h timelock | Owner of `PadConfig` (launch settings, routes, integrator share; **not** the fee splitter or growth fund, which are fixed, D-78), `SwarmBudget`, `SocialRegistry`, `GrowthFund`, `MarketController` (policy), `RewardDripper`, `PadBuyer`, `AirdropDistributor`; holds the 30M liquidity reserve | Same as the Safe, delayed |
+| 7-day timelock | Owner of `FeeSplitter`, `AttestationVerifier`, `CTOModule`, `VersionRegistry`, `WorkerFund`, `StakedPONDPAD`; `MarketController.sinkAdmin` (sinks, migration approval) | Same as the Safe, delayed |
 | Swarm Relay hot wallet | `GrowthFund.payJob` ≤ 100 IMD / 7 days; `SwarmBudget` job releases | Assume the key can leak: damage must stay within its caps |
 | X link service key | Signs `SocialRegistry` vouchers | Can leak: it can link handles, never move funds |
 | Tweet checker key | Signs `AirdropDistributor` initiation vouchers | Can leak: it must not be able to activate the airdrop alone (needs 100 distinct **listed** wallets) |
@@ -36,25 +36,25 @@ Trusted externals: the v4 PoolManager, IMD and USDG tokens, the ETH/USDG pool's 
 3. Locked liquidity can never be removed; nobody else can add liquidity to a `PadHook` pool.
 4. Every trade, through any router, pays exactly the coin's fee bps on the **filled** IMD amount. A swap with IMD as the specified side that fills only partly reverts (`PartialFill`).
 5. A coin's saved settings (fees, tax split, target, curve) never change after launch. Admin settings apply to future launches only.
-6. Dividends and staking rewards can't be captured with flash-borrowed tokens or within one block. Dividends are never paid while the PoolManager is unlocked by an outside caller.
+6. Dividends and staking rewards can't be captured with flash-borrowed tokens or within one block. Dividends are never paid while the PoolManager is unlocked by an outside caller; curve trades revert inside an outside unlock. Lumps routed to a coin's holders (creator fees, swept swarm budget) are released through `CreatorVault`'s holder stream over ~7 days, at most one day's share per release (D-78).
 7. Snipe tax and max-buy can't be bypassed (curve trades only through `PadRouter`).
 8. The integrator share goes only to registered integrators named in `PadRouter`'s hook data, comes only out of the protocol fee, and never touches the creator share or coin tax.
 9. Routers and the sale never keep user funds between transactions; slippage limits and refunds (ETH, overshoot IMD) are exact.
 
 **$PONDPAD sale and market**
 10. `PadSale`: curve solvency as in (1); the 15M cap counts every buy over the whole sale (sells don't free it); graduation happens once and hands the exact net raise and 300M $PONDPAD to `MarketController.launch`.
-11. The market opens once, only from the sale, at the sale's final price. No path ever sends pool liquidity, backstop IMD or inventory to a wallet. `migrate` is only by the 7-day timelock, only within 12 months of `openedAt`, only into an unopened hook for the same pair owned by the same controller, at the same price. `openedAt` never changes.
+11. The market opens once, only from the sale, at the sale's final price. No path ever sends pool liquidity, backstop IMD or inventory to a wallet. `migrate` is only by the team Safe (`migrator`) into the hook the 7-day timelock approved, only within 12 months of `openedAt`, only into an unopened hook for the same pair owned by the same controller, at the same price, fee clock, backstop placement floor, reference tick and cap (floor and cap only raised, D-78). `openedAt` never changes. Exception, a listed power: `sinkAdmin` can point the burn sink and rewards recipient at any address (ARCHITECTURE §5.4.1).
 12. `PadMarketHook` behaves like POOL4's `CappedBurnHook` except for the listed changes (`upstream/make_fork.py` is the exact diff). The dynamic fee (3% → 1% over 7 days) never enters cap, trim, burn or backstop math.
 
 **Staking and funds**
 13. Staked $PONDPAD and the dripper's reward buffer can never be rescued. Pauses last ≤ 3 days with ≥ 4 unpaused days between. All staking owner powers end at `powersExpireAt`.
-14. The dripper never drips into an empty vault; `PadBuyer` can only send $PONDPAD to the dripper and refuses to buy after a price pump.
+14. The dripper never drips into a vault with fewer than `MIN_VAULT_SHARES` (1e24) real shares; the vault's one-block hold applies only to shares that arrived in the current block; `PadBuyer` can only send $PONDPAD to the dripper and refuses to buy after a price pump.
 15. `FeeSplitter` outputs equal its inputs; shares stay in their ranges. `WorkerFund` pays only the worker rewards address. `GrowthFund` pays only within its per-epoch caps, only capped tokens.
 
 **Governance**
 16. An attestation is accepted only from the approved signer, for the consumer's exact rebuilt question hash, with panel ≥ 51, agreed ≥ 2/3 and ≥ quorum, inside its validity window, and once.
-17. `CTOModule`: all guards hold (coin ≥ 30 days, 90-day cooldown, contract recipient, X-verified proposer, notice periods, contest → +7 days and a ≥ 75 panel). Attested takeovers can't be cancelled. Fallbacks (council CTO, manual version activation) retire one-way.
-18. `VersionRegistry`: activation needs an attestation for the exact code hash and addresses, or the owner fallback until retired.
+17. `CTOModule`: all guards hold (coin ≥ 30 days, 90-day cooldown, contract recipient that is not an EIP-7702 delegated wallet, X-verified proposer, notice periods, contest → +7 days and a ≥ 75 panel answering after the contest about the X account stored at proposal). Attested takeovers can't be cancelled, and replace a pending council proposal; the council waits 90 days per coin after a cancel. Fallbacks (council CTO, manual version activation) retire one-way; a council proposal pending at retirement can't execute.
+18. `VersionRegistry`: activation needs an attestation for the exact code hash and addresses, or the owner fallback until retired. An activation moves `currentVersion` only forward; only the owner rolls back. The registry is informational (no launch path reads it).
 19. `SocialRegistry` vouchers can't be replayed, used after their deadline, or used by anyone but the coin's fee recipient (or the wallet itself for `linkWallet`).
 
 **Distribution**

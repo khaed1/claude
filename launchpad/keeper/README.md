@@ -34,7 +34,8 @@ Addresses come from `../contracts/deployments/4663.json`, which `script/Deploy.s
 | `BondingCurve.graduate(coin)` | 5 min | a coin's curve is full but not graduated |
 | `PadHook.flush(coin)` | hourly | a graduated coin has pending fees (trades through outside routers) |
 | `CTOModule.execute(coin)` | hourly | a takeover's notice has passed and its window is open |
-| `CreatorVault.claim(coin)` + `SwarmBudget.sweepToHolders(coin)` | weekly | the coin's fees go to its holders (D-52) |
+| `CreatorVault.claim(coin)` + `SwarmBudget.sweepToHolders(coin)` | weekly | the coin's fees go to its holders (D-52); both feed the coin's holder stream (D-78) |
+| `CreatorVault.releaseToHolders(coin)` | daily | `releasableToHolders(coin) > 0`: a holder stream pays out over ~7 days, at most one day's share per call |
 
 A job whose condition is false is checked again on the next pass; once it has tried to send, it waits for its cadence. Per-coin reads are batched through Multicall3 (newest `MAX_COINS_PER_PASS` coins, default 500).
 

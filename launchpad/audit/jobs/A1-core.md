@@ -17,6 +17,7 @@ contracts/src/FeeSplitter.sol
 contracts/src/PadLens.sol
 FOCUS:
 Context: coins launch on an IMD bonding curve (80% sold, 20% to the pool, graduation at 4,000 IMD on mainnet, D-76) and graduate into a Uniswap v4 pool run by PadHook with full-range liquidity locked forever. Fees: 1% protocol + 0.5% creator + optional 0-3% coin tax, always on the IMD side, through any router. Users pay with IMD, ETH or USDG (PaymentSwapper routes up to 3 hops).
+Changed since round 1 (D-78): curve buy/sell revert while the PoolManager is unlocked; completing-buy quote; no curve allowance to the hook; PadHook.flush does nothing inside any unlock; CreatorVault holder stream (fundHolders / releaseToHolders: ~7 days, at most one day's share per release) fed by claims to the coin and SwarmBudget.sweepToHolders; PadConfig fee splitter and growth fund fixed.
 Look hardest at:
 - Curve math and rounding: can any buy/sell sequence (incl. the completing buy and its refund, dev buy, snipe tax) make the curve insolvent or move graduation off the final price?
 - Graduation: front-running pool init, inline vs. permissionless graduate() under an outside PoolManager unlock, the 1% fee / 1% reserve burn.

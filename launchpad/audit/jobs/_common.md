@@ -2,7 +2,7 @@ PondPad v1 security audit, round {{ROUND}}, area {{ID}}: {{TITLE}}. PondPad is a
 
 READ FIRST, in this repository:
 - launchpad/audit/THREAT-MODEL.md: actors and trust, the invariants (section 2), deliberate behaviour that is NOT a finding (section 3) and the severity scale (section 4). Use that scale.
-- launchpad/audit/FINDINGS.md: findings already fixed or accepted in earlier rounds. Do not re-report them unless the fix is wrong.
+- launchpad/audit/FINDINGS.md: findings already fixed or accepted in earlier rounds. Do not re-report them unless the fix is wrong. Findings still open there are known; report them again only with a new, worse path. Check that every fix marked fixed for this area is correct and complete and opens no new path (each names its regression test).
 - Design: launchpad/ARCHITECTURE-v1.md. Reasons for every choice: launchpad/DECISIONS.md (cited as D-n).
 - Tests: cd launchpad/contracts && git submodule update --init --recursive && forge test --no-match-contract Fork
 

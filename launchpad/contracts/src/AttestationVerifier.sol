@@ -51,7 +51,8 @@ contract AttestationVerifier is Ownable, EIP712 {
     uint256 public signerCount;
     /// @notice Smallest panel accepted (user: more than 50).
     uint16 public minPanelSize = 51;
-    /// @notice Members who gave the signed answer, as a share of the panel (user: two thirds).
+    /// @notice Members who gave the signed answer, as a share of the panel rounded up to whole bps (user: two
+    ///         thirds).
     uint16 public minAgreementBps = 6_667;
 
     event SignerSet(address indexed signer, bool approved);
@@ -87,7 +88,12 @@ contract AttestationVerifier is Ownable, EIP712 {
         if (att.questionHash != questionHash(question, att.chainId, att.fromBlock, att.toBlock)) revert WrongQuestion();
         if (att.answerType != ANSWER_BOOL || att.answer.length != 32) revert NotBool();
         if (att.panelSize < minPanelSize) revert PanelTooSmall();
-        if (att.agreed < att.quorum || uint256(att.agreed) * 10_000 < uint256(att.panelSize) * minAgreementBps) {
+        // The agreeing share is rounded up to whole bps, so exactly two thirds (34 of 51, 50 of 75) meets 6,667
+        // (audit R1-A4-13); without rounding, 6,667 bps would be slightly more than two thirds.
+        if (
+            att.agreed < att.quorum
+                || uint256(att.agreed) * 10_000 + att.panelSize - 1 < uint256(att.panelSize) * minAgreementBps
+        ) {
             revert NotEnoughAgreement();
         }
         if (block.timestamp < att.issuedAt) revert NotYetValid();

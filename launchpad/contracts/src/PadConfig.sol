@@ -9,6 +9,9 @@ import {Hop} from "./Route.sol";
 /// @notice Every adjustable PondPad setting, each with hard limits enforced here. The owner is meant to be a
 ///         timelock controlled by the team multisig. A guardian may pause new launches instantly, nothing else.
 ///         Coins copy the launch settings when they are created, so a change only affects future launches.
+///         The fee splitter and growth fund are fixed at deploy (D-78, audit R1-A4-4): every coin reads them on
+///         every trade, so changing them would re-route live coins' fees. Fee routing changes only through the
+///         FeeSplitter's own bounded, 7-day-timelocked settings.
 contract PadConfig is Ownable {
     struct LaunchSettings {
         uint96 launchFee; // IMD paid per launch, sent to the fee splitter
@@ -30,8 +33,8 @@ contract PadConfig is Ownable {
     uint16 public constant MIN_MAX_BUY_BPS = 50;
 
     LaunchSettings internal _launch;
-    address public feeSplitter;
-    address public growthFund;
+    address public immutable feeSplitter;
+    address public immutable growthFund;
     address public guardian;
     bool public launchesPaused;
     /// @notice Approved payment tokens and their swap path to IMD (address(0) = native ETH). The router can take
@@ -47,8 +50,6 @@ contract PadConfig is Ownable {
     address public immutable imd;
 
     event LaunchSettingsUpdated(LaunchSettings settings);
-    event FeeSplitterUpdated(address feeSplitter);
-    event GrowthFundUpdated(address growthFund);
     event GuardianUpdated(address guardian);
     event LaunchesPaused(bool paused);
     event PaymentRouteSet(address indexed token, Hop[] hops);
@@ -69,8 +70,9 @@ contract PadConfig is Ownable {
     ) {
         _initializeOwner(owner_);
         imd = imd_;
-        _setFeeSplitter(feeSplitter_);
-        _setGrowthFund(growthFund_);
+        if (feeSplitter_ == address(0) || growthFund_ == address(0)) revert InvalidSetting();
+        feeSplitter = feeSplitter_;
+        growthFund = growthFund_;
         guardian = guardian_;
         _setLaunchSettings(s);
         integratorShareBps = 1_500;
@@ -158,14 +160,6 @@ contract PadConfig is Ownable {
         emit PaymentRouteRemoved(token);
     }
 
-    function setFeeSplitter(address feeSplitter_) external onlyOwner {
-        _setFeeSplitter(feeSplitter_);
-    }
-
-    function setGrowthFund(address growthFund_) external onlyOwner {
-        _setGrowthFund(growthFund_);
-    }
-
     function setGuardian(address guardian_) external onlyOwner {
         guardian = guardian_;
         emit GuardianUpdated(guardian_);
@@ -187,17 +181,5 @@ contract PadConfig is Ownable {
         ) revert InvalidSetting();
         _launch = s;
         emit LaunchSettingsUpdated(s);
-    }
-
-    function _setFeeSplitter(address a) internal {
-        if (a == address(0)) revert InvalidSetting();
-        feeSplitter = a;
-        emit FeeSplitterUpdated(a);
-    }
-
-    function _setGrowthFund(address a) internal {
-        if (a == address(0)) revert InvalidSetting();
-        growthFund = a;
-        emit GrowthFundUpdated(a);
     }
 }

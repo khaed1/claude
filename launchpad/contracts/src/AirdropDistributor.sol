@@ -183,8 +183,10 @@ contract AirdropDistributor is Ownable, EIP712, ReentrancyGuard {
 
     // ------------------------------------------------------------------ Claim wallet (delegation)
 
-    /// @notice Names the wallet that will claim and receive the caller's airdrop.
+    /// @notice Names the wallet that will claim and receive the caller's airdrop. Also voids any delegation the
+    ///         caller signed but nobody submitted yet (it uses the next nonce; audit R1-A3-4).
     function setClaimWallet(address claimWallet) external {
+        nonces[msg.sender]++;
         _setClaimWallet(msg.sender, claimWallet);
     }
 
@@ -234,7 +236,8 @@ contract AirdropDistributor is Ownable, EIP712, ReentrancyGuard {
         uint256 amount,
         bytes32[] calldata proof
     ) external returns (uint256) {
-        setClaimWalletBySig(account, msg.sender, deadline, signature);
+        // If someone already submitted this delegation, it is in place: just claim (audit R1-A3-5).
+        if (claimWalletOf(account) != msg.sender) setClaimWalletBySig(account, msg.sender, deadline, signature);
         return claim(account, amount, proof);
     }
 

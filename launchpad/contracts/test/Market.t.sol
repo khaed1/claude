@@ -409,26 +409,44 @@ contract MarketTest is MarketBase {
         controller.migrate(newHook_);
     }
 
+    /// @dev Approves `newHook_` (never reverts), then expects the migrator's `migrate` to revert with `err`.
+    function _approveAndExpectMigrateRevert(address newHook_, bytes4 err) internal {
+        vm.prank(slowTimelock);
+        controller.approveMigration(newHook_);
+        vm.prank(migrator);
+        vm.expectRevert(err);
+        controller.migrate(newHook_);
+    }
+
     function test_market_migrateGuards() public {
         PadMarketHook next = _newHook(0x8888, address(controller), address(burner));
-        vm.expectRevert(MarketController.MigrationClosed.selector); // not launched yet
-        _approveAndMigrate(address(next));
+        _approveAndExpectMigrateRevert(address(next), MarketController.MigrationClosed.selector); // not launched
 
         _graduate();
+        // Only the migrator, only the approved hook, only by the sink admin's approval.
+        vm.prank(slowTimelock);
+        controller.approveMigration(address(next));
+        vm.prank(slowTimelock);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        controller.migrate(address(next));
+        vm.prank(migrator);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        controller.approveMigration(address(0x1234));
+        PadMarketHook other = _newHook(0xBBBB, address(controller), address(burner));
+        vm.prank(migrator);
+        vm.expectRevert(MarketController.InvalidSetup.selector);
+        controller.migrate(address(other)); // not the approved one
+
         // Wrong owner, wrong burn sink, the current hook itself: refused.
         PadMarketHook foreign = _newHook(0x9999, address(this), address(burner));
         PadMarketHook badSink = _newHook(0xAAAA, address(controller), address(0xBAD));
-        vm.expectRevert(MarketController.InvalidSetup.selector);
-        _approveAndMigrate(address(foreign));
-        vm.expectRevert(MarketController.InvalidSetup.selector);
-        _approveAndMigrate(address(badSink));
-        vm.expectRevert(MarketController.InvalidSetup.selector);
-        _approveAndMigrate(address(market));
+        _approveAndExpectMigrateRevert(address(foreign), MarketController.InvalidSetup.selector);
+        _approveAndExpectMigrateRevert(address(badSink), MarketController.InvalidSetup.selector);
+        _approveAndExpectMigrateRevert(address(market), MarketController.InvalidSetup.selector);
 
         // After 12 months the market is locked for good.
         vm.warp(controller.migrationDeadline());
-        vm.expectRevert(MarketController.MigrationClosed.selector);
-        _approveAndMigrate(address(next));
+        _approveAndExpectMigrateRevert(address(next), MarketController.MigrationClosed.selector);
     }
 
     /// @dev Audit R1-A2-1: IMD sent to the controller before the Leap (here more than the whole raise) must not
@@ -454,12 +472,14 @@ contract MarketTest is MarketBase {
         market.rebalance();
         vm.warp(t0 + 1 days);
         _nextBlock();
-        int24 floorBefore = market.deploymentFloorTick();
         PadMarketHook next = _newHook(0x8888, address(controller), address(burner));
         vm.prank(slowTimelock);
         controller.approveMigration(address(next));
 
         _swap(true, 2_000e18); // pump $PONDPAD (tick down) in the migration block
+        // The floor legitimately decays with time (400 ticks/day, applied on the swap above), so compare with
+        // the floor the old market holds right before `migrate`.
+        int24 floorBefore = market.deploymentFloorTick();
         assertLt(market.currentTick(), floorBefore);
         vm.prank(migrator);
         controller.migrate(address(next));

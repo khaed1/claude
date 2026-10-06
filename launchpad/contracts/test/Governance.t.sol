@@ -12,6 +12,12 @@ import {PadLens} from "../src/PadLens.sol";
 import {PadToken} from "../src/PadToken.sol";
 import {SwarmBudget} from "../src/SwarmBudget.sol";
 import {CoinFees} from "../src/FeeLib.sol";
+import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
+import {TickMath} from "v4-core/libraries/TickMath.sol";
+import {PoolKey} from "v4-core/types/PoolKey.sol";
+import {Currency} from "v4-core/types/Currency.sol";
+import {SwapParams} from "v4-core/types/PoolOperation.sol";
+import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 
 /// @dev Stands in for a community Safe: takeovers only go to contracts.
 contract MockSafe {}
@@ -208,6 +214,25 @@ contract GovernanceTest is Base {
         verifier.questionHash('say "yes"', 1, 1, 2);
     }
 
+    /// @dev Audit R1-A4-13: exactly two thirds meets the two-thirds bar; one member fewer doesn't.
+    function test_verifier_exactTwoThirdsAccepted() public {
+        _approveOracle();
+        string memory q = "Is this a test question?";
+        uint16[3] memory panels = [uint16(51), 75, 99];
+        for (uint256 i; i < 3; i++) {
+            OracleAttestation memory a = _att(q, true);
+            a.panelSize = panels[i];
+            a.agreed = panels[i] * 2 / 3;
+            a.quorum = a.agreed;
+            assertTrue(verifier.verifyBool(a, _sign(a, oracleKey), q));
+            a.agreed -= 1;
+            a.quorum = a.agreed;
+            bytes memory sig = _sign(a, oracleKey);
+            vm.expectRevert(AttestationVerifier.NotEnoughAgreement.selector);
+            verifier.verifyBool(a, sig, q);
+        }
+    }
+
     function test_verifier_settingsBounded() public {
         vm.expectRevert(Ownable.Unauthorized.selector);
         verifier.setSigner(oracle, true);
@@ -389,6 +414,7 @@ contract GovernanceTest is Base {
         OracleAttestation memory wrong = _att(cto.question(coin, newOwner, "frogdao"), true);
         wrong.panelSize = 80;
         wrong.agreed = 60;
+        wrong.issuedAt = uint64(P + 1 days);
         bytes memory wrongSig = _sign(wrong, oracleKey);
         vm.expectRevert(AttestationVerifier.WrongQuestion.selector);
         cto.confirm(coin, wrong, wrongSig);
@@ -400,6 +426,7 @@ contract GovernanceTest is Base {
         OracleAttestation memory big = _att(cto.confirmQuestion(coin, newOwner, "frogdao"), true);
         big.panelSize = 80;
         big.agreed = 60;
+        big.issuedAt = uint64(P + 1 days); // asked after the contest
         bytes memory bigSig = _sign(big, oracleKey);
         cto.confirm(coin, big, bigSig); // anyone can submit it
         cto.execute(coin);
@@ -421,20 +448,94 @@ contract GovernanceTest is Base {
         cto.execute(coin);
         assertEq(vault.recipientOf(coin), coin);
 
-        // New creator fees and the swarm budget now reach holders as IMD dividends.
+        // New creator fees and the swarm budget now reach holders as IMD dividends, over about 7 days (D-78).
         _buy(bob, coin, 100e18);
         uint256 creatorFees = vault.balanceOf(coin);
         uint256 swarm = budget.available(coin);
         uint256 aliceBefore = PadToken(coin).withdrawableDividendOf(alice);
         vault.claim(coin); // anyone
-        budget.sweepToHolders(coin); // anyone; also distributes
+        budget.sweepToHolders(coin); // anyone
         assertEq(budget.available(coin), 0);
+        assertEq(PadToken(coin).withdrawableDividendOf(alice), aliceBefore, "nothing in one go");
+        (uint128 remaining,,) = vault.holderStreamOf(coin);
+        assertEq(remaining, creatorFees + swarm);
+        uint256 day = P + 3 days;
+        for (uint256 i = 1; i <= 7; i++) {
+            vm.warp(day + i * 1 days);
+            uint256 released = vault.releaseToHolders(coin); // anyone, at most one day's share
+            assertLe(released, (creatorFees + swarm) / 7 + 1 days); // the per-second rate is rounded up
+        }
+        (remaining,,) = vault.holderStreamOf(coin);
+        assertEq(remaining, 0, "all paid in 7 days");
         uint256 gained = PadToken(coin).withdrawableDividendOf(alice) - aliceBefore
             + PadToken(coin).withdrawableDividendOf(bob);
         assertApproxEqAbs(gained, creatorFees + swarm, 1e6);
         vm.prank(creator);
         vm.expectRevert(); // nobody holds the recipient role any more
         vault.setRecipient(coin, creator);
+    }
+
+    /// @dev Audit R1-A4-1: a wallet with no position can't buy, release a holder lump (creator fees and swarm
+    ///      budget of a coin whose fees go to holders), claim its dividend and sell back in one block for a profit.
+    function test_cto_holderLumpCantBeCapturedInOneBlock() public {
+        address coin = _coinWithCreatorFees(CoinFees(300, 5_000, 0, 5_000));
+        // A long-lived coin: lots of creator fees and swarm budget waiting (credited as the curve and hook do).
+        imd.mint(address(vault), 2_000e18);
+        vm.prank(address(curve));
+        vault.credit(coin, 2_000e18);
+        imd.mint(address(budget), 1_500e18);
+        vm.prank(address(curve));
+        budget.credit(coin, 1_500e18);
+        vm.prank(creator);
+        vault.setRecipient(coin, coin); // fees to holders
+
+        address carol = makeAddr("carol");
+        imd.mint(carol, 1_000e18);
+        vm.prank(carol);
+        imd.approve(address(router), type(uint256).max);
+        uint256 before = imd.balanceOf(carol);
+        uint256 got = _buy(carol, coin, 1_000e18);
+        vault.claim(coin);
+        budget.sweepToHolders(coin);
+        vm.prank(carol);
+        PadToken(coin).claim();
+        _sell(carol, coin, got);
+        assertLe(imd.balanceOf(carol), before, "no profit from a one-block position");
+    }
+
+    /// @dev Audit R1-A4-8: creator fees still pending in the hook (outside-router swaps since the last flush) at
+    ///      execution go to the old recipient, like every fee accrued before the takeover.
+    function test_cto_hookPendingFeesGoToOldRecipient() public {
+        _approveOracle();
+        address coin = _launch(_noTax(), 0);
+        _fillCurve(coin);
+        vault.claim(coin);
+        _linkX(bob, "frogdao");
+        vm.warp(P);
+        _proposeAsBob(coin, newOwner);
+        vm.warp(P + 3 days);
+
+        PoolKey memory key = hook.poolKey(coin);
+        bool imdIs0 = Currency.unwrap(key.currency0) == address(imd);
+        PoolSwapTest swapper = new PoolSwapTest(IPoolManager(address(pm)));
+        imd.mint(address(this), 100e18);
+        imd.approve(address(swapper), type(uint256).max);
+        swapper.swap(
+            key,
+            SwapParams({
+                zeroForOne: imdIs0,
+                amountSpecified: -100e18,
+                sqrtPriceLimitX96: imdIs0 ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
+            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            ""
+        );
+        (, uint128 pendingCreator,,) = hook.pending(coin);
+        assertEq(pendingCreator, 0.5e18);
+        uint256 before = imd.balanceOf(creator);
+        cto.execute(coin); // without anyone flushing first
+        assertEq(imd.balanceOf(creator) - before, 0.5e18, "old recipient paid the pending fees");
+        assertEq(vault.balanceOf(coin), 0);
     }
 
     function test_cto_councilFallbackAndRetirement() public {
@@ -448,15 +549,19 @@ contract GovernanceTest is Base {
         vm.prank(council);
         cto.cancel(coin); // the council may withdraw its own proposal
         assertEq(cto.pendingOf(coin).newRecipient, address(0));
+        vm.prank(council);
+        vm.expectRevert(CTOModule.Cooldown.selector); // and then waits 90 days for this coin
+        cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
 
+        vm.warp(P + 90 days);
         vm.prank(council);
         cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
-        vm.warp(P + 3 days);
+        vm.warp(P + 90 days + 3 days);
         vm.expectRevert(CTOModule.NotYet.selector); // the council path has a 7-day notice
         cto.execute(coin);
         vm.prank(creator);
         cto.contest(coin);
-        vm.warp(P + 14 days);
+        vm.warp(P + 90 days + 14 days);
         vm.expectRevert(CTOModule.NotContested.selector);
         cto.execute(coin);
         vm.prank(council);
@@ -471,10 +576,126 @@ contract GovernanceTest is Base {
         _approveOracle();
         vm.prank(slowTimelock);
         cto.retireCouncil();
-        vm.warp(P + 14 days + 90 days);
+        vm.warp(P + 90 days + 14 days + 90 days);
         vm.prank(council);
         vm.expectRevert(CTOModule.NotCouncil.selector);
         cto.proposeByCouncil(coin, coin, "ipfs://evidence");
+    }
+
+    /// @dev Audit R1-A4-2: the confirmation names the X account the takeover was proposed under; unlinking the
+    ///      proposer (the X link key, the 48 h timelock or the proposer) can't veto or rebind it.
+    function test_cto_confirmUsesHandleFromProposal() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        vm.warp(P);
+        _proposeAsBob(coin, newOwner);
+        assertEq(cto.proposerXOf(coin), "frogdao");
+        vm.prank(creator);
+        cto.contest(coin);
+        vm.prank(linker);
+        social.unlinkWallet(bob);
+        _linkX(bob, "otherfrog"); // relinking to another account changes nothing either
+
+        OracleAttestation memory rebound = _att(cto.confirmQuestion(coin, newOwner, "otherfrog"), true);
+        rebound.panelSize = 80;
+        rebound.agreed = 60;
+        rebound.issuedAt = uint64(P + 1 days);
+        bytes memory reboundSig = _sign(rebound, oracleKey);
+        vm.warp(P + 1 days);
+        vm.expectRevert(AttestationVerifier.WrongQuestion.selector);
+        cto.confirm(coin, rebound, reboundSig);
+
+        OracleAttestation memory big = _att(cto.confirmQuestion(coin, newOwner, "frogdao"), true);
+        big.panelSize = 80;
+        big.agreed = 60;
+        big.issuedAt = uint64(P + 1 days);
+        cto.confirm(coin, big, _sign(big, oracleKey));
+        vm.warp(P + 10 days);
+        cto.execute(coin);
+        assertEq(vault.recipientOf(coin), newOwner);
+    }
+
+    /// @dev Audit R1-A4-3: a confirming "yes" issued before the contest (asked in advance) doesn't count.
+    function test_cto_confirmMustFollowContest() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        vm.warp(P);
+        OracleAttestation memory early = _att(cto.confirmQuestion(coin, newOwner, "frogdao"), true);
+        early.panelSize = 80;
+        early.agreed = 60;
+        early.issuedAt = uint64(P);
+        bytes memory earlySig = _sign(early, oracleKey);
+        _proposeAsBob(coin, newOwner);
+        vm.warp(P + 5 hours);
+        vm.prank(creator);
+        cto.contest(coin);
+        vm.expectRevert(CTOModule.AnswerBeforeContest.selector);
+        cto.confirm(coin, early, earlySig);
+        assertFalse(cto.pendingOf(coin).confirmed);
+    }
+
+    /// @dev Audit R1-A4-5: the council can't hold a coin's takeover slot: a cancel starts a 90-day council cooldown
+    ///      for that coin, and an attested proposal replaces a pending council one.
+    function test_cto_councilCantSquatTheSlot() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        vm.warp(P);
+        vm.startPrank(council);
+        cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
+        cto.cancel(coin);
+        vm.expectRevert(CTOModule.Cooldown.selector);
+        cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
+        vm.stopPrank();
+
+        // Another coin: a pending council proposal gives way to an attested one.
+        vm.prank(creator);
+        (address other,) =
+            router.launchWith(_params("TOAD", _noTax(), bytes32(uint256(1))), address(imd), 1e18, false, 0, 0, address(0));
+        vm.warp(P + 31 days);
+        vm.prank(council);
+        cto.proposeByCouncil(other, newOwner, "ipfs://evidence");
+        address target = address(new MockSafe());
+        OracleAttestation memory a = _att(cto.question(other, target, "frogdao"), true);
+        bytes memory sig = _sign(a, oracleKey);
+        vm.prank(bob);
+        cto.propose(other, target, a, sig);
+        CTOModule.Takeover memory t = cto.pendingOf(other);
+        assertEq(t.newRecipient, target);
+        assertFalse(t.byCouncil);
+        // ...but the council can't replace an attested one.
+        vm.prank(council);
+        vm.expectRevert(CTOModule.Pending.selector);
+        cto.proposeByCouncil(other, newOwner, "ipfs://evidence");
+    }
+
+    /// @dev Audit R1-A4-9: once the council path is retired, a council proposal made before can't execute.
+    function test_cto_retiredCouncilProposalCannotExecute() public {
+        address coin = _coinWithCreatorFees(_noTax());
+        vm.warp(P);
+        vm.prank(council);
+        cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
+        _approveOracle();
+        vm.prank(slowTimelock);
+        cto.retireCouncil();
+        vm.warp(P + 7 days);
+        vm.expectRevert(CTOModule.NotCouncil.selector);
+        cto.execute(coin);
+        assertEq(vault.recipientOf(coin), creator);
+    }
+
+    /// @dev Audit R1-A4-10: a single-key wallet with an EIP-7702 delegation (23 bytes of code) is not a contract.
+    function test_cto_delegatedWalletIsNotAContractRecipient() public {
+        address coin = _coinWithCreatorFees(_noTax());
+        address delegated = makeAddr("delegated");
+        vm.etch(delegated, abi.encodePacked(hex"ef0100", address(newOwner)));
+        assertEq(delegated.code.length, 23);
+        vm.warp(P);
+        vm.prank(council);
+        vm.expectRevert(CTOModule.InvalidRecipient.selector);
+        cto.proposeByCouncil(coin, delegated, "ipfs://evidence");
     }
 
     function test_cto_rulesMustBeIpfs() public {
@@ -485,6 +706,25 @@ contract GovernanceTest is Base {
     }
 
     // ------------------------------------------------------------------ VersionRegistry
+
+    /// @dev Audit R1-A4-6: activating an older, never-activated version doesn't roll new launches back to it.
+    function test_versions_olderActivationDoesNotRollBack() public {
+        for (uint256 i; i < 3; i++) {
+            versions.register(address(factory), address(router), address(curve), address(hook), address(lens));
+        }
+        versions.activateManually(3, "https://api.imd.fun/jobs/audit-3/report.md");
+        assertEq(versions.currentVersion(), 3);
+        _approveOracle();
+        string memory job = "6f1d2c3a-1111-4222-8333-944455556666";
+        OracleAttestation memory a = _att(versions.question(2, job), true);
+        bytes memory sig = _sign(a, oracleKey);
+        vm.prank(bob);
+        versions.activate(2, job, a, sig);
+        assertGt(versions.versionInfo(2).activatedAt, 0, "marked activated");
+        assertEq(versions.currentVersion(), 3, "still the newest");
+        versions.setCurrent(2); // the owner can still roll back
+        assertEq(versions.currentVersion(), 2);
+    }
 
     function test_versions_registerActivateAndRollback() public {
         vm.prank(alice);

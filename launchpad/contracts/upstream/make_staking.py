@@ -76,7 +76,77 @@ make('upstream/StakedIMD.sol', 'src/StakedPONDPAD.sol', [
     ('if (paused) revert EnforcedPause();', 'if (paused()) revert EnforcedPause();'),
     ('return paused ? 0 : super.maxDeposit(to);', 'return paused() ? 0 : super.maxDeposit(to);'),
     ('return paused ? 0 : super.maxMint(to);', 'return paused() ? 0 : super.maxMint(to);'),
-    ('if (paused || block.number == lastDepositBlock[owner]) return 0;', 'if (paused() || block.number == lastDepositBlock[owner]) return 0;', 2),
+    ("""    /// @notice Block of each holder's most recent share-increasing action, for the one-block hold.
+    mapping(address => uint256) public lastDepositBlock;
+""", """    /// @notice Block of each holder's most recent share-increasing action, for the one-block hold.
+    mapping(address => uint256) public lastDepositBlock;
+    /// @notice PondPad (audit R1-A3-2): shares that reached each holder in block `lastDepositBlock`; only these
+    /// are held, not the whole balance.
+    mapping(address => uint256) public heldShares;
+"""),
+    ("""        if (block.number == lastDepositBlock[owner]) revert SameBlockRedeem();
+        super._withdraw(by, to, owner, assets, shares);""", """        if (shares > _unheldShares(owner)) revert SameBlockRedeem();
+        super._withdraw(by, to, owner, assets, shares);"""),
+    ("""    /// @dev The one-block anti-JIT hold must travel WITH the shares""", """    /// @dev PondPad (audit R1-A3-2): upstream held the holder's WHOLE balance for the block after any share
+    /// arrived, so anyone could block a staker's exit with `deposit(1 wei, victim)` or a 1-share transfer,
+    /// every Ethereum block (D-65). Here only the shares that arrived in the current block are held: a mint
+    /// holds the minted shares; a transfer moves the sender's unheld shares first and carries any held ones
+    /// with it. A flash-loaned deposit is still fully held wherever it goes; stranger dust holds only the dust.
+    function _heldShares(address owner) internal view returns (uint256) {
+        return lastDepositBlock[owner] == block.number ? heldShares[owner] : 0;
+    }
+
+    function _unheldShares(address owner) internal view returns (uint256) {
+        uint256 bal = balanceOf(owner);
+        uint256 held = _heldShares(owner);
+        return bal > held ? bal - held : 0;
+    }
+
+    function _hold(address to, uint256 shares) internal {
+        if (lastDepositBlock[to] != block.number) {
+            lastDepositBlock[to] = block.number;
+            heldShares[to] = shares;
+        } else {
+            heldShares[to] += shares;
+        }
+    }
+
+    /// @dev Upstream: the one-block anti-JIT hold must travel WITH the shares"""),
+    ("""        if (amount == 0 || to == address(0)) return;
+        if (from == address(0)) {
+            lastDepositBlock[to] = block.number; // mint (deposit)
+        } else if (lastDepositBlock[from] > lastDepositBlock[to]) {
+            lastDepositBlock[to] = lastDepositBlock[from]; // transfer inherits the sender's hold
+        }""", """        if (amount == 0 || to == address(0)) return;
+        if (from == address(0)) {
+            _hold(to, amount); // mint (deposit): the new shares are held
+        } else {
+            // transfer: unheld shares leave first; any held part travels with the shares
+            uint256 held = _heldShares(from);
+            uint256 unheld = balanceOf(from) - held;
+            if (amount > unheld) {
+                uint256 moved = amount - unheld;
+                heldShares[from] = held - moved;
+                _hold(to, moved);
+            }
+        }"""),
+    ("""    function maxWithdraw(address owner) public view override returns (uint256) {
+        if (paused || block.number == lastDepositBlock[owner]) return 0;
+        return super.maxWithdraw(owner);
+    }
+
+    function maxRedeem(address owner) public view override returns (uint256) {
+        if (paused || block.number == lastDepositBlock[owner]) return 0;
+        return super.maxRedeem(owner);
+    }""", """    function maxWithdraw(address owner) public view override returns (uint256) {
+        if (paused()) return 0;
+        return convertToAssets(_unheldShares(owner)); // PondPad: held shares only (R1-A3-2)
+    }
+
+    function maxRedeem(address owner) public view override returns (uint256) {
+        if (paused()) return 0;
+        return _unheldShares(owner); // PondPad: held shares only (R1-A3-2)
+    }"""),
     ('''    /// @notice Owner emergency stop / resume.
     function setPaused(bool paused_) external onlyOwner {
         paused = paused_;
@@ -86,7 +156,9 @@ make('upstream/StakedIMD.sol', 'src/StakedPONDPAD.sol', [
     function setPaused(bool paused_) external onlyOwnerActive {
         if (paused_) {
             if (paused() || block.timestamp < nextPauseAllowedAt) revert PauseCooldown();
-            pausedUntil = block.timestamp + MAX_PAUSE;
+            // A pause never outlives the owner's powers (audit R1-A3-7): nobody could lift it after expiry.
+            uint256 until = block.timestamp + MAX_PAUSE;
+            pausedUntil = until < powersExpireAt ? until : powersExpireAt;
         } else {
             if (paused()) pausedUntil = block.timestamp;
         }
@@ -114,6 +186,7 @@ make('upstream/RewardDripper.sol', 'src/RewardDripper.sol', [
 ///     smoothly over about `smoothingPeriod` (default 7 days: ~0.6% of the buffer per hour) whatever the volume or
 ///     price. After a full catch-up window, a drip releases at least `min(buffer, minDripAmount)`; a remainder
 ///     smaller than `minDripAmount` is swept without a keeper tip, so small buffers never stall.
+///   - Drips wait until the vault holds at least `MIN_VAULT_SHARES` real shares (audit R1-A3-1).
 ///   - D-42: the vault is fixed at deploy (no `setVault`); `rescueERC20` can never touch the reward buffer; all
 ///     owner powers expire at `powersExpireAt` (12 months after launch).
 /// Upstream doc follows; its "rate" wording describes the original fixed-rate formula.
@@ -130,7 +203,9 @@ make('upstream/RewardDripper.sol', 'src/RewardDripper.sol', [
     ("""    uint256 internal constant MAX_CATCHUP = 30 days;
     uint256 internal constant MAX_RATE = type(uint128).max;""", """    uint256 internal constant MAX_CATCHUP = 30 days;
     uint256 public constant MIN_SMOOTHING = 1 days; // PondPad
-    uint256 public constant MAX_SMOOTHING = 30 days; // PondPad"""),
+    uint256 public constant MAX_SMOOTHING = 30 days; // PondPad
+    /// @notice PondPad (audit R1-A3-1): drips wait until the vault has at least this many real shares.
+    uint256 public constant MIN_VAULT_SHARES = 1e24;"""),
     ("""    event VaultSet(address indexed vault);
     event DripRateSet(uint256 dripRatePerSecond);""", """    event SmoothingPeriodSet(uint256 smoothingPeriod);"""),
     ("""    error RateTooHigh();""", """    error InvalidSmoothing();"""),
@@ -189,7 +264,13 @@ make('upstream/RewardDripper.sol', 'src/RewardDripper.sol', [
         if (amount >= minDripAmount) return true;
         return block.timestamp - lastDripAt >= maxCatchupSeconds;
     }"""),
-    ("""        return drippable() >= minDripAmount && IERC20Min(vault).totalSupply() != 0;""", """        return _dripDue(drippable()) && IERC20Min(vault).totalSupply() != 0;"""),
+    ("""        return drippable() >= minDripAmount && IERC20Min(vault).totalSupply() != 0;""", """        return _dripDue(drippable()) && IERC20Min(vault).totalSupply() >= MIN_VAULT_SHARES;"""),
+    ("""        if (IERC20Min(vault).totalSupply() == 0) revert VaultEmpty();""", """        if (IERC20Min(vault).totalSupply() < MIN_VAULT_SHARES) revert VaultEmpty();"""),
+    ("""    /// replay stranded 14% of the rewards this way. Rewards wait here until someone stakes.""", """    /// replay stranded 14% of the rewards this way. Rewards wait here until someone stakes.
+    /// @dev PondPad (audit R1-A3-1): "empty" means fewer than `MIN_VAULT_SHARES` real shares, not zero. The vault
+    /// has 1e6 virtual shares (6-decimal offset), so a 1-wei first stake (1e6 shares) would leave half of every
+    /// drip with the virtual shares. With at least 1e24 real shares (one whole staked $PONDPAD) the virtual
+    /// shares get at most 1e-18 of a drip."""),
     ("""        uint256 amount = drippable();
         if (amount < minDripAmount) revert BelowMinDrip();
         lastDripAt = block.timestamp;

@@ -57,6 +57,9 @@ contract StakedPONDPAD is ERC4626, Ownable {
 
     /// @notice Block of each holder's most recent share-increasing action, for the one-block hold.
     mapping(address => uint256) public lastDepositBlock;
+    /// @notice PondPad (audit R1-A3-2): shares that reached each holder in block `lastDepositBlock`; only these
+    /// are held, not the whole balance.
+    mapping(address => uint256) public heldShares;
 
     event PauseSet(bool paused);
     event EmergencyRescue(address indexed token, address indexed to, uint256 amount);
@@ -128,11 +131,35 @@ contract StakedPONDPAD is ERC4626, Ownable {
         override
         whenNotPaused
     {
-        if (block.number == lastDepositBlock[owner]) revert SameBlockRedeem();
+        if (shares > _unheldShares(owner)) revert SameBlockRedeem();
         super._withdraw(by, to, owner, assets, shares);
     }
 
-    /// @dev The one-block anti-JIT hold must travel WITH the shares — otherwise a depositor sheds it by
+    /// @dev PondPad (audit R1-A3-2): upstream held the holder's WHOLE balance for the block after any share
+    /// arrived, so anyone could block a staker's exit with `deposit(1 wei, victim)` or a 1-share transfer,
+    /// every Ethereum block (D-65). Here only the shares that arrived in the current block are held: a mint
+    /// holds the minted shares; a transfer moves the sender's unheld shares first and carries any held ones
+    /// with it. A flash-loaned deposit is still fully held wherever it goes; stranger dust holds only the dust.
+    function _heldShares(address owner) internal view returns (uint256) {
+        return lastDepositBlock[owner] == block.number ? heldShares[owner] : 0;
+    }
+
+    function _unheldShares(address owner) internal view returns (uint256) {
+        uint256 bal = balanceOf(owner);
+        uint256 held = _heldShares(owner);
+        return bal > held ? bal - held : 0;
+    }
+
+    function _hold(address to, uint256 shares) internal {
+        if (lastDepositBlock[to] != block.number) {
+            lastDepositBlock[to] = block.number;
+            heldShares[to] = shares;
+        } else {
+            heldShares[to] += shares;
+        }
+    }
+
+    /// @dev Upstream: the one-block anti-JIT hold must travel WITH the shares — otherwise a depositor sheds it by
     /// transferring shares to a never-stamped address and redeems there the same block (the flash-loanable
     /// deposit→drip→redeem bypass) — while a third party must not be able to stamp a hold on an account for
     /// free (a `deposit(0, victim)` / dust-transfer withdrawal grief). So: a positive mint stamps the new
@@ -141,9 +168,16 @@ contract StakedPONDPAD is ERC4626, Ownable {
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal override {
         if (amount == 0 || to == address(0)) return;
         if (from == address(0)) {
-            lastDepositBlock[to] = block.number; // mint (deposit)
-        } else if (lastDepositBlock[from] > lastDepositBlock[to]) {
-            lastDepositBlock[to] = lastDepositBlock[from]; // transfer inherits the sender's hold
+            _hold(to, amount); // mint (deposit): the new shares are held
+        } else {
+            // transfer: unheld shares leave first; any held part travels with the shares
+            uint256 held = _heldShares(from);
+            uint256 unheld = balanceOf(from) - held;
+            if (amount > unheld) {
+                uint256 moved = amount - unheld;
+                heldShares[from] = held - moved;
+                _hold(to, moved);
+            }
         }
     }
 
@@ -160,13 +194,13 @@ contract StakedPONDPAD is ERC4626, Ownable {
     }
 
     function maxWithdraw(address owner) public view override returns (uint256) {
-        if (paused() || block.number == lastDepositBlock[owner]) return 0;
-        return super.maxWithdraw(owner);
+        if (paused()) return 0;
+        return convertToAssets(_unheldShares(owner)); // PondPad: held shares only (R1-A3-2)
     }
 
     function maxRedeem(address owner) public view override returns (uint256) {
-        if (paused() || block.number == lastDepositBlock[owner]) return 0;
-        return super.maxRedeem(owner);
+        if (paused()) return 0;
+        return _unheldShares(owner); // PondPad: held shares only (R1-A3-2)
     }
 
     /// @notice Owner emergency stop / resume. PondPad: a stop lasts at most 3 days and the next one can start only
@@ -174,7 +208,9 @@ contract StakedPONDPAD is ERC4626, Ownable {
     function setPaused(bool paused_) external onlyOwnerActive {
         if (paused_) {
             if (paused() || block.timestamp < nextPauseAllowedAt) revert PauseCooldown();
-            pausedUntil = block.timestamp + MAX_PAUSE;
+            // A pause never outlives the owner's powers (audit R1-A3-7): nobody could lift it after expiry.
+            uint256 until = block.timestamp + MAX_PAUSE;
+            pausedUntil = until < powersExpireAt ? until : powersExpireAt;
         } else {
             if (paused()) pausedUntil = block.timestamp;
         }

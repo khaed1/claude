@@ -29,7 +29,6 @@ contract FundsTest is MarketBase {
                 treasury: treasury
             })
         );
-        config.setGrowthFund(address(growthFund));
     }
 
     /// @dev Coin trades and $PONDPAD market sells, then the splitter pays the funds in both tokens.

@@ -24,6 +24,30 @@ import {Hop} from "../src/Route.sol";
 import {PadRouter} from "../src/PadRouter.sol";
 import {PaymentSwapper} from "../src/PaymentSwapper.sol";
 
+/// @dev Wraps a curve buy in its own PoolManager unlock (audit R1-A1-1).
+contract UnlockWrapper {
+    IPoolManager internal immutable pm;
+    PadRouter internal immutable router;
+    address internal immutable imd;
+
+    constructor(IPoolManager pm_, PadRouter router_, address imd_) {
+        pm = pm_;
+        router = router_;
+        imd = imd_;
+    }
+
+    function wrappedBuy(address coin, uint256 amount) external {
+        ERC20(imd).approve(address(router), amount);
+        pm.unlock(abi.encode(coin, amount));
+    }
+
+    function unlockCallback(bytes calldata data) external returns (bytes memory) {
+        (address coin, uint256 amount) = abi.decode(data, (address, uint256));
+        router.buyWith(coin, imd, amount, 0, block.timestamp, address(0));
+        return "";
+    }
+}
+
 contract PondPadTest is Base {
     using StateLibrary for IPoolManager;
     using PoolIdLibrary for PoolKey;
@@ -247,6 +271,62 @@ contract PondPadTest is Base {
         // Net raise ≈ target; gross ≈ target / (1 - 1.5%).
         assertApproxEqRel(spent, (TARGET * 10_000) / 9_850, 1e14, "only the curve's cost was taken");
         assertEq(PadToken(coin).balanceOf(alice), 800_000_000e18);
+    }
+
+    /// @dev Audit R1-A1-1 (and R1-A1-2): a curve buy wrapped in an outside PoolManager unlock is refused, so the
+    ///      buyer can't hold its tokens before its own holder tax is credited (and a curve can't be left Full).
+    function test_curve_refusesTradesInsideOutsideUnlock() public {
+        address coin = _launch(CoinFees(300, 0, 10_000, 0), 0);
+        vm.warp(block.timestamp + 1 hours);
+        _buy(alice, coin, 100e18);
+        UnlockWrapper w = new UnlockWrapper(IPoolManager(address(pm)), router, address(imd));
+        imd.mint(address(w), 1_000e18);
+        vm.expectRevert();
+        w.wrappedBuy(coin, 1_000e18);
+        assertEq(PadToken(coin).balanceOf(address(w)), 0);
+        assertEq(PadToken(coin).withdrawableDividendOf(address(w)), 0);
+    }
+
+    /// @dev Audit R1-A1-4: the quote for a buy that completes the curve shows the fee actually charged.
+    function test_quoteBuy_completingBuyChargesOnlyWhatItNeeds() public {
+        address coin = _launch(CoinFees(100, 0, 10_000, 0), 0);
+        vm.warp(block.timestamp + 1 hours);
+        (uint256 qOut, uint256 qFee,) = curve.quoteBuy(coin, 5_000e18);
+        uint256 before = imd.balanceOf(alice);
+        uint256 out = _buy(alice, coin, 5_000e18);
+        uint256 spent = before - imd.balanceOf(alice);
+        assertEq(qOut, out);
+        assertEq(qFee, (spent * 250) / 10_000, "quoted fee = fee on the IMD actually taken");
+    }
+
+    /// @dev Audit R1-A1-8: the curve gives the hook no standing IMD allowance (graduation transfers).
+    function test_curve_noStandingAllowanceToHook() public view {
+        assertEq(imd.allowance(address(curve), address(hook)), 0);
+    }
+
+    /// @dev Audit R1-A4-4 (D-78): the fee splitter and growth fund can't be changed, even by the owner, so live
+    ///      coins' fee routing only changes through the FeeSplitter's own 7-day settings.
+    function test_config_feeSplitterAndGrowthFundAreFixed() public {
+        (bool ok,) = address(config).call(abi.encodeWithSignature("setFeeSplitter(address)", alice));
+        assertFalse(ok, "no setFeeSplitter");
+        (ok,) = address(config).call(abi.encodeWithSignature("setGrowthFund(address)", alice));
+        assertFalse(ok, "no setGrowthFund");
+        assertEq(config.feeSplitter(), address(splitter));
+    }
+
+    /// @dev Audit R1-A4-11: once a coin's fees go to its holders, anyone can cancel open swarm requests, so an
+    ///      ousted recipient can't lock the budget the holders should receive.
+    function test_swarmBudget_anyoneCancelsOnceFeesGoToHolders() public {
+        address coin = _launch(CoinFees(100, 0, 0, 10_000), 0);
+        vm.warp(block.timestamp + 1 hours);
+        _buy(alice, coin, 100e18);
+        vm.startPrank(creator);
+        uint256 id = budget.requestSpend(coin, 0.5e18, keccak256("site"));
+        vault.setRecipient(coin, coin);
+        vm.stopPrank();
+        vm.prank(bob);
+        budget.cancel(id);
+        assertEq(budget.reservedOf(coin), 0);
     }
 
     function test_curveClosedAfterGraduation() public {

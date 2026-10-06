@@ -30,7 +30,9 @@ interface ICTOSocial {
 ///         - Then a 3-day window in which anyone executes it. Fees accrued before execution go to the old recipient.
 /// @dev Fallback until oracle attestations work on Robinhood Chain: the `council` (team Safe) can propose without an
 ///      attestation, with a 7-day notice; it can cancel its own proposals, and confirms them itself if contested.
-///      The owner (7-day timelock) retires the council path once attestations work, one-way (D-46). Nobody can
+///      After a cancel the council waits 90 days before proposing for that coin again, and an attested proposal
+///      replaces a pending council one (D-78, audit R1-A4-5). The owner (7-day timelock) retires the council path
+///      once attestations work, one-way (D-46); council proposals still pending then can't execute. Nobody can
 ///      cancel an attested takeover. The rules link must be an `ipfs://` link, so the rules can't change (D-51).
 contract CTOModule is Ownable {
     using LibString for address;
@@ -51,6 +53,7 @@ contract CTOModule is Ownable {
         bool byCouncil;
         bool contested;
         bool confirmed;
+        uint64 contestedAt;
     }
 
     ICTOVault public immutable creatorVault;
@@ -64,6 +67,10 @@ contract CTOModule is Ownable {
 
     mapping(address coin => Takeover) internal _pending;
     mapping(address coin => uint256) public lastTakeoverAt;
+    /// @notice When the council last cancelled a proposal for the coin; it can't propose again for 90 days.
+    mapping(address coin => uint256) public councilCancelledAt;
+    /// @dev The proposer's X handle as it was at propose time; the confirmation question names the same one.
+    mapping(address coin => string) internal _proposerX;
     mapping(bytes32 requestId => bool) public usedRequest;
 
     event Proposed(
@@ -78,6 +85,7 @@ contract CTOModule is Ownable {
     event Contested(address indexed coin, address indexed by, uint256 executableAt);
     event Confirmed(address indexed coin, bytes32 requestId);
     event Cancelled(address indexed coin);
+    event Replaced(address indexed coin, address indexed councilRecipient);
     event Executed(address indexed coin, address indexed newRecipient, bool toHolders);
     event VerifierUpdated(address verifier);
     event CouncilUpdated(address council);
@@ -101,6 +109,7 @@ contract CTOModule is Ownable {
     error NotContested();
     error PanelTooSmall();
     error BadRulesURI();
+    error AnswerBeforeContest();
 
     constructor(
         address owner_,
@@ -189,6 +198,8 @@ contract CTOModule is Ownable {
     /// @notice Fallback: the council proposes a takeover without an attestation, citing its evidence.
     function proposeByCouncil(address coin, address newRecipient, string calldata evidence) external {
         if (msg.sender != council || councilRetired) revert NotCouncil();
+        uint256 cancelled = councilCancelledAt[coin];
+        if (cancelled != 0 && block.timestamp < cancelled + COOLDOWN) revert Cooldown();
         _propose(coin, newRecipient, msg.sender, social.walletHandle(msg.sender), true, COUNCIL_NOTICE, 0, evidence);
     }
 
@@ -204,12 +215,18 @@ contract CTOModule is Ownable {
     ) internal {
         address current = creatorVault.recipientOf(coin);
         if (current == address(0)) revert UnknownCoin();
-        if (newRecipient == current || newRecipient.code.length == 0) revert InvalidRecipient();
+        if (newRecipient == current || newRecipient.code.length == 0 || _isDelegatedAccount(newRecipient)) {
+            revert InvalidRecipient();
+        }
         if (block.timestamp < curve.coinLaunchedAt(coin) + MIN_COIN_AGE) revert TooYoung();
         uint256 last = lastTakeoverAt[coin];
         if (last != 0 && block.timestamp < last + COOLDOWN) revert Cooldown();
         Takeover storage t = _pending[coin];
-        if (t.newRecipient != address(0) && block.timestamp < t.expiresAt) revert Pending();
+        if (t.newRecipient != address(0) && block.timestamp < t.expiresAt) {
+            // An attested proposal replaces a pending council one (audit R1-A4-5); anything else waits.
+            if (byCouncil || !t.byCouncil) revert Pending();
+            emit Replaced(coin, t.newRecipient);
+        }
         uint256 executableAt = block.timestamp + notice;
         _pending[coin] = Takeover({
             newRecipient: newRecipient,
@@ -218,8 +235,10 @@ contract CTOModule is Ownable {
             expiresAt: uint64(executableAt + EXECUTION_WINDOW),
             byCouncil: byCouncil,
             contested: false,
-            confirmed: false
+            confirmed: false,
+            contestedAt: 0
         });
+        _proposerX[coin] = handle;
         emit Proposed(coin, newRecipient, proposer, handle, executableAt, requestId, evidence);
     }
 
@@ -233,19 +252,23 @@ contract CTOModule is Ownable {
         if (msg.sender != creatorVault.recipientOf(coin)) revert NotRecipient();
         if (t.contested) revert AlreadyContested();
         t.contested = true;
+        t.contestedAt = uint64(block.timestamp);
         t.executableAt += uint64(CONTEST_EXTENSION);
         t.expiresAt += uint64(CONTEST_EXTENSION);
         emit Contested(coin, msg.sender, t.executableAt);
     }
 
     /// @notice Confirms a contested attested takeover with a second "yes" from a panel of at least 75. Anyone.
+    ///         The answer must be issued after the contest (audit R1-A4-3) and names the X account the takeover
+    ///         was proposed under, whatever the proposer's link says now (R1-A4-2).
     function confirm(address coin, OracleAttestation calldata att, bytes calldata signature) external {
         Takeover storage t = _pending[coin];
         _checkConfirmable(t);
         if (t.byCouncil) revert NotCouncil();
         if (att.panelSize < CONFIRM_MIN_PANEL) revert PanelTooSmall();
+        if (att.issuedAt < t.contestedAt) revert AnswerBeforeContest();
         _use(att.requestId);
-        string memory q = confirmQuestion(coin, t.newRecipient, social.walletHandle(t.proposer));
+        string memory q = confirmQuestion(coin, t.newRecipient, _proposerX[coin]);
         if (!verifier.verifyBool(att, signature, q)) revert AnswerNo();
         t.confirmed = true;
         emit Confirmed(coin, att.requestId);
@@ -274,6 +297,8 @@ contract CTOModule is Ownable {
         if (block.timestamp < t.executableAt) revert NotYet();
         if (block.timestamp >= t.expiresAt) revert WindowClosed();
         if (t.contested && !t.confirmed) revert NotContested();
+        // A retired council path can't land a proposal made before retirement (audit R1-A4-9).
+        if (t.byCouncil && councilRetired) revert NotCouncil();
         delete _pending[coin];
         lastTakeoverAt[coin] = block.timestamp;
         creatorVault.ctoSetRecipient(coin, t.newRecipient);
@@ -286,11 +311,25 @@ contract CTOModule is Ownable {
         if (t.newRecipient == address(0) || block.timestamp >= t.expiresAt) revert NotPending();
         if (!t.byCouncil || msg.sender != council) revert NotCouncil();
         delete _pending[coin];
+        councilCancelledAt[coin] = block.timestamp;
         emit Cancelled(coin);
     }
 
     function pendingOf(address coin) external view returns (Takeover memory) {
         return _pending[coin];
+    }
+
+    /// @notice The X account the pending takeover was proposed under (named by its confirmation question).
+    function proposerXOf(address coin) external view returns (string memory) {
+        return _proposerX[coin];
+    }
+
+    /// @dev A wallet carrying an EIP-7702 delegation has 23 bytes of code (0xef0100 + target) but is still one key
+    ///      (audit R1-A4-10). It is not a contract recipient.
+    function _isDelegatedAccount(address a) internal view returns (bool) {
+        if (a.code.length != 23) return false;
+        bytes memory c = a.code;
+        return c[0] == 0xef && c[1] == 0x01 && c[2] == 0x00;
     }
 
     function _use(bytes32 requestId) internal {

@@ -7,10 +7,7 @@ import {Ownable} from "solady/auth/Ownable.sol";
 
 interface ICreatorVault {
     function recipientOf(address coin) external view returns (address);
-}
-
-interface IDividendToken {
-    function distribute() external;
+    function fundHolders(address coin, uint256 amount) external;
 }
 
 /// @title SwarmBudget
@@ -101,10 +98,13 @@ contract SwarmBudget is Ownable, ReentrancyGuard {
         emit SpendReleased(id, r.coin, r.amount, jobId);
     }
 
-    /// @notice The requester or the relay can cancel an unreleased request, freeing its reservation.
+    /// @notice The requester or the relay can cancel an unreleased request, freeing its reservation. Once the
+    ///         coin's fees go to its holders, anyone can (audit R1-A4-11): an ousted recipient's open requests
+    ///         would otherwise lock the budget the holders should receive.
     function cancel(uint256 id) external {
         Request storage r = requests[id];
-        if (msg.sender != relay && msg.sender != creatorVault.recipientOf(r.coin)) revert Unauthorized();
+        address recipient = creatorVault.recipientOf(r.coin);
+        if (msg.sender != relay && msg.sender != recipient && recipient != r.coin) revert Unauthorized();
         if (r.released || r.cancelled) revert RequestClosed();
         r.cancelled = true;
         reservedOf[r.coin] -= r.amount;
@@ -112,15 +112,16 @@ contract SwarmBudget is Ownable, ReentrancyGuard {
     }
 
     /// @notice When a coin's fees were routed to its holders (fee recipient = the coin itself, after a CTO), no one
-    ///         can request swarm jobs for it any more, so its unreserved budget goes to holders as IMD dividends.
+    ///         can request swarm jobs for it any more, so its unreserved budget goes to holders as IMD dividends,
+    ///         through the CreatorVault's holder stream (released over ~7 days, D-78, audit R1-A4-1).
     ///         Anyone can call it.
     function sweepToHolders(address coin) external nonReentrant returns (uint256 amount) {
         if (creatorVault.recipientOf(coin) != coin) revert Unauthorized();
         amount = available(coin);
         if (amount == 0) return 0;
         balanceOf[coin] -= amount;
-        imd.safeTransfer(coin, amount);
-        IDividendToken(coin).distribute();
+        imd.safeApprove(address(creatorVault), amount);
+        creatorVault.fundHolders(coin, amount);
         emit SweptToHolders(coin, amount);
     }
 

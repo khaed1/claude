@@ -396,7 +396,13 @@ contract Deploy is Script {
         addr = _create2(bytes32(i), initCode);
     }
 
+    /// @dev If someone already deployed this exact init code at this salt through the public CREATE2 deployer (all
+    ///      of it is public once the deployer address is known), the contract there is the one we want: the address
+    ///      commits to the init code, constructor arguments included ($PONDPAD mints to the deployer either way).
+    ///      Use it instead of reverting on every re-run (audit R1-A4-14).
     function _create2(bytes32 salt, bytes memory initCode) internal returns (address addr) {
+        address predicted = create2Address(salt, keccak256(initCode));
+        if (predicted.code.length != 0) return predicted;
         (bool ok, bytes memory ret) = CREATE2_FACTORY.call(abi.encodePacked(salt, initCode));
         require(ok && ret.length == 20, "create2");
         addr = address(bytes20(ret));

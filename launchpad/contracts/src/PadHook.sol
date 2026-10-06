@@ -334,22 +334,17 @@ contract PadHook is IHooks, IUnlockCallback {
     // ------------------------------------------------------------------ Fee flush
 
     /// @notice Sends a coin's pending fees to the fee splitter, creator vault, swarm budget and holders.
-    ///         Anyone can call it outside an unlock. Inside an unlock only the router may, because it controls its
-    ///         whole unlock; any other mid-unlock call leaves the fees pending.
+    ///         Anyone can call it outside an unlock; inside an unlock it does nothing and the fees stay pending
+    ///         (holder dividends are never paid while an outside caller holds the unlock, D-27). The router
+    ///         flushes after its own unlock ends (audit R1-A1-9 removed an unreachable in-unlock router branch).
     function flush(address coin) external {
-        if (poolManager.isUnlocked()) {
-            if (msg.sender == router) _flush(coin);
-            return;
-        }
+        if (poolManager.isUnlocked()) return;
         poolManager.unlock(abi.encode(ACTION_FLUSH, abi.encode(coin)));
     }
 
     /// @notice Sends an integrator's pending earnings to the IntegratorVault. Same unlock rules as `flush`.
     function flushIntegrator(address integrator) external {
-        if (poolManager.isUnlocked()) {
-            if (msg.sender == router) _flushIntegrator(integrator);
-            return;
-        }
+        if (poolManager.isUnlocked()) return;
         poolManager.unlock(abi.encode(ACTION_FLUSH_INTEGRATOR, abi.encode(integrator)));
     }
 

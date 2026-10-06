@@ -106,6 +106,7 @@ contract BondingCurve is ReentrancyGuard {
     error MaxBuyExceeded();
     error LaunchesPaused();
     error UnknownCoin();
+    error PoolManagerUnlocked();
 
     constructor(address imd_, address config_, address poolManager_) {
         imd = imd_;
@@ -130,7 +131,6 @@ contract BondingCurve is ReentrancyGuard {
         creatorVault = creatorVault_;
         swarmBudget = swarmBudget_;
         integratorVault = integratorVault_;
-        imd.safeApprove(hook_, type(uint256).max);
     }
 
     // ------------------------------------------------------------------ Launch
@@ -185,6 +185,7 @@ contract BondingCurve is ReentrancyGuard {
         returns (uint256 out, uint256 refund)
     {
         if (msg.sender != router) revert Unauthorized();
+        _checkLocked();
         if (grossIn == 0) revert ZeroAmount();
         Coin storage c = _coins[coin];
         if (c.status != Status.Trading) revert NotTrading();
@@ -234,8 +235,9 @@ contract BondingCurve is ReentrancyGuard {
         if (c.sold == CURVE_SUPPLY) {
             c.status = Status.Full;
             emit CurveFull(coin);
-            // Graduate inline unless an outside caller holds the PoolManager unlock; then anyone can finish it.
-            if (!poolManager.isUnlocked()) _graduate(coin, c);
+            // Curve trades never run inside a PoolManager unlock (`_checkLocked`), so the pool opens inline.
+            // `graduate` stays as a safety valve for a coin left Full.
+            _graduate(coin, c);
         }
     }
 
@@ -246,6 +248,7 @@ contract BondingCurve is ReentrancyGuard {
         returns (uint256 out)
     {
         if (msg.sender != router) revert Unauthorized();
+        _checkLocked();
         if (tokensIn == 0) revert ZeroAmount();
         Coin storage c = _coins[coin];
         if (c.status != Status.Trading) revert NotTrading();
@@ -265,6 +268,14 @@ contract BondingCurve is ReentrancyGuard {
         _routeFees(coin, c.fees, fee, referrer);
         imd.safeTransfer(recipient, out);
         emit CurveTrade(coin, recipient, false, gross, tokensIn, fee, 0, c.raised);
+    }
+
+    /// @dev Curve trades revert while anyone holds the PoolManager unlock (audit R1-A1-1). PadToken skips dividend
+    ///      distribution inside an outside unlock, so a wrapped buy would get its tokens before its own holder tax
+    ///      was credited, and later share in it. The router's own payment swaps finish their unlock before the
+    ///      curve is called, so no PondPad path trades the curve while unlocked.
+    function _checkLocked() internal view {
+        if (poolManager.isUnlocked()) revert PoolManagerUnlocked();
     }
 
     /// @notice Finishes a graduation that could not run inside the completing buy. Anyone can call it.
@@ -355,14 +366,26 @@ contract BondingCurve is ReentrancyGuard {
         return FixedPointMathLib.fullMulDiv(c.x, 1e18, c.y);
     }
 
+    /// @notice Tokens out, fee and snipe tax for a buy of `grossIn` IMD, exactly as `buy` charges them. A buy that
+    ///         completes the curve is charged on the IMD it needs (audit R1-A1-4); the rest is refunded.
     function quoteBuy(address coin, uint256 grossIn) external view returns (uint256 out, uint256 fee, uint256 snipe) {
         Coin storage c = _coins[coin];
         if (c.status != Status.Trading) return (0, 0, 0);
-        fee = (grossIn * FeeLib.totalBps(c.fees)) / BPS;
-        snipe = (grossIn * snipeTaxBps(coin)) / BPS;
-        out = c.y - FixedPointMathLib.divUp(c.k, c.x + grossIn - fee - snipe);
+        uint256 feeBps = FeeLib.totalBps(c.fees);
+        uint256 snipeBps = snipeTaxBps(coin);
+        uint256 gross = grossIn;
+        uint256 net = gross - (gross * feeBps) / BPS - (gross * snipeBps) / BPS;
+        out = c.y - FixedPointMathLib.divUp(c.k, c.x + net);
         uint256 remaining = CURVE_SUPPLY - c.sold;
-        if (out > remaining) out = remaining;
+        if (out >= remaining) {
+            out = remaining;
+            uint256 netNeeded = FixedPointMathLib.divUp(c.k, c.y - remaining) - c.x;
+            uint256 grossNeeded = FixedPointMathLib.divUp(netNeeded * BPS, BPS - feeBps - snipeBps);
+            if (grossNeeded < gross) gross = grossNeeded;
+            net = gross - (gross * feeBps) / BPS - (gross * snipeBps) / BPS;
+        }
+        fee = (gross * feeBps) / BPS;
+        snipe = gross - net - fee;
     }
 
     function quoteSell(address coin, uint256 tokensIn) external view returns (uint256 out, uint256 fee) {

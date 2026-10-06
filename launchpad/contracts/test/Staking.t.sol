@@ -55,6 +55,43 @@ contract StakingTest is MarketBase {
         assertApproxEqAbs(back, 1_000_000e18, 1);
     }
 
+    /// @dev Audit R1-A3-2: a stranger's dust deposit or 1-share transfer must not hold the staker's older shares;
+    ///      a fresh deposit stays fully held wherever it is transferred.
+    function test_vault_strangerDustHoldsOnlyTheDust() public {
+        address griefer = makeAddr("griefer");
+        address fresh = makeAddr("fresh");
+        pondpad.transfer(griefer, 1_000e18);
+        uint256 shares = _stake(1_000_000e18);
+        _nextBlock();
+        vm.startPrank(griefer);
+        pondpad.approve(address(sVault), type(uint256).max);
+        sVault.deposit(1, staker); // dust minted to the staker
+        uint256 gShares = sVault.deposit(100e18, griefer);
+        sVault.transfer(staker, 1); // a held share sent to the staker
+        sVault.transfer(fresh, gShares - 1); // the rest of a fresh deposit moved to a clean wallet
+        vm.stopPrank();
+        assertEq(sVault.maxRedeem(staker), shares, "older shares stay redeemable");
+        vm.prank(staker);
+        sVault.redeem(shares, staker, staker);
+        assertEq(sVault.maxRedeem(fresh), 0, "a fresh deposit is held wherever it goes");
+        vm.prank(fresh);
+        vm.expectRevert(ERC4626.RedeemMoreThanMax.selector);
+        sVault.redeem(1, fresh, fresh);
+        _nextBlock();
+        assertEq(sVault.maxRedeem(fresh), gShares - 1);
+    }
+
+    /// @dev Audit R1-A3-7: a pause started just before the powers expire ends when they do.
+    function test_vault_pauseNeverOutlivesPowers() public {
+        _stake(1_000e18);
+        vm.warp(expiry - 1);
+        vm.prank(slowTimelock);
+        sVault.setPaused(true);
+        assertTrue(sVault.paused());
+        vm.warp(expiry);
+        assertFalse(sVault.paused(), "pause ends with the owner's powers");
+    }
+
     function test_vault_pauseIsShortAndCannotRepeatAtOnce() public {
         _stake(1_000e18);
         vm.prank(slowTimelock);
@@ -167,6 +204,30 @@ contract StakingTest is MarketBase {
         assertEq(pondpad.balanceOf(address(rewards)), 0);
     }
 
+    /// @dev Audit R1-A3-1: a 1-wei first stake is not a real staker; rewards wait instead of leaking half of every
+    ///      drip to the vault's virtual shares.
+    function test_dripper_waitsForRealStakeNotDust() public {
+        address dust = makeAddr("dust");
+        pondpad.transfer(dust, 1e18);
+        pondpad.transfer(address(rewards), 70_000e18);
+        vm.startPrank(dust);
+        pondpad.approve(address(sVault), type(uint256).max);
+        sVault.deposit(1, dust);
+        vm.stopPrank();
+        vm.warp(START + 30 minutes + 1 days);
+        _nextBlock();
+        assertFalse(rewards.canDrip());
+        vm.expectRevert(RewardDripper.VaultEmpty.selector);
+        rewards.drip();
+        _stake(1e18); // one whole $PONDPAD: real stake
+        assertTrue(rewards.canDrip());
+        rewards.drip();
+        _nextBlock();
+        // The virtual shares (1e6 of ~1e24) got next to nothing: what the stakers can redeem ~ the vault's assets.
+        uint256 redeemable = sVault.convertToAssets(sVault.balanceOf(staker)) + sVault.convertToAssets(sVault.balanceOf(dust));
+        assertApproxEqRel(redeemable, sVault.totalAssets(), 1e6); // within 1e-12
+    }
+
     function test_dripper_settingsBoundedAndRewardsCantBeRescued() public {
         vm.startPrank(timelock);
         vm.expectRevert(RewardDripper.InvalidSmoothing.selector);
@@ -214,6 +275,18 @@ contract StakingTest is MarketBase {
         _nextBlock();
         buyer.buy();
         assertEq(imd.balanceOf(address(buyer)), held - 50e18);
+    }
+
+    /// @dev Audit R1-A3-6: a whole-balance chunk of 199 mod 200 wei used to fail paying a tip 1 wei above the
+    ///      IMD reserved for it.
+    function test_buyer_tipNeverExceedsWhatWasReserved() public {
+        _graduate();
+        imd.mint(address(buyer), 1e18 + 199);
+        _nextBlock();
+        vm.prank(keeper);
+        buyer.buy();
+        assertEq(imd.balanceOf(keeper), (uint256(1e18) + 199) * 50 / 10_000);
+        assertEq(imd.balanceOf(address(buyer)), 0);
     }
 
     function test_buyer_refusesAfterPricePump() public {

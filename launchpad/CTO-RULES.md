@@ -12,7 +12,7 @@ These rules are written for the IMD oracle panel that answers PondPad takeover q
 - It can **not** touch liquidity, supply, holders' tokens, the coin tax rates or anything else. Fees earned before the takeover are paid to the old receiver.
 - The new receiver is either:
   - **a community multisig** (a Safe), or
-  - **the coin's holders**: the fees are paid into the coin contract and shared with all holders as IMD dividends. Once fees go to holders, no person controls them, and the swarm budget is shared with holders too.
+  - **the coin's holders**: the fees are paid into the coin contract and shared with all holders as IMD dividends, spread over about 7 days so nobody can buy in just before a payout. Once fees go to holders, no person controls them, and the swarm budget is shared with holders too.
 
 ## Instructions to the panel
 
@@ -46,7 +46,7 @@ The proposer tagged the coin's linked X account (if any) in the announcement and
 
 ## Contested takeovers
 
-During the 3-day notice the current fee receiver can **contest** onchain. A contested takeover needs a second "true" from a larger panel (at least 75 members), and waits 7 more days. For that second question:
+During the 3-day notice the current fee receiver can **contest** onchain. A contested takeover needs a second "true" from a larger panel (at least 75 members), asked after the contest and about the X account the takeover was proposed under, and waits 7 more days. For that second question:
 
 - The creator **showing up does not by itself** defeat a takeover based on **"Rugged"**.
 - If the takeover was based on **"Abandoned"** and the creator has contested, the coin is not abandoned: answer **false**, unless the creator wallets are still clearly inactive apart from the contest itself, **and** R2's "Rugged" holds.
@@ -65,4 +65,4 @@ The panel does not need to check these; `CTOModule` refuses the takeover otherwi
 
 ## Fallback before the oracle works on Robinhood
 
-Until the IMD oracle signs answers for Robinhood Chain, PondPad's team Safe (the "council") can propose a takeover itself. It must follow these same rules, publish its evidence, and wait a **7-day** notice. The creator can contest, and then the council must confirm publicly. The council path is switched off forever once oracle answers work.
+Until the IMD oracle signs answers for Robinhood Chain, PondPad's team Safe (the "council") can propose a takeover itself. It must follow these same rules, publish its evidence, and wait a **7-day** notice. The creator can contest, and then the council must confirm publicly. If the council withdraws a proposal, it can't propose again for that coin for 90 days, and a proposal backed by an oracle answer replaces a pending council one. The council path is switched off forever once oracle answers work; council proposals still waiting then lapse.

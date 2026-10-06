@@ -18,6 +18,7 @@ interface IERC20Min {
 ///     smoothly over about `smoothingPeriod` (default 7 days: ~0.6% of the buffer per hour) whatever the volume or
 ///     price. After a full catch-up window, a drip releases at least `min(buffer, minDripAmount)`; a remainder
 ///     smaller than `minDripAmount` is swept without a keeper tip, so small buffers never stall.
+///   - Drips wait until the vault holds at least `MIN_VAULT_SHARES` real shares (audit R1-A3-1).
 ///   - D-42: the vault is fixed at deploy (no `setVault`); `rescueERC20` can never touch the reward buffer; all
 ///     owner powers expire at `powersExpireAt` (12 months after launch).
 /// Upstream doc follows; its "rate" wording describes the original fixed-rate formula.
@@ -69,6 +70,8 @@ contract RewardDripper is Ownable {
     uint256 internal constant MAX_CATCHUP = 30 days;
     uint256 public constant MIN_SMOOTHING = 1 days; // PondPad
     uint256 public constant MAX_SMOOTHING = 30 days; // PondPad
+    /// @notice PondPad (audit R1-A3-1): drips wait until the vault has at least this many real shares.
+    uint256 public constant MIN_VAULT_SHARES = 1e24;
     /// @dev The keeper reward may be at most `minDripAmount / KEEPER_REWARD_DIVISOR` (≤ 1% of a drip),
     /// so the vault always receives the dominant share — even at the smallest drip. Equality of the two
     /// knobs (which would let a keeper take a whole drip) is thereby impossible.
@@ -156,7 +159,7 @@ contract RewardDripper is Ownable {
     /// @notice Whether `drip()` would succeed right now (releasable has reached `minDripAmount` and the
     /// vault has stakers to receive it).
     function canDrip() external view returns (bool) {
-        return _dripDue(drippable()) && IERC20Min(vault).totalSupply() != 0;
+        return _dripDue(drippable()) && IERC20Min(vault).totalSupply() >= MIN_VAULT_SHARES;
     }
 
     /// @notice Permissionless: push the releasable IMD to the vault, pay the caller `keeperReward`, and
@@ -168,8 +171,12 @@ contract RewardDripper is Ownable {
     /// by its virtual shares (nobody can redeem them) and leave the first real depositor with a tiny share
     /// count, so a slice of every later drip keeps leaking to those virtual shares. A 15-day mainnet-fork
     /// replay stranded 14% of the rewards this way. Rewards wait here until someone stakes.
+    /// @dev PondPad (audit R1-A3-1): "empty" means fewer than `MIN_VAULT_SHARES` real shares, not zero. The vault
+    /// has 1e6 virtual shares (6-decimal offset), so a 1-wei first stake (1e6 shares) would leave half of every
+    /// drip with the virtual shares. With at least 1e24 real shares (one whole staked $PONDPAD) the virtual
+    /// shares get at most 1e-18 of a drip.
     function drip() external returns (uint256 toVault, uint256 paidKeeper) {
-        if (IERC20Min(vault).totalSupply() == 0) revert VaultEmpty();
+        if (IERC20Min(vault).totalSupply() < MIN_VAULT_SHARES) revert VaultEmpty();
         uint256 amount = drippable();
         if (!_dripDue(amount)) revert BelowMinDrip();
         lastDripAt = block.timestamp;
