@@ -157,7 +157,14 @@ contract ForkTest is Test {
         }
         PadBurner burner = new PadBurner(address(pondpad));
         MarketController controller = new MarketController(
-            address(this), address(this), IMD, address(pondpad), address(splitter), address(burner), 150_000_000e18,
+            address(this),
+            address(this),
+            IMD,
+            address(pondpad),
+            address(splitter),
+            address(burner),
+            address(this),
+            150_000_000e18,
             500_000e18
         );
         uint160 flags = Hooks.BEFORE_INITIALIZE_FLAG | Hooks.BEFORE_ADD_LIQUIDITY_FLAG | Hooks.BEFORE_SWAP_FLAG

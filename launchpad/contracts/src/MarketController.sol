@@ -22,9 +22,10 @@ interface IPadBurner {
 ///         (D-18): the market is opened exactly once, by PadSale at graduation; trading fees can only go to the
 ///         fee splitter, and anyone can push them there; policy settings sit behind the timelock; and the
 ///         hook's `withdrawRetainedQuote` and ownership transfer are not reachable at all. The only way the
-///         position ever leaves a hook is `migrate` (D-40): during the first 12 months, through the 7-day
-///         timelock, everything moves into a new market hook owned by this same controller, at the same
-///         price. No path sends the position or the retained IMD to any wallet.
+///         position ever leaves a hook is `migrate` (D-40): during the first 12 months, approved by the 7-day
+///         timelock and then run by the migrator (the team Safe), everything moves into a new market hook owned
+///         by this same controller, at the same price, keeping the old market's guards. No path sends the
+///         position or the retained IMD to any wallet.
 /// @dev Roles: `owner` is the 48-hour timelock (policy, extra inventory, backstop close); `sinkAdmin` is the
 ///      7-day timelock (burn sink and rewards recipient). Neither can move the position or the retained IMD.
 contract MarketController is Ownable, IPadMarketLauncher {
@@ -37,6 +38,10 @@ contract MarketController is Ownable, IPadMarketLauncher {
     uint256 public immutable initialCapFloor;
     uint256 public immutable initialCapDecayPerDay;
     address internal immutable _deployer;
+    /// @notice The only account that can run an approved migration (the team Safe). Splitting approval (7-day
+    ///         timelock) from execution stops an outsider from choosing the block and price of a migration
+    ///         (audit R1-A2-2).
+    address public immutable migrator;
 
     PadMarketHook public hook;
     address public sale;
@@ -48,10 +53,13 @@ contract MarketController is Ownable, IPadMarketLauncher {
     /// @notice Migration is possible only before this time (12 months after the market opened). Zero before launch.
     uint256 public migrationDeadline;
     uint256 public constant MIGRATION_WINDOW = 365 days;
+    /// @notice The new hook the 7-day timelock approved for `migrate`; zero when none.
+    address public approvedMigration;
 
     event Launched(uint160 sqrtPriceX96, uint128 liquidity, uint256 imdDeposited, uint256 tokensDeposited);
     event FeesCollected(uint256 imd, uint256 token);
     event SinkAdminUpdated(address sinkAdmin);
+    event MigrationApproved(address indexed newHook);
     event Migrated(
         address indexed oldHook, address indexed newHook, uint160 sqrtPriceX96, uint256 imdMoved, uint256 tokensMoved
     );
@@ -72,10 +80,14 @@ contract MarketController is Ownable, IPadMarketLauncher {
         address token_,
         address feeSplitter_,
         address burner_,
+        address migrator_,
         uint256 capFloor_,
         uint256 capDecayPerDay_
     ) {
-        if (owner_ == address(0) || sinkAdmin_ == address(0) || feeSplitter_ == address(0) || burner_ == address(0)) {
+        if (
+            owner_ == address(0) || sinkAdmin_ == address(0) || feeSplitter_ == address(0) || burner_ == address(0)
+                || migrator_ == address(0)
+        ) {
             revert InvalidSetup();
         }
         _initializeOwner(owner_);
@@ -84,6 +96,7 @@ contract MarketController is Ownable, IPadMarketLauncher {
         token = token_;
         feeSplitter = feeSplitter_;
         burner = burner_;
+        migrator = migrator_;
         initialCapFloor = capFloor_;
         initialCapDecayPerDay = capDecayPerDay_;
         _deployer = msg.sender;
@@ -116,9 +129,15 @@ contract MarketController is Ownable, IPadMarketLauncher {
         PadMarketHook h = hook;
         h.initializePool(sqrtPriceX96);
         uint128 liquidity = fullRangeLiquidity(sqrtPriceX96, imdAmount, tokenAmount, h.tickSpacing());
+        // What the hook takes is measured around `openMarket`, never from the live balance, which anyone can
+        // add to (audit R1-A2-1: a donation larger than the raise made `launch` underflow forever).
+        uint256 imdBefore = imd.balanceOf(address(this));
+        uint256 tokenBefore = token.balanceOf(address(this));
         h.openMarket(liquidity, tokenAmount, imdAmount, initialCapFloor, initialCapDecayPerDay);
+        uint256 imdUsed = imdBefore - imd.balanceOf(address(this));
+        uint256 tokenUsed = tokenBefore - token.balanceOf(address(this));
 
-        // Rounding dust: leftover IMD joins the protocol fees, leftover $PONDPAD is burned.
+        // Rounding dust and anything sent here before launch: IMD joins the protocol fees, $PONDPAD is burned.
         uint256 imdLeft = imd.balanceOf(address(this));
         if (imdLeft != 0) imd.safeTransfer(feeSplitter, imdLeft);
         uint256 tokenLeft = token.balanceOf(address(this));
@@ -126,7 +145,7 @@ contract MarketController is Ownable, IPadMarketLauncher {
             token.safeTransfer(burner, tokenLeft);
             IPadBurner(burner).burn();
         }
-        emit Launched(sqrtPriceX96, liquidity, imdAmount - imdLeft, tokenAmount - tokenLeft);
+        emit Launched(sqrtPriceX96, liquidity, imdUsed, tokenUsed);
     }
 
     /// @notice Full-range liquidity that `imdAmount` IMD (currency0) and `tokenAmount` $PONDPAD (currency1) buy at
@@ -235,15 +254,27 @@ contract MarketController is Ownable, IPadMarketLauncher {
 
     // ------------------------------------------------------------------ Migration (7-day timelock, first 12 months)
 
+    /// @notice The 7-day timelock approves a migration into `newHook_` (zero clears it). Approval moves nothing;
+    ///         the migrator (team Safe) runs it with `migrate`.
+    function approveMigration(address newHook_) external onlySinkAdmin {
+        approvedMigration = newHook_;
+        emit MigrationApproved(newHook_);
+    }
+
     /// @notice Moves the whole market into `newHook` (D-40): for fixing a defect or moving to a better version
-    ///         while the code is young. Only the 7-day timelock, only before `migrationDeadline`. `newHook` must be
-    ///         an unopened market for the same IMD/$PONDPAD pair, owned by this controller, with the same burn sink
-    ///         and rewards recipient. The old market's fees go to the splitter; its position and retained IMD
-    ///         reopen the new market at the old market's current price, with the same cap floor, decay and
-    ///         policy; IMD that doesn't fit the full-range position becomes the new market's backstop IMD. The
-    ///         controller keeps nothing and pays no one.
-    function migrate(address newHook_) external onlySinkAdmin {
+    ///         while the code is young. Only the migrator (team Safe), only into the hook the 7-day timelock
+    ///         approved, only before `migrationDeadline`. `newHook` must be an unopened market for the same
+    ///         IMD/$PONDPAD pair, owned by this controller, with the same burn sink and rewards recipient. The old
+    ///         market's fees go to the splitter; its position and retained IMD reopen the new market at the old
+    ///         market's current price, with the same cap floor, decay and policy, and with the old market's
+    ///         backstop placement floor, reference tick and cap (so a price pushed just before the migration
+    ///         can't decide where the backstop goes, audit R1-A2-2); IMD that doesn't fit the full-range
+    ///         position becomes the new market's backstop IMD. The controller keeps nothing and pays no one.
+    function migrate(address newHook_) external {
+        if (msg.sender != migrator) revert Unauthorized();
+        if (newHook_ == address(0) || newHook_ != approvedMigration) revert InvalidSetup();
         if (!launched || block.timestamp >= migrationDeadline) revert MigrationClosed();
+        approvedMigration = address(0);
         PadMarketHook old = hook;
         PadMarketHook nh = PadMarketHook(newHook_);
         if (
@@ -252,6 +283,7 @@ contract MarketController is Ownable, IPadMarketLauncher {
         ) revert InvalidSetup();
 
         uint160 sqrtPriceX96 = old.currentSqrtPriceX96();
+        (int24 oldFloor, int24 oldRef, uint256 oldCap) = (old.deploymentFloorTick(), old.refTick(), old.inventoryCap());
         old.closeMarket(address(this)); // settles claims, closes the backstop, returns position + retained IMD
         _collectFees(old); // fees realised by the close go to the splitter, as always
 
@@ -264,6 +296,7 @@ contract MarketController is Ownable, IPadMarketLauncher {
         uint128 liquidity = fullRangeLiquidity(sqrtPriceX96, imdBal, tokenBal, nh.tickSpacing());
         nh.openMarket(liquidity, tokenBal, imdBal, old.capFloor(), old.capDecayTokensPerDay());
         nh.inheritFeeSchedule(old.marketOpenedAt());
+        nh.inheritGuards(oldFloor, oldRef, oldCap);
         _copyPolicy(old, nh);
 
         uint256 imdLeft = imd.balanceOf(address(this));

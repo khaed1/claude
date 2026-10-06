@@ -16,8 +16,9 @@ pragma solidity 0.8.26;
        Nothing in the cap / trim / burn / backstop paths reads the fee.
     3. IMD-sized constants: rebalance threshold 40 IMD, default keeper tip 1 IMD, max keeper tip 40 IMD.
     4. v4-core types come from `PoolOperation.sol` in the pinned v4-core; compiled for cancun.
-    5. `seedRetainedQuote` and `inheritFeeSchedule`: let MarketController carry retained IMD and the fee clock into
-       a new market when it migrates (D-40).
+    5. `seedRetainedQuote`, `inheritFeeSchedule` and `inheritGuards`: let MarketController carry retained IMD,
+       the fee clock, the backstop placement floor, the reference tick and the cap into a new market when it
+       migrates (D-40, audit R1-A2-2/3).
   The owner is MarketController. It never exposes `withdrawRetainedQuote`; it calls `closeMarket` only inside
   `migrate`, which moves everything into a new market hook (7-day timelock, first 12 months only, D-40).
 */
@@ -666,6 +667,21 @@ contract PadMarketHook is Ownable {
     function inheritFeeSchedule(uint256 openedAt) external onlyOwner {
         if (!marketOpen || openedAt == 0 || openedAt > marketOpenedAt) revert InvalidConfiguration();
         marketOpenedAt = openedAt;
+    }
+
+    /// @notice PondPad: on migration, the new market keeps the old market's backstop placement floor, its
+    /// block-lagged reference tick and its inventory cap, instead of reseeding them from the price in the
+    /// migration block. Without this, whoever runs a migration could pump spot first and the new market's
+    /// backstop could then be placed at the pumped price (audit R1-A2-2), and the cap would drop to the moved
+    /// holdings in one step (R1-A2-3). The floor and the cap can only go up here (a higher floor only moves
+    /// the bid to cheaper IMD; a higher cap only delays trims), so this can never loosen either guard.
+    function inheritGuards(int24 floorTick, int24 refTick_, uint256 inventoryCap_) external onlyOwner {
+        if (!marketOpen || refTick_ < TickMath.MIN_TICK || refTick_ > TickMath.MAX_TICK) {
+            revert InvalidConfiguration();
+        }
+        if (floorTick > deploymentFloorTick) deploymentFloorTick = floorTick;
+        refTick = refTick_;
+        if (inventoryCap_ > inventoryCap) inventoryCap = inventoryCap_;
     }
 
     /// @notice Sends the accumulated trading-fee revenue (token + IMD) to `recipient`. The fee ledger

@@ -40,6 +40,7 @@ abstract contract MarketBase is Base {
     address internal slowTimelock = makeAddr("slowTimelock");
     address internal dripper = makeAddr("dripper");
     address internal trader = makeAddr("trader");
+    address internal migrator = makeAddr("migrator"); // the team Safe runs approved migrations
 
     function setUp() public virtual override {
         super.setUp();
@@ -49,7 +50,15 @@ abstract contract MarketBase is Base {
         }
         burner = new PadBurner(address(pondpad));
         controller = new MarketController(
-            timelock, slowTimelock, address(imd), address(pondpad), address(splitter), address(burner), CAP_FLOOR, CAP_DECAY
+            timelock,
+            slowTimelock,
+            address(imd),
+            address(pondpad),
+            address(splitter),
+            address(burner),
+            migrator,
+            CAP_FLOOR,
+            CAP_DECAY
         );
         address hookAddr = address(uint160(MARKET_FLAGS) | (uint160(0x7777) << 144));
         deployCodeTo(
@@ -341,12 +350,23 @@ contract MarketTest is MarketBase {
         uint256 feeBefore = market.currentFee();
         uint256 capFloorBefore = market.capFloor();
 
+        (int24 floorBefore, int24 refBefore, uint256 capBefore) =
+            (market.deploymentFloorTick(), market.refTick(), market.inventoryCap());
         PadMarketHook next = _newHook(0x8888, address(controller), address(burner));
-        vm.prank(timelock); // the 48 h timelock can't migrate
+        vm.prank(timelock); // the 48 h timelock can't approve a migration
         vm.expectRevert(Ownable.Unauthorized.selector);
+        controller.approveMigration(address(next));
+        vm.prank(migrator); // nor can the migrator run one that wasn't approved
+        vm.expectRevert(MarketController.InvalidSetup.selector);
         controller.migrate(address(next));
         vm.prank(slowTimelock);
+        controller.approveMigration(address(next));
+        vm.prank(slowTimelock); // the timelock approves; only the migrator (Safe) runs it
+        vm.expectRevert(Ownable.Unauthorized.selector);
         controller.migrate(address(next));
+        vm.prank(migrator);
+        controller.migrate(address(next));
+        assertEq(controller.approvedMigration(), address(0)); // one approval, one migration
         assertEq(controller.openedAt(), t0); // airdrop and team vesting clocks don't move (D-53, D-54)
 
         assertEq(address(controller.hook()), address(next));
@@ -360,6 +380,10 @@ contract MarketTest is MarketBase {
         assertEq(next.capFloor(), capFloorBefore);
         assertEq(next.capDecayTokensPerDay(), 400_000e18);
         assertEq(next.rewardShareBps(), 1_500);
+        // The guards carry over instead of being reseeded from the price in the migration block (R1-A2-2/3).
+        assertGe(next.deploymentFloorTick(), floorBefore);
+        assertEq(next.refTick(), refBefore);
+        assertGe(next.inventoryCap(), capBefore);
         // The controller kept nothing.
         assertEq(imd.balanceOf(address(controller)), 0);
         assertEq(pondpad.balanceOf(address(controller)), 0);
@@ -378,30 +402,73 @@ contract MarketTest is MarketBase {
         assertGt(newBand, 0);
     }
 
+    function _approveAndMigrate(address newHook_) internal {
+        vm.prank(slowTimelock);
+        controller.approveMigration(newHook_);
+        vm.prank(migrator);
+        controller.migrate(newHook_);
+    }
+
     function test_market_migrateGuards() public {
         PadMarketHook next = _newHook(0x8888, address(controller), address(burner));
-        vm.prank(slowTimelock);
         vm.expectRevert(MarketController.MigrationClosed.selector); // not launched yet
-        controller.migrate(address(next));
+        _approveAndMigrate(address(next));
 
         _graduate();
         // Wrong owner, wrong burn sink, the current hook itself: refused.
         PadMarketHook foreign = _newHook(0x9999, address(this), address(burner));
         PadMarketHook badSink = _newHook(0xAAAA, address(controller), address(0xBAD));
-        vm.startPrank(slowTimelock);
         vm.expectRevert(MarketController.InvalidSetup.selector);
-        controller.migrate(address(foreign));
+        _approveAndMigrate(address(foreign));
         vm.expectRevert(MarketController.InvalidSetup.selector);
-        controller.migrate(address(badSink));
+        _approveAndMigrate(address(badSink));
         vm.expectRevert(MarketController.InvalidSetup.selector);
-        controller.migrate(address(market));
-        vm.stopPrank();
+        _approveAndMigrate(address(market));
 
         // After 12 months the market is locked for good.
         vm.warp(controller.migrationDeadline());
-        vm.prank(slowTimelock);
         vm.expectRevert(MarketController.MigrationClosed.selector);
+        _approveAndMigrate(address(next));
+    }
+
+    /// @dev Audit R1-A2-1: IMD sent to the controller before the Leap (here more than the whole raise) must not
+    ///      stop the launch; it joins the protocol fees with the rounding dust.
+    function test_market_donationBeforeLaunchCannotBlockIt() public {
+        uint256 donation = sale.target() + 1e18;
+        imd.mint(address(controller), donation);
+        uint256 splitterBefore = imd.balanceOf(address(splitter));
+        _graduate();
+        assertTrue(controller.launched());
+        assertTrue(market.marketOpen());
+        assertGe(imd.balanceOf(address(splitter)) - splitterBefore, donation);
+        assertEq(imd.balanceOf(address(controller)), 0);
+    }
+
+    /// @dev Audit R1-A2-2: pumping $PONDPAD right before a migration must not let the new backstop be placed at the
+    ///      pumped price. The new market keeps the old placement floor, so the band starts no lower than before.
+    function test_market_migrationKeepsBackstopFloorAfterPump() public {
+        _graduate();
+        uint256 t0 = START + 30 minutes;
+        _swap(false, 40_000_000e18); // sells above the cap: trims build retained IMD
+        _nextBlock();
+        market.rebalance();
+        vm.warp(t0 + 1 days);
+        _nextBlock();
+        int24 floorBefore = market.deploymentFloorTick();
+        PadMarketHook next = _newHook(0x8888, address(controller), address(burner));
+        vm.prank(slowTimelock);
+        controller.approveMigration(address(next));
+
+        _swap(true, 2_000e18); // pump $PONDPAD (tick down) in the migration block
+        assertLt(market.currentTick(), floorBefore);
+        vm.prank(migrator);
         controller.migrate(address(next));
+        assertGe(next.deploymentFloorTick(), floorBefore, "floor carried over");
+        if (next.retainedQuote() >= next.rebalanceQuoteThreshold()) {
+            next.rebalance();
+            (int24 lower,,) = next.backstop();
+            assertGe(lower, floorBefore, "band no lower than the floor the market held");
+        }
     }
 
     function test_market_feeScheduleCanOnlyMoveEarlier() public {

@@ -296,7 +296,9 @@ contract Deploy is Script {
 
         // 7. $PONDPAD market, sale and staking.
         d.burner = new PadBurner(pondpad);
-        d.controller = new MarketController(fast, slow, imd, pondpad, address(d.splitter), address(d.burner), CAP_FLOOR, CAP_DECAY);
+        d.controller = new MarketController(
+            fast, slow, imd, pondpad, address(d.splitter), address(d.burner), p.safe, CAP_FLOOR, CAP_DECAY
+        );
         d.sVault = new StakedPONDPAD(pondpad, slow, p.powersExpireAt);
         d.dripper = new RewardDripper(pondpad, address(d.sVault), fast, 7 days, 1 days, 10e18, 1_000e18, p.powersExpireAt);
         d.market = PadMarketHook(
