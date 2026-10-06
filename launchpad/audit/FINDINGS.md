@@ -9,6 +9,7 @@ Status: `open` → `fixed` (commit) or `accepted` (the project owner's reason, i
 | Round | Commit | Jobs (A1, A2, A3, A4) | Verdict | Date |
 |---|---|---|---|---|
 | 1 | `d5991b7` | [A1](https://explorer.imd.fun/jobs/fd833eca-2118-4e7e-9d03-32d491ed07d4), [A2](https://explorer.imd.fun/jobs/19cb4c8a-1ec5-49e3-a557-7a05ee1e6a91), [A3](https://explorer.imd.fun/jobs/20f790d9-70b4-4679-a8cb-754c115491af), [A4](https://explorer.imd.fun/jobs/51b707f5-6cfb-4740-9521-0f1b40dd5b7a) | **Not clean**: 5 High, 6 Medium. All fixed in `23549a8` (D-78), with 20 Low / Info; 13 Low / Info open for the project owner | 6 Oct 2026 |
+| 2 | `cb8700d` | Generated (`rounds/2/`), not submitted yet | – | – |
 
 ## Findings
 
