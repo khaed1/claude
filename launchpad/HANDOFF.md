@@ -171,6 +171,12 @@ IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`)
 10. **Robinhood testnet run** (D-62, D-63): setup script, deploy change, testnet rehearsal and trader bots built and passing on a fork (§5b). **Live on 46630** (5 Oct 2026): full run done and reported (`bots/reports/2026-10-05/REPORT.md`): healthy, no contract bug, POOL4 12/12, 46/46 attacks refused; findings in §5b step 8. THREAT-MODEL `block.number` note added (D-65). Audit round 1 was generated at `b23fdc0`, before this note and the `Deploy.s.sol` change: regenerate it at the latest commit before submitting (`python3 audit/make_jobs.py round 1 --check`). Next: the frontend against the testnet (with gas headroom on market swaps).
 11. **Frontend**: design done (D-66), first pages built and tested on the testnet (D-70, `frontend/README.md`); **$PONDPAD page (D-72), the Pond (D-73) and Transparency (D-74) built and tested: every page in `Pages.md` exists; public link on GitHub Pages**. Next: more Docs; then WalletConnect, IPFS image upload, an indexer, an IPFS deploy.
 12. Swarm Relay, indexer, X link service, airdrop tweet checker.
+13. **To do next session: new coin launch settings (D-76, decided by the user).** Launch fee 0.35 IMD, Leap target 4,000 IMD, early-bird tax 70% over 80 s (rest unchanged). No contract change. Steps:
+    1. `contracts/script/Deploy.s.sol` `LaunchSettings`: `launchFee: 0.35e18`, `graduationTarget: 4_000e18`, `snipeTaxStartBps: 7_000`, `snipeTaxDuration: 80`; check `DeployFork.t.sol` / `TestnetFork.t.sol` assertions that pin the old values, then run all tests (local, fork, testnet fork).
+    2. **Testnet:** schedule `PadConfig.setLaunchSettings(...)` through the 10-minute timelock from the testnet Safe role wallet (`pondpad-testnet:safe`, see `bots.mjs roles`), execute after the wait, confirm on the site's Transparency page and on Spawn (fee and "Graduates at").
+    3. Text that names the old numbers: `ARCHITECTURE-v1.md` (§3/§4 table, target and market caps), `SITE-COPY.md` (e.g. "1,297 / 2,060 IMD"), `design/system/README.md`, `design/system/components/LeapMeter/README.md`, `design/build_previews.py` (example numbers, then rerun it), `frontend/src/docs/curve.md`, `audit/jobs/A1-core.md`, `PLAN.md` only if still quoted. Mark D-14's number and D-11's fee as superseded by D-76.
+    4. Regenerate audit round 1 at the new commit (`python3 audit/make_jobs.py round 1 --check`).
+    5. Ask the user whether the Egg stage / max-buy window (60 s) should match the new 80-s tax.
 
 ## 5a. Deploying
 
