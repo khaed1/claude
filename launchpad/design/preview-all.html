@@ -62,7 +62,7 @@ a { color: var(--lily); text-underline-offset: 3px; }
 .pp-coin:hover { border-color: var(--reed-strong); transform: translateY(-2px); }
 .pp-coin-img { width: 64px; height: 64px; border-radius: var(--radius-md); object-fit: cover; background: var(--pond-raised); }
 .pp-coin-body { display: grid; gap: 6px; min-width: 0; }
-.pp-coin-top { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.pp-coin-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--space-2); min-width: 0; } /* the stage chip drops to its own line when the card is narrow */
 .pp-coin-name { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pp-coin-ticker { font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: .4px; color: var(--ink-muted); }
 .pp-coin-top .pp-coin-name { flex: 0 1 auto; min-width: 2em; }

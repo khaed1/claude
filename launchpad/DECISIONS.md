@@ -95,6 +95,7 @@ Every decision and change, in the order it was made, with the reason. Numbers (D
 
 | Commit | Change |
 |---|---|
+| next after `8534aef` | Coin card: the name / ticker / stage row wraps, so a long stage chip ("Tadpole · 98%") drops to the next line instead of overflowing narrow cards (About to Leap row); `design/system/components/bundle.css`, previews rebuilt. No contract change |
 | next after `7f39825` | D-76: `Deploy.s.sol` launch settings per network (`launchForMainnet` / `launchForTestnet`), fork tests check them; docs, copy and design examples. D-77: $PONDPAD market trades through Uniswap's Universal Router (`lib/pondpad.ts` `marketRoute` / `marketSwapArgs`, `approveViaPermit2`, `abi/Uniswap.ts`; `PoolSwapTest` ABI removed); market price impact now excludes the fee; docs page "The market". 90 local + 8 fork + 2 testnet fork tests pass |
 | next after `585eb1f` | Keeper follows `PadBuyer.interval()` (D-75); testnet PadBuyer / dripper settings changed through the timelock (no code change) |
 | next after `9b3f291` | Transparency (D-74): `frontend/src/pages/Transparency.tsx`, `lib/transparency.ts`, ABIs for FeeSplitter, WorkerFund, GrowthFund, SwarmBudget, AttestationVerifier, CTOModule, VersionRegistry, TeamVesting, TimelockController; shared log helpers; percent format. No contract change |
