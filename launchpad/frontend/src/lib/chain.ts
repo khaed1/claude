@@ -59,7 +59,7 @@ export function useLaunchSettings() {
 // ------------------------------------------------------------------ Logs
 
 /** eth_getLogs in chunks (Robinhood RPCs cap the range). */
-async function scan<T>(pc: PublicClient, from: bigint, fetch: (from: bigint, to: bigint) => Promise<T[]>): Promise<T[]> {
+export async function scan<T>(pc: PublicClient, from: bigint, fetch: (from: bigint, to: bigint) => Promise<T[]>): Promise<T[]> {
   const head = await pc.getBlockNumber();
   const ranges: [bigint, bigint][] = [];
   for (let a = from; a <= head; a += LOG_CHUNK) ranges.push([a, a + LOG_CHUNK - 1n > head ? head : a + LOG_CHUNK - 1n]);
@@ -84,7 +84,7 @@ async function timeline(pc: PublicClient, from: bigint, head: bigint) {
     return t0 + ((t1 - t0) * Number(block - b0)) / Number(b1 - b0 || 1n);
   };
 }
-async function timesFor(pc: PublicClient) {
+export async function timesFor(pc: PublicClient) {
   return timeline(pc, DEPLOY_BLOCK, await pc.getBlockNumber());
 }
 

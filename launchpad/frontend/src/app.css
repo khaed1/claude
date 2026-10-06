@@ -177,6 +177,23 @@ input[type="range"] { width: 100%; }
 .checker { max-width: 460px; flex: 1; }
 .checker input, .pp-amount input#tweet-link, .pp-amount input#claim-wallet { font-size: 14px; }
 
+/* ---- Transparency ---- */
+.split-bar { display: flex; gap: 3px; height: 40px; border-radius: var(--radius-pill); overflow: hidden; }
+.split-bar span { display: grid; place-items: center; min-width: 48px; font-weight: 800; font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.split-bar .is-pond { background: var(--firefly-soft); }
+.split-bar .is-workers { background: var(--lotus-soft); }
+.split-bar .is-growth { background: var(--lily-soft); }
+.split-bar .is-treasury { background: var(--pond-raised); }
+.bucket-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-4); }
+.bucket { border-top: 4px solid var(--reed-strong); }
+.bucket.is-pond { border-top-color: var(--firefly); }
+.bucket.is-workers { border-top-color: var(--lotus); }
+.bucket.is-growth { border-top-color: var(--lily); }
+.bucket.is-treasury { border-top-color: var(--ripple); }
+.bucket p { font-size: 14px; }
+.bucket-num { font-size: 24px; line-height: 30px; font-variant-numeric: tabular-nums; }
+.table td.wrap-cell { white-space: normal; min-width: 200px; overflow-wrap: anywhere; }
+
 /* ---- Desktop / phone ---- */
 .mobile { display: none; }
 .pp-tabbar.mobile { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; }

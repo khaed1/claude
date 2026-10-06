@@ -16,7 +16,8 @@ export function fmtAmount(x: bigint | undefined, decimals = 18, opts: { compact?
 }
 
 export const fmtImd = (x: bigint | undefined) => `${fmtAmount(x)} IMD`;
-export const fmtBps = (bps: bigint | number) => `${(Number(bps) / 100).toFixed(Number(bps) % 100 === 0 ? 1 : 2)}%`;
+/** Basis points as a percent with one decimal, two only when needed: 150 → 1.5%, 100 → 1.0%, 25 → 0.25%. */
+export const fmtBps = (bps: bigint | number) => `${(Number(bps) / 100).toFixed(2).replace(/(\.\d)0$/, '$1')}%`;
 export const shortAddr = (a?: string) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : '');
 export const pct = (num: bigint, den: bigint) => (den === 0n ? 0 : Math.min(100, Number((num * 10000n) / den) / 100));
 

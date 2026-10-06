@@ -16,17 +16,6 @@ export function NotFound() {
   return <div className="wrap empty"><img src="./pip.svg" alt="" width={120} /><p>This page sank to the bottom of the pond. Swim back up.</p><Link className="pp-btn" to="/">Back to Explore</Link></div>;
 }
 
-/** Pages designed (design/system/Pages.md) but not built yet. */
-export function Soon({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="wrap prose">
-      <h1 className="t-title">{title}</h1>
-      {children}
-      <div className="pp-notice"><span /><div><b>Being built.</b> This page is next on the list; the contracts behind it are live on the testnet.</div></div>
-    </div>
-  );
-}
-
 const FAUCET = parseAbi(['function faucet()', 'function faucetAmount() view returns (uint256)']);
 
 export function Faucet() {

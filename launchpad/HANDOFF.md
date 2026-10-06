@@ -95,10 +95,10 @@ Ready to run, not run yet. `THREAT-MODEL.md` (actors, trust, 22 invariants, deli
 Done before any layout, as the user asked: UX research of Pump.fun and Pons, a mood board, a brand book, a design system and the layout of every page (§5c). Approved by the user (D-70).
 
 ### Frontend (`frontend/`, D-70)
-Built against the testnet: Explore, Coin (trade box with IMD / ETH / USDG), Spawn, Profile (holdings, Claim all creator fees, rewards, activity), **$PONDPAD** (sale → market → airdrop, D-72), **the Pond** (stake / leave, drip, D-73), Docs (first pages + $PONDPAD sale, market, staking, airdrop), Terms, Privacy, faucet, and the wallet's legal acceptance gate (D-69). Tested on the live testnet with the testnet wallet (faucet, buys, sell, dividends, spawn with a dev buy, claim all) and, for $PONDPAD and the Pond, with listed test wallets (airdrop claim, market buy and sell, gasless claim wallet, stake, leave, drip). `npm run dev` in `frontend/`. **Public testnet link: https://khaed1.github.io/claude/** (GitHub Pages, rebuilt on every push to the branch that touches the site; `.github/workflows/pondpad-site.yml`, D-73).
+Built against the testnet: Explore, Coin (trade box with IMD / ETH / USDG), Spawn, Profile (holdings, Claim all creator fees, rewards, activity), **$PONDPAD** (sale → market → airdrop, D-72), **the Pond** (stake / leave, drip, D-73), **Transparency** (fee flows, buckets, timelock queue, owners, settings, D-74), Docs (first pages + $PONDPAD sale, market, staking, airdrop), Terms, Privacy, faucet, and the wallet's legal acceptance gate (D-69). Tested on the live testnet with the testnet wallet (faucet, buys, sell, dividends, spawn with a dev buy, claim all) and, for $PONDPAD and the Pond, with listed test wallets (airdrop claim, market buy and sell, gasless claim wallet, stake, leave, drip). `npm run dev` in `frontend/`. **Public testnet link: https://khaed1.github.io/claude/** (GitHub Pages, rebuilt on every push to the branch that touches the site; `.github/workflows/pondpad-site.yml`, D-73).
 
 ### Not built yet
-See `ROADMAP.md` section 1. In short: the rest of the frontend (Transparency), Swarm Relay, indexer, X link service, airdrop tweet checker; for mainnet, a router for the $PONDPAD market (D-72).
+See `ROADMAP.md` section 1. In short: frontend extras (more Docs, WalletConnect, image upload, indexer, IPFS deploy), Swarm Relay, indexer, X link service, airdrop tweet checker; for mainnet, a router for the $PONDPAD market (D-72).
 
 ---
 
@@ -169,7 +169,7 @@ IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`)
 8. ~~Keeper script~~ (done, D-58): `keeper/` (§6).
 9. **Swarm audit loop**: package built (D-60, `audit/`). Next: the user submits round 1's four jobs in the explorer's Audit form (2 IMD; `audit/README.md`), we fix findings with a failing test each and rerun until the judge says CLEAN.
 10. **Robinhood testnet run** (D-62, D-63): setup script, deploy change, testnet rehearsal and trader bots built and passing on a fork (§5b). **Live on 46630** (5 Oct 2026): full run done and reported (`bots/reports/2026-10-05/REPORT.md`): healthy, no contract bug, POOL4 12/12, 46/46 attacks refused; findings in §5b step 8. THREAT-MODEL `block.number` note added (D-65). Audit round 1 was generated at `b23fdc0`, before this note and the `Deploy.s.sol` change: regenerate it at the latest commit before submitting (`python3 audit/make_jobs.py round 1 --check`). Next: the frontend against the testnet (with gas headroom on market swaps).
-11. **Frontend**: design done (D-66), first pages built and tested on the testnet (D-70, `frontend/README.md`); **$PONDPAD page (D-72) and the Pond (D-73) built and tested; public link on GitHub Pages**. Next: Transparency, more Docs; then WalletConnect, IPFS image upload, an indexer, an IPFS deploy.
+11. **Frontend**: design done (D-66), first pages built and tested on the testnet (D-70, `frontend/README.md`); **$PONDPAD page (D-72), the Pond (D-73) and Transparency (D-74) built and tested: every page in `Pages.md` exists; public link on GitHub Pages**. Next: more Docs; then WalletConnect, IPFS image upload, an indexer, an IPFS deploy.
 12. Swarm Relay, indexer, X link service, airdrop tweet checker.
 
 ## 5a. Deploying

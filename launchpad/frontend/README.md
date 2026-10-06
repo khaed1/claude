@@ -25,7 +25,7 @@ npm run abis         # after `forge build`: refresh src/abi/*.ts from ../contrac
 | `/faucet` | Testnet faucet for test IMD and USDG | Built (testnet only) |
 | `/pondpad` | $PONDPAD: before the sale (countdown, list checker), sale (Leap meter, trade box IMD / ETH / USDG, early-bird tax, 15M limit, trades), market (trade box, fee today, burned, cap / backstop), airdrop (wake with code and post, claim with vesting, gasless claim wallet by signed link `#/pondpad?handover=…`). Testnet: a preview switch shows the phases that already passed (D-72) | Built |
 | `/pond` | The Pond: your sPONDPAD, value per sPONDPAD, dripping in now, total staked; Stake / Leave with the short wait after joining; where rewards come from; anyone can drip or run PadBuyer from the page (D-73) | Built |
-| `/transparency` | Transparency | Next |
+| `/transparency` | Transparency: fees shared out, the 40/25/20/15 split and what each bucket did with it, swarm jobs and grants paid, PadBuyer purchases, every timelock change (waiting / ready / done), who owns what, current settings (D-74) | Built |
 
 ## How it reads the chain
 

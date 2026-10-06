@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useAccount, usePublicClient } from 'wagmi';
 import { getAbiItem, getAddress, type Address, type Hex, type PublicClient } from 'viem';
 import { AirdropDistributorAbi, MarketControllerAbi, PadMarketHookAbi, PadSaleAbi, PondPadTokenAbi, QuoterAbi } from '../abi';
-import { addr, chain, DEPLOY_BLOCK, LOG_CHUNK, QUOTER } from '../config';
+import { addr, chain, DEPLOY_BLOCK, QUOTER } from '../config';
+import { scan } from './chain';
 
 // Everything the $PONDPAD page reads: the sale (PadSale), the market (PadMarketHook + MarketController) and the
 // airdrop (AirdropDistributor + the published claims file). Phases: before → sale → market (+ airdrop wake / claim).
@@ -98,10 +99,7 @@ export function useSaleTrades() {
     refetchInterval: 20_000,
     queryFn: async (): Promise<SaleTradeLog[]> => {
       const event = getAbiItem({ abi: PadSaleAbi, name: 'SaleTrade' });
-      const head = await pc.getBlockNumber();
-      const ranges: [bigint, bigint][] = [];
-      for (let a = DEPLOY_BLOCK; a <= head; a += LOG_CHUNK) ranges.push([a, a + LOG_CHUNK - 1n > head ? head : a + LOG_CHUNK - 1n]);
-      const logs = (await Promise.all(ranges.map(([fromBlock, toBlock]) => pc.getLogs({ address: addr.sale, event, fromBlock, toBlock })))).flat();
+      const logs = await scan(pc, DEPLOY_BLOCK, (fromBlock, toBlock) => pc.getLogs({ address: addr.sale, event, fromBlock, toBlock }));
       return logs
         .map((l) => ({ trader: l.args.trader!, isBuy: l.args.isBuy!, imd: l.args.imdAmount!, tokens: l.args.tokenAmount!, block: l.blockNumber, tx: l.transactionHash, key: `${l.transactionHash}-${l.logIndex}` }))
         .sort((a, b) => (a.block === b.block ? 0 : a.block < b.block ? -1 : 1));
@@ -234,10 +232,7 @@ export function useAirdrop() {
         }
         // Accounts that made this wallet their claim wallet (ClaimWalletSet, claimWallet indexed), still pointing here.
         const event = getAbiItem({ abi: AirdropDistributorAbi, name: 'ClaimWalletSet' });
-        const head = await pc.getBlockNumber();
-        const ranges: [bigint, bigint][] = [];
-        for (let a = DEPLOY_BLOCK; a <= head; a += LOG_CHUNK) ranges.push([a, a + LOG_CHUNK - 1n > head ? head : a + LOG_CHUNK - 1n]);
-        const logs = (await Promise.all(ranges.map(([fromBlock, toBlock]) => pc.getLogs({ address: claims!.distributor, event, args: { claimWallet: address }, fromBlock, toBlock })))).flat();
+        const logs = await scan(pc, DEPLOY_BLOCK, (fromBlock, toBlock) => pc.getLogs({ address: claims!.distributor, event, args: { claimWallet: address }, fromBlock, toBlock }));
         const accounts = [...new Set(logs.map((l) => l.args.account!))];
         for (const account of accounts) {
           const entry2 = claims!.byAddr.get(account.toLowerCase());
