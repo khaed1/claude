@@ -8,10 +8,53 @@ Status: `open` → `fixed` (commit) or `accepted` (the project owner's reason, i
 
 | Round | Commit | Jobs (A1, A2, A3, A4) | Verdict | Date |
 |---|---|---|---|---|
-| – | – | – | – | – |
+| 1 | `d5991b7` | [A1](https://explorer.imd.fun/jobs/fd833eca-2118-4e7e-9d03-32d491ed07d4), [A2](https://explorer.imd.fun/jobs/19cb4c8a-1ec5-49e3-a557-7a05ee1e6a91), [A3](https://explorer.imd.fun/jobs/20f790d9-70b4-4679-a8cb-754c115491af), [A4](https://explorer.imd.fun/jobs/51b707f5-6cfb-4740-9521-0f1b40dd5b7a) | **Not clean**: 5 High, 6 Medium open | 6 Oct 2026 |
 
 ## Findings
 
 | ID | Round | Title | Severity | Location | Status | Fix commit / reason |
 |---|---|---|---|---|---|---|
-| – | – | No findings yet | – | – | – | – |
+| R1-A1-1 | 1 | Curve buy wrapped in an outside PoolManager unlock skips the holder-tax distribution, so the buyer is later credited most of its own holder tax | Medium | `src/BondingCurve.sol:314` | open | – |
+| R1-A1-2 | 1 | A curve completed inside an outside PoolManager unlock stays Full; router buys and sells revert until someone calls graduate() | Low | `src/BondingCurve.sol:238` | open | – |
+| R1-A1-3 | 1 | After graduation the router flushes holder fees after the buyer already holds the tokens, so pool buyers are credited a share of their own holder tax (asymmetric with the curve) | Low | `src/PadRouter.sol:108` | open | – |
+| R1-A1-4 | 1 | BondingCurve.quoteBuy (and PadLens.quoteBuy) report fee and snipe tax on the full input for a buy that completes the curve | Low | `src/BondingCurve.sol:361` | open | – |
+| R1-A1-5 | 1 | SwarmBudget: the requester can cancel a request between the relay starting the job and release(), leaving the relay unpaid | Low | `src/SwarmBudget.sol:107` | open | – |
+| R1-A1-6 | 1 | CreatorVault.claim to a coin-as-recipient (after a CTO) parks the IMD on the token without distributing it | Low | `src/CreatorVault.sol:65` | open | – |
+| R1-A1-7 | 1 | PadLens.quoteBuy reports fullFill = true for curve buys that BondingCurve.buy will reject under the max-buy window | Info | `src/PadLens.sol:143` | open | – |
+| R1-A1-8 | 1 | BondingCurve grants PadHook an unlimited IMD allowance that no code path uses | Info | `src/BondingCurve.sol:133` | open | – |
+| R1-A1-9 | 1 | PadHook.flush / flushIntegrator 'router inside an unlock' branch is unreachable, and would be a hole if it ever became reachable | Info | `src/PadHook.sol:341` | open | – |
+| R1-A1-10 | 1 | Trading-core edges not exercised by the suite (exact-out swaps via outside routers, Full-state graduation, completing-buy quotes, wrapped curve trades) | Info | `test/PondPad.t.sol:498` | open | – |
+| R1-A2-1 | 1 | Anyone can brick the $PONDPAD launch forever by sending more IMD than the net raise to MarketController before graduation | High | `src/MarketController.sol:129` | open | – |
+| R1-A2-2 | 1 | migrate reseeds the backstop placement guard from the live tick and hands over all backstop IMD as idle retained quote, so whoever executes a queued migration can pump, migrate, rebalance and dump int | High | `src/MarketController.sol:265` | open | – |
+| R1-A2-3 | 1 | migrate resets inventoryCap to the migrated holdings, collapsing the rate-limited ratchet in one step | Low | `src/PadMarketHook.sol:558` | open | – |
+| R1-A2-4 | 1 | PadSale sells accept $PONDPAD that never came from the curve: the 30M liquidity reserve can pull IMD out of the raise and strand buyers' sell-backs | Low | `src/PadSale.sol:239` | open | – |
+| R1-A2-5 | 1 | setSinkAdmin lets the 7-day timelock hand migration and sink powers to an undelayed address, removing the review window D-40 relies on | Low | `src/MarketController.sol:289` | open | – |
+| R1-A2-6 | 1 | Trimmed inventory can be routed to a wallet: setBurnSink / setRewardsRecipient accept any non-zero address (documented sinkAdmin power; invariant 11's wording overstates the code) | Info | `src/PadMarketHook.sol:497` | open | – |
+| R1-A2-7 | 1 | migrate verifies the new hook only through its own answers (owner, quote, token, marketOpen, sinks); code and PoolManager are not checked (accepted by D-40) | Info | `src/MarketController.sol:250` | open | – |
+| R1-A3-1 | 1 | RewardDripper: a 1 wei first stake satisfies the empty-vault guard; ~50% of every drip is then stranded in sPONDPAD's virtual shares and can never be redeemed or rescued | High | `src/RewardDripper.sol:172` | open | – |
+| R1-A3-2 | 1 | StakedPONDPAD: any third party re-stamps a staker's one-block hold with deposit(1 wei, victim) or a 1-share transfer, blocking the victim's withdraw/redeem for the whole Ethereum block, repeatable eve | Medium | `src/StakedPONDPAD.sol:144` | open | – |
+| R1-A3-3 | 1 | StakedPONDPAD: a real-capital stake held for one Ethereum block (~12 s) captures its full pro-rata share of a drip; the hold bounds flash loans, not time-weighted reward dilution | Low | `src/StakedPONDPAD.sol:131` | open | – |
+| R1-A3-4 | 1 | AirdropDistributor: a direct setClaimWallet does not consume the delegation nonce, so a signed-but-unsubmitted delegation stays valid until its deadline and can re-point the claims back to the old del | Low | `src/AirdropDistributor.sol:188` | open | – |
+| R1-A3-5 | 1 | AirdropDistributor.setClaimWalletAndClaim reverts BadSignature if anyone submitted the same delegation signature first, although the delegation it carries is already in place | Low | `src/AirdropDistributor.sol:237` | open | – |
+| R1-A3-6 | 1 | PadBuyer.buy() reverts whenever its whole IMD balance is the chunk and that balance is 199 mod 200: the recomputed keeper tip exceeds the IMD reserved for it by 1 wei | Low | `src/PadBuyer.sol:102` | open | – |
+| R1-A3-7 | 1 | StakedPONDPAD: a pause started just before powersExpireAt runs up to 3 days past expiry and nobody can lift it | Low | `src/StakedPONDPAD.sol:177` | open | – |
+| R1-A3-8 | 1 | RewardDripper.setMinDripAmount has no upper bound: a value above the buffer stalls the stream for one catch-up window and then releases the whole buffer in a single untipped drip while smoothingPeriod | Low | `src/RewardDripper.sol:144` | open | – |
+| R1-A3-9 | 1 | GrowthFund caps are per fixed 7-day epoch, so a leaked relay key (or the granter) can take two full caps within seconds across an epoch boundary | Low | `src/GrowthFund.sol:74` | open | – |
+| R1-A3-10 | 1 | Deploy: powersExpireAt defaults to saleStart + 365 days, not 12 months after market open as D-42 and the vault/dripper comments say | Info | `script/Deploy.s.sol:155` | open | – |
+| R1-A4-1 | 1 | Holder-routed fee lumps (CreatorVault.claim to the coin, SwarmBudget.sweepToHolders, ctoSetRecipient) are credited to whoever holds at an instant the caller picks: a one-block buy, release, claim, sel | High | `src/SwarmBudget.sol:122` | open | – |
+| R1-A4-2 | 1 | CTOModule.confirm rebuilds the confirmation question from the proposer's current X handle instead of the one the takeover was proposed under: an unlink (by the X link key, the 48 h timelock or the pro | High | `src/CTOModule.sol:248` | open | – |
+| R1-A4-3 | 1 | The confirming 'yes' is not tied to the contest: a confirmation attestation issued before the creator contested (or for an earlier lapsed proposal) confirms the takeover, so the contest never reaches | Medium | `src/CTOModule.sol:242` | open | – |
+| R1-A4-4 | 1 | PadConfig.setFeeSplitter / setGrowthFund (48 h timelock) re-route the protocol fee, snipe tax and graduation fee of every coin already trading, bypassing the FeeSplitter's share ranges and its 7-day o | Medium | `src/PadConfig.sol:161` | open | – |
+| R1-A4-5 | 1 | The council can hold a coin's single pending-takeover slot forever (propose, cancel, re-propose in one transaction, no cooldown), blocking every attested takeover of that coin until the council is ret | Medium | `src/CTOModule.sol:212` | open | – |
+| R1-A4-6 | 1 | VersionRegistry.activate is permissionless and always sets currentVersion, so a valid audit attestation for an older never-activated version rolls new launches back to it for up to 7 days | Medium | `src/VersionRegistry.sol:129` | open | – |
+| R1-A4-7 | 1 | A version's code hash covers only five contracts' bytecode: the vaults that hold the money and all one-time wiring (curve/hook/factory storage set by initialize) are outside what the audit attestation | Low | `src/VersionRegistry.sol:83` | open | – |
+| R1-A4-8 | 1 | ctoSetRecipient pays the old recipient only the CreatorVault balance: creator fees still pending in PadHook (from outside-router swaps since the last flush) at execute go to the new recipient, contrar | Low | `src/CreatorVault.sol:84` | open | – |
+| R1-A4-9 | 1 | retireCouncil() does not stop council proposals already pending: they execute up to 10 days after the council path is switched off, with no attestation | Low | `src/CTOModule.sol:271` | open | – |
+| R1-A4-10 | 1 | The 'recipient must be a contract' guard accepts a single-key wallet carrying an EIP-7702 delegation (23 bytes of code), checked only at propose time | Low | `src/CTOModule.sol:207` | open | – |
+| R1-A4-11 | 1 | An ousted recipient can lock the whole swarm budget before a holders takeover: reserved requests are skipped by sweepToHolders and, once the recipient is the coin, only the relay can cancel them | Low | `src/SwarmBudget.sol:117` | open | – |
+| R1-A4-12 | 1 | A coin whose fees already go to its holders can be taken over again with no contest right for anyone: the contester must be the current recipient, which is the coin contract | Low | `src/CTOModule.sol:233` | open | – |
+| R1-A4-13 | 1 | Exactly two thirds agreement is rejected: 6,667 bps is more than 2/3, so 34 of 51, 50 of 75 and 66 of 99 fail NotEnoughAgreement | Low | `src/AttestationVerifier.sol:90` | open | – |
+| R1-A4-14 | 1 | Anyone can pre-deploy $PONDPAD through the public CREATE2 deployer at the script's predictable salt and make Deploy.s.sol revert on every re-run | Low | `script/Deploy.s.sol:397` | open | – |
+| R1-A4-15 | 1 | The 30M liquidity reserve is a plain balance of a generic TimelockController: nothing restricts it to fundInventory as D-57 states | Info | `script/Deploy.s.sol:342` | open | – |
+| R1-A4-16 | 1 | No contract reads VersionRegistry: activation, rollback and the 'audit-gated versions' promise gate nothing onchain | Info | `src/VersionRegistry.sol:36` | open | – |
+| R1-A4-17 | 1 | 'Retire one-way' is nominal for the 7-day owner: it can still make CTOModule and VersionRegistry accept any takeover or activation by approving its own oracle signer (a listed power) or by swapping th | Info | `src/CTOModule.sol:303` | open | – |
