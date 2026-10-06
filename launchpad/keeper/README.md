@@ -23,7 +23,7 @@ Addresses come from `../contracts/deployments/4663.json`, which `script/Deploy.s
 | `PadSale.graduate()` | 1 min | the sale is full but the completing buy couldn't graduate it |
 | `MarketController.collectFees()` | daily | the market is open (also runs the splitter for both fee tokens) |
 | `FeeSplitter.distribute()` | daily | the splitter holds IMD |
-| `PadBuyer.buy()` | 10 min | the market is open and the buyer holds ≥ 1 IMD (pays the keeper 0.5%) |
+| `PadBuyer.buy()` | its own `interval()` (10 min by default) | the market is open, the buyer holds ≥ 1 IMD and its interval has passed (pays the keeper 0.5%) |
 | `RewardDripper.drip()` | hourly | `canDrip()` (pays the keeper 10 $PONDPAD) |
 | `PadMarketHook.rebalance()` | 5 min | `pendingRebalance()` (pays the keeper up to 1 IMD) |
 | `PadMarketHook.settleClaims()` | hourly | trims left claims to settle |

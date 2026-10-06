@@ -41,7 +41,7 @@ const wallet = account ? createWalletClient({ account, chain, transport: http(RP
 
 const abi = {
   erc20: parseAbi(["function balanceOf(address) view returns (uint256)"]),
-  buyer: parseAbi(["function buy() returns (uint256)"]),
+  buyer: parseAbi(["function buy() returns (uint256)", "function lastBuyAt() view returns (uint256)", "function interval() view returns (uint256)"]),
   dripper: parseAbi(["function drip() returns (uint256, uint256)", "function canDrip() view returns (bool)"]),
   market: parseAbi([
     "function rebalance()",
@@ -132,7 +132,12 @@ async function pass() {
     ["PadSale.graduate", MIN, async () => (Number(await read(a.sale, "sale", "status")) === SALE_FULL ? send("PadSale.graduate", a.sale, "sale", "graduate") : null)],
     ["MarketController.collectFees", DAY, async () => (marketOpen ? send("MarketController.collectFees", a.marketController, "controller", "collectFees") : null)],
     ["FeeSplitter.distribute", DAY, async () => ((await erc20(a.imd, a.feeSplitter)) > 0n ? send("FeeSplitter.distribute", a.feeSplitter, "splitter", "distribute") : null)],
-    ["PadBuyer.buy", 10 * MIN, async () => (marketOpen && (await erc20(a.imd, a.padBuyer)) >= 10n ** 18n ? send("PadBuyer.buy", a.padBuyer, "buyer", "buy") : null)],
+    // Checked every pass; sends when PadBuyer's own interval (set by the 48 h timelock, 10 min by default) has passed.
+    ["PadBuyer.buy", MIN, async () => {
+      if (!marketOpen || (await erc20(a.imd, a.padBuyer)) < 10n ** 18n) return null;
+      const [last, every] = await Promise.all([read(a.padBuyer, "buyer", "lastBuyAt"), read(a.padBuyer, "buyer", "interval")]);
+      return BigInt(Math.floor(Date.now() / 1000)) >= last + every ? send("PadBuyer.buy", a.padBuyer, "buyer", "buy") : null;
+    }],
     ["RewardDripper.drip", HOUR, async () => ((await read(a.rewardDripper, "dripper", "canDrip")) ? send("RewardDripper.drip", a.rewardDripper, "dripper", "drip") : null)],
     ["PadMarketHook.rebalance", 5 * MIN, async () => (marketOpen && (await read(a.marketHook, "market", "pendingRebalance")) ? send("PadMarketHook.rebalance", a.marketHook, "market", "rebalance") : null)],
     ["PadMarketHook.settleClaims", HOUR, async () => {
