@@ -5,6 +5,8 @@ import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {SwapMath} from "v4-core/libraries/SwapMath.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
+import {TickBitmap} from "v4-core/libraries/TickBitmap.sol";
+import {BitMath} from "v4-core/libraries/BitMath.sol";
 import {FullMath} from "v4-core/libraries/FullMath.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {PoolId, PoolIdLibrary} from "v4-core/types/PoolId.sol";
@@ -26,8 +28,10 @@ interface ILensSwarmBudget {
 /// @notice Read-only views for the website and integrators: coin lists with pagination, one coin's full state,
 ///         buy and sell quotes in IMD on the curve or in the pool (whichever the coin is in), and a wallet's
 ///         balances and pending dividends. Holds no funds and changes nothing.
-/// @dev Pool quotes are exact for PadHook pools: each pool holds a single full-range position, so a swap is one
-///      `SwapMath` step at the pool's liquidity, with the hook's fee on the IMD side (pool LP fee is 0). A quote
+/// @dev Pool quotes are exact for PadHook pools: each pool holds a single full-range position, so a swap runs at
+///      the pool's liquidity, with the hook's fee on the IMD side (pool LP fee is 0). Like the PoolManager, the quote
+///      takes one `SwapMath` step per tick-bitmap word (rounding happens per step), so it matches what the pool pays
+///      to the wei on every size (audit R3-A1-3). A quote
 ///      reports `fullFill = false` when the trade would run past the full range (the hook rejects partial fills of
 ///      exact-in buys). Quotes are in IMD; the router's ETH / USDG legs are quoted with the v4 Quoter.
 contract PadLens {
@@ -189,18 +193,54 @@ contract PadLens {
     }
 
     /// @dev One exact-in swap step across the pool's full-range position, as the PoolManager computes it.
+    /// @dev An exact-in swap of `amountIn` as `Pool.swap` runs it: from the current price toward the full-range edge,
+    ///      one step per tick-bitmap word (the next initialized tick within the word, or the word's last tick), with
+    ///      the same rounding per step. Liquidity is constant inside the range; it ends at the edge.
     function _step(PoolKey memory key, bool zeroForOne, uint256 amountIn)
         internal
         view
         returns (uint256 used, uint256 out)
     {
         PoolId id = key.toId();
-        (uint160 sqrtP,,,) = poolManager.getSlot0(id);
+        (uint160 sqrtP, int24 tick,,) = poolManager.getSlot0(id);
         uint128 liquidity = poolManager.getLiquidity(id);
         if (liquidity == 0 || amountIn == 0) return (0, 0);
         int24 edge = zeroForOne ? TickMath.minUsableTick(key.tickSpacing) : TickMath.maxUsableTick(key.tickSpacing);
-        (, used, out,) =
-            SwapMath.computeSwapStep(sqrtP, TickMath.getSqrtPriceAtTick(edge), liquidity, -int256(amountIn), 0);
+        uint160 edgePrice = TickMath.getSqrtPriceAtTick(edge);
+        uint256 remaining = amountIn;
+        while (remaining != 0 && sqrtP != edgePrice) {
+            int24 next = _nextTickWithinWord(id, tick, key.tickSpacing, zeroForOne);
+            if (zeroForOne ? next < edge : next > edge) next = edge; // nothing is initialized past the edge
+            uint160 nextPrice = TickMath.getSqrtPriceAtTick(next);
+            (uint160 newP, uint256 stepIn, uint256 stepOut,) =
+                SwapMath.computeSwapStep(sqrtP, nextPrice, liquidity, -int256(remaining), 0);
+            remaining -= stepIn;
+            used += stepIn;
+            out += stepOut;
+            if (newP == nextPrice) tick = zeroForOne ? next - 1 : next;
+            else if (newP != sqrtP) tick = TickMath.getTickAtSqrtPrice(newP);
+            sqrtP = newP;
+        }
+    }
+
+    /// @dev `TickBitmap.nextInitializedTickWithinOneWord`, reading the pool's bitmap through the PoolManager.
+    function _nextTickWithinWord(PoolId id, int24 tick, int24 spacing, bool lte) internal view returns (int24 next) {
+        unchecked {
+            int24 compressed = TickBitmap.compress(tick, spacing);
+            if (lte) {
+                (int16 wordPos, uint8 bitPos) = TickBitmap.position(compressed);
+                uint256 masked = poolManager.getTickBitmap(id, wordPos) & (type(uint256).max >> (255 - uint256(bitPos)));
+                next = masked != 0
+                    ? (compressed - int24(uint24(bitPos - BitMath.mostSignificantBit(masked)))) * spacing
+                    : (compressed - int24(uint24(bitPos))) * spacing;
+            } else {
+                (int16 wordPos, uint8 bitPos) = TickBitmap.position(++compressed);
+                uint256 masked = poolManager.getTickBitmap(id, wordPos) & ~((uint256(1) << bitPos) - 1);
+                next = masked != 0
+                    ? (compressed + int24(uint24(BitMath.leastSignificantBit(masked) - bitPos))) * spacing
+                    : (compressed + int24(uint24(255 - bitPos))) * spacing;
+            }
+        }
     }
 
     /// @dev IMD per token, 1e18 scale, from the pool's sqrt price (token1 per token0, Q96).

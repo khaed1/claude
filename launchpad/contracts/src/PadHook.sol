@@ -343,7 +343,16 @@ contract PadHook is IHooks, IUnlockCallback {
     ///         flushes after its own unlock ends (audit R1-A1-9 removed an unreachable in-unlock router branch).
     function flush(address coin) external {
         if (poolManager.isUnlocked()) return;
-        poolManager.unlock(abi.encode(ACTION_FLUSH, abi.encode(coin)));
+        poolManager.unlock(abi.encode(ACTION_FLUSH, abi.encode(coin, address(0))));
+    }
+
+    /// @notice The router's flush after its own pool trade: like `flush`, but the holder tax goes to growth when
+    ///         nobody other than `trader` holds an eligible balance, so a sole holder isn't credited its own tax
+    ///         (audit R3-A1-1). It applies to everything pending for the coin, which is normally just that trade.
+    function flushFor(address coin, address trader) external {
+        if (msg.sender != router) revert Unauthorized();
+        if (poolManager.isUnlocked()) return;
+        poolManager.unlock(abi.encode(ACTION_FLUSH, abi.encode(coin, trader)));
     }
 
     /// @notice Sends an integrator's pending earnings to the IntegratorVault. Same unlock rules as `flush`.
@@ -362,7 +371,7 @@ contract PadHook is IHooks, IUnlockCallback {
         IIntegratorSinkHook(integratorVault).credit(integrator, address(0), amount);
     }
 
-    function _flush(address coin) internal {
+    function _flush(address coin, address trader) internal {
         Pending memory p = pending[coin];
         uint256 total = uint256(p.protocol) + p.creator + p.holders + p.swarm;
         if (total == 0) return;
@@ -381,9 +390,9 @@ contract PadHook is IHooks, IUnlockCallback {
             IFeeSinkHook(swarmBudget).credit(coin, p.swarm);
         }
         if (p.holders != 0) {
-            // As on the curve (audit R2-A1-3): with nobody eligible, the holder tax goes to growth, not to the next
-            // buyer's own balance.
-            if (PadToken(coin).eligibleSupply() < MIN_ELIGIBLE_HOLDERS) {
+            // As on the curve (audits R2-A1-3, R3-A1-1): with nobody eligible apart from the router's trader, the
+            // holder tax goes to growth, not back to the trader's own balance.
+            if (PadToken(coin).eligibleSupplyExcept(trader) < MIN_ELIGIBLE_HOLDERS) {
                 imd.safeTransfer(config.growthFund(), p.holders);
             } else {
                 imd.safeTransfer(coin, p.holders);
@@ -400,7 +409,8 @@ contract PadHook is IHooks, IUnlockCallback {
                 abi.decode(payload, (address, uint256, uint256, uint160));
             _seed(coin, amount0, amount1, sqrtP);
         } else if (action == ACTION_FLUSH) {
-            _flush(abi.decode(payload, (address)));
+            (address coin, address trader) = abi.decode(payload, (address, address));
+            _flush(coin, trader);
         } else {
             _flushIntegrator(abi.decode(payload, (address)));
         }

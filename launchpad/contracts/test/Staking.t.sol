@@ -10,6 +10,7 @@ import {StakedPONDPAD} from "../src/StakedPONDPAD.sol";
 import {RewardDripper} from "../src/RewardDripper.sol";
 import {PadBuyer} from "../src/PadBuyer.sol";
 import {FeeSplitter} from "../src/FeeSplitter.sol";
+import {FixedOwnable} from "../src/FixedOwnable.sol";
 
 contract StakingTest is MarketBase {
     StakedPONDPAD internal sVault;
@@ -203,8 +204,13 @@ contract StakingTest is MarketBase {
         vm.warp(t0 + 1 days);
         vm.prank(keeper);
         (uint256 toVault, uint256 tip) = rewards.drip();
-        assertEq(toVault, 500e18);
-        assertEq(tip, 0, "no tip on a remainder sweep");
+        assertEq(toVault, uint256(500e18) / 7, "a full window drips a seventh, never the whole buffer (audit R3-A3-1)");
+        assertEq(tip, 0, "no tip below the minimum");
+        // It keeps draining a seventh per window, and a remainder under one $PONDPAD is swept in full.
+        for (uint256 d = 2; d <= 60; d++) {
+            vm.warp(t0 + d * 1 days);
+            if (rewards.canDrip()) rewards.drip();
+        }
         assertEq(pondpad.balanceOf(address(rewards)), 0);
     }
 
@@ -410,6 +416,151 @@ contract StakingTest is MarketBase {
         buyer.setSettings(10e18, 1e18, 5 minutes, 50, 50, 20);
         vm.stopPrank();
         assertEq(buyer.maxChunk(), 10e18);
+    }
+
+    // ------------------------------------------------------------------ Audit round 3
+
+    /// @dev Audit R3-A3-1: the `minDripAmount` floor never releases more than 1/7 of the buffer in one drip, at the
+    ///      default floor or the highest one the owner may set.
+    function test_dripper_floorNeverReleasesMoreThanASeventh() public {
+        _stake(100_000e18);
+        pondpad.transfer(address(rewards), 1_000e18); // at the default 1,000 floor
+        uint256 t0 = START + 30 minutes;
+        vm.warp(t0 + 1 days);
+        (uint256 toVault, uint256 tip) = rewards.drip();
+        assertLe(toVault + tip, uint256(1_000e18) / 7, "default floor");
+
+        vm.prank(timelock);
+        rewards.setMinDripAmount(100_000e18); // the highest allowed
+        pondpad.transfer(address(rewards), 100_000e18);
+        uint256 buffer = pondpad.balanceOf(address(rewards));
+        vm.warp(t0 + 2 days);
+        (toVault, tip) = rewards.drip();
+        assertLe(toVault + tip, buffer / 7, "highest floor");
+    }
+
+    /// @dev Audit R3-A3-5: moving held shares to address(0) still goes through the hold bookkeeping, so the holder's
+    ///      next transfer in the same block works instead of underflowing.
+    function test_vault_transferToZeroKeepsHoldBookkeeping() public {
+        uint256 shares = _stake(2e18); // all held this block
+        vm.startPrank(staker);
+        sVault.transfer(address(0), shares / 2);
+        sVault.transfer(bob, 1);
+        vm.stopPrank();
+        assertLe(sVault.heldShares(staker), sVault.balanceOf(staker));
+    }
+
+    /// @dev Audit R3-A3-2: after a crash and blocks without swaps, the reference catches up with the price the market
+    ///      held, so a pump-buy-dump in one block can't make PadBuyer pay the pre-crash price.
+    function test_buyer_staleReferenceCatchesUpAfterQuietBlocks() public {
+        _graduate();
+        imd.mint(address(buyer), 25e18);
+        _nextBlock();
+        _swap(false, 40_000_000e18); // a large sell: $PONDPAD much cheaper
+        int24 crashTick = market.currentTick();
+        assertGt(crashTick, market.refTick() + 2_000);
+        for (uint256 i; i < 50; i++) {
+            _nextBlock(); // nobody trades
+        }
+        _swap(true, 845e18); // the attacker pumps back toward the old reference, first swap after the quiet blocks
+        assertEq(market.refTick(), crashTick, "the reference caught up with the price that stood");
+        vm.expectRevert(PadBuyer.PriceOutOfRange.selector);
+        buyer.buy();
+    }
+
+    /// @dev Audits R3-A2-2 / R3-A4-4: the staking contracts' owners can't hand over, transfer or renounce their powers.
+    function test_staking_ownersAreFixed() public {
+        address undelayed = makeAddr("undelayed");
+        vm.startPrank(slowTimelock);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        sVault.transferOwnership(undelayed);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        sVault.renounceOwnership();
+        vm.stopPrank();
+        vm.startPrank(timelock);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        rewards.transferOwnership(undelayed);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        rewards.renounceOwnership();
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        buyer.transferOwnership(undelayed);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        buyer.renounceOwnership();
+        vm.stopPrank();
+        vm.prank(undelayed);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        sVault.requestOwnershipHandover();
+        assertEq(sVault.owner(), slowTimelock);
+        assertEq(rewards.owner(), timelock);
+        assertEq(buyer.owner(), timelock);
+    }
+
+    /// @dev Audit R3-A3-9 (coverage): a PadBuyer chunk that hits its price limit spends less, keeps the rest and
+    ///      pays a smaller tip.
+    function test_buyer_partialFillStopsAtTheLimit() public {
+        _graduate();
+        vm.prank(timelock);
+        buyer.setSettings(500e18, 1e18, 10 minutes, 100, 100, 50);
+        imd.mint(address(buyer), 500e18);
+        _nextBlock();
+        _swap(true, 1e15); // sets the reference at the current price
+        _nextBlock();
+        _swap(true, 30e18); // a small pump, still inside the guard band
+        vm.prank(keeper);
+        buyer.buy();
+        int24 limit = market.refTick() - 200;
+        assertLe(market.currentTick(), limit + 1);
+        assertGe(market.currentTick(), limit - 1, "stopped at the price limit");
+        uint256 tip = imd.balanceOf(keeper);
+        uint256 left = imd.balanceOf(address(buyer));
+        assertGt(left, 0, "unspent IMD stays in the buyer");
+        assertLt(tip, uint256(500e18) * 50 / 10_000, "a smaller tip for a smaller fill");
+        assertEq(500e18 - left - tip > 0, true);
+    }
+
+    /// @dev Audit R3-A3-9 (coverage): `mint` and `withdraw`, a partial same-block hold, and a held `transferFrom`.
+    function test_vault_mintWithdrawAndHeldTransferFrom() public {
+        _stake(1_000e18);
+        _nextBlock();
+        vm.prank(staker);
+        sVault.mint(333e24, staker); // 333 $PONDPAD worth of shares, held this block
+        uint256 maxW = sVault.maxWithdraw(staker);
+        assertApproxEqAbs(maxW, 1_000e18, 1e6, "only the older stake can leave");
+        vm.prank(staker);
+        sVault.withdraw(maxW, staker, staker);
+        assertApproxEqAbs(sVault.balanceOf(staker), 333e24, 1e12);
+        // A held part travels with a transferFrom.
+        vm.prank(staker);
+        sVault.approve(bob, type(uint256).max);
+        vm.prank(bob);
+        sVault.transferFrom(staker, bob, 100e24);
+        assertEq(sVault.maxRedeem(bob), 0, "the moved shares are still held this block");
+        _nextBlock();
+        assertEq(sVault.maxRedeem(bob), 100e24);
+    }
+
+    /// @dev Audit R3-A3-9 (coverage): after every staker leaves, the vault closes for rewards and the dripper waits;
+    ///      a new staker reopens it and drips resume.
+    function test_vault_fullExitThenReopen() public {
+        uint256 shares = _stake(1_000e18);
+        pondpad.transfer(address(rewards), 7_000e18);
+        uint256 t0 = START + 30 minutes;
+        vm.warp(t0 + 1 days);
+        rewards.drip();
+        _nextBlock();
+        vm.prank(staker);
+        sVault.redeem(shares, staker, staker);
+        assertEq(sVault.totalSupply(), 0);
+        assertEq(sVault.rewardsOpenSince(), 0);
+        vm.warp(t0 + 2 days);
+        vm.expectRevert(RewardDripper.VaultEmpty.selector);
+        rewards.drip();
+        uint256 again = _stake(2e18);
+        assertGt(again, 0);
+        assertGt(sVault.rewardsOpenSince(), 0);
+        vm.warp(t0 + 3 days);
+        rewards.drip(); // a full window from the reopening
+        assertGt(sVault.totalAssets(), 2e18);
     }
 
     // ------------------------------------------------------------------ End to end

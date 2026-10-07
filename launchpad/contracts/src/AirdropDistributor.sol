@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Ownable} from "solady/auth/Ownable.sol";
+import {FixedOwnable} from "./FixedOwnable.sol";
 import {EIP712} from "solady/utils/EIP712.sol";
 import {MerkleProofLib} from "solady/utils/MerkleProofLib.sol";
 import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
@@ -29,11 +29,14 @@ interface IMarketClock {
 ///      `keccak256(bytes.concat(keccak256(abi.encode(account, amount))))`. The owner (48 h timelock) can only
 ///      replace the tweet checker's key; an initiation also needs the eligible wallet itself (or its claim wallet),
 ///      so the key alone can't initiate. No one can move tokens except through claims and the sweep.
-contract AirdropDistributor is Ownable, EIP712, ReentrancyGuard {
+contract AirdropDistributor is FixedOwnable, EIP712, ReentrancyGuard {
     using SafeTransferLib for address;
 
     bytes32 public constant DELEGATE_TYPEHASH =
         keccak256("Delegate(address account,address claimWallet,uint256 nonce,uint256 deadline)");
+    /// @notice The tweet checker's voucher. `handleHash` is keccak256 of the X account's numeric user id (which never
+    ///         changes, unlike the handle) and `tweetHash` keccak256 of the tweet id, so one X account counts once even
+    ///         if it is renamed between posts (audit R3-A3-7).
     bytes32 public constant INITIATION_TYPEHASH =
         keccak256("Initiation(address account,bytes32 handleHash,bytes32 tweetHash,uint256 deadline)");
     uint256 public constant INITIATORS_NEEDED = 100;

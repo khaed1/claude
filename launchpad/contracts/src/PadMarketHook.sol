@@ -21,6 +21,8 @@ pragma solidity 0.8.26;
        migrates (D-40, audit R1-A2-2/3).
     6. Audit round 2: an owner `closeBackstop` or a migration seed earns no keeper tip (`untippedQuote`, R2-A2-1); a
        closed market can never be reopened (R2-A2-7); two upstream comments corrected (R2-A2-6).
+    7. Audit round 3: `refTick` steps `maxRefStep` per block elapsed since the last swap (R3-A3-2); matured claims are
+       not realised inside a swap while the swapper has IMD or $PONDPAD synced (R3-A2-3).
   The owner is MarketController. It never exposes `withdrawRetainedQuote`; it calls `closeMarket` only inside
   `migrate`, which moves everything into a new market hook (7-day timelock, first 12 months only, D-40).
 */
@@ -34,6 +36,7 @@ import {LPFeeLibrary} from "v4-core/libraries/LPFeeLibrary.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {SqrtPriceMath} from "v4-core/libraries/SqrtPriceMath.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
+import {TransientStateLibrary} from "v4-core/libraries/TransientStateLibrary.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
 import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {BeforeSwapDelta, BeforeSwapDeltaLibrary} from "v4-core/types/BeforeSwapDelta.sol";
@@ -75,6 +78,7 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 ///    same burn/reward split as a trim) and redeploys the recovered IMD above the new spot.
 contract PadMarketHook is Ownable {
     using StateLibrary for IPoolManager;
+    using TransientStateLibrary for IPoolManager;
     using FixedPointMathLib for uint256;
 
     error AlreadyOpen();
@@ -224,6 +228,8 @@ contract PadMarketHook is Ownable {
     int24 public maxRefStep;
     int24 internal constant DEFAULT_MAX_REF_STEP = 200;
     int24 internal constant MAX_TICK_RATE_CEIL = 2000;
+    /// @dev PondPad (audit R3-A3-2): enough elapsed blocks to cross the whole tick range at the smallest step.
+    uint256 internal constant MAX_CATCHUP_BLOCKS = 1 << 21;
 
     /// @notice Lowest tick a backstop band may start at (raw; aligned up to `tickSpacing` when used).
     /// It jumps to one tick above any tick the pool trades at, immediately, because a higher floor only
@@ -1031,13 +1037,19 @@ contract PadMarketHook is Ownable {
     /// running block tick. Rate-limiting the step bounds how far one manipulated block can drag the
     /// reference — a distant poison then costs many consecutive block-edge captures. Pure snapshot — no
     /// liquidity op, no external call.
+    /// PondPad (audit R3-A3-2): the step is `maxRefStep` per block elapsed since the previous close (the block of
+    /// the last swap), not per swapped block: that close has stood for every block since, so after quiet blocks the
+    /// reference catches up with the price the market actually held instead of staying where it was before a move.
+    /// Dragging it still needs the manipulated price to stand for one block per step, as before.
     function _observeTick() internal {
         if (block.number != refBlock) {
             int24 target = curBlockTick;
-            int24 step = maxRefStep;
-            int24 delta = target - refTick; // both are valid ticks; diff fits in int24
-            if (delta > step) target = refTick + step;
-            else if (delta < -step) target = refTick - step;
+            uint256 blocks = block.number - refBlock;
+            if (blocks > MAX_CATCHUP_BLOCKS) blocks = MAX_CATCHUP_BLOCKS;
+            int256 step = int256(maxRefStep) * int256(blocks);
+            int256 delta = int256(target) - int256(refTick);
+            if (delta > step) target = int24(int256(refTick) + step);
+            else if (delta < -step) target = int24(int256(refTick) - step);
             refTick = target; // stays a valid tick: |target - refTick| <= |curBlockTick - refTick|
             refBlock = uint64(block.number);
         }
@@ -1227,6 +1239,9 @@ contract PadMarketHook is Ownable {
     /// transaction.
     function _maybeRedeemMaturedClaims() internal {
         if (block.number <= lastClaimBlock) return;
+        // PondPad (audit R3-A2-3): not while the swapper has IMD or $PONDPAD synced for a pay-first settle.
+        address synced = Currency.unwrap(poolManager.getSyncedCurrency());
+        if (synced == quote || synced == token) return;
         if (burnClaims == 0 && rewardClaims == 0 && quoteClaims == 0) return;
         try this.redeemClaimsSelf() {} catch {}
     }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Ownable} from "solady/auth/Ownable.sol";
+import {FixedOwnable} from "./FixedOwnable.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 interface IERC20Min {
@@ -22,14 +22,15 @@ interface IRewardVault {
 ///   - Self-adjusting release (D-44): instead of a fixed `dripRatePerSecond`, each drip releases
 ///     `buffer * elapsed / smoothingPeriod` (elapsed capped at `maxCatchupSeconds`), so the waiting rewards pay out
 ///     smoothly over about `smoothingPeriod` (default 7 days: ~0.6% of the buffer per hour) whatever the volume or
-///     price. After a full catch-up window, a drip releases at least `min(buffer, minDripAmount)`; a remainder
-///     smaller than `minDripAmount` is swept without a keeper tip, so small buffers never stall.
+///     price. After a full catch-up window, a drip releases at least `min(minDripAmount, buffer / 7)` (audit
+///     R3-A3-1), so small buffers keep draining without breaking the 1/7 bound; one below `minDripAmount` pays no
+///     keeper tip, and a remainder under one whole $PONDPAD is swept in full.
 ///   - Drips wait until the vault is open for rewards (at least one whole $PONDPAD staked, audit R1-A3-1 /
 ///     R2-A3-1); time the vault was closed is forfeited, not banked (R2-A3-3). Each drip is taken in by the vault's
 ///     `syncRewards()`.
-///   - Bounds (audit R2-A3-2, R2-A3-4, R1-A3-8): `1 hour <= maxCatchupSeconds <= smoothingPeriod / 7`, so one
-///     drip releases at most 1/7 of the buffer and the `minDripAmount` floor fires at most hourly;
-///     `minDripAmount <= 100,000 $PONDPAD`.
+///   - Bounds (audit R2-A3-2, R2-A3-4, R1-A3-8, R3-A3-1): `1 hour <= maxCatchupSeconds <= smoothingPeriod / 7` and
+///     the floor capped at 1/7 of the buffer, so one drip releases at most 1/7 of the buffer (or a remainder under
+///     one $PONDPAD) and the floor fires at most hourly; `minDripAmount <= 100,000 $PONDPAD`.
 ///   - D-42: the vault is fixed at deploy (no `setVault`); `rescueERC20` can never touch the reward buffer; all
 ///     owner powers expire at `powersExpireAt` (12 months after launch).
 /// Upstream doc follows; its "rate" wording describes the original fixed-rate formula.
@@ -55,7 +56,7 @@ interface IRewardVault {
 /// the keeper can never take more than the drip). Both are owner-tunable. The owner also tunes the
 /// rate/target and can rescue the buffer; renouncing (blocked if it would freeze the stream) leaves an
 /// autonomous, immutable stream.
-contract RewardDripper is Ownable {
+contract RewardDripper is FixedOwnable {
     using SafeTransferLib for address;
 
     /// @notice The reward asset that is streamed to the vault (IMD).
@@ -89,6 +90,9 @@ contract RewardDripper is Ownable {
     uint256 public constant CATCHUP_DIVISOR = 7;
     /// @notice PondPad (audit R1-A3-8): a larger floor could stall the stream, then release the buffer at once.
     uint256 public constant MAX_MIN_DRIP = 100_000e18;
+    /// @notice PondPad (audit R3-A3-1): after a full window, a remainder under this is swept in full, so a buffer
+    /// draining at 1/7 per window still empties.
+    uint256 public constant DUST_SWEEP = 1e18;
     /// @dev The keeper reward may be at most `minDripAmount / KEEPER_REWARD_DIVISOR` (≤ 1% of a drip),
     /// so the vault always receives the dominant share — even at the smallest drip. Equality of the two
     /// knobs (which would let a keeper take a whole drip) is thereby impossible.
@@ -157,7 +161,9 @@ contract RewardDripper is Ownable {
     /// @notice IMD releasable right now: `min(rate * min(elapsed, maxCatchup), balance)`. This is the
     /// total that leaves the dripper on the next `drip()` (vault share + keeper reward combined).
     /// PondPad: `buffer * min(elapsed, maxCatchup) / smoothingPeriod`; after a full catch-up window, at least
-    /// `min(buffer, minDripAmount)` so small buffers keep draining. Nothing while the vault is closed for rewards.
+    /// `min(minDripAmount, buffer / 7)` so small buffers keep draining, and all of a remainder under one $PONDPAD.
+    /// One drip never releases more than 1/7 of the buffer otherwise (audit R3-A3-1: the floor used to be
+    /// `min(buffer, minDripAmount)`, the whole of a small buffer). Nothing while the vault is closed for rewards.
     function drippable() public view returns (uint256) {
         (bool open, uint256 elapsed) = _elapsed();
         if (!open) return 0;
@@ -166,7 +172,12 @@ contract RewardDripper is Ownable {
         if (fullWindow) elapsed = cap;
         uint256 bal = IERC20Min(imd).balanceOf(address(this));
         uint256 allowed = (bal * elapsed) / smoothingPeriod;
-        if (fullWindow && allowed < minDripAmount) allowed = minDripAmount;
+        if (fullWindow) {
+            uint256 seventh = bal / CATCHUP_DIVISOR;
+            uint256 floor = minDripAmount < seventh ? minDripAmount : seventh;
+            if (allowed < floor) allowed = floor;
+            if (bal - allowed < DUST_SWEEP) allowed = bal; // a remainder under one $PONDPAD goes in full
+        }
         return allowed < bal ? allowed : bal;
     }
 
@@ -269,12 +280,6 @@ contract RewardDripper is Ownable {
         emit EmergencyRescue(address(0), to, amount);
     }
 
-    /// @dev Don't let ownership be dropped into a config that can never drain the buffer to stakers:
-    /// rate 0 (no stream) or a `minDripAmount` above the per-call ceiling (`drip()` could never fire)
-    /// would strand rewards here forever with no owner left to fix it.
-    function renounceOwnership() public payable override onlyOwner {
-        // PondPad: the self-adjusting release always drains (smoothingPeriod is bounded, small buffers sweep).
-        if (vault == address(0)) revert RenounceWouldFreeze();
-        super.renounceOwnership();
-    }
+    // PondPad (audits R3-A2-2 / R3-A4-4): no renounce, transfer or handover (FixedOwnable); the powers end at
+    // `powersExpireAt`, and the self-adjusting release always drains.
 }

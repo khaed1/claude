@@ -19,6 +19,8 @@ import {LaunchParams} from "../src/PadFactory.sol";
 import {CoinFees} from "../src/FeeLib.sol";
 import {LiquidityReserve} from "../src/LiquidityReserve.sol";
 import {AirdropDistributor} from "../src/AirdropDistributor.sol";
+import {FixedOwnable} from "../src/FixedOwnable.sol";
+import {PondPadTimelock} from "../src/PondPadTimelock.sol";
 
 /// @notice Full deployment rehearsal on live Robinhood Chain: runs `Deploy.deploy` exactly as the broadcast does,
 ///         then checks the wiring, a timelocked change by the Safe, and a lifecycle from coin launch through the
@@ -128,6 +130,33 @@ contract DeployForkTest is Test {
 
         // Version 1 registered and activated with the audit link.
         assertEq(d.versions.current().router, address(d.router));
+    }
+
+    /// @dev Audits R3-A2-2 / R3-A4-4 / R3-A4-12: after the run every owned contract keeps its timelock owner for good,
+    ///      neither timelock can lower its delay below the deploy value, and coin launches are open.
+    function test_deployFork_ownersAndDelaysAreFixed() public {
+        if (!forked) return;
+        address undelayed = makeAddr("undelayed");
+        address[14] memory owned = [
+            address(d.config), address(d.splitter), address(d.swarmBudget), address(d.verifier), address(d.social),
+            address(d.cto), address(d.versions), address(d.workerFund), address(d.growthFund), address(d.controller),
+            address(d.sVault), address(d.dripper), address(d.buyer), address(d.airdrop)
+        ];
+        for (uint256 i; i < owned.length; i++) {
+            address owner_ = Ownable(owned[i]).owner();
+            vm.startPrank(owner_);
+            vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+            Ownable(owned[i]).transferOwnership(undelayed);
+            vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+            Ownable(owned[i]).renounceOwnership();
+            vm.stopPrank();
+        }
+        assertEq(PondPadTimelock(payable(address(d.fastTimelock))).minimumDelay(), 48 hours);
+        assertEq(PondPadTimelock(payable(address(d.slowTimelock))).minimumDelay(), 7 days);
+        vm.prank(address(d.slowTimelock));
+        vm.expectRevert(abi.encodeWithSelector(PondPadTimelock.DelayBelowMinimum.selector, 0, 7 days));
+        d.slowTimelock.updateDelay(0);
+        assertFalse(d.config.launchesPaused());
     }
 
     function _tinySwap(PoolSwapTest swapper, PoolKey memory key) internal {

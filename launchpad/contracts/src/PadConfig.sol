@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Ownable} from "solady/auth/Ownable.sol";
+import {FixedOwnable} from "./FixedOwnable.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {Hop} from "./Route.sol";
 
@@ -12,7 +12,7 @@ import {Hop} from "./Route.sol";
 ///         The fee splitter and growth fund are fixed at deploy (D-78, audit R1-A4-4): every coin reads them on
 ///         every trade, so changing them would re-route live coins' fees. Fee routing changes only through the
 ///         FeeSplitter's own bounded, 7-day-timelocked settings.
-contract PadConfig is Ownable {
+contract PadConfig is FixedOwnable {
     struct LaunchSettings {
         uint96 launchFee; // IMD paid per launch, sent to the fee splitter
         uint96 graduationTarget; // net IMD the curve must raise before the coin graduates

@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 import {ERC4626} from "solady/tokens/ERC4626.sol";
-import {Ownable} from "solady/auth/Ownable.sol";
+import {FixedOwnable} from "./FixedOwnable.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 /// @notice PondPad: sPONDPAD, a fork of POOL4's StakedIMD (MIT, 0x9efa934d9fad4ae28c998a40195646b965a97247; original in
@@ -33,7 +33,7 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 /// party (this is a deliberate "move funds to safety in a worst case" hatch, not a trustless design).
 /// Renouncing drops both powers permanently and leaves an immutable, trustless ERC4626. To avoid
 /// bricking the vault, ownership cannot be renounced while paused — unpause first.
-contract StakedPONDPAD is ERC4626, Ownable {
+contract StakedPONDPAD is ERC4626, FixedOwnable {
     using SafeTransferLib for address;
 
     address internal immutable _asset;
@@ -212,11 +212,13 @@ contract StakedPONDPAD is ERC4626, Ownable {
     /// holder; a positive transfer carries the sender's hold forward (never lowering the recipient's);
     /// zero-amount moves and burns stamp nothing.
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal override {
-        if (amount == 0 || to == address(0)) return;
+        // PondPad (audit R3-A3-5): burns and transfers to address(0) also go through the bookkeeping, so the sender's
+        // held count never stays above its balance (a redeem only burns unheld shares, so it changes nothing there).
+        if (amount == 0) return;
         if (from == address(0)) {
             _hold(to, amount); // mint (deposit): the new shares are held
         } else {
-            // transfer: unheld shares leave first; any held part travels with the shares
+            // transfer: unheld shares leave first; any held part travels with the shares (none to address(0))
             uint256 bal = balanceOf(from);
             if (amount > bal) return; // Solady then reverts InsufficientBalance() (audit R2-A3-5)
             uint256 held = _heldShares(from);
@@ -224,7 +226,7 @@ contract StakedPONDPAD is ERC4626, Ownable {
             if (amount > unheld) {
                 uint256 moved = amount - unheld;
                 heldShares[from] = held - moved;
-                _hold(to, moved);
+                if (to != address(0)) _hold(to, moved);
             }
         }
     }
@@ -283,9 +285,6 @@ contract StakedPONDPAD is ERC4626, Ownable {
 
     // ─────────────────────────────── Renounce guard ───────────────────────────────
 
-    /// @dev Block the footgun of renouncing while paused, which would freeze the vault forever.
-    function renounceOwnership() public payable override onlyOwner {
-        if (paused()) revert RenounceWhilePaused();
-        super.renounceOwnership();
-    }
+    // PondPad (audits R3-A2-2 / R3-A4-4): the owner can't renounce, transfer or hand over ownership
+    // (FixedOwnable); its powers end at `powersExpireAt` instead, which can't leave the vault paused.
 }

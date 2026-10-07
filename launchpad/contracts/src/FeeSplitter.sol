@@ -2,13 +2,13 @@
 pragma solidity 0.8.26;
 
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
-import {Ownable} from "solady/auth/Ownable.sol";
+import {FixedOwnable} from "./FixedOwnable.sol";
 
 /// @title FeeSplitter
 /// @notice Receives all protocol IMD and splits it between stakers, IMD workers, growth and the treasury.
 ///         Anyone can call `distribute()`. The $PONDPAD that sellers pay as fees in the $PONDPAD/IMD pool is
 ///         split the same way, in $PONDPAD, with `distributeToken` (D-38). Shares can only move inside fixed ranges, through the owner (timelock).
-contract FeeSplitter is Ownable {
+contract FeeSplitter is FixedOwnable {
     using SafeTransferLib for address;
 
     struct Shares {
@@ -28,6 +28,8 @@ contract FeeSplitter is Ownable {
     uint256 internal constant BPS = 10_000;
 
     address public immutable imd;
+    /// @notice $PONDPAD, the only other token `distributeToken` splits (audit R3-A3-8).
+    address public immutable token;
     Shares internal _shares;
     Recipients internal _recipients;
 
@@ -38,10 +40,12 @@ contract FeeSplitter is Ownable {
 
     error InvalidShares();
     error ZeroAddress();
+    error NotPondpad();
 
-    constructor(address owner_, address imd_, Shares memory shares_, Recipients memory recipients_) {
+    constructor(address owner_, address imd_, address token_, Shares memory shares_, Recipients memory recipients_) {
         _initializeOwner(owner_);
         imd = imd_;
+        token = token_;
         _setShares(shares_);
         _setRecipients(recipients_);
     }
@@ -59,18 +63,20 @@ contract FeeSplitter is Ownable {
         if (a + b + c + d != 0) emit Distributed(a, b, c, d);
     }
 
-    /// @notice Splits this contract's balance of any other token (in practice $PONDPAD from the market's
-    ///         sell-side fees) with the same shares and recipients.
-    function distributeToken(address token) external {
-        (uint256 a, uint256 b, uint256 c, uint256 d) = _distribute(token);
-        if (a + b + c + d != 0) emit TokenDistributed(token, a, b, c, d);
+    /// @notice Splits this contract's $PONDPAD (the market's sell-side fees) with the same shares and recipients.
+    ///         Only $PONDPAD: the stakers' recipient (PadBuyer) can forward nothing else, so another token's 40%
+    ///         would be stuck there (audit R3-A3-8).
+    function distributeToken(address token_) external {
+        if (token_ != token) revert NotPondpad();
+        (uint256 a, uint256 b, uint256 c, uint256 d) = _distribute(token_);
+        if (a + b + c + d != 0) emit TokenDistributed(token_, a, b, c, d);
     }
 
-    function _distribute(address token)
+    function _distribute(address asset)
         internal
         returns (uint256 toStakers, uint256 toWorkers, uint256 toGrowth, uint256 toTreasury)
     {
-        uint256 amount = SafeTransferLib.balanceOf(token, address(this));
+        uint256 amount = SafeTransferLib.balanceOf(asset, address(this));
         if (amount == 0) return (0, 0, 0, 0);
         Shares memory s = _shares;
         Recipients memory r = _recipients;
@@ -78,10 +84,10 @@ contract FeeSplitter is Ownable {
         toWorkers = (amount * s.workers) / BPS;
         toGrowth = (amount * s.growth) / BPS;
         toTreasury = amount - toStakers - toWorkers - toGrowth;
-        if (toStakers != 0) token.safeTransfer(r.stakers, toStakers);
-        if (toWorkers != 0) token.safeTransfer(r.workers, toWorkers);
-        if (toGrowth != 0) token.safeTransfer(r.growth, toGrowth);
-        if (toTreasury != 0) token.safeTransfer(r.treasury, toTreasury);
+        if (toStakers != 0) asset.safeTransfer(r.stakers, toStakers);
+        if (toWorkers != 0) asset.safeTransfer(r.workers, toWorkers);
+        if (toGrowth != 0) asset.safeTransfer(r.growth, toGrowth);
+        if (toTreasury != 0) asset.safeTransfer(r.treasury, toTreasury);
     }
 
     function setShares(Shares calldata s) external onlyOwner {

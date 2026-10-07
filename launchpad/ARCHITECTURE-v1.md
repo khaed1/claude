@@ -182,6 +182,7 @@ It deploys a `PadToken` with full bytecode, not a minimal proxy, because scanner
 - Holder dividends in IMD: O(1) "reward per share" accounting, `claim()`, `pendingDividends(addr)`.
 - The curve, PoolManager, PadHook and `0xdead` are excluded from the eligible supply.
 - `distribute()` does nothing while the PoolManager is unlocked by an outside caller.
+- **Holder stream (D-78, D-80):** IMD routed to a coin's holders as a lump (creator fees of a coin whose fees go to holders, its swept swarm budget, anything sent with `CreatorVault.fundHolders`) sits in the coin and is credited second by second over about 7 days to the balances held during each second. It is settled before every balance change (inside an unlock too), on claims and when funded, so a balance held for no time earns nothing from it, whatever moment a buyer picks (audit R3-A4-1). While nobody holds an eligible balance it waits (R3-A4-2). A new lump ends at the amount-weighted average of the running end and now + 7 days, so it still gets about a week and a tiny top-up can't stretch a running one (R3-A1-2, R2-A4-3). `holderStream()` shows what is left, when it ends and what is due now; no release call is needed.
 
 **`BondingCurve`**: one contract holding the state of every coin's curve.
 ```solidity
@@ -213,7 +214,7 @@ function sellForWithPermit(..., uint8 v, bytes32 r, bytes32 s) external returns 
 
 ### 5.2 Creator side
 
-**`CreatorVault`**: IMD balance per coin, `claim(coin)`, `setFeeRecipient(coin, newRecipient)` (current recipient only, future earnings). **Holder stream (D-78):** when a coin's recipient is the coin itself, its claimed creator fees, its swept swarm budget and anything sent with `fundHolders` are paid to holders as IMD dividends over about 7 days (`releaseToHolders`, anyone, at most one day's share per call; nothing while an outside caller holds the PoolManager unlock or while nobody holds an eligible balance), so nobody can buy just before a lump is paid, collect a share and sell (audit R1-A4-1). Funding the stream is refused inside an outside unlock, and a top-up never lowers the stream's rate, so nobody can stall or stretch it (D-79).
+**`CreatorVault`**: IMD balance per coin, `claim(coin)`, `setRecipient(coin, newRecipient)` (current recipient only, future earnings). **Holder stream (D-78, D-80):** when a coin's recipient is the coin itself, its claimed creator fees, its swept swarm budget and anything sent with `fundHolders` go into the coin's own holder stream (`PadToken`, section 5.1), which pays them to holders second by second over about 7 days, so nobody can buy just before a payout, collect a share and sell (audits R1-A4-1, R3-A4-1).
 
 **`CTOModule`**: community takeover, decided by the swarm under the rules in [`CTO-RULES.md`](CTO-RULES.md) (pinned to IPFS; the `ipfs://` link is fixed at deploy, D-51).
 1. `propose(coin, newRecipient, attestation, signature)`: the caller must have a **verified X account** (`SocialRegistry.linkWallet`) and an **IMD oracle "yes"** to the module's own question naming this coin, the new recipient and the proposer's X account. Each oracle request id is used once.
@@ -222,16 +223,17 @@ function sellForWithPermit(..., uint8 v, bytes32 r, bytes32 s) external returns 
 4. A **3-day public notice**, then a **3-day execution window** in which anyone executes. The creator moving fees does not cancel it; nobody can cancel an attested takeover.
 5. **Contest:** during the notice the current recipient can contest. The takeover then waits 7 more days and needs a second "yes" from a panel of at least 75 to a confirmation question, issued after the contest, naming the X account stored at proposal time (D-78) and the time of the contest, so it can't be asked in advance (D-79).
 6. Execution calls `CreatorVault` to change the recipient. Fees already accrued, including those still pending in the hook, are paid to the old recipient (execution is refused inside an outside PoolManager unlock, where the hook can't be flushed, D-79).
-7. **Fallback (D-46):** until attestations work on Robinhood, the council (team Safe) can propose with an evidence link (7-day notice; it can cancel only its own proposals and must confirm publicly if contested). After a cancel it waits 90 days before proposing for that coin again, and an attested proposal replaces a pending council one (D-78). The 7-day timelock retires this path once the verifier has a signer; it can't be re-enabled, and council proposals still pending then can't execute.
+7. **"No" answers count (D-80, audit R3-A4-8):** anyone can record a valid "no" (it must meet the same bar as a "yes") to the takeover question or, after a contest, to the confirmation question. A "yes" to the same takeover question issued in the 90 days after a recorded "no" doesn't count, and a pending attested takeover whose "yes" came after the "no" ends. A confirmation "no" ends a contested takeover unless a "yes" issued before it already confirmed it. A takeover ended by a "no" blocks new proposals for that coin for 90 days. So a question can't simply be asked again until one panel says yes.
+8. **Fallback (D-46):** until attestations work on Robinhood, the council (team Safe) can propose with an evidence link (7-day notice; it can cancel only its own proposals and must confirm publicly if contested). After a cancel, or after its contested proposal lapsed unconfirmed (D-80), it waits 90 days before proposing for that coin again, and an attested proposal replaces a pending council one (D-78). The 7-day timelock retires this path once the verifier has a signer; it can't be re-enabled, and council proposals still pending then can't execute.
 
 ### 5.3 Fees and $PONDPAD economy
 
 | Contract | Key functions | Notes |
 |---|---|---|
-| `FeeSplitter` | `distribute()` | Shares read from `PadConfig`; IMD only |
-| `PadBuyer` | `buy()` | Permissionless and rate-limited: spends the stakers' IMD on $PONDPAD in the `PadMarketHook` pool in small chunks, with a price guard (block-lagged reference price, max slippage), and sends the $PONDPAD to `RewardDripper`. Keeper tip capped. |
-| `RewardDripper` | `drip()` | **Fork of POOL4's `RewardDripper`**, asset = $PONDPAD. Streams $PONDPAD into the vault with a self-adjusting release (D-44): each drip pays out a share of the waiting rewards proportional to the time since the last drip (default: all of it over ~7 days, ~0.6% per hour), so no one can stake just before a large payout, and it scales with volume without tuning. Drips only while the vault is open for rewards (at least one whole $PONDPAD staked), and time the vault was closed is forfeited, not banked (D-79), so rewards wait until staking opens. One drip releases at most 1/7 of the buffer (`1 h ≤ maxCatchup ≤ smoothing / 7`, `minDripAmount ≤ 100,000`, D-79). Also receives up to 30% of trimmed $PONDPAD from `PadMarketHook`. |
-| `StakedPONDPAD` (sPONDPAD) | `deposit`, `redeem` (ERC-4626) | **Fork of POOL4's `StakedIMD`**, asset = $PONDPAD. Auto-compounding: rewards raise the $PONDPAD value of each sPONDPAD share; no claim step. One-block hold blocks same-block deposit → redeem. No lockup in v1. Counts its own assets (deposits, withdrawals and rewards taken in by `syncRewards`), not its raw balance, so a transfer into the vault can't move the share price (D-79). Owner powers narrowed (D-42): 7-day timelock owner; pause at most 3 days at a time; rescue can never touch staked $PONDPAD; all powers expire 12 months after launch. |
+| `FeeSplitter` | `distribute()`, `distributeToken($PONDPAD)` | Shares and recipients set by its owner (7-day timelock) within fixed ranges; IMD, and the market's $PONDPAD fees (only $PONDPAD, D-80) |
+| `PadBuyer` | `buy()` | Permissionless and rate-limited: spends the stakers' IMD on $PONDPAD in the `PadMarketHook` pool in small chunks, with a price guard (block-lagged reference price, which also catches up over blocks without swaps, D-80; max slippage), and sends the $PONDPAD to `RewardDripper`. Keeper tip capped. |
+| `RewardDripper` | `drip()` | **Fork of POOL4's `RewardDripper`**, asset = $PONDPAD. Streams $PONDPAD into the vault with a self-adjusting release (D-44): each drip pays out a share of the waiting rewards proportional to the time since the last drip (default: all of it over ~7 days, ~0.6% per hour), so no one can stake just before a large payout, and it scales with volume without tuning. Drips only while the vault is open for rewards (at least one whole $PONDPAD staked), and time the vault was closed is forfeited, not banked (D-79), so rewards wait until staking opens. One drip releases at most 1/7 of the buffer (`1 h ≤ maxCatchup ≤ smoothing / 7`, `minDripAmount ≤ 100,000`, D-79; the minimum-drip floor is capped at 1/7 too, and a remainder under one $PONDPAD is swept, D-80). Also receives up to 30% of trimmed $PONDPAD from `PadMarketHook`. |
+| `StakedPONDPAD` (sPONDPAD) | `deposit`, `redeem` (ERC-4626) | **Fork of POOL4's `StakedIMD`**, asset = $PONDPAD. Auto-compounding: rewards raise the $PONDPAD value of each sPONDPAD share; no claim step. One-block hold blocks same-block deposit → redeem. No lockup in v1. Counts its own assets (deposits, withdrawals and rewards taken in by `syncRewards`), not its raw balance, so a transfer into the vault can't move the share price (D-79). sPONDPAD has **24 decimals** (18 + the 6-decimal offset: 1 $PONDPAD ≈ 1e6 shares at the start); wallets and the site exit with `maxRedeem`, which is the balance less any shares that arrived this block (R3-A3-4, R3-A3-6). Owner powers narrowed (D-42): 7-day timelock owner; pause at most 3 days at a time; rescue can never touch staked $PONDPAD; all powers expire 12 months after launch. |
 | `WorkerFund` | `release()`, `releaseToken(token)` | Sends its whole IMD and $PONDPAD balance, as they are (D-45), to `workerRewards` (set by the 7-day timelock) **[DEV]**; accrues until it's set. Permissionless |
 | `GrowthFund` | `payJob(amount, jobRef, reason)`, `grant(token, to, amount, ref, reason)` | Relay pays swarm jobs (≤ 100 IMD per 7-day epoch); the team Safe pays grants (≤ 1,000 IMD and 10M $PONDPAD per epoch; tokens without a cap can't be granted). Caps, relay and granter set by the 48 h timelock (D-47). Every payment emits a reference and reason |
 | `SwarmBudget` | `requestSpend(coin, amount, specHash)`, `release(requestId)` | Per-coin escrow funded by the swarm-budget tax. Only the coin's fee recipient can request; the Relay releases to pay that job; per-request cap; job ID recorded onchain. |
@@ -276,9 +278,9 @@ What we take from POOL4's verified source (`CappedBurnHook`, Solidity 0.8.30, so
 | Owner power in the hook | In MarketController |
 |---|---|
 | `withdrawFees` | Permissionless; always to the fixed fee route |
-| Policy setters (cap floor, decay, ratchet, keeper tip, rebalance, reward share ≤ 30%) | Timelock (48 h) |
+| Policy setters (cap floor, decay, ratchet, keeper tip, rebalance, reward share ≤ 30%) | Timelock (48 h); cap floor never below the deploy floor (150M), decay at most 5× the deploy pace (2.5M/day) (D-80, audit R3-A2-1) |
 | `setBurnSink`, `setRewardsRecipient` | `sinkAdmin` = the 7-day timelock, fixed at deploy (no `setSinkAdmin`, D-79) |
-| `fundInventory` (add liquidity) | Timelock; only from the liquidity reserve (held by `LiquidityReserve` until the market opens, then the 48 h timelock's, D-79) + treasury |
+| `fundInventory` (add liquidity) | Timelock; only from the liquidity reserve (held by `LiquidityReserve` until the market opens, then the 48 h timelock's, D-79) + treasury; it refunds only what it pulled and didn't use (D-80) |
 | `closeMarket` (withdraw the **whole** position) | Only inside `migrate(newHook)` (D-40, D-78): approved by the 7-day timelock (`approveMigration`), run only by the team Safe (`migrator`), first 12 months only; everything reopens in the approved, unopened hook owned by this controller at the same price, fee clock, backstop placement floor, reference tick and cap (floor and cap only raised); nothing to any wallet. Locked forever after 12 months |
 | `withdrawRetainedQuote`, ownership transfer | **Not exposed** |
 | `closeBackstop` | Timelock (48 h); the IMD it returns earns no keeper tip when redeployed (D-79) |
@@ -303,13 +305,16 @@ Both settings can be changed later through the timelock.
 
 ### 5.5 Governance, versions and swarm checks
 
-**`PadConfig`**: every adjustable setting, each with hard min/max limits enforced in code:
-- launch fee, graduation target, graduation fee
-- snipe tax and max-buy settings
-- splitter shares and the growth ↔ stakers dial
-- payment tokens and their routes to IMD (up to 3 hops), worker rewards address, Relay address, oracle signers
+**Where each setting lives** (audit R3-A4-14). Every owned contract is `FixedOwnable`: its timelock owner can't hand its powers to another address or renounce them (D-80), and both timelocks (`PondPadTimelock`) refuse a delay below their deploy value (48 h / 7 days).
 
-Changes go through **Timelock** (48 h for fees and launch settings, **7 days** for splitter shares, oracle signers, worker address and pool key). Changes apply only to **future** launches; each coin keeps its saved settings.
+| Contract (owner) | Settings | Applies to |
+|---|---|---|
+| `PadConfig` (48 h) | Launch fee, graduation target and fee, snipe tax and max-buy settings, payment tokens and their routes to IMD (≤ 3 hops), integrator share and registry (the guardian may register), guardian, launch pause. The fee splitter and growth fund are fixed at deploy (D-78) | Future launches (each coin keeps its saved settings); routes and integrators are live |
+| `FeeSplitter` (7 days) | Shares within their ranges, recipients | Live |
+| `WorkerFund` (7 days) | Worker rewards address | Live |
+| `SwarmBudget` (48 h), `GrowthFund` (48 h) | Swarm Relay; GrowthFund caps and granter | Live |
+| `AttestationVerifier` (7 days) | Oracle signers, minimum panel and agreement (an exact fraction, default 2/3) | Live |
+| `MarketController` (48 h / 7 days), staking (48 h / 7 days), `PadBuyer` (48 h), `AirdropDistributor` (48 h) | See sections 5.3, 5.4 | Live |
 
 **Guardian role** (multisig): may **pause new launches** instantly. It can never pause trading, touch liquidity or move user funds.
 
@@ -325,25 +330,26 @@ function all() external view returns (Version[] memory);
 New launches go to `current()`. Coins from older versions trade forever on their own hook. The audit question names the audit job, the code hash and the five addresses.
 
 **`AttestationVerifier`** (owner: 7-day timelock): checks IMD oracle v2 attestations, EIP-712 `OracleAttestation(bytes32 requestId,uint256 chainId,bytes32 questionHash,uint8 answerType,bytes answer,uint256 figure,uint64 fromBlock,uint64 toBlock,bytes32 blockHash,bytes32 panelJobId,uint16 panelSize,uint16 quorum,uint16 agreed,uint64 issuedAt,uint64 expiresAt)` under domain `IdentityMD Oracle`, version `2`, chainId 4663, verifyingContract = this (the request's `consumer`) **[DEV: signer on Robinhood]**.
-- Checks: approved signer; `questionHash` equals the hash of the consumer's exact question (canonical JSON of the request, rebuilt onchain from the attestation's window, D-49); bool answer; panel ≥ 51 and agreed ≥ 2/3 of the panel and ≥ the request's quorum (D-48); `issuedAt ≤ now ≤ expiresAt`. Consumers mark request ids used.
+- Checks: approved signer; `questionHash` equals the hash of the consumer's exact question (canonical JSON of the request, rebuilt onchain from the attestation's window, D-49); bool answer; panel ≥ 51 and agreed ≥ 2/3 of the panel (an exact fraction, D-80) and ≥ the request's quorum (D-48); `issuedAt ≤ now ≤ expiresAt`. Consumers mark request ids used.
 - Checked against a live attestation from `api.imd.fun` in the tests.
 
 **`SocialRegistry`**: X badge, level 1 (owner: 48 h timelock).
 - `link(coin, handleHash, deadline, voucher)`: the coin's fee recipient submits an EIP-712 voucher signed by PondPad's X link service key after X OAuth and a wallet signature (bound to coin, handle, account, per-coin nonce, deadline).
-- `unlink(coin)` by the recipient, the verifier or the owner. One handle per coin; a handle linked to two coins is flagged on both (`badgeOf`), never blocked.
+- `unlink(coin)` by the recipient, the verifier or the owner; an unlink uses up the nonce, so vouchers signed before it are void (D-80). One handle per coin; a handle linked to two coins is flagged on both (`badgeOf`), never blocked. A coin's link counts only while the account that made it is still the fee recipient: after a takeover the old badge disappears and anyone can clear it (D-80, audit R3-A4-9).
 - `linkWallet(handle, deadline, voucher)`: any wallet links its own X account the same way; required for CTO proposers and shown on takeover pages.
 
 ### 5.6 Admin powers, all of them
 
 | Can do (timelocked unless noted) | Can never do |
 |---|---|
-| Change bounded settings for **future** launches | Change an existing coin's fees, tax, curve or target; change `PadConfig`'s fee splitter or growth fund (fixed at deploy, D-78) |
+| Change bounded settings for **future** launches | Change an existing coin's fees, tax, curve or target; change `PadConfig`'s fee splitter or growth fund (fixed at deploy, D-78); hand any owner power to another address, renounce it, or shorten a timelock's delay below 48 h / 7 days (D-80) |
 | Change splitter shares within their ranges | Remove or move locked liquidity |
 | Set payment-token routes, worker address, Relay, oracle signers | Pause trading, freeze tokens, mint |
 | Register and activate versions (with swarm audit); roll back to an activated version (owner only: an attested activation of an older version doesn't move `currentVersion` back, D-78). The registry is informational: launches don't consult it | Upgrade contracts (none are proxies) |
 | Pause **new launches** (guardian, instant) | Take creator fees, dividends or staked funds |
 | Propose a CTO as the council only until that fallback is retired (D-46), with a 90-day per-coin wait after cancelling one (D-78); otherwise CTOs need a swarm attestation; always a 3-day notice | Cancel an attested CTO, or change its outcome without a new attestation; hold a coin's takeover slot against an attested proposal |
-| Tune the reward stream within `1 h ≤ maxCatchup ≤ smoothing / 7` and `minDripAmount ≤ 100,000` $PONDPAD (48 h timelock, D-79) | Release more than 1/7 of the reward buffer in one drip; move the 30M liquidity reserve before the market opens; hand the market's sink role to another address |
+| Tune the reward stream within `1 h ≤ maxCatchup ≤ smoothing / 7` and `minDripAmount ≤ 100,000` $PONDPAD (48 h timelock, D-79) | Release more than 1/7 of the reward buffer in one drip (or a remainder under one $PONDPAD); move the 30M liquidity reserve before the market opens; hand the market's sink role to another address |
+| Set the $PONDPAD market's cap floor (≥ 150M) and decay (≤ 2.5M/day), ratchet, keeper tip, rebalance and reward share (≤ 30%) (48 h timelock) | Let trading trim the market position below the 150M floor (D-80) |
 | Approve a $PONDPAD market migration (7-day timelock), which only the team Safe can then run, first 12 months (D-40, D-78) | Migrate without both, or after 12 months. The new hook is checked only through its own answers (owner, pair, sinks; D-40), so the 7-day approval is when holders review its code |
 
 ---

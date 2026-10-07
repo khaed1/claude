@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Ownable} from "solady/auth/Ownable.sol";
+import {FixedOwnable} from "./FixedOwnable.sol";
 import {EIP712} from "solady/utils/EIP712.sol";
 import {ECDSA} from "solady/utils/ECDSA.sol";
 import {LibString} from "solady/utils/LibString.sol";
@@ -37,7 +37,7 @@ struct OracleAttestation {
 ///      onchain data, so an attestation for another coin, recipient or version never matches. Consumers track used
 ///      request ids themselves. Owner: the 7-day timelock (signers, thresholds). Until a signer is set no
 ///      attestation verifies, and the consumers' fallback paths apply.
-contract AttestationVerifier is Ownable, EIP712 {
+contract AttestationVerifier is FixedOwnable, EIP712 {
     bytes32 public constant ATTESTATION_TYPEHASH = keccak256(
         "OracleAttestation(bytes32 requestId,uint256 chainId,bytes32 questionHash,uint8 answerType,bytes answer,uint256 figure,uint64 fromBlock,uint64 toBlock,bytes32 blockHash,bytes32 panelJobId,uint16 panelSize,uint16 quorum,uint16 agreed,uint64 issuedAt,uint64 expiresAt)"
     );
@@ -45,18 +45,19 @@ contract AttestationVerifier is Ownable, EIP712 {
 
     uint16 public constant MIN_PANEL_FLOOR = 5;
     uint16 public constant MIN_PANEL_CEILING = 100;
-    uint16 public constant MIN_AGREEMENT_FLOOR_BPS = 5_001;
 
     mapping(address => bool) public isSigner;
     uint256 public signerCount;
     /// @notice Smallest panel accepted (user: more than 50).
     uint16 public minPanelSize = 51;
-    /// @notice Members who gave the signed answer, as a share of the panel rounded up to whole bps (user: two
-    ///         thirds).
-    uint16 public minAgreementBps = 6_667;
+    /// @notice Members who gave the signed answer: the minimum share of the panel, as an exact fraction (user: two
+    ///         thirds). Not bps: rounded bps let slightly less than two thirds through on very large panels (audit
+    ///         R3-A4-11).
+    uint16 public minAgreementNum = 2;
+    uint16 public minAgreementDen = 3;
 
     event SignerSet(address indexed signer, bool approved);
-    event ThresholdsSet(uint16 minPanelSize, uint16 minAgreementBps);
+    event ThresholdsSet(uint16 minPanelSize, uint16 minAgreementNum, uint16 minAgreementDen);
 
     error UnknownSigner();
     error WrongQuestion();
@@ -91,11 +92,11 @@ contract AttestationVerifier is Ownable, EIP712 {
         if (att.fromBlock > att.toBlock) revert BadWindow();
         if (att.answerType != ANSWER_BOOL || att.answer.length != 32) revert NotBool();
         if (att.panelSize < minPanelSize) revert PanelTooSmall();
-        // The agreeing share is rounded up to whole bps, so exactly two thirds (34 of 51, 50 of 75) meets 6,667
-        // (audit R1-A4-13); without rounding, 6,667 bps would be slightly more than two thirds.
+        // Exact: agreed / panelSize >= num / den, so exactly two thirds (34 of 51, 50 of 75) passes (audit R1-A4-13)
+        // and anything less fails whatever the panel size (audit R3-A4-11).
         if (
             att.agreed < att.quorum
-                || uint256(att.agreed) * 10_000 + att.panelSize - 1 < uint256(att.panelSize) * minAgreementBps
+                || uint256(att.agreed) * minAgreementDen < uint256(att.panelSize) * minAgreementNum
         ) {
             revert NotEnoughAgreement();
         }
@@ -191,14 +192,15 @@ contract AttestationVerifier is Ownable, EIP712 {
         emit SignerSet(signer, approved);
     }
 
-    /// @notice Bounds: panel 5–100 (the oracle's own range today), agreement more than half.
-    function setThresholds(uint16 minPanelSize_, uint16 minAgreementBps_) external onlyOwner {
+    /// @notice Bounds: panel 5–100 (the oracle's own range today), agreement `num / den` more than half, at most all.
+    function setThresholds(uint16 minPanelSize_, uint16 num, uint16 den) external onlyOwner {
         if (
-            minPanelSize_ < MIN_PANEL_FLOOR || minPanelSize_ > MIN_PANEL_CEILING
-                || minAgreementBps_ < MIN_AGREEMENT_FLOOR_BPS || minAgreementBps_ > 10_000
+            minPanelSize_ < MIN_PANEL_FLOOR || minPanelSize_ > MIN_PANEL_CEILING || den == 0 || num > den
+                || uint256(num) * 2 <= den
         ) revert InvalidSetting();
         minPanelSize = minPanelSize_;
-        minAgreementBps = minAgreementBps_;
-        emit ThresholdsSet(minPanelSize_, minAgreementBps_);
+        minAgreementNum = num;
+        minAgreementDen = den;
+        emit ThresholdsSet(minPanelSize_, num, den);
     }
 }

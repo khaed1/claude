@@ -19,6 +19,11 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {Currency} from "v4-core/types/Currency.sol";
 import {SwapParams} from "v4-core/types/PoolOperation.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+import {ECDSA} from "solady/utils/ECDSA.sol";
+import {TimelockController} from "openzeppelin-contracts/governance/TimelockController.sol";
+import {FixedOwnable} from "../src/FixedOwnable.sol";
+import {PondPadTimelock} from "../src/PondPadTimelock.sol";
+import {PadRouter} from "../src/PadRouter.sol";
 
 /// @dev Stands in for a community Safe: takeovers only go to contracts.
 contract MockSafe {}
@@ -44,6 +49,19 @@ contract UnlockCaller {
             }
         }
         return "";
+    }
+}
+
+/// @dev A contract X link service key (ERC-1271), signing with an ordinary key behind it.
+contract Mock1271Verifier {
+    address internal immutable signer;
+
+    constructor(address signer_) {
+        signer = signer_;
+    }
+
+    function isValidSignature(bytes32 hash, bytes calldata sig) external view returns (bytes4) {
+        return ECDSA.recoverCalldata(hash, sig) == signer ? bytes4(0x1626ba7e) : bytes4(0xffffffff);
     }
 }
 
@@ -267,12 +285,16 @@ contract GovernanceTest is Base {
         vm.expectRevert(AttestationVerifier.InvalidSetting.selector);
         verifier.setSigner(oracle, true); // no double count
         vm.expectRevert(AttestationVerifier.InvalidSetting.selector);
-        verifier.setThresholds(4, 6_667);
+        verifier.setThresholds(4, 2, 3);
         vm.expectRevert(AttestationVerifier.InvalidSetting.selector);
-        verifier.setThresholds(101, 6_667);
+        verifier.setThresholds(101, 2, 3);
         vm.expectRevert(AttestationVerifier.InvalidSetting.selector);
-        verifier.setThresholds(51, 5_000);
-        verifier.setThresholds(75, 7_500);
+        verifier.setThresholds(51, 1, 2); // half is not more than half
+        vm.expectRevert(AttestationVerifier.InvalidSetting.selector);
+        verifier.setThresholds(51, 4, 3); // more than all
+        vm.expectRevert(AttestationVerifier.InvalidSetting.selector);
+        verifier.setThresholds(51, 0, 0);
+        verifier.setThresholds(75, 3, 4);
         verifier.setSigner(oracle, false);
         vm.stopPrank();
         assertEq(verifier.minPanelSize(), 75);
@@ -473,7 +495,8 @@ contract GovernanceTest is Base {
         cto.execute(coin);
         assertEq(vault.recipientOf(coin), coin);
 
-        // New creator fees and the swarm budget now reach holders as IMD dividends, over about 7 days (D-78).
+        // New creator fees and the swarm budget now reach holders as IMD dividends, paid second by second over about
+        // 7 days (D-78, D-80).
         _buy(bob, coin, 100e18);
         uint256 creatorFees = vault.balanceOf(coin);
         uint256 swarm = budget.available(coin);
@@ -482,16 +505,15 @@ contract GovernanceTest is Base {
         budget.sweepToHolders(coin); // anyone
         assertEq(budget.available(coin), 0);
         assertEq(PadToken(coin).withdrawableDividendOf(alice), aliceBefore, "nothing in one go");
-        (uint128 remaining,,) = vault.holderStreamOf(coin);
+        (uint256 remaining, uint256 endsAt,) = PadToken(coin).holderStream();
         assertEq(remaining, creatorFees + swarm);
-        uint256 day = P + 3 days;
-        for (uint256 i = 1; i <= 7; i++) {
-            vm.warp(day + i * 1 days);
-            uint256 released = vault.releaseToHolders(coin); // anyone, at most one day's share
-            assertLe(released, (creatorFees + swarm) / 7 + 1 days); // the per-second rate is rounded up
-        }
-        (remaining,,) = vault.holderStreamOf(coin);
-        assertEq(remaining, 0, "all paid in 7 days");
+        assertEq(endsAt, P + 3 days + 7 days);
+        vm.warp(P + 4 days);
+        (,, uint256 due) = PadToken(coin).holderStream();
+        assertApproxEqAbs(due, (creatorFees + swarm) / 7, 1, "a seventh a day");
+        vm.warp(P + 10 days);
+        (,, due) = PadToken(coin).holderStream();
+        assertEq(due, creatorFees + swarm, "all paid in 7 days");
         uint256 gained = PadToken(coin).withdrawableDividendOf(alice) - aliceBefore
             + PadToken(coin).withdrawableDividendOf(bob);
         assertApproxEqAbs(gained, creatorFees + swarm, 1e6);
@@ -830,23 +852,23 @@ contract GovernanceTest is Base {
         verifier.verifyBool(a, sig, q);
     }
 
-    /// @dev Audits R2-A1-1 / R2-A4-2: funding a holder stream from inside an outside PoolManager unlock is refused,
-    ///      so it can't move the stream's clock and erase the share holders were owed.
+    /// @dev Audits R2-A1-1 / R2-A4-2: funding a holder stream from inside an outside PoolManager unlock can't stall it:
+    ///      the stream settles by time on every balance change and funding (D-80), so what holders were owed stays owed.
     function test_holderStream_fundingInsideAnUnlockCantStallIt() public {
         address coin = _coinWithCreatorFees(_noTax());
         vm.prank(creator);
         vault.setRecipient(coin, coin);
         vault.claim(coin);
         vm.warp(T0 + 1 hours + 1 days);
-        uint256 due = vault.releasableToHolders(coin);
-        assertGt(due, 0);
+        uint256 owed = PadToken(coin).withdrawableDividendOf(alice);
+        assertGt(owed, 0);
         UnlockCaller g = new UnlockCaller(IPoolManager(address(pm)));
         imd.mint(address(g), 1);
         g.run(address(imd), abi.encodeWithSignature("approve(address,uint256)", address(vault), 1));
-        vm.expectRevert(bytes4(keccak256("PoolManagerUnlocked()")));
         g.run(address(vault), abi.encodeWithSignature("fundHolders(address,uint256)", coin, 1));
-        assertEq(vault.releasableToHolders(coin), due, "the day's share is still owed");
-        assertEq(vault.releaseToHolders(coin), due);
+        assertEq(PadToken(coin).withdrawableDividendOf(alice), owed, "the day's share is still owed");
+        vm.prank(alice);
+        assertEq(PadToken(coin).claim(), owed);
     }
 
     /// @dev Audits R2-A1-2 / R2-A4-1: a takeover can't be executed from inside an outside PoolManager unlock, where
@@ -893,10 +915,9 @@ contract GovernanceTest is Base {
         vault.fundHolders(coin, 700e18);
         for (uint256 d = 1; d <= 7; d++) {
             vm.warp(T0 + 1 hours + d * 1 days);
-            vault.releaseToHolders(coin);
             vault.fundHolders(coin, 1); // a stranger's top-up
         }
-        (uint128 remaining,,) = vault.holderStreamOf(coin);
+        (uint256 remaining,,) = PadToken(coin).holderStream();
         assertLe(remaining, 7, "the lump paid out in ~7 days");
     }
 
@@ -1102,5 +1123,541 @@ contract GovernanceTest is Base {
         address[] memory l = new address[](1);
         l[0] = coin;
         assertEq(lens.positions(alice, l)[0].pendingDividends, PadToken(coin).withdrawableDividendOf(alice));
+    }
+
+    // ------------------------------------------------------------------ Audit round 3
+
+    /// @dev The round-3 vault's `releaseToHolders` (removed in D-80), called if it exists, as an attacker would.
+    function _tryRelease(address coin) internal {
+        (bool ok,) = address(vault).call(abi.encodeWithSignature("releaseToHolders(address)", coin));
+        if (!ok) return;
+    }
+
+    /// @dev Audit R3-A4-1: a wallet with no position can't take a holder-routed lump's daily share in one transaction
+    ///      (buy, release, claim, sell), on any day of the stream: the stream pays holders by the time they held.
+    function test_holderStream_oneTransactionCaptureEarnsNothing() public {
+        address coin = _coinWithCreatorFees(CoinFees(300, 5_000, 0, 5_000));
+        imd.mint(address(vault), 2_000e18);
+        vm.prank(address(curve));
+        vault.credit(coin, 2_000e18);
+        imd.mint(address(budget), 1_500e18);
+        vm.prank(address(curve));
+        budget.credit(coin, 1_500e18);
+        vm.prank(creator);
+        vault.setRecipient(coin, coin);
+        vault.claim(coin);
+        budget.sweepToHolders(coin);
+
+        address carol = makeAddr("carol");
+        vm.prank(carol);
+        imd.approve(address(router), type(uint256).max);
+        for (uint256 d = 1; d <= 7; d++) {
+            vm.warp(T0 + 1 hours + d * 1 days);
+            imd.mint(carol, 1_000e18);
+            uint256 got = _buy(carol, coin, 1_000e18);
+            _tryRelease(coin);
+            vm.prank(carol);
+            PadToken(coin).claim();
+            _sell(carol, coin, got);
+        }
+        assertLe(imd.balanceOf(carol), 7_000e18, "a one-transaction position earns nothing from the stream");
+        assertGt(PadToken(coin).withdrawableDividendOf(alice), 3_000e18, "the holder who held all week gets it");
+    }
+
+    /// @dev Audit R3-A4-2: while nobody holds the coin, the stream waits; the first buyer afterwards isn't paid the
+    ///      time nobody held.
+    function test_holderStream_timeWithNobodyEligibleIsNotBanked() public {
+        address coin = _launch(_noTax(), 0);
+        vm.warp(T0 + 1 hours);
+        _sell(alice, coin, _buy(alice, coin, 100e18)); // nobody holds the coin any more
+        assertLt(PadToken(coin).eligibleSupply(), 1e18);
+        vm.prank(creator);
+        vault.setRecipient(coin, coin);
+        imd.mint(address(this), 700e18);
+        imd.approve(address(vault), 700e18);
+        vault.fundHolders(coin, 700e18);
+
+        vm.warp(T0 + 1 hours + 30 days);
+        address carol = makeAddr("carol");
+        imd.mint(carol, 1e18);
+        vm.prank(carol);
+        imd.approve(address(router), type(uint256).max);
+        uint256 got = _buy(carol, coin, 0.001e18);
+        _tryRelease(coin);
+        vm.prank(carol);
+        PadToken(coin).claim();
+        _sell(carol, coin, got);
+        assertLe(imd.balanceOf(carol), 1e18, "the time nobody held isn't paid to the next buyer");
+    }
+
+    /// @dev Audits R3-A1-2 / R3-A4-3: a lump that joins a nearly finished stream still pays out over about a week, not
+    ///      at the earlier lump's pace.
+    function test_holderStream_laterLumpGetsItsOwnWeek() public {
+        address coin = _coinWithCreatorFees(_noTax()); // alice is the only holder
+        vm.prank(creator);
+        vault.setRecipient(coin, coin);
+        imd.mint(address(this), 7_900e18);
+        imd.approve(address(vault), 7_900e18);
+        uint256 s0 = T0 + 1 hours;
+        vault.fundHolders(coin, 7_000e18);
+        for (uint256 d = 1; d <= 6; d++) {
+            vm.warp(s0 + d * 1 days);
+            _tryRelease(coin);
+        }
+        vm.warp(s0 + 6 days + 23 hours); // the first lump is nearly paid
+        vault.fundHolders(coin, 900e18);
+        vm.warp(s0 + 7 days + 23 hours); // a day later
+        _tryRelease(coin);
+        uint256 paid = PadToken(coin).withdrawableDividendOf(alice);
+        assertGt(paid, 6_900e18);
+        assertLt(paid, 7_000e18 + 900e18 / 2, "the new lump pays out over about a week, not in a day");
+    }
+
+    /// @dev Audit R3-A1-1: a buyer that is the only eligible holder isn't credited its own holder tax, on the curve or
+    ///      in the pool through PadRouter; it goes to the growth fund.
+    function test_holderTax_soleHolderGetsNoOwnTaxBack() public {
+        vm.prank(creator); // a 1 IMD dev buy, whose tax goes to growth (R2-A1-3)
+        (address coin,) =
+            router.launchWith(_params("TOAD", _holderTax(300), bytes32(0)), address(imd), 2e18, true, 0, 0, address(0));
+        vm.warp(T0 + 1 hours);
+        uint256 growthBefore = imd.balanceOf(growth);
+        _buy(creator, coin, 1_000e18); // the creator is still the only holder
+        assertEq(PadToken(coin).withdrawableDividendOf(creator), 0, "no own tax back on the curve");
+        assertEq(imd.balanceOf(growth) - growthBefore, 30e18);
+
+        address coin2 = _launchOrdered(_holderTax(200), true);
+        _fillCurve(coin2);
+        for (uint256 i; i < 10; i++) {
+            address buyer = address(uint160(0x10000 + i));
+            uint256 bal = PadToken(coin2).balanceOf(buyer);
+            if (bal != 0) _sell(buyer, coin2, bal);
+        }
+        assertLt(PadToken(coin2).eligibleSupply(), 1e18);
+        growthBefore = imd.balanceOf(growth);
+        _buy(alice, coin2, 100e18);
+        _buy(alice, coin2, 100e18);
+        assertEq(PadToken(coin2).withdrawableDividendOf(alice), 0, "no own tax back in the pool");
+        assertApproxEqAbs(imd.balanceOf(growth) - growthBefore, 4e18, 10); // the 2% holder tax of both buys
+    }
+
+    /// @dev Audit R3-A1-3: pool quotes match the trade to the wei when the price crosses a tick-bitmap word, in both
+    ///      currency orderings.
+    function test_lens_poolQuotesExactAcrossBitmapWords() public {
+        for (uint256 k; k < 2; k++) {
+            address coin = _launchOrdered(_holderTax(200), k == 0);
+            _fillCurve(coin);
+            (uint256 out,,,, bool full) = lens.quoteBuy(coin, 3_000e18);
+            assertTrue(full);
+            assertEq(_buy(alice, coin, 3_000e18), out, "buy quote");
+            (uint256 imdOut,,, bool fullSell) = lens.quoteSell(coin, out);
+            assertTrue(fullSell);
+            assertEq(_sell(alice, coin, out), imdOut, "sell quote");
+        }
+    }
+
+    function _walletVoucher(address who, string memory handle, uint256 nonce, uint256 deadline)
+        internal
+        view
+        returns (bytes memory)
+    {
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                social.domainSeparator(),
+                keccak256(
+                    abi.encode(social.WALLET_LINK_TYPEHASH(), who, keccak256(bytes(vm.toLowercase(handle))), nonce, deadline)
+                )
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s_) = vm.sign(linkKey, digest);
+        return abi.encodePacked(r, s_, v);
+    }
+
+    /// @dev Audit R3-A4-5: revoking a link voids every voucher signed before it, for wallets and for coins.
+    function test_social_revocationVoidsEarlierVouchers() public {
+        uint256 deadline = T0 + 1 days;
+        bytes memory v0 = _walletVoucher(bob, "frogdao", 0, deadline);
+        bytes memory v1 = _walletVoucher(bob, "frogdao", 1, deadline); // a second voucher bob kept back
+        vm.prank(bob);
+        social.linkWallet("frogdao", deadline, v0);
+        vm.prank(linker);
+        social.unlinkWallet(bob); // the X link service revokes it
+        vm.prank(bob);
+        vm.expectRevert(SocialRegistry.BadVoucher.selector);
+        social.linkWallet("frogdao", deadline, v1);
+        assertEq(bytes(social.walletHandle(bob)).length, 0);
+
+        address coin = _launch(_noTax(), 0);
+        bytes32 h = keccak256("frogcoin");
+        bytes memory c0 = _voucher(coin, h, creator, 0, deadline);
+        bytes memory c1 = _voucher(coin, h, creator, 1, deadline);
+        vm.prank(creator);
+        social.link(coin, h, deadline, c0);
+        social.unlink(coin); // the owner revokes it
+        vm.prank(creator);
+        vm.expectRevert(SocialRegistry.BadVoucher.selector);
+        social.link(coin, h, deadline, c1);
+        (bytes32 badge,) = social.badgeOf(coin);
+        assertEq(badge, bytes32(0));
+    }
+
+    /// @dev Audit R3-A4-9: a coin's X badge belongs to the fee recipient that linked it; after the recipient changes
+    ///      (a takeover) the old account is no longer shown, anyone can clear it, and the new recipient links its own.
+    function test_social_badgeEndsWhenTheRecipientChanges() public {
+        address coin = _launch(_noTax(), 0);
+        bytes32 h = keccak256("ruggedcreator");
+        uint256 deadline = T0 + 1 days;
+        bytes memory v0 = _voucher(coin, h, creator, 0, deadline);
+        vm.prank(creator);
+        social.link(coin, h, deadline, v0);
+        (bytes32 badge,) = social.badgeOf(coin);
+        assertEq(badge, h);
+        vm.prank(creator);
+        vault.setRecipient(coin, newOwner); // as a takeover would
+        (badge,) = social.badgeOf(coin);
+        assertEq(badge, bytes32(0), "the old recipient's X account is no longer the coin's badge");
+        assertEq(social.handleOf(coin), bytes32(0));
+        vm.prank(alice); // anyone can clear the stale link
+        social.unlink(coin);
+        bytes32 h2 = keccak256("frogdao");
+        bytes memory v1 = _voucher(coin, h2, newOwner, social.nonces(coin), deadline);
+        vm.prank(newOwner);
+        social.link(coin, h2, deadline, v1);
+        (badge,) = social.badgeOf(coin);
+        assertEq(badge, h2);
+    }
+
+    /// @dev Audit R3-A4-6: after the owner rolls back, an attested activation of a version between the rolled-back
+    ///      pointer and the newest activated one doesn't move `currentVersion`.
+    function test_versions_activationAfterRollbackDoesNotMoveCurrent() public {
+        for (uint256 i; i < 3; i++) {
+            versions.register(address(factory), address(router), address(curve), address(hook), address(lens));
+        }
+        versions.activateManually(1, "https://api.imd.fun/jobs/audit-1/report.md");
+        versions.activateManually(3, "https://api.imd.fun/jobs/audit-3/report.md");
+        assertEq(versions.currentVersion(), 3);
+        versions.setCurrent(1); // the owner rolls back
+        _approveOracle();
+        string memory job = "6f1d2c3a-1111-4222-8333-944455556666";
+        OracleAttestation memory a = _att(versions.question(2, job), true);
+        bytes memory sig = _sign(a, oracleKey);
+        vm.prank(bob);
+        versions.activate(2, job, a, sig);
+        assertGt(versions.versionInfo(2).activatedAt, 0);
+        assertEq(versions.currentVersion(), 1, "only the owner chooses among older versions");
+    }
+
+    /// @dev Audit R3-A4-7: a contested council proposal that lapses unconfirmed waits 90 days, like a cancel, before the
+    ///      council can propose for that coin again.
+    function test_cto_lapsedContestedCouncilProposalWaits() public {
+        address coin = _coinWithCreatorFees(_noTax());
+        vm.warp(P);
+        vm.prank(council);
+        cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
+        vm.warp(P + 1 days);
+        vm.prank(creator);
+        cto.contest(coin);
+        vm.warp(P + 17 days); // 7-day notice + 7-day contest + 3-day window, never confirmed
+        vm.expectRevert(CTOModule.WindowClosed.selector);
+        cto.execute(coin);
+        vm.prank(council);
+        vm.expectRevert(CTOModule.Cooldown.selector);
+        cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
+        vm.warp(P + 17 days + 90 days);
+        vm.prank(council);
+        cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
+        assertFalse(cto.pendingOf(coin).contested);
+    }
+
+    /// @dev Audit R3-A4-8: a "no" on record blocks "yes" answers to the same question issued in the 90 days after it,
+    ///      so the question can't be re-asked until one panel says yes.
+    function test_cto_noAnswerBlocksALaterYes() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        vm.warp(P);
+        string memory q = cto.question(coin, newOwner, "frogdao");
+        OracleAttestation memory no = _att(q, false);
+        no.issuedAt = uint64(P - 2 hours);
+        bytes memory noSig = _sign(no, oracleKey);
+        cto.recordNo(coin, newOwner, "frogdao", no, noSig); // anyone puts it on record
+        OracleAttestation memory yes = _att(q, true);
+        yes.issuedAt = uint64(P - 1 hours); // asked again after the "no"
+        bytes memory yesSig = _sign(yes, oracleKey);
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.BlockedByNo.selector);
+        cto.propose(coin, newOwner, yes, yesSig);
+        assertEq(cto.pendingOf(coin).newRecipient, address(0));
+    }
+
+    /// @dev Audit R3-A4-8: a pending attested takeover whose "yes" came after a "no" to the same question ends when the
+    ///      "no" is put on record, and the coin can't be proposed again for 90 days.
+    function test_cto_noAnswerEndsAYesAskedAfterIt() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        vm.warp(P);
+        string memory q = cto.question(coin, newOwner, "frogdao");
+        OracleAttestation memory yes = _att(q, true);
+        yes.issuedAt = uint64(P - 1 hours);
+        bytes memory yesSig = _sign(yes, oracleKey);
+        vm.prank(bob);
+        cto.propose(coin, newOwner, yes, yesSig);
+        OracleAttestation memory no = _att(q, false);
+        no.issuedAt = uint64(P - 2 hours); // a "no" the proposer had before asking again
+        bytes memory noSig = _sign(no, oracleKey);
+        vm.prank(creator);
+        cto.recordNo(coin, newOwner, "frogdao", no, noSig);
+        assertEq(cto.pendingOf(coin).newRecipient, address(0), "the takeover ended");
+        vm.warp(P + 3 days);
+        vm.expectRevert(CTOModule.NotPending.selector);
+        cto.execute(coin);
+        assertEq(vault.recipientOf(coin), creator);
+    }
+
+    /// @dev Audit R3-A4-8: a "no" issued after the "yes" doesn't undo a proposal (the creator contests instead).
+    function test_cto_laterNoDoesNotEndAProposal() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        vm.warp(P);
+        _proposeAsBob(coin, newOwner); // "yes" issued at T0 - 1
+        OracleAttestation memory no = _att(cto.question(coin, newOwner, "frogdao"), false);
+        no.issuedAt = uint64(P - 1 hours);
+        bytes memory noSig = _sign(no, oracleKey);
+        cto.recordNo(coin, newOwner, "frogdao", no, noSig);
+        assertEq(cto.pendingOf(coin).newRecipient, newOwner);
+        vm.warp(P + 3 days);
+        cto.execute(coin);
+        assertEq(vault.recipientOf(coin), newOwner);
+    }
+
+    /// @dev Audit R3-A4-8: after a contest, a "no" from a panel of at least 75 to the confirmation question ends the
+    ///      takeover; a "yes" can't confirm it afterwards.
+    function test_cto_confirmationNoEndsTheTakeover() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        vm.warp(P);
+        _proposeAsBob(coin, newOwner);
+        vm.warp(P + 1 hours);
+        vm.prank(creator);
+        cto.contest(coin);
+        string memory cq = cto.confirmQuestion(coin, newOwner, "frogdao");
+        vm.warp(P + 3 hours);
+        OracleAttestation memory no = _att(cq, false);
+        no.panelSize = 100;
+        no.quorum = 67;
+        no.agreed = 100;
+        no.issuedAt = uint64(P + 2 hours);
+        bytes memory noSig = _sign(no, oracleKey);
+        cto.recordConfirmNo(coin, no, noSig);
+        assertEq(cto.pendingOf(coin).newRecipient, address(0), "the takeover ended");
+        OracleAttestation memory yes = _att(cq, true);
+        yes.panelSize = 75;
+        yes.quorum = 50;
+        yes.agreed = 50;
+        yes.issuedAt = uint64(P + 3 hours);
+        bytes memory yesSig = _sign(yes, oracleKey);
+        vm.expectRevert(CTOModule.NotPending.selector);
+        cto.confirm(coin, yes, yesSig);
+        vm.warp(P + 10 days);
+        vm.expectRevert(CTOModule.NotPending.selector);
+        cto.execute(coin);
+        assertEq(vault.recipientOf(coin), creator);
+    }
+
+    /// @dev Audit R3-A4-8: a confirmation "no" issued after the "yes" that confirmed the takeover is too late.
+    function test_cto_confirmationNoAfterTheConfirmingYesIsTooLate() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        vm.warp(P);
+        _proposeAsBob(coin, newOwner);
+        vm.warp(P + 1 hours);
+        vm.prank(creator);
+        cto.contest(coin);
+        string memory cq = cto.confirmQuestion(coin, newOwner, "frogdao");
+        vm.warp(P + 4 hours);
+        OracleAttestation memory yes = _att(cq, true);
+        yes.panelSize = 80;
+        yes.agreed = 60;
+        yes.issuedAt = uint64(P + 2 hours);
+        bytes memory yesSig = _sign(yes, oracleKey);
+        cto.confirm(coin, yes, yesSig);
+        OracleAttestation memory no = _att(cq, false);
+        no.panelSize = 100;
+        no.quorum = 67;
+        no.agreed = 100;
+        no.issuedAt = uint64(P + 3 hours);
+        bytes memory noSig = _sign(no, oracleKey);
+        vm.expectRevert(CTOModule.TooLate.selector);
+        cto.recordConfirmNo(coin, no, noSig);
+    }
+
+    /// @dev Audit R3-A4-11: one member short of two thirds is refused whatever the panel size.
+    function test_verifier_lessThanTwoThirdsRefusedOnAnyPanel() public {
+        _approveOracle();
+        string memory q = "Is this a test question?";
+        OracleAttestation memory a = _att(q, true);
+        a.panelSize = 5_003;
+        a.quorum = 0;
+        a.agreed = 3_335; // 66.66%
+        bytes memory sig = _sign(a, oracleKey);
+        vm.expectRevert(AttestationVerifier.NotEnoughAgreement.selector);
+        verifier.verifyBool(a, sig, q);
+        a.agreed = 3_336;
+        sig = _sign(a, oracleKey);
+        assertTrue(verifier.verifyBool(a, sig, q));
+    }
+
+    /// @dev Audits R3-A2-2 / R3-A4-4: owners can't hand over, transfer or renounce their powers. Contracts built with
+    ///      their timelock as owner never change owner; those the deployer builds are handed over once.
+    function test_governance_ownersAreFixed() public {
+        address undelayed = makeAddr("undelayed");
+        vm.startPrank(slowTimelock);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        cto.transferOwnership(undelayed);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        cto.renounceOwnership();
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        verifier.transferOwnership(undelayed);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        verifier.renounceOwnership();
+        vm.stopPrank();
+        vm.prank(undelayed);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        cto.requestOwnershipHandover();
+        address[4] memory built = [address(versions), address(social), address(config), address(budget)];
+        for (uint256 i; i < built.length; i++) {
+            Ownable(built[i]).transferOwnership(slowTimelock); // the deployment's one handoff
+            vm.prank(slowTimelock);
+            vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+            Ownable(built[i]).transferOwnership(undelayed);
+            vm.prank(slowTimelock);
+            vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+            Ownable(built[i]).renounceOwnership();
+            assertEq(Ownable(built[i]).owner(), slowTimelock);
+        }
+    }
+
+    /// @dev Audit R3-A4-4: a timelock's delay can't be lowered below the one it was deployed with, even by its own
+    ///      delayed operation; it can be raised and lowered back to that.
+    function test_timelock_delayNeverBelowDeployValue() public {
+        address safe = makeAddr("safe");
+        address[] memory proposers = new address[](1);
+        proposers[0] = safe;
+        address[] memory executors = new address[](1); // anyone executes
+        TimelockController tl = new PondPadTimelock(2 days, proposers, executors, address(0));
+        bytes memory toZero = abi.encodeCall(TimelockController.updateDelay, (0));
+        vm.prank(safe);
+        tl.schedule(address(tl), 0, toZero, bytes32(0), bytes32(0), 2 days);
+        vm.warp(T0 + 2 days);
+        vm.expectRevert(abi.encodeWithSelector(PondPadTimelock.DelayBelowMinimum.selector, 0, 2 days));
+        tl.execute(address(tl), 0, toZero, bytes32(0), bytes32(0));
+        assertEq(tl.getMinDelay(), 2 days);
+
+        bytes memory longer = abi.encodeCall(TimelockController.updateDelay, (3 days));
+        vm.prank(safe);
+        tl.schedule(address(tl), 0, longer, bytes32(0), bytes32(uint256(1)), 2 days);
+        vm.warp(T0 + 4 days);
+        tl.execute(address(tl), 0, longer, bytes32(0), bytes32(uint256(1)));
+        assertEq(tl.getMinDelay(), 3 days);
+        bytes memory back = abi.encodeCall(TimelockController.updateDelay, (2 days));
+        vm.prank(safe);
+        vm.expectRevert(); // scheduling now needs the longer delay
+        tl.schedule(address(tl), 0, back, bytes32(0), bytes32(uint256(2)), 2 days);
+        vm.prank(safe);
+        tl.schedule(address(tl), 0, back, bytes32(0), bytes32(uint256(2)), 3 days);
+        vm.warp(T0 + 7 days);
+        tl.execute(address(tl), 0, back, bytes32(0), bytes32(uint256(2)));
+        assertEq(tl.getMinDelay(), 2 days);
+        vm.expectRevert(abi.encodeWithSelector(TimelockController.TimelockUnauthorizedCaller.selector, address(this)));
+        tl.updateDelay(2 days);
+    }
+
+    /// @dev Audit R3-A4-16 (coverage): an attested proposal replaces a council proposal that was contested and
+    ///      confirmed, in its execution window, and starts clean.
+    function test_cto_attestedReplacesAConfirmedCouncilProposal() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        vm.warp(P);
+        vm.prank(council);
+        cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
+        vm.warp(P + 1 days);
+        vm.prank(creator);
+        cto.contest(coin);
+        vm.warp(P + 2 days);
+        vm.prank(council);
+        cto.confirmByCouncil(coin);
+        vm.warp(P + 14 days); // the council proposal's execution window is open
+        _proposeAsBob(coin, newOwner);
+        CTOModule.Takeover memory t = cto.pendingOf(coin);
+        assertFalse(t.byCouncil);
+        assertFalse(t.contested);
+        assertFalse(t.confirmed);
+        assertEq(t.contestedAt, 0);
+        assertEq(cto.proposerXOf(coin), "frogdao");
+        vm.expectRevert(CTOModule.NotContested.selector);
+        cto.confirmQuestion(coin, newOwner, "frogdao");
+    }
+
+    /// @dev Audit R3-A4-16 (coverage): a confirmation can land in the execution window, and the takeover executes.
+    function test_cto_confirmationInsideTheExecutionWindow() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        vm.warp(P);
+        _proposeAsBob(coin, newOwner);
+        vm.warp(P + 1 days);
+        vm.prank(creator);
+        cto.contest(coin); // executable at P + 10 days, until P + 13 days
+        vm.warp(P + 11 days);
+        OracleAttestation memory c = _att(cto.confirmQuestion(coin, newOwner, "frogdao"), true);
+        c.panelSize = 80;
+        c.agreed = 60;
+        c.issuedAt = uint64(P + 11 days);
+        bytes memory cSig = _sign(c, oracleKey);
+        cto.confirm(coin, c, cSig);
+        cto.execute(coin);
+        assertEq(vault.recipientOf(coin), newOwner);
+    }
+
+    /// @dev Audit R3-A4-16 (coverage): after retirement the council can still withdraw its own pending proposal, which
+    ///      could not execute anyway, and can't propose.
+    function test_cto_councilCancelAfterRetirementIsHarmless() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        vm.warp(P);
+        vm.prank(council);
+        cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
+        vm.prank(slowTimelock);
+        cto.retireCouncil();
+        vm.warp(P + 7 days);
+        vm.expectRevert(CTOModule.NotCouncil.selector);
+        cto.execute(coin);
+        vm.prank(council);
+        cto.cancel(coin);
+        assertEq(cto.pendingOf(coin).newRecipient, address(0));
+        vm.prank(council);
+        vm.expectRevert(CTOModule.NotCouncil.selector);
+        cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
+    }
+
+    /// @dev Audit R3-A4-16 (coverage): the X link service key can be a contract wallet (ERC-1271).
+    function test_social_contractVerifierSignsVouchers() public {
+        Mock1271Verifier v = new Mock1271Verifier(linker);
+        social.setVerifier(address(v));
+        address coin = _launch(_noTax(), 0);
+        bytes32 h = keccak256("frogcoin");
+        uint256 deadline = T0 + 1 days;
+        bytes memory v0 = _voucher(coin, h, creator, 0, deadline);
+        vm.prank(creator);
+        social.link(coin, h, deadline, v0);
+        (bytes32 badge,) = social.badgeOf(coin);
+        assertEq(badge, h);
+        _linkX(bob, "frogdao");
+        assertEq(social.walletHandle(bob), "frogdao");
     }
 }

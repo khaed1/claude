@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Ownable} from "solady/auth/Ownable.sol";
+import {FixedOwnable} from "./FixedOwnable.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {ReentrancyGuard} from "solady/utils/ReentrancyGuard.sol";
 
@@ -12,7 +12,7 @@ import {ReentrancyGuard} from "solady/utils/ReentrancyGuard.sol";
 /// @dev Until the IMD developer gives the worker rewards address, funds accrue here and `release` reverts. The
 ///      owner (7-day timelock) sets or changes the address; nothing else can move funds, and they can only go to
 ///      that address.
-contract WorkerFund is Ownable, ReentrancyGuard {
+contract WorkerFund is FixedOwnable, ReentrancyGuard {
     using SafeTransferLib for address;
 
     address public immutable imd;

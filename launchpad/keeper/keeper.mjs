@@ -63,7 +63,7 @@ const abi = {
     "function pendingOf(address) view returns ((address newRecipient, address proposer, uint64 executableAt, uint64 expiresAt, bool byCouncil, bool contested, bool confirmed, uint64 contestedAt))",
   ]),
   workerFund: parseAbi(["function release() returns (uint256, uint256)", "function workerRewards() view returns (address)"]),
-  vault: parseAbi(["function claim(address) returns (uint256)", "function recipientOf(address) view returns (address)", "function balanceOf(address) view returns (uint256)", "function releaseToHolders(address) returns (uint256)", "function releasableToHolders(address) view returns (uint256)"]),
+  vault: parseAbi(["function claim(address) returns (uint256)", "function recipientOf(address) view returns (address)", "function balanceOf(address) view returns (uint256)"]),
   budget: parseAbi(["function sweepToHolders(address) returns (uint256)", "function balanceOf(address) view returns (uint256)"]),
   vesting: parseAbi(["function release() returns (uint256)", "function releasable() view returns (uint256)"]),
   reserve: parseAbi(["function release() returns (uint256)"]),
@@ -189,7 +189,8 @@ async function pass() {
       }
       if (due("coins.holders", WEEK, now)) {
         // Coins whose takeover routed fees to holders (recipient = the coin itself, D-52): move their creator fees
-        // and swarm budget into the CreatorVault's holder stream (D-78), which pays them out over ~7 days.
+        // and swarm budget into the coin's holder stream (D-78, D-80), which pays them out second by second over
+        // ~7 days by itself (no release call needed).
         const recipients = await multi(list, "vault", a.creatorVault, "recipientOf");
         const toHolders = list.filter((c, i) => recipients[i].toLowerCase() === c.toLowerCase());
         const [owed, budget] = await Promise.all([multi(toHolders, "vault", a.creatorVault, "balanceOf"), multi(toHolders, "budget", a.swarmBudget, "balanceOf")]);
@@ -198,14 +199,6 @@ async function pass() {
           if (budget[i] > 0n) await send(`SwarmBudget.sweepToHolders(${toHolders[i]})`, a.swarmBudget, "budget", "sweepToHolders", [toHolders[i]]);
         }
         state["coins.holders"] = now;
-      }
-      if (due("coins.holderStream", DAY, now)) {
-        // A release pays at most one day's share, so daily calls keep holder streams on their ~7-day pace.
-        const releasable = await multi(list, "vault", a.creatorVault, "releasableToHolders");
-        for (let i = 0; i < list.length; i++) {
-          if (releasable[i] > 0n) await send(`CreatorVault.releaseToHolders(${list[i]})`, a.creatorVault, "vault", "releaseToHolders", [list[i]]);
-        }
-        state["coins.holderStream"] = now;
       }
       return true;
     }],

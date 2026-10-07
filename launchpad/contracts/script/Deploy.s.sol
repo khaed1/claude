@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import {Script, console2} from "forge-std/Script.sol";
 import {TimelockController} from "openzeppelin-contracts/governance/TimelockController.sol";
+import {PondPadTimelock} from "../src/PondPadTimelock.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IHooks} from "v4-core/interfaces/IHooks.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
@@ -179,10 +180,59 @@ contract Deploy is Script {
     }
 
     /// @notice The root of a `snapshot.py build` claims.json, after checking its list total fits the airdrop.
+    /// @dev Audit R3-A3-3 / R3-A4-13: the file's own `total` and `root` are not trusted. The listed amounts must add up
+    ///      to `total`, `total` must fit the 50M airdrop, and `root` must be the OpenZeppelin StandardMerkleTree root
+    ///      of exactly the listed (address, amount) leaves, rebuilt here as `airdrop/snapshot.py` builds it (leaves
+    ///      double-hashed and sorted, the tree filled from the end), so the root commits to nothing else.
     function airdropRootFromClaims(string memory json) public pure returns (bytes32 root) {
         root = vm.parseJsonBytes32(json, ".root");
         uint256 total = vm.parseUint(vm.parseJsonString(json, ".total"));
+        string[] memory accounts = vm.parseJsonKeys(json, ".claims");
+        require(accounts.length != 0, "airdrop list is empty");
+        bytes32[] memory leaves = new bytes32[](accounts.length);
+        uint256 sum;
+        for (uint256 i; i < accounts.length; ++i) {
+            uint256 amount =
+                vm.parseUint(vm.parseJsonString(json, string.concat(".claims.", accounts[i], ".amount")));
+            sum += amount;
+            leaves[i] = keccak256(bytes.concat(keccak256(abi.encode(vm.parseAddress(accounts[i]), amount))));
+        }
+        require(sum == total, "airdrop total doesn't match the claims");
         require(total <= AIRDROP, "airdrop list exceeds 50M");
+        require(standardMerkleRoot(leaves) == root, "airdrop root doesn't match the claims");
+    }
+
+    /// @notice OpenZeppelin StandardMerkleTree root of `leaves` (already hashed), as `airdrop/snapshot.py` builds it.
+    function standardMerkleRoot(bytes32[] memory leaves) public pure returns (bytes32) {
+        uint256 n = leaves.length;
+        _sortBytes32(leaves, 0, int256(n) - 1);
+        bytes32[] memory tree = new bytes32[](2 * n - 1);
+        for (uint256 k; k < n; ++k) {
+            tree[tree.length - 1 - k] = leaves[k];
+        }
+        for (uint256 i = tree.length - n; i > 0; --i) {
+            (bytes32 a, bytes32 b) = (tree[2 * i - 1], tree[2 * i]);
+            tree[i - 1] = a < b ? keccak256(abi.encode(a, b)) : keccak256(abi.encode(b, a));
+        }
+        return tree[0];
+    }
+
+    function _sortBytes32(bytes32[] memory a, int256 lo, int256 hi) internal pure {
+        if (lo >= hi) return;
+        bytes32 pivot = a[uint256(lo + (hi - lo) / 2)];
+        int256 i = lo;
+        int256 j = hi;
+        while (i <= j) {
+            while (a[uint256(i)] < pivot) i++;
+            while (a[uint256(j)] > pivot) j--;
+            if (i <= j) {
+                (a[uint256(i)], a[uint256(j)]) = (a[uint256(j)], a[uint256(i)]);
+                i++;
+                j--;
+            }
+        }
+        _sortBytes32(a, lo, j);
+        _sortBytes32(a, i, hi);
     }
 
     /// @notice Robinhood Chain mainnet (4663): the only chain values a mainnet run can use.
@@ -243,12 +293,13 @@ contract Deploy is Script {
         address imd = p.chain.imd;
         address pm = p.chain.poolManager;
 
-        // 1. Timelocks: the Safe proposes (and can cancel), anyone executes after the delay, no admin.
+        // 1. Timelocks: the Safe proposes (and can cancel), anyone executes after the delay, no admin; the delay can
+        //    never be lowered below these values (audit R3-A4-4).
         address[] memory proposers = new address[](1);
         proposers[0] = p.safe;
         address[] memory executors = new address[](1); // address(0) = anyone
-        d.fastTimelock = new TimelockController(p.chain.fastDelay, proposers, executors, address(0));
-        d.slowTimelock = new TimelockController(p.chain.slowDelay, proposers, executors, address(0));
+        d.fastTimelock = new PondPadTimelock(p.chain.fastDelay, proposers, executors, address(0));
+        d.slowTimelock = new PondPadTimelock(p.chain.slowDelay, proposers, executors, address(0));
         address fast = address(d.fastTimelock);
         address slow = address(d.slowTimelock);
 
@@ -262,6 +313,7 @@ contract Deploy is Script {
         d.splitter = new FeeSplitter(
             p.deployer,
             imd,
+            pondpad,
             FeeSplitter.Shares({stakers: 4_000, workers: 2_500, growth: 2_000, treasury: 1_500}),
             FeeSplitter.Recipients({stakers: p.safe, workers: address(d.workerFund), growth: address(d.growthFund), treasury: p.safe})
         );
@@ -274,6 +326,9 @@ contract Deploy is Script {
             p.chain.launch
         );
         _setPaymentRoutes(d.config, p.chain);
+        // No coin launches (so no trades and no fees) until the splitter's final recipients are set in step 9: a fee
+        // split before then would pay the stakers' 40% to the Safe placeholder (audit R3-A4-12).
+        d.config.setLaunchesPaused(true);
 
         // 4. Coin launch and trading (version 1).
         d.creatorVault = new CreatorVault(imd);
@@ -360,6 +415,7 @@ contract Deploy is Script {
                 treasury: p.safe
             })
         );
+        d.config.setLaunchesPaused(false); // fee routing is final: launches open
         d.splitter.transferOwnership(slow);
         d.config.transferOwnership(fast);
 

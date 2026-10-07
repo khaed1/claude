@@ -27,6 +27,31 @@ contract MockMarket is IPadMarketLauncher {
     }
 }
 
+/// @dev Buys from the sale inside its own PoolManager unlock, as an outside contract could: the completing buy then
+///      can't graduate inline and leaves the sale Full.
+contract UnlockedSaleBuyer {
+    IPoolManager internal immutable pm;
+    PadSale internal immutable sale;
+    address internal immutable imd;
+
+    constructor(IPoolManager pm_, PadSale sale_, address imd_) {
+        pm = pm_;
+        sale = sale_;
+        imd = imd_;
+    }
+
+    function buy(uint256 imdIn) external {
+        pm.unlock(abi.encode(imdIn));
+    }
+
+    function unlockCallback(bytes calldata data) external returns (bytes memory) {
+        uint256 imdIn = abi.decode(data, (uint256));
+        ERC20(imd).approve(address(sale), imdIn);
+        sale.buyWith(imd, imdIn, 0, 0, block.timestamp, address(0));
+        return "";
+    }
+}
+
 contract PadSaleTest is Base {
     uint256 internal constant SALE_TARGET = 8_460e18;
     uint256 internal constant START = 1_000_000;
@@ -379,5 +404,25 @@ contract PadSaleTest is Base {
         assertEq(pondpad.balanceOf(address(sale)), 0, "no $PONDPAD left in the sale");
         assertEq(imd.balanceOf(address(market)), market.imdAmount() + 1e18);
         assertEq(pondpad.balanceOf(address(market)), sale.POOL_SUPPLY() + 5e18);
+    }
+
+    /// @dev Audit R3-A2-6 (coverage): a completing buy made inside an outside PoolManager unlock leaves the sale Full;
+    ///      anyone then finishes the graduation with `graduate()`, once.
+    function test_sale_fullSaleGraduatesThroughGraduate() public {
+        vm.warp(START + 30 minutes);
+        _fillUntilCompletes(300e18); // small enough for the 15M per-wallet cap
+        UnlockedSaleBuyer b = new UnlockedSaleBuyer(IPoolManager(address(pm)), sale, address(imd));
+        imd.mint(address(b), 300e18);
+        b.buy(300e18);
+        assertEq(uint8(sale.status()), uint8(PadSale.Status.Full));
+        assertEq(market.calls(), 0);
+        vm.prank(alice);
+        sale.graduate();
+        assertEq(uint8(sale.status()), uint8(PadSale.Status.Graduated));
+        assertEq(market.calls(), 1);
+        assertEq(market.tokenAmount(), 300_000_000e18);
+        assertApproxEqRel(market.imdAmount(), SALE_TARGET, 0.0001e18);
+        vm.expectRevert(PadSale.NotFull.selector);
+        sale.graduate();
     }
 }

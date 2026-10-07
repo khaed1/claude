@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Ownable} from "solady/auth/Ownable.sol";
+import {FixedOwnable} from "./FixedOwnable.sol";
 import {EIP712} from "solady/utils/EIP712.sol";
 import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
 import {LibString} from "solady/utils/LibString.sol";
@@ -17,8 +17,11 @@ interface ICoinRecipients {
 ///         own X account the same way (`linkWallet`): CTO proposers must, so every takeover shows who is behind it.
 /// @dev Handles are stored as hashes (keccak256 of the lowercased handle). The verifier (service key) or the owner
 ///      (48 h timelock) can revoke a link; the fee recipient can unlink. Vouchers are bound to the coin, account,
-///      a per-coin nonce and a deadline.
-contract SocialRegistry is Ownable, EIP712 {
+///      a per-coin nonce and a deadline; a revocation uses up the nonce, so a voucher signed before it is void
+///      (audit R3-A4-5). A coin's link counts only while the account that made it is still the coin's fee
+///      recipient: after a takeover (or any recipient change) the old badge is gone and anyone can clear it (audit
+///      R3-A4-9).
+contract SocialRegistry is FixedOwnable, EIP712 {
     bytes32 public constant LINK_TYPEHASH =
         keccak256("Link(address coin,bytes32 handleHash,address account,uint256 nonce,uint256 deadline)");
 
@@ -28,7 +31,9 @@ contract SocialRegistry is Ownable, EIP712 {
     ICoinRecipients public immutable creatorVault;
     address public verifier;
 
-    mapping(address coin => bytes32) public handleOf;
+    mapping(address coin => bytes32) internal _handleOf;
+    /// @notice The fee recipient that linked the coin's handle (audit R3-A4-9).
+    mapping(address coin => address) public linkedBy;
     mapping(address coin => uint256) public nonces;
     /// @notice How many coins currently link each handle.
     mapping(bytes32 handleHash => uint256) public linkCount;
@@ -67,23 +72,34 @@ contract SocialRegistry is Ownable, EIP712 {
             _hashTypedData(keccak256(abi.encode(LINK_TYPEHASH, coin, handleHash, msg.sender, nonces[coin]++, deadline)));
         if (!SignatureCheckerLib.isValidSignatureNowCalldata(verifier, digest, signature)) revert BadVoucher();
 
-        bytes32 old = handleOf[coin];
+        bytes32 old = _handleOf[coin];
         if (old != bytes32(0)) linkCount[old]--;
-        handleOf[coin] = handleHash;
+        _handleOf[coin] = handleHash;
+        linkedBy[coin] = msg.sender;
         uint256 n = ++linkCount[handleHash];
         emit Linked(coin, handleHash, msg.sender, n > 1);
     }
 
-    /// @notice Removes a coin's link. The coin's fee recipient, the verifier or the owner.
+    /// @notice Removes a coin's link. The coin's fee recipient, the verifier or the owner; anyone once the account that
+    ///         linked it is no longer the fee recipient (audit R3-A4-9). Vouchers signed before it are void (R3-A4-5).
     function unlink(address coin) external {
-        if (msg.sender != creatorVault.recipientOf(coin) && msg.sender != verifier && msg.sender != owner()) {
-            revert Unauthorized();
-        }
-        bytes32 h = handleOf[coin];
+        address recipient = creatorVault.recipientOf(coin);
+        if (
+            msg.sender != recipient && msg.sender != verifier && msg.sender != owner() && linkedBy[coin] == recipient
+        ) revert Unauthorized();
+        bytes32 h = _handleOf[coin];
         if (h == bytes32(0)) revert NotLinked();
-        delete handleOf[coin];
+        delete _handleOf[coin];
+        delete linkedBy[coin];
         linkCount[h]--;
+        nonces[coin]++;
         emit Unlinked(coin, h, msg.sender);
+    }
+
+    /// @notice The coin's linked handle hash, while the account that linked it is still the coin's fee recipient.
+    function handleOf(address coin) public view returns (bytes32) {
+        if (linkedBy[coin] != creatorVault.recipientOf(coin)) return bytes32(0);
+        return _handleOf[coin];
     }
 
     /// @notice Links the caller's wallet to X account `handle` (without the @). The voucher signs
@@ -100,11 +116,13 @@ contract SocialRegistry is Ownable, EIP712 {
         emit WalletLinked(msg.sender, handle);
     }
 
-    /// @notice Removes a wallet's X link. The wallet itself, the verifier or the owner.
+    /// @notice Removes a wallet's X link. The wallet itself, the verifier or the owner. Vouchers signed before it are
+    ///         void (audit R3-A4-5).
     function unlinkWallet(address account) external {
         if (msg.sender != account && msg.sender != verifier && msg.sender != owner()) revert Unauthorized();
         if (bytes(walletHandle[account]).length == 0) revert NotLinked();
         delete walletHandle[account];
+        walletNonces[account]++;
         emit WalletUnlinked(account, msg.sender);
     }
 
@@ -119,9 +137,10 @@ contract SocialRegistry is Ownable, EIP712 {
         }
     }
 
-    /// @notice The coin's badge: its handle hash and whether another coin links the same handle.
+    /// @notice The coin's badge: its handle hash and whether another coin links the same handle. Nothing once the
+    ///         account that linked it is no longer the coin's fee recipient (audit R3-A4-9).
     function badgeOf(address coin) external view returns (bytes32 handleHash, bool duplicate) {
-        handleHash = handleOf[coin];
+        handleHash = handleOf(coin);
         duplicate = handleHash != bytes32(0) && linkCount[handleHash] > 1;
     }
 

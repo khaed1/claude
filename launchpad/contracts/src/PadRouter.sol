@@ -68,15 +68,20 @@ contract PadRouter is PaymentSwapper, ReentrancyGuard {
         if (fee != 0) imd.safeTransfer(config.feeSplitter(), fee);
         coin = factory.create(p, msg.sender);
         uint256 rest = imdIn - fee;
+        uint256 devBuyImd;
         if (rest != 0) {
             if (devBuy) {
                 imd.safeTransfer(address(curve), rest);
-                (tokensOut,) = curve.buy(coin, rest, minTokensOut, msg.sender, msg.sender, true, referrer);
+                uint256 refund;
+                (tokensOut, refund) = curve.buy(coin, rest, minTokensOut, msg.sender, msg.sender, true, referrer);
+                devBuyImd = rest - refund; // what the dev buy kept, after a completing buy's refund (audit R3-A1-5)
             } else {
                 imd.safeTransfer(msg.sender, rest);
             }
+        } else if (devBuy && minTokensOut != 0) {
+            revert Slippage(); // a requested dev buy that buys nothing honours minTokensOut (audit R3-A1-4)
         }
-        emit Launched(coin, msg.sender, devBuy ? rest : 0, tokensOut);
+        emit Launched(coin, msg.sender, devBuyImd, tokensOut);
     }
 
     function _launchFee() internal view returns (uint256) {
@@ -168,9 +173,9 @@ contract PadRouter is PaymentSwapper, ReentrancyGuard {
         } else {
             coin.safeTransferFrom(msg.sender, address(curve), tokensIn);
             if (back.length == 0) {
-                out = curve.sell(coin, tokensIn, minOut, msg.sender, referrer);
+                out = curve.sell(coin, tokensIn, minOut, msg.sender, msg.sender, referrer);
             } else {
-                uint256 imdOut = curve.sell(coin, tokensIn, 0, address(this), referrer);
+                uint256 imdOut = curve.sell(coin, tokensIn, 0, address(this), msg.sender, referrer);
                 out = _payOut(tokenOut, imdOut, msg.sender, referrer);
             }
         }
@@ -179,9 +184,10 @@ contract PadRouter is PaymentSwapper, ReentrancyGuard {
 
     // ------------------------------------------------------------------ Payment conversion
 
-    /// @dev Flushes a graduated coin's pending fees, and the integrator's earnings when there is one.
+    /// @dev Flushes a graduated coin's pending fees (leaving the trader out of the holder-tax check, audit R3-A1-1),
+    ///      and the integrator's earnings when there is one.
     function _flushFees(address coin, address referrer) internal {
-        hook.flush(coin);
+        hook.flushFor(coin, msg.sender);
         if (config.integratorShareFor(referrer) != 0) hook.flushIntegrator(referrer);
     }
 

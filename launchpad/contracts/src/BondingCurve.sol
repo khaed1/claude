@@ -226,8 +226,10 @@ contract BondingCurve is ReentrancyGuard {
 
         uint256 fee = (gross * feeBps) / BPS;
         uint256 snipe = gross - net - fee;
-        // Holders are credited before the buyer receives tokens, so a buyer never earns from their own buy.
-        _routeFees(coin, c.fees, fee, referrer);
+        // Holders are credited before the buyer receives tokens, and the holder tax goes to growth when the buyer
+        // already holds all of the eligible supply (audit R3-A1-1), so a buyer never earns from their own buy
+        // beyond its pro-rata share of a balance it already held (accepted, R1-A1-3).
+        _routeFees(coin, c.fees, fee, referrer, recipient);
         if (snipe != 0) imd.safeTransfer(config.growthFund(), snipe);
         if (refund != 0) imd.safeTransfer(refundTo, refund);
         coin.safeTransfer(recipient, out);
@@ -244,7 +246,8 @@ contract BondingCurve is ReentrancyGuard {
     }
 
     /// @notice Sells `tokensIn` of `coin` that the router has already sent here.
-    function sell(address coin, uint256 tokensIn, uint256 minOut, address recipient, address referrer)
+    /// @param trader The seller (the router's caller), left out when checking who else would receive the holder tax.
+    function sell(address coin, uint256 tokensIn, uint256 minOut, address recipient, address trader, address referrer)
         external
         nonReentrant
         returns (uint256 out)
@@ -266,8 +269,9 @@ contract BondingCurve is ReentrancyGuard {
         c.raised -= uint128(gross);
         c.sold -= uint128(tokensIn);
 
-        // The seller's tokens already left their wallet, so they don't share in their own sell's holder fee.
-        _routeFees(coin, c.fees, fee, referrer);
+        // The seller's tokens already left their wallet, so they don't share in their own sell's holder fee beyond
+        // what they still hold; with nobody else eligible it goes to growth (audit R3-A1-1).
+        _routeFees(coin, c.fees, fee, referrer, trader);
         imd.safeTransfer(recipient, out);
         emit CurveTrade(coin, recipient, false, gross, tokensIn, fee, 0, c.raised);
     }
@@ -304,7 +308,9 @@ contract BondingCurve is ReentrancyGuard {
         emit Graduated(coin, poolImd, poolTokens, graduationFee);
     }
 
-    function _routeFees(address coin, CoinFees memory fees, uint256 fee, address referrer) internal {
+    function _routeFees(address coin, CoinFees memory fees, uint256 fee, address referrer, address trader)
+        internal
+    {
         if (fee == 0) return;
         FeeParts memory p = FeeLib.split(fees, fee);
         uint256 integratorCut = (p.protocol * config.integratorShareFor(referrer)) / BPS;
@@ -323,9 +329,9 @@ contract BondingCurve is ReentrancyGuard {
             IFeeSink(swarmBudget).credit(coin, p.swarm);
         }
         if (p.holders != 0) {
-            // Nobody eligible yet (the coin's first buy) or any more: a holder tax parked on the coin would be
-            // credited at the next trade to whoever holds then, i.e. back to this buyer (audit R2-A1-3).
-            if (PadToken(coin).eligibleSupply() < MIN_ELIGIBLE_HOLDERS) {
+            // Nobody eligible apart from the trader (the coin's first buy, or a sole holder trading again): the
+            // holder tax would be credited back to the trader (audits R2-A1-3, R3-A1-1), so it goes to growth.
+            if (PadToken(coin).eligibleSupplyExcept(trader) < MIN_ELIGIBLE_HOLDERS) {
                 imd.safeTransfer(config.growthFund(), p.holders);
             } else {
                 imd.safeTransfer(coin, p.holders);

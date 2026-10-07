@@ -61,9 +61,16 @@ contract ForkTest is Test {
         forked = true;
 
         imdEth = PoolKey(Currency.wrap(address(0)), Currency.wrap(IMD), 10_000, 100, IHooks(address(0)));
+        bytes32 pondpadInit = keccak256(abi.encodePacked(type(PondPadToken).creationCode, abi.encode(address(this))));
+        address pondpadAt; // where the tests below deploy $PONDPAD (first salt above IMD); the splitter must know it
+        for (uint256 i;; i++) {
+            pondpadAt = vm.computeCreate2Address(bytes32(i), pondpadInit, address(this));
+            if (pondpadAt > IMD) break;
+        }
         splitter = new FeeSplitter(
             address(this),
             IMD,
+            pondpadAt,
             FeeSplitter.Shares(4_000, 2_500, 2_000, 1_500),
             FeeSplitter.Recipients(makeAddr("stakers"), makeAddr("workers"), growth, makeAddr("treasury"))
         );

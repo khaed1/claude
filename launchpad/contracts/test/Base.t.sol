@@ -21,6 +21,7 @@ import {PadRouter} from "../src/PadRouter.sol";
 import {CreatorVault} from "../src/CreatorVault.sol";
 import {SwarmBudget} from "../src/SwarmBudget.sol";
 import {FeeSplitter} from "../src/FeeSplitter.sol";
+import {PondPadToken} from "../src/PondPadToken.sol";
 import {IntegratorVault} from "../src/IntegratorVault.sol";
 import {CoinFees} from "../src/FeeLib.sol";
 import {Hop} from "../src/Route.sol";
@@ -114,6 +115,7 @@ abstract contract Base is Test {
         splitter = new FeeSplitter(
             address(this),
             address(imd),
+            _predictPondpad(),
             FeeSplitter.Shares({stakers: 4_000, workers: 2_500, growth: 2_000, treasury: 1_500}),
             FeeSplitter.Recipients({stakers: stakers, workers: workers, growth: growth, treasury: treasury})
         );
@@ -179,6 +181,16 @@ abstract contract Base is Test {
 
     /// @dev A hookless native-ETH/IMD pool like the one on Robinhood: 1% fee, tick spacing 100, ~423 IMD per ETH,
     ///      seeded with 100 ETH of full-range liquidity.
+    /// @dev Where `new PondPadToken{salt: i}(address(this))` lands for the first salt above IMD: the tests that use
+    ///      $PONDPAD deploy it that way, and the splitter must know its address (audit R3-A3-8).
+    function _predictPondpad() internal view returns (address predicted) {
+        bytes32 initHash = keccak256(abi.encodePacked(type(PondPadToken).creationCode, abi.encode(address(this))));
+        for (uint256 i;; i++) {
+            predicted = vm.computeCreate2Address(bytes32(i), initHash, address(this));
+            if (predicted > address(imd)) return predicted;
+        }
+    }
+
     function _seedImdEthPool() internal returns (PoolKey memory key) {
         key = PoolKey(Currency.wrap(address(0)), Currency.wrap(address(imd)), 10_000, 100, IHooks(address(0)));
         // sqrt(423) * 2^96

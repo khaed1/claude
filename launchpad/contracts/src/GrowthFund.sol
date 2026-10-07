@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Ownable} from "solady/auth/Ownable.sol";
+import {FixedOwnable} from "./FixedOwnable.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {ReentrancyGuard} from "solady/utils/ReentrancyGuard.sol";
 
@@ -13,7 +13,7 @@ import {ReentrancyGuard} from "solady/utils/ReentrancyGuard.sol";
 /// @dev The relay is a hot wallet, so its cap bounds what a leaked key could take. Grant caps are per token; a
 ///      token with no cap can't be granted. Owner (48 h timelock): relay, granter and caps. There is no other way
 ///      to move funds out.
-contract GrowthFund is Ownable, ReentrancyGuard {
+contract GrowthFund is FixedOwnable, ReentrancyGuard {
     using SafeTransferLib for address;
 
     uint256 public constant EPOCH = 7 days;

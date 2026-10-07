@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Ownable} from "solady/auth/Ownable.sol";
+import {FixedOwnable} from "./FixedOwnable.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {IUnlockCallback} from "v4-core/interfaces/callback/IUnlockCallback.sol";
@@ -27,7 +27,7 @@ interface IMarketControllerView {
 ///      above the reference in $PONDPAD's price, and its swap limit stops the fill at reference + deviation +
 ///      slippage. A sandwich can therefore cost the stakers at most about 2% on one small chunk (defaults).
 ///      IMD is currency0, so buying $PONDPAD moves the tick down.
-contract PadBuyer is Ownable, IUnlockCallback {
+contract PadBuyer is FixedOwnable, IUnlockCallback {
     using SafeTransferLib for address;
 
     address public immutable imd;

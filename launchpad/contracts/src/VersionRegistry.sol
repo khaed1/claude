@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Ownable} from "solady/auth/Ownable.sol";
+import {FixedOwnable} from "./FixedOwnable.sol";
 import {LibString} from "solady/utils/LibString.sol";
 import {AttestationVerifier, OracleAttestation} from "./AttestationVerifier.sol";
 
@@ -15,7 +15,7 @@ import {AttestationVerifier, OracleAttestation} from "./AttestationVerifier.sol"
 ///      Chain: the owner activates a version citing the audit job link; it retires that path once attestations
 ///      work, one-way (D-46). The owner can switch back to an earlier activated version (rollback). Owner: the
 ///      7-day timelock, the same delay as oracle signer changes, since it can also swap the verifier.
-contract VersionRegistry is Ownable {
+contract VersionRegistry is FixedOwnable {
     using LibString for address;
 
     struct Version {
@@ -34,6 +34,9 @@ contract VersionRegistry is Ownable {
     bool public manualActivationRetired;
     /// @notice Version number of the current version (versions start at 1; 0 means none yet).
     uint256 public currentVersion;
+    /// @notice The highest version ever activated. Only an activation above it moves `currentVersion`, so after an
+    ///         owner rollback an attested activation of a version in between can't move it again (audit R3-A4-6).
+    uint256 public highestActivated;
     Version[] internal _versions;
     mapping(bytes32 requestId => bool) public usedRequest;
 
@@ -135,9 +138,11 @@ contract VersionRegistry is Ownable {
         v.activatedAt = uint64(block.timestamp);
         v.auditRef = auditRef;
         emit Activated(version, requestId, auditRef);
-        // Activation only moves new launches forward (audit R1-A4-6): activating an older version (anyone can
-        // submit an attestation) marks it activated, but only the owner's `setCurrent` rolls back.
-        if (version > currentVersion) {
+        // Activation only moves new launches forward (audits R1-A4-6, R3-A4-6): activating a version no newer than
+        // the newest ever activated (anyone can submit an attestation) marks it activated, but only the owner's
+        // `setCurrent` chooses among those.
+        if (version > highestActivated) {
+            highestActivated = version;
             currentVersion = version;
             emit CurrentSet(version);
         }

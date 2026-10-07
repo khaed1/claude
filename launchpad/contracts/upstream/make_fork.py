@@ -326,6 +326,60 @@ rep('''       migrates (D-40, audit R1-A2-2/3).''', '''       migrates (D-40, au
     6. Audit round 2: an owner `closeBackstop` or a migration seed earns no keeper tip (`untippedQuote`, R2-A2-1); a
        closed market can never be reopened (R2-A2-7); two upstream comments corrected (R2-A2-6).''')
 
+# ---------- 16. audit round 3 (R3-A2-3, R3-A3-2)
+rep('import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";',
+    'import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";\nimport {TransientStateLibrary} from "v4-core/libraries/TransientStateLibrary.sol";')
+rep('    using StateLibrary for IPoolManager;\n', '    using StateLibrary for IPoolManager;\n    using TransientStateLibrary for IPoolManager;\n')
+# R3-A3-2: the previous close has stood for every block since the last swap, so the reference may move one step per
+# elapsed block, not one step per block that had a swap. Otherwise, after a crash and quiet blocks, the reference
+# still sits at the pre-crash price and one pump-buy-dump block makes PadBuyer pay that price.
+rep('''    /// reference — a distant poison then costs many consecutive block-edge captures. Pure snapshot — no
+    /// liquidity op, no external call.
+    function _observeTick() internal {
+        if (block.number != refBlock) {
+            int24 target = curBlockTick;
+            int24 step = maxRefStep;
+            int24 delta = target - refTick; // both are valid ticks; diff fits in int24
+            if (delta > step) target = refTick + step;
+            else if (delta < -step) target = refTick - step;
+            refTick = target; // stays a valid tick: |target - refTick| <= |curBlockTick - refTick|''',
+    '''    /// reference — a distant poison then costs many consecutive block-edge captures. Pure snapshot — no
+    /// liquidity op, no external call.
+    /// PondPad (audit R3-A3-2): the step is `maxRefStep` per block elapsed since the previous close (the block of
+    /// the last swap), not per swapped block: that close has stood for every block since, so after quiet blocks the
+    /// reference catches up with the price the market actually held instead of staying where it was before a move.
+    /// Dragging it still needs the manipulated price to stand for one block per step, as before.
+    function _observeTick() internal {
+        if (block.number != refBlock) {
+            int24 target = curBlockTick;
+            uint256 blocks = block.number - refBlock;
+            if (blocks > MAX_CATCHUP_BLOCKS) blocks = MAX_CATCHUP_BLOCKS;
+            int256 step = int256(maxRefStep) * int256(blocks);
+            int256 delta = int256(target) - int256(refTick);
+            if (delta > step) target = int24(int256(refTick) + step);
+            else if (delta < -step) target = int24(int256(refTick) - step);
+            refTick = target; // stays a valid tick: |target - refTick| <= |curBlockTick - refTick|''')
+rep('''    int24 internal constant MAX_TICK_RATE_CEIL = 2000;
+''', '''    int24 internal constant MAX_TICK_RATE_CEIL = 2000;
+    /// @dev PondPad (audit R3-A3-2): enough elapsed blocks to cross the whole tick range at the smallest step.
+    uint256 internal constant MAX_CATCHUP_BLOCKS = 1 << 21;
+''')
+# R3-A2-3: a router that pays before it swaps (sync, transfer, swap, settle) settles against the PoolManager's synced
+# reserves; a `take` of the synced currency inside its swap makes that settle fall short. Upstream took native ETH,
+# which a synced ERC-20 settle never reads. So matured claims wait while IMD or $PONDPAD is synced; any later swap,
+# settleClaims(), settleQuoteClaims() or rebalance() realises them.
+rep('''    function _maybeRedeemMaturedClaims() internal {
+        if (block.number <= lastClaimBlock) return;''', '''    function _maybeRedeemMaturedClaims() internal {
+        if (block.number <= lastClaimBlock) return;
+        // PondPad (audit R3-A2-3): not while the swapper has IMD or $PONDPAD synced for a pay-first settle.
+        address synced = Currency.unwrap(poolManager.getSyncedCurrency());
+        if (synced == quote || synced == token) return;''')
+rep('''    6. Audit round 2: an owner `closeBackstop` or a migration seed earns no keeper tip (`untippedQuote`, R2-A2-1); a
+       closed market can never be reopened (R2-A2-7); two upstream comments corrected (R2-A2-6).''', '''    6. Audit round 2: an owner `closeBackstop` or a migration seed earns no keeper tip (`untippedQuote`, R2-A2-1); a
+       closed market can never be reopened (R2-A2-7); two upstream comments corrected (R2-A2-6).
+    7. Audit round 3: `refTick` steps `maxRefStep` per block elapsed since the last swap (R3-A3-2); matured claims are
+       not realised inside a swap while the swapper has IMD or $PONDPAD synced (R3-A2-3).''')
+
 code = '\n'.join(l.split('//')[0] for l in s.splitlines())
 for bad in ['msg.value', 'settle{value', 'safeTransferETH', 'lpFee', ' ether', 'external payable']:
     assert bad not in code, (bad, [l for l in s.splitlines() if bad in l.split('//')[0]])

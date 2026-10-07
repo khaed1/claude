@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Ownable} from "solady/auth/Ownable.sol";
+import {FixedOwnable} from "./FixedOwnable.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
@@ -29,7 +29,7 @@ interface IPadBurner {
 /// @dev Roles: `owner` is the 48-hour timelock (policy, extra inventory, backstop close); `sinkAdmin` is the
 ///      7-day timelock (burn sink, rewards recipient, migration approval), fixed at deploy (audit R1-A2-5: it can't
 ///      hand these powers to an undelayed address). Neither can move the position or the retained IMD.
-contract MarketController is Ownable, IPadMarketLauncher {
+contract MarketController is FixedOwnable, IPadMarketLauncher {
     using SafeTransferLib for address;
 
     address public immutable imd;
@@ -56,6 +56,8 @@ contract MarketController is Ownable, IPadMarketLauncher {
     /// @notice Migration is possible only before this time (12 months after the market opened). Zero before launch.
     uint256 public migrationDeadline;
     uint256 public constant MIGRATION_WINDOW = 365 days;
+    /// @notice The cap decay can be raised to at most this multiple of its deploy value (audit R3-A2-1).
+    uint256 public constant MAX_CAP_DECAY_MULTIPLE = 5;
     /// @notice The new hook the 7-day timelock approved for `migrate`; zero when none.
     address public approvedMigration;
 
@@ -69,6 +71,7 @@ contract MarketController is Ownable, IPadMarketLauncher {
     error AlreadyLaunched(); // Unauthorized and AlreadyInitialized come from Ownable
     error InvalidSetup();
     error MigrationClosed();
+    error PolicyOutOfBounds();
 
     modifier onlySinkAdmin() {
         if (msg.sender != sinkAdmin) revert Unauthorized();
@@ -191,11 +194,16 @@ contract MarketController is Ownable, IPadMarketLauncher {
 
     // ------------------------------------------------------------------ Policy (48 h timelock)
 
+    /// @notice The cap never falls below the deploy floor (150M, D-21): it can be raised, and lowered back to that,
+    ///         but owner settings can't let ordinary trading trim the market position away (audit R3-A2-1).
     function setCapFloor(uint256 newFloor) external onlyOwner {
+        if (newFloor < initialCapFloor) revert PolicyOutOfBounds();
         hook.setCapFloor(newFloor);
     }
 
+    /// @notice At most `MAX_CAP_DECAY_MULTIPLE` times the deploy pace (500k/day, D-21) (audit R3-A2-1).
     function setCapDecay(uint256 tokensPerDay) external onlyOwner {
+        if (tokensPerDay > initialCapDecayPerDay * MAX_CAP_DECAY_MULTIPLE) revert PolicyOutOfBounds();
         hook.setCapDecay(tokensPerDay);
     }
 
@@ -231,18 +239,28 @@ contract MarketController is Ownable, IPadMarketLauncher {
     }
 
     /// @notice Adds inventory (from the liquidity reserve and treasury): pulls up to the maxima from the caller,
-    ///         adds it to the market position, raises the cap, and returns what was not used.
+    ///         adds it to the market position, raises the cap, and returns what this call pulled and did not use.
+    ///         Anything that was already here (sent by someone else) joins the protocol fees or is burned, as in
+    ///         `launch` and `migrate`: the controller pays no wallet (audit R3-A2-5).
     function fundInventory(uint128 liquidity, uint256 maximumTokenAmount, uint256 maximumImdAmount)
         external
         onlyOwner
     {
+        uint256 tokenBefore = token.balanceOf(address(this));
+        uint256 imdBefore = imd.balanceOf(address(this));
         token.safeTransferFrom(msg.sender, address(this), maximumTokenAmount);
         imd.safeTransferFrom(msg.sender, address(this), maximumImdAmount);
         hook.fundInventory(liquidity, maximumTokenAmount, maximumImdAmount);
-        uint256 tokenLeft = token.balanceOf(address(this));
+        // The hook takes at most the maxima, so the balances can't fall below what was here before.
+        uint256 tokenLeft = token.balanceOf(address(this)) - tokenBefore;
         if (tokenLeft != 0) token.safeTransfer(msg.sender, tokenLeft);
-        uint256 imdLeft = imd.balanceOf(address(this));
+        uint256 imdLeft = imd.balanceOf(address(this)) - imdBefore;
         if (imdLeft != 0) imd.safeTransfer(msg.sender, imdLeft);
+        if (imdBefore != 0) imd.safeTransfer(feeSplitter, imdBefore);
+        if (tokenBefore != 0) {
+            token.safeTransfer(burner, tokenBefore);
+            IPadBurner(burner).burn();
+        }
     }
 
     // ------------------------------------------------------------------ Sinks (7-day timelock)

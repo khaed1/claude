@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import {ERC20} from "solady/tokens/ERC20.sol";
+import {Vm} from "forge-std/Vm.sol";
 import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
 import {PoolModifyLiquidityTest} from "v4-core/test/PoolModifyLiquidityTest.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
@@ -336,7 +337,38 @@ contract PondPadTest is Base {
         _fillCurve(coin);
         vm.prank(address(router));
         vm.expectRevert(BondingCurve.NotTrading.selector);
-        curve.sell(coin, 1e18, 0, alice, address(0));
+        curve.sell(coin, 1e18, 0, alice, alice, address(0));
+    }
+
+    /// @dev Audit R3-A1-4: a requested dev buy that buys nothing (only the launch fee arrived) honours `minTokensOut`.
+    function test_launch_devBuyThatBuysNothingHonoursMinTokensOut() public {
+        vm.prank(creator);
+        vm.expectRevert(PadRouter.Slippage.selector);
+        router.launchWith(_params("FROG", _noTax(), bytes32(0)), address(imd), 1e18, true, 0, 1, address(0));
+    }
+
+    /// @dev Audit R3-A1-5: when the dev buy completes the curve and part of it is refunded, `Launched` reports the IMD
+    ///      the dev buy kept.
+    function test_launch_eventReportsWhatTheDevBuyKept() public {
+        uint256 before = imd.balanceOf(creator);
+        vm.recordLogs();
+        vm.prank(creator);
+        (address coin,) =
+            router.launchWith(_params("FROG", _noTax(), bytes32(0)), address(imd), 3_001e18, true, 0, 0, address(0));
+        assertEq(uint8(curve.statusOf(coin)), uint8(BondingCurve.Status.Graduated));
+        uint256 kept = before - imd.balanceOf(creator) - 1e18; // less the launch fee
+        assertLt(kept, 3_000e18, "part of the dev buy was refunded");
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bytes32 sig = keccak256("Launched(address,address,uint256,uint256)");
+        bool seen;
+        for (uint256 i; i < logs.length; i++) {
+            if (logs[i].emitter == address(router) && logs[i].topics[0] == sig) {
+                (uint256 devBuyImd,) = abi.decode(logs[i].data, (uint256, uint256));
+                assertEq(devBuyImd, kept);
+                seen = true;
+            }
+        }
+        assertTrue(seen);
     }
 
     // ------------------------------------------------------------------ ETH payments

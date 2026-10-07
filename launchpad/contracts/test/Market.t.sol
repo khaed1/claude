@@ -3,6 +3,10 @@ pragma solidity 0.8.26;
 
 import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
 import {Ownable} from "solady/auth/Ownable.sol";
+import {ERC20} from "solady/tokens/ERC20.sol";
+import {IUnlockCallback} from "v4-core/interfaces/callback/IUnlockCallback.sol";
+import {Currency} from "v4-core/types/Currency.sol";
+import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
@@ -11,12 +15,14 @@ import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {SwapParams, ModifyLiquidityParams} from "v4-core/types/PoolOperation.sol";
 import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
 import {PoolModifyLiquidityTest} from "v4-core/test/PoolModifyLiquidityTest.sol";
-import {Base} from "./Base.t.sol";
+import {Base, MockIMD} from "./Base.t.sol";
 import {PadSale} from "../src/PadSale.sol";
 import {PondPadToken} from "../src/PondPadToken.sol";
 import {PadBurner} from "../src/PadBurner.sol";
 import {PadMarketHook} from "../src/PadMarketHook.sol";
 import {MarketController} from "../src/MarketController.sol";
+import {FixedOwnable} from "../src/FixedOwnable.sol";
+import {FeeSplitter} from "../src/FeeSplitter.sol";
 
 /// @dev Shared setup: $PONDPAD, sale, market hook, controller and burner on a real PoolManager.
 abstract contract MarketBase is Base {
@@ -122,6 +128,30 @@ abstract contract MarketBase is Base {
             PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
             ""
         );
+    }
+}
+
+/// @dev A v4-legal router that pays before it swaps: sync IMD, transfer, swap, settle, take (audit R3-A2-3).
+contract PayFirstRouter is IUnlockCallback {
+    IPoolManager internal immutable pm;
+
+    constructor(IPoolManager pm_) {
+        pm = pm_;
+    }
+
+    function buy(PoolKey memory key, uint256 imdIn) external returns (uint256 out) {
+        out = abi.decode(pm.unlock(abi.encode(key, imdIn, msg.sender)), (uint256));
+    }
+
+    function unlockCallback(bytes calldata data) external returns (bytes memory) {
+        (PoolKey memory key, uint256 imdIn, address to) = abi.decode(data, (PoolKey, uint256, address));
+        pm.sync(key.currency0);
+        ERC20(Currency.unwrap(key.currency0)).transfer(address(pm), imdIn);
+        BalanceDelta d = pm.swap(key, SwapParams(true, -int256(imdIn), TickMath.MIN_SQRT_PRICE + 1), "");
+        pm.settle();
+        uint256 out = uint256(uint128(d.amount1()));
+        pm.take(key.currency1, to, out);
+        return abi.encode(out);
     }
 }
 
@@ -270,10 +300,10 @@ contract MarketTest is MarketBase {
 
         // Policy: the 48 h timelock. Sinks: the 7-day timelock only.
         vm.expectRevert(Ownable.Unauthorized.selector);
-        controller.setCapFloor(100_000_000e18);
+        controller.setCapFloor(200_000_000e18);
         vm.prank(timelock);
-        controller.setCapFloor(100_000_000e18);
-        assertEq(market.capFloor(), 100_000_000e18);
+        controller.setCapFloor(200_000_000e18);
+        assertEq(market.capFloor(), 200_000_000e18);
         vm.prank(timelock);
         vm.expectRevert(Ownable.Unauthorized.selector);
         controller.setBurnSink(address(this));
@@ -584,5 +614,129 @@ contract MarketTest is MarketBase {
         (bool ok,) = address(controller).call(abi.encodeWithSignature("setSinkAdmin(address)", address(this)));
         assertFalse(ok, "no setSinkAdmin");
         assertEq(controller.sinkAdmin(), slowTimelock);
+    }
+
+    /// @dev Audit R3-A2-1: the 48 h owner can't remove the cap floor or the decay pace, so ordinary trading can't trim
+    ///      the market position away. Both stay adjustable inside the bounds.
+    function test_market_capFloorAndDecayAreBounded() public {
+        _graduate();
+        vm.startPrank(timelock);
+        vm.expectRevert(MarketController.PolicyOutOfBounds.selector);
+        controller.setCapFloor(0);
+        vm.expectRevert(MarketController.PolicyOutOfBounds.selector);
+        controller.setCapFloor(CAP_FLOOR - 1);
+        vm.expectRevert(MarketController.PolicyOutOfBounds.selector);
+        controller.setCapDecay(type(uint128).max);
+        vm.expectRevert(MarketController.PolicyOutOfBounds.selector);
+        controller.setCapDecay(CAP_DECAY * 5 + 1);
+        controller.setCapFloor(CAP_FLOOR * 2); // raising is fine
+        controller.setCapFloor(CAP_FLOOR); // and back down to the deploy floor
+        controller.setCapDecay(CAP_DECAY * 5);
+        controller.setCapDecay(0);
+        vm.stopPrank();
+        assertEq(market.capFloor(), CAP_FLOOR);
+        assertEq(market.capDecayTokensPerDay(), 0);
+    }
+
+    /// @dev Audit R3-A2-2: the controller's owner (48 h timelock) and the splitter's (7-day timelock) can't hand their
+    ///      powers to an undelayed address, renounce them, or start a handover.
+    function test_market_ownersAreFixed() public {
+        address undelayed = makeAddr("undelayed");
+        vm.startPrank(timelock);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        controller.transferOwnership(undelayed);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        controller.renounceOwnership();
+        vm.stopPrank();
+        vm.prank(undelayed);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        controller.requestOwnershipHandover();
+        assertEq(controller.owner(), timelock);
+
+        // The splitter is built by its deployer, which hands it to the timelock once; after that it is fixed.
+        splitter.transferOwnership(slowTimelock);
+        vm.prank(slowTimelock);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        splitter.transferOwnership(undelayed);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        splitter.transferOwnership(address(this)); // nor back by the deployer, which no longer owns it
+        assertEq(splitter.owner(), slowTimelock);
+    }
+
+    /// @dev Audit R3-A2-3: a router that pays IMD before it swaps (sync, transfer, swap, settle) still works in the
+    ///      first swap of a block after a trim, when the hook's matured IMD claims are waiting to be realised.
+    function test_market_payFirstRouterWorksWhileClaimsMature() public {
+        _graduate();
+        _swap(false, 40_000_000e18); // trims: IMD claims wait for a later block
+        assertGt(market.quoteClaims(), 0);
+        _nextBlock();
+        PayFirstRouter r = new PayFirstRouter(IPoolManager(address(pm)));
+        imd.mint(address(r), 100e18);
+        uint256 before = pondpad.balanceOf(address(this));
+        uint256 got = r.buy(market.poolKey(), 100e18);
+        assertGt(got, 0);
+        assertEq(pondpad.balanceOf(address(this)) - before, got);
+        // The claims are realised by any later swap or settle call.
+        _swap(true, 1e18);
+        market.settleClaims();
+        assertEq(market.quoteClaims(), 0);
+    }
+
+    /// @dev Audits R3-A2-5 / R3-A2-6: `fundInventory` adds liquidity and raises the cap, refunds only what it pulled and
+    ///      didn't use, and sends what others left on the controller to the splitter / burner, not to the owner.
+    function test_market_fundInventoryRefundsOnlyItsOwnLeftovers() public {
+        _graduate();
+        imd.mint(address(controller), 5e18); // someone else's tokens on the controller
+        pondpad.transfer(address(controller), 7e18);
+        imd.mint(timelock, 10_000e18);
+        pondpad.transfer(timelock, 30_000_000e18);
+        uint256 splitterBefore = imd.balanceOf(address(splitter));
+        uint256 supplyBefore = pondpad.totalSupply();
+        uint256 capBefore = market.inventoryCap();
+        uint128 liqBefore = market.positionLiquidity();
+        uint256 imdBefore = imd.balanceOf(timelock);
+        uint256 tokBefore = pondpad.balanceOf(timelock);
+        vm.startPrank(timelock);
+        imd.approve(address(controller), type(uint256).max);
+        pondpad.approve(address(controller), type(uint256).max);
+        uint128 liq = liqBefore / 100; // 1% more liquidity
+        controller.fundInventory(liq, 30_000_000e18, 10_000e18);
+        vm.stopPrank();
+        assertEq(market.positionLiquidity(), liqBefore + liq);
+        uint256 tokensAdded = market.inventoryCap() - capBefore;
+        assertGt(tokensAdded, 0);
+        uint256 imdUsed = imdBefore - imd.balanceOf(timelock);
+        assertEq(tokBefore - pondpad.balanceOf(timelock), tokensAdded, "the owner paid exactly what was added");
+        assertGt(imdUsed, 0);
+        assertLt(imdUsed, 10_000e18, "unused IMD came back");
+        assertEq(imd.balanceOf(address(splitter)) - splitterBefore, 5e18, "the donation joined the fees");
+        assertEq(supplyBefore - pondpad.totalSupply(), 7e18, "the donated $PONDPAD was burned");
+        assertEq(imd.balanceOf(address(controller)), 0);
+        assertEq(pondpad.balanceOf(address(controller)), 0);
+    }
+
+    /// @dev Audit R3-A2-6 (coverage): a rebalance in the same Ethereum block as the trim that funded it.
+    function test_market_sameBlockRebalanceAfterTrim() public {
+        _graduate();
+        _swap(false, 10_000_000e18);
+        assertGe(market.retainedQuote(), market.rebalanceQuoteThreshold());
+        market.rebalance(); // same block as the trim
+        (,, uint128 bandLiquidity) = market.backstop();
+        assertGt(bandLiquidity, 0);
+        _nextBlock();
+        _swap(true, 1e18); // the next block's first swap realises the claims
+        assertEq(market.quoteClaims(), 0);
+    }
+
+    /// @dev Audit R3-A3-8: the splitter splits only $PONDPAD besides IMD; another token's 40% would be stuck at
+    ///      PadBuyer, which can only forward $PONDPAD.
+    function test_splitter_distributesOnlyPondpad() public {
+        MockIMD stray = new MockIMD();
+        stray.mint(address(splitter), 100e18);
+        vm.expectRevert(FeeSplitter.NotPondpad.selector);
+        splitter.distributeToken(address(stray));
+        pondpad.transfer(address(splitter), 100e18);
+        splitter.distributeToken(address(pondpad));
+        assertEq(pondpad.balanceOf(stakers), 40e18);
     }
 }

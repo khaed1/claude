@@ -3,7 +3,7 @@ pragma solidity 0.8.26;
 
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {ReentrancyGuard} from "solady/utils/ReentrancyGuard.sol";
-import {Ownable} from "solady/auth/Ownable.sol";
+import {FixedOwnable} from "./FixedOwnable.sol";
 
 interface ICreatorVault {
     function recipientOf(address coin) external view returns (address);
@@ -14,7 +14,7 @@ interface ICreatorVault {
 /// @notice Per-coin escrow funded by the "swarm budget" share of a coin's tax. It can only pay for IMD swarm jobs
 ///         for that coin: the coin's fee recipient requests a job, and the Swarm Relay releases the IMD to pay it.
 /// @dev The owner (timelock) sets the relay and the per-request cap. Every release names its job.
-contract SwarmBudget is Ownable, ReentrancyGuard {
+contract SwarmBudget is FixedOwnable, ReentrancyGuard {
     using SafeTransferLib for address;
 
     struct Request {
