@@ -99,6 +99,7 @@ Every decision and change, in the order it was made, with the reason. Numbers (D
 
 | Commit | Change |
 |---|---|
+| next after `809941c` | Live oracle test (7 Oct 2026): one IMD oracle request paid through the API from the testnet wallet on Ethereum mainnet (user-funded, 0.5 IMD, 0.25 refunded): attested for a consumer on chain 4663; `test/OracleLive.t.sol` verifies it with our `AttestationVerifier` (183 local tests). HANDOFF §5b step 6 and §7: `@` not escaped (R3-A4-15 settled), `allowAmbiguous` not hashed (the screened questions can be bought without a contract change). No contract change |
 | next after `3c1fbb6` | IMD docs and oracle check (7 Oct 2026): HANDOFF §7 (question-hash form verified on live attestations, `/` `'` `:` not escaped, Robinhood is an evidence chain, the new question screens refuse the confirmation and version questions at the free check, questions for the IMD dev, a test question), §6b (docs features for later); round 4 submitted (HANDOFF, ROADMAP, FINDINGS). No code change |
 | next after `38ad442` | Audit round 4 regenerated at `38ad442` (`audit/rounds/4/`; 39 files, 10,229 lines; free check: 5 steps per job, no blockers); HANDOFF / FINDINGS / DECISIONS updated. No code change |
 | next after `505fe96` | Findings ledger after the D-81 fixes: P4-1 to P4-3 and P4-5 fixed in `505fe96`, P4-4 accepted (`audit/FINDINGS.md`, `audit/PRECHECK-4.md` outcome); HANDOFF / DECISIONS name the commit. No code change |
