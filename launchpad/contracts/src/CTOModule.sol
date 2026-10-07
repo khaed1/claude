@@ -20,8 +20,12 @@ interface ICTOSocial {
 
 /// @title CTOModule
 /// @notice Community takeovers (CTO) of a coin's creator fees, decided by the IMD swarm under published rules.
-///         - A proposer with a verified X account (SocialRegistry) submits an IMD oracle attestation answering "yes"
-///           to this module's question for that exact coin, new recipient and proposer.
+///         - A proposer with a verified X account (SocialRegistry) first announces the takeover onchain from its
+///           wallet (`announce`: the coin, the new recipient and its X account, i.e. the whole question), then
+///           submits an IMD oracle attestation answering "yes" to this module's question for that exact coin, new
+///           recipient and proposer, issued at least 7 days after the announcement (CTO-RULES R1 / R5).
+///           The X handle is lowercased in every question and key (X handles are case-insensitive), so another
+///           casing is the same question (audit P4-2, D-81).
 ///         - The new recipient must be a contract: the community's multisig, or the coin itself, which routes the
 ///           creator fees to holders as IMD dividends (D-52). That choice is final: a coin whose fees go to its
 ///           holders can't be taken over again (audit R1-A4-12: nobody could contest it). The recipient is
@@ -37,10 +41,14 @@ interface ICTOSocial {
 ///      waits the same 90 days (audit R3-A4-7). The owner (7-day timelock) retires the council path
 ///      once attestations work, one-way (D-46); council proposals still pending then can't execute. Nobody can
 ///      cancel an attested takeover, but a "no" can end one: anyone records a valid "no" (same bar as a "yes"); a
-///      "no" to the takeover question blocks "yes" answers to it issued in the next 90 days, and a "no" to the
+///      "no" to the takeover question blocks every "yes" to it issued before it or in the 90 days after it (audit
+///      P4-1) and ends a pending takeover whose "yes" was issued at or after it, within 90 days; a "no" to the
 ///      confirmation question ends a contested takeover unless an earlier "yes" already confirmed it (audit R3-A4-8:
-///      otherwise the question could be re-asked until one panel said yes). A takeover ended by a "no" blocks new
-///      proposals for that coin for 90 days. The rules link must be an `ipfs://` link, so the rules can't change (D-51).
+///      otherwise the question could be re-asked until one panel said yes). Like a "yes", a "no" to the takeover
+///      question counts only if issued at least 7 days after the announcement, so a "no" asked before the rules'
+///      notice is over (which the panel must give) can't block or end anything (audit P4-3, D-81). A takeover ended
+///      by a confirmation "no" blocks new proposals for that coin for 90 days. The rules link must be an `ipfs://`
+///      link, so the rules can't change (D-51).
 contract CTOModule is FixedOwnable {
     using LibString for address;
 
@@ -51,8 +59,12 @@ contract CTOModule is FixedOwnable {
     uint256 public constant COOLDOWN = 90 days;
     uint256 public constant MIN_COIN_AGE = 30 days;
     uint16 public constant CONFIRM_MIN_PANEL = 75;
-    /// @notice A recorded "no" blocks "yes" answers to the same question issued this long after it (audit R3-A4-8).
+    /// @notice A recorded "no" blocks "yes" answers to the same question issued before it or up to this long after
+    ///         it (audits R3-A4-8, P4-1).
     uint256 public constant NO_ANSWER_HOLD = 90 days;
+    /// @notice An answer to a takeover question counts only if issued this long after the question was announced
+    ///         onchain (CTO-RULES R1 / R5; audit P4-3, D-81).
+    uint256 public constant ANNOUNCE_NOTICE = 7 days;
     /// @notice Longest rules link: every takeover question must fit the verifier's 2,000-character limit (R2-A4-7).
     uint256 public constant MAX_RULES_URI = 256;
 
@@ -80,14 +92,18 @@ contract CTOModule is FixedOwnable {
     mapping(address coin => uint256) public lastTakeoverAt;
     /// @notice When the council last cancelled a proposal for the coin; it can't propose again for 90 days.
     mapping(address coin => uint256) public councilCancelledAt;
-    /// @dev The proposer's X handle as it was at propose time; the confirmation question names the same one.
+    /// @dev The proposer's X handle (lowercased) as it was at propose time; the confirmation question names it.
     mapping(address coin => string) internal _proposerX;
     mapping(bytes32 requestId => bool) public usedRequest;
     /// @dev The new recipient's code hash at propose; execute requires the same code (audit R2-A4-6).
     mapping(address coin => bytes32) internal _recipientCodehash;
     /// @notice Latest `issuedAt` of a valid "no" recorded for a takeover question (`questionKey`) (audit R3-A4-8).
     mapping(bytes32 questionKey => uint64) public answeredNoAt;
-    /// @notice When a takeover of the coin was last ended by a "no": no new proposal for 90 days (audit R3-A4-8).
+    /// @notice When the takeover question (`questionKey`) was announced onchain by the proposer's wallet; set once
+    ///         (audit P4-3, D-81).
+    mapping(bytes32 questionKey => uint64) public announcedAt;
+    /// @notice When a takeover of the coin was last ended by a confirmation "no": no new proposal for 90 days (audit
+    ///         R3-A4-8; only a confirmation "no" since D-81, as it can't be asked before the contest).
     mapping(address coin => uint256) public endedByNoAt;
     /// @dev `issuedAt` of the "yes" behind the coin's pending attested proposal, and of the "yes" that confirmed it.
     mapping(address coin => uint64) internal _yesIssuedAt;
@@ -101,6 +117,13 @@ contract CTOModule is FixedOwnable {
         uint256 executableAt,
         bytes32 requestId,
         string evidence
+    );
+    event Announced(
+        address indexed coin,
+        address indexed newRecipient,
+        address indexed proposer,
+        string proposerX,
+        bytes32 questionKey
     );
     event Contested(address indexed coin, address indexed by, uint256 executableAt);
     event Confirmed(address indexed coin, bytes32 requestId);
@@ -138,6 +161,9 @@ contract CTOModule is FixedOwnable {
     error AnswerYes();
     error BlockedByNo();
     error TooLate();
+    error NotAnnounced();
+    error AlreadyAnnounced();
+    error AnswerBeforeNotice();
 
     constructor(
         address owner_,
@@ -164,7 +190,8 @@ contract CTOModule is FixedOwnable {
 
     // ------------------------------------------------------------------ Questions
 
-    /// @notice The exact yes/no question the oracle panel must answer for this takeover.
+    /// @notice The exact yes/no question the oracle panel must answer for this takeover. `proposerX` is lowercased,
+    ///         so every casing of a handle gives the same question (audit P4-2).
     function question(address coin, address newRecipient, string memory proposerX)
         public
         view
@@ -208,7 +235,7 @@ contract CTOModule is FixedOwnable {
             "PondPad community takeover on chain id ",
             LibString.toString(block.chainid),
             " proposed by X account @",
-            proposerX
+            LibString.lower(proposerX)
         );
     }
 
@@ -217,18 +244,36 @@ contract CTOModule is FixedOwnable {
         return string.concat(" be routed to the community multisig ", newRecipient.toHexString());
     }
 
-    // ------------------------------------------------------------------ Propose
+    // ------------------------------------------------------------------ Announce / propose
+
+    /// @notice The proposer's wallet announces a takeover onchain: the coin, the new recipient and the caller's
+    ///         linked X account, i.e. the whole takeover question (CTO-RULES R1 / R5). Recorded once per question; a
+    ///         later call can't move it. A "yes" or a "no" to the question counts only if issued at least 7 days after
+    ///         it, so a "no" asked before the notice is over can't block or end the takeover (audit P4-3, D-81).
+    function announce(address coin, address newRecipient) external {
+        string memory handle = LibString.lower(social.walletHandle(msg.sender));
+        if (bytes(handle).length == 0) revert NoXAccount();
+        if (creatorVault.recipientOf(coin) == address(0)) revert UnknownCoin();
+        if (newRecipient.code.length == 0 || _isDelegatedAccount(newRecipient)) revert InvalidRecipient();
+        bytes32 key = _questionKey(coin, newRecipient, handle);
+        if (announcedAt[key] != 0) revert AlreadyAnnounced();
+        announcedAt[key] = uint64(block.timestamp);
+        emit Announced(coin, newRecipient, msg.sender, handle, key);
+    }
 
     /// @notice Proposes a takeover backed by an IMD oracle "yes". The caller is the proposer and needs a verified
-    ///         X account; the question names it.
+    ///         X account; the question names it. The "yes" must be issued at least 7 days after the caller's X account
+    ///         announced this takeover (`announce`).
     function propose(address coin, address newRecipient, OracleAttestation calldata att, bytes calldata signature)
         external
     {
-        string memory handle = social.walletHandle(msg.sender);
+        string memory handle = LibString.lower(social.walletHandle(msg.sender));
         if (bytes(handle).length == 0) revert NoXAccount();
         _use(att.requestId);
         if (!verifier.verifyBool(att, signature, question(coin, newRecipient, handle))) revert AnswerNo();
-        if (_blockedByNo(att.issuedAt, answeredNoAt[questionKey(coin, newRecipient, handle)])) revert BlockedByNo();
+        bytes32 key = _questionKey(coin, newRecipient, handle);
+        _checkNotice(key, att.issuedAt);
+        if (_blockedByNo(att.issuedAt, answeredNoAt[key])) revert BlockedByNo();
         emit AttestationWindow(coin, att.requestId, att.chainId, att.fromBlock, att.toBlock);
         _propose(coin, newRecipient, msg.sender, handle, false, NOTICE, att.requestId, "");
         _yesIssuedAt[coin] = att.issuedAt;
@@ -246,7 +291,8 @@ contract CTOModule is FixedOwnable {
             last.byCouncil && last.contested && !last.confirmed && block.timestamp >= last.expiresAt
                 && block.timestamp < uint256(last.expiresAt) + COOLDOWN
         ) revert Cooldown();
-        _propose(coin, newRecipient, msg.sender, social.walletHandle(msg.sender), true, COUNCIL_NOTICE, 0, evidence);
+        string memory handle = LibString.lower(social.walletHandle(msg.sender));
+        _propose(coin, newRecipient, msg.sender, handle, true, COUNCIL_NOTICE, 0, evidence);
     }
 
     function _propose(
@@ -269,7 +315,7 @@ contract CTOModule is FixedOwnable {
         uint256 last = lastTakeoverAt[coin];
         if (last != 0 && block.timestamp < last + COOLDOWN) revert Cooldown();
         uint256 ended = endedByNoAt[coin];
-        if (ended != 0 && block.timestamp < ended + COOLDOWN) revert Cooldown(); // audit R3-A4-8
+        if (ended != 0 && block.timestamp < ended + COOLDOWN) revert Cooldown(); // audit R3-A4-8 (confirmation "no")
         Takeover storage t = _pending[coin];
         if (t.newRecipient != address(0) && block.timestamp < t.expiresAt) {
             // An attested proposal replaces a pending council one (audit R1-A4-5); anything else waits.
@@ -337,14 +383,21 @@ contract CTOModule is FixedOwnable {
 
     // ------------------------------------------------------------------ "No" answers (audit R3-A4-8)
 
-    /// @notice Key of a takeover question: the coin, the new recipient and the proposer's X handle it names.
+    /// @notice Key of a takeover question: the coin, the new recipient and the proposer's X handle it names
+    ///         (lowercased, audit P4-2).
     function questionKey(address coin, address newRecipient, string memory proposerX) public pure returns (bytes32) {
-        return keccak256(abi.encode(coin, newRecipient, proposerX));
+        return _questionKey(coin, newRecipient, LibString.lower(proposerX));
+    }
+
+    function _questionKey(address coin, address newRecipient, string memory lowerX) internal pure returns (bytes32) {
+        return keccak256(abi.encode(coin, newRecipient, lowerX));
     }
 
     /// @notice Anyone records a valid "no" (it must meet the same bar as a "yes") to the takeover question for `coin`,
-    ///         `newRecipient` and `proposerX`. A "yes" to that question issued in the 90 days after this "no" can't
-    ///         be used, and a pending attested takeover whose "yes" was issued in that span ends.
+    ///         `newRecipient` and `proposerX`, issued at least 7 days after the question was announced (a "no" asked
+    ///         earlier is refused: the rules' notice wasn't over, audit P4-3). A "yes" to that question issued before
+    ///         this "no" or in the 90 days after it can't be used (P4-1), and a pending attested takeover whose
+    ///         "yes" was issued at or after this "no", within 90 days, ends. The coin itself isn't blocked (D-81).
     function recordNo(
         address coin,
         address newRecipient,
@@ -352,23 +405,25 @@ contract CTOModule is FixedOwnable {
         OracleAttestation calldata att,
         bytes calldata signature
     ) external {
+        string memory handle = LibString.lower(proposerX);
         _use(att.requestId);
-        if (verifier.verifyBool(att, signature, question(coin, newRecipient, proposerX))) revert AnswerYes();
+        if (verifier.verifyBool(att, signature, question(coin, newRecipient, handle))) revert AnswerYes();
+        bytes32 key = _questionKey(coin, newRecipient, handle);
+        _checkNotice(key, att.issuedAt);
         emit AttestationWindow(coin, att.requestId, att.chainId, att.fromBlock, att.toBlock);
-        bytes32 key = questionKey(coin, newRecipient, proposerX);
         if (att.issuedAt > answeredNoAt[key]) answeredNoAt[key] = att.issuedAt;
         emit AnsweredNo(coin, att.requestId, newRecipient, att.issuedAt, false);
         Takeover storage t = _pending[coin];
         if (
             t.newRecipient == newRecipient && newRecipient != address(0) && !t.byCouncil
-                && block.timestamp < t.expiresAt && keccak256(bytes(_proposerX[coin])) == keccak256(bytes(proposerX))
-                && _blockedByNo(_yesIssuedAt[coin], att.issuedAt)
-        ) _endByNo(coin);
+                && block.timestamp < t.expiresAt && keccak256(bytes(_proposerX[coin])) == keccak256(bytes(handle))
+                && _endsByNo(_yesIssuedAt[coin], att.issuedAt)
+        ) _endByNo(coin, false);
     }
 
     /// @notice Anyone records a valid "no" from a panel of at least 75, issued after the contest, to the pending
     ///         takeover's confirmation question: the takeover ends, unless a "yes" issued before this "no" already
-    ///         confirmed it.
+    ///         confirmed it, and the coin can't be proposed again for 90 days.
     function recordConfirmNo(address coin, OracleAttestation calldata att, bytes calldata signature) external {
         Takeover storage t = _pending[coin];
         if (t.newRecipient == address(0) || block.timestamp >= t.expiresAt) revert NotPending();
@@ -382,17 +437,34 @@ contract CTOModule is FixedOwnable {
         emit AttestationWindow(coin, att.requestId, att.chainId, att.fromBlock, att.toBlock);
         if (t.confirmed && _confirmIssuedAt[coin] < att.issuedAt) revert TooLate();
         emit AnsweredNo(coin, att.requestId, t.newRecipient, att.issuedAt, true);
-        _endByNo(coin);
+        _endByNo(coin, true);
     }
 
-    /// @dev A "yes" issued at or after a recorded "no", within `NO_ANSWER_HOLD` of it, doesn't count.
+    /// @dev An answer to the takeover question counts only once the question was announced onchain at least
+    ///      `ANNOUNCE_NOTICE` before it was issued (audit P4-3).
+    function _checkNotice(bytes32 key, uint64 issuedAt) internal view {
+        uint256 announced = announcedAt[key];
+        if (announced == 0) revert NotAnnounced();
+        if (issuedAt < announced + ANNOUNCE_NOTICE) revert AnswerBeforeNotice();
+    }
+
+    /// @dev A "yes" doesn't count while a recorded "no" to the same question was issued after it or less than
+    ///      `NO_ANSWER_HOLD` before it (audit P4-1). Only the latest "no" is kept: an earlier one is older still, so if
+    ///      the latest is 90 days older than the "yes", every one is.
     function _blockedByNo(uint64 yesAt, uint64 noAt) internal pure returns (bool) {
-        return noAt != 0 && yesAt >= noAt && uint256(yesAt) < uint256(noAt) + NO_ANSWER_HOLD;
+        return noAt != 0 && uint256(yesAt) < uint256(noAt) + NO_ANSWER_HOLD;
     }
 
-    function _endByNo(address coin) internal {
+    /// @dev A recorded "no" ends a pending takeover only if its "yes" was issued at or after the "no", within
+    ///      `NO_ANSWER_HOLD` of it: a "no" issued after the "yes" doesn't undo a proposal (the creator contests).
+    function _endsByNo(uint64 yesAt, uint64 noAt) internal pure returns (bool) {
+        return yesAt >= noAt && uint256(yesAt) < uint256(noAt) + NO_ANSWER_HOLD;
+    }
+
+    /// @dev Only a confirmation "no" (asked after the contest, panel >= 75) blocks the coin for 90 days (D-81).
+    function _endByNo(address coin, bool confirmation) internal {
         delete _pending[coin];
-        endedByNoAt[coin] = block.timestamp;
+        if (confirmation) endedByNoAt[coin] = block.timestamp;
         emit EndedByNo(coin);
     }
 

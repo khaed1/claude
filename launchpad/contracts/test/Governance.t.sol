@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import {Vm} from "forge-std/Vm.sol";
 import {Ownable} from "solady/auth/Ownable.sol";
 import {LibString} from "solady/utils/LibString.sol";
 import {Base} from "./Base.t.sol";
@@ -70,6 +71,8 @@ contract GovernanceTest is Base {
     uint256 internal constant T0 = 1_000_000;
     string internal constant RULES = "ipfs://bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi";
     uint256 internal constant P = T0 + 30 days; // first time a coin launched at T0 can be taken over
+    uint256 internal constant ANNOUNCED = T0 + 1 hours; // when the tests' proposers announce (after `_coinWithCreatorFees`)
+    uint256 internal constant ASKED = ANNOUNCED + 7 days; // first `issuedAt` that counts for an announced question
 
     AttestationVerifier internal verifier;
     CTOModule internal cto;
@@ -327,9 +330,22 @@ contract GovernanceTest is Base {
         social.linkWallet(handle, block.timestamp + 1, abi.encodePacked(r, s_, v));
     }
 
-    /// @dev Bob (X: frogdao) proposes moving `coin`'s fees to `to` with an oracle "yes".
+    /// @dev `who` announces the takeover of `coin` to `to` onchain under its linked X account (CTO-RULES R1 / R5).
+    function _announce(address who, address coin, address to) internal {
+        vm.prank(who);
+        cto.announce(coin, to);
+    }
+
+    /// @dev The first `issuedAt` at which an answer to the announced takeover question counts: 7 days after it.
+    function _afterNotice(address coin, address to, string memory handle) internal view returns (uint64) {
+        return uint64(cto.announcedAt(cto.questionKey(coin, to, handle)) + 7 days);
+    }
+
+    /// @dev Bob (X: frogdao) proposes moving `coin`'s fees to `to` with an oracle "yes" issued once the notice after
+    ///      his announcement is over (he must have announced it at least 7 days earlier).
     function _proposeAsBob(address coin, address to) internal returns (OracleAttestation memory a, bytes memory sig) {
         a = _att(cto.question(coin, to, "frogdao"), true);
+        a.issuedAt = _afterNotice(coin, to, "frogdao");
         sig = _sign(a, oracleKey);
         vm.prank(bob);
         cto.propose(coin, to, a, sig);
@@ -339,6 +355,7 @@ contract GovernanceTest is Base {
         _approveOracle();
         address coin = _coinWithCreatorFees(_noTax());
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
         (OracleAttestation memory a, bytes memory sig) = _proposeAsBob(coin, newOwner);
         CTOModule.Takeover memory t = cto.pendingOf(coin);
@@ -372,7 +389,9 @@ contract GovernanceTest is Base {
 
         // No new takeover of this coin for 90 days.
         address other = address(new MockSafe());
+        _announce(bob, coin, other);
         OracleAttestation memory b = _att(cto.question(coin, other, "frogdao"), true);
+        b.issuedAt = _afterNotice(coin, other, "frogdao");
         bytes memory bSig = _sign(b, oracleKey);
         vm.warp(P + 3 days + 90 days - 1);
         vm.prank(bob);
@@ -387,23 +406,25 @@ contract GovernanceTest is Base {
         _approveOracle();
         address coin = _coinWithCreatorFees(_noTax());
         OracleAttestation memory a = _att(cto.question(coin, newOwner, "frogdao"), true);
+        a.issuedAt = uint64(ASKED);
         bytes memory sig = _sign(a, oracleKey);
 
         vm.prank(bob);
         vm.expectRevert(CTOModule.NoXAccount.selector); // proposers need a verified X account
         cto.propose(coin, newOwner, a, sig);
         _linkX(bob, "frogdao");
+        // A plain wallet can't receive a takeover: it must be a multisig or the coin (holders).
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.InvalidRecipient.selector);
+        cto.announce(coin, alice);
+        _announce(bob, coin, newOwner);
+        _announce(bob, coin, coin);
+        vm.warp(ASKED);
         vm.prank(bob);
         vm.expectRevert(CTOModule.TooYoung.selector); // coins under 30 days can't be taken over
         cto.propose(coin, newOwner, a, sig);
 
         vm.warp(P);
-        // A plain wallet can't receive a takeover: it must be a multisig or the coin (holders).
-        OracleAttestation memory eoa = _att(cto.question(coin, alice, "frogdao"), true);
-        bytes memory eoaSig = _sign(eoa, oracleKey);
-        vm.prank(bob);
-        vm.expectRevert(CTOModule.InvalidRecipient.selector);
-        cto.propose(coin, alice, eoa, eoaSig);
 
         // An attestation naming Bob can't be used by another proposer.
         _linkX(alice, "alicefrog");
@@ -420,6 +441,7 @@ contract GovernanceTest is Base {
         vm.prank(bob);
         cto.propose(coin, newOwner, a, sig);
         OracleAttestation memory b = _att(cto.question(coin, coin, "frogdao"), true);
+        b.issuedAt = uint64(ASKED);
         bytes memory bSig = _sign(b, oracleKey);
         vm.prank(bob);
         vm.expectRevert(CTOModule.Pending.selector); // one takeover at a time
@@ -437,6 +459,7 @@ contract GovernanceTest is Base {
         _approveOracle();
         address coin = _coinWithCreatorFees(_noTax());
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
         _proposeAsBob(coin, newOwner);
 
@@ -489,6 +512,7 @@ contract GovernanceTest is Base {
         budget.sweepToHolders(coin);
 
         _linkX(bob, "frogdao");
+        _announce(bob, coin, coin);
         vm.warp(P);
         _proposeAsBob(coin, coin); // the coin itself = its holders
         vm.warp(P + 3 days);
@@ -558,6 +582,7 @@ contract GovernanceTest is Base {
         _fillCurve(coin);
         vault.claim(coin);
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
         _proposeAsBob(coin, newOwner);
         vm.warp(P + 3 days);
@@ -635,6 +660,7 @@ contract GovernanceTest is Base {
         _approveOracle();
         address coin = _coinWithCreatorFees(_noTax());
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
         _proposeAsBob(coin, newOwner);
         assertEq(cto.proposerXOf(coin), "frogdao");
@@ -668,6 +694,7 @@ contract GovernanceTest is Base {
         _approveOracle();
         address coin = _coinWithCreatorFees(_noTax());
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
         _proposeAsBob(coin, newOwner);
         vm.warp(P + 5 hours);
@@ -701,11 +728,13 @@ contract GovernanceTest is Base {
         vm.prank(creator);
         (address other,) =
             router.launchWith(_params("TOAD", _noTax(), bytes32(uint256(1))), address(imd), 1e18, false, 0, 0, address(0));
+        address target = address(new MockSafe());
+        _announce(bob, other, target);
         vm.warp(P + 31 days);
         vm.prank(council);
         cto.proposeByCouncil(other, newOwner, "ipfs://evidence");
-        address target = address(new MockSafe());
         OracleAttestation memory a = _att(cto.question(other, target, "frogdao"), true);
+        a.issuedAt = _afterNotice(other, target, "frogdao");
         bytes memory sig = _sign(a, oracleKey);
         vm.prank(bob);
         cto.propose(other, target, a, sig);
@@ -758,6 +787,7 @@ contract GovernanceTest is Base {
         _approveOracle();
         address coin = _coinWithCreatorFees(_noTax());
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
         _proposeAsBob(coin, newOwner);
         vm.expectRevert(CTOModule.NotContested.selector);
@@ -783,8 +813,10 @@ contract GovernanceTest is Base {
         vm.prank(creator);
         vault.setRecipient(coin, coin);
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
         OracleAttestation memory a = _att(cto.question(coin, newOwner, "frogdao"), true);
+        a.issuedAt = _afterNotice(coin, newOwner, "frogdao");
         bytes memory sig = _sign(a, oracleKey);
         vm.prank(bob);
         vm.expectRevert(bytes4(keccak256("FeesGoToHolders()")));
@@ -879,6 +911,7 @@ contract GovernanceTest is Base {
         _fillCurve(coin);
         vault.claim(coin);
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
         _proposeAsBob(coin, newOwner);
         vm.warp(P + 3 days);
@@ -1375,6 +1408,7 @@ contract GovernanceTest is Base {
         _approveOracle();
         address coin = _coinWithCreatorFees(_noTax());
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
         string memory q = cto.question(coin, newOwner, "frogdao");
         OracleAttestation memory no = _att(q, false);
@@ -1391,11 +1425,12 @@ contract GovernanceTest is Base {
     }
 
     /// @dev Audit R3-A4-8: a pending attested takeover whose "yes" came after a "no" to the same question ends when the
-    ///      "no" is put on record, and the coin can't be proposed again for 90 days.
+    ///      "no" is put on record (the question stays blocked for 90 days; the coin doesn't, D-81).
     function test_cto_noAnswerEndsAYesAskedAfterIt() public {
         _approveOracle();
         address coin = _coinWithCreatorFees(_noTax());
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
         string memory q = cto.question(coin, newOwner, "frogdao");
         OracleAttestation memory yes = _att(q, true);
@@ -1420,8 +1455,9 @@ contract GovernanceTest is Base {
         _approveOracle();
         address coin = _coinWithCreatorFees(_noTax());
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
-        _proposeAsBob(coin, newOwner); // "yes" issued at T0 - 1
+        _proposeAsBob(coin, newOwner); // "yes" issued at ASKED, 7 days after the announcement
         OracleAttestation memory no = _att(cto.question(coin, newOwner, "frogdao"), false);
         no.issuedAt = uint64(P - 1 hours);
         bytes memory noSig = _sign(no, oracleKey);
@@ -1433,11 +1469,13 @@ contract GovernanceTest is Base {
     }
 
     /// @dev Audit R3-A4-8: after a contest, a "no" from a panel of at least 75 to the confirmation question ends the
-    ///      takeover; a "yes" can't confirm it afterwards.
+    ///      takeover; a "yes" can't confirm it afterwards, and the coin can't be proposed again for 90 days (D-81: only
+    ///      a confirmation "no" blocks the coin).
     function test_cto_confirmationNoEndsTheTakeover() public {
         _approveOracle();
         address coin = _coinWithCreatorFees(_noTax());
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
         _proposeAsBob(coin, newOwner);
         vm.warp(P + 1 hours);
@@ -1465,6 +1503,23 @@ contract GovernanceTest is Base {
         vm.expectRevert(CTOModule.NotPending.selector);
         cto.execute(coin);
         assertEq(vault.recipientOf(coin), creator);
+        assertEq(cto.endedByNoAt(coin), P + 3 hours);
+        address otherSafe = address(new MockSafe());
+        _announce(bob, coin, otherSafe);
+        OracleAttestation memory again = _att(cto.question(coin, otherSafe, "frogdao"), true);
+        again.issuedAt = _afterNotice(coin, otherSafe, "frogdao");
+        bytes memory againSig = _sign(again, oracleKey);
+        vm.warp(P + 3 hours + 90 days - 1);
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.Cooldown.selector);
+        cto.propose(coin, otherSafe, again, againSig);
+        vm.prank(council);
+        vm.expectRevert(CTOModule.Cooldown.selector);
+        cto.proposeByCouncil(coin, otherSafe, "ipfs://evidence");
+        vm.warp(P + 3 hours + 90 days);
+        vm.prank(bob);
+        cto.propose(coin, otherSafe, again, againSig);
+        assertEq(cto.pendingOf(coin).newRecipient, otherSafe);
     }
 
     /// @dev Audit R3-A4-8: a confirmation "no" issued after the "yes" that confirmed the takeover is too late.
@@ -1472,6 +1527,7 @@ contract GovernanceTest is Base {
         _approveOracle();
         address coin = _coinWithCreatorFees(_noTax());
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
         _proposeAsBob(coin, newOwner);
         vm.warp(P + 1 hours);
@@ -1582,6 +1638,7 @@ contract GovernanceTest is Base {
         _approveOracle();
         address coin = _coinWithCreatorFees(_noTax());
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
         vm.prank(council);
         cto.proposeByCouncil(coin, newOwner, "ipfs://evidence");
@@ -1608,6 +1665,7 @@ contract GovernanceTest is Base {
         _approveOracle();
         address coin = _coinWithCreatorFees(_noTax());
         _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
         vm.warp(P);
         _proposeAsBob(coin, newOwner);
         vm.warp(P + 1 days);
@@ -1659,5 +1717,240 @@ contract GovernanceTest is Base {
         assertEq(badge, h);
         _linkX(bob, "frogdao");
         assertEq(social.walletHandle(bob), "frogdao");
+    }
+
+    // ------------------------------------------------------------------ Check before round 4 (D-81)
+
+    /// @dev Audit P4-1 (D-81): a "no" recorded after another doesn't unblock a "yes" issued between them: a "yes" doesn't
+    ///      count while a recorded "no" to the same question was issued after it or less than 90 days before it.
+    function test_cto_laterNoDoesNotUnblockAnEarlierYes() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
+        vm.warp(P);
+        string memory q = cto.question(coin, newOwner, "frogdao");
+        OracleAttestation memory no1 = _att(q, false);
+        no1.issuedAt = uint64(P - 3 hours);
+        bytes memory no1Sig = _sign(no1, oracleKey);
+        cto.recordNo(coin, newOwner, "frogdao", no1, no1Sig);
+
+        OracleAttestation memory yes = _att(q, true);
+        yes.issuedAt = uint64(P - 2 hours); // asked again after the first "no": blocked
+        bytes memory yesSig = _sign(yes, oracleKey);
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.BlockedByNo.selector);
+        cto.propose(coin, newOwner, yes, yesSig);
+
+        OracleAttestation memory no2 = _att(q, false);
+        no2.issuedAt = uint64(P - 1 hours); // a third ask, after the "yes", answered "no"
+        bytes memory no2Sig = _sign(no2, oracleKey);
+        vm.prank(bob);
+        cto.recordNo(coin, newOwner, "frogdao", no2, no2Sig); // recorded by the proposer itself
+        assertEq(cto.answeredNoAt(cto.questionKey(coin, newOwner, "frogdao")), P - 1 hours);
+
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.BlockedByNo.selector); // the "yes" between the two "no" answers still doesn't count
+        cto.propose(coin, newOwner, yes, yesSig);
+        assertEq(cto.pendingOf(coin).newRecipient, address(0));
+    }
+
+    /// @dev Audit P4-1 (D-81): a "no" on record blocks a "yes" issued before it, not only after it; a "yes" issued 90
+    ///      days or more after the latest "no" counts again.
+    function test_cto_noIssuedAfterAYesBlocksProposingIt() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
+        vm.warp(P);
+        string memory q = cto.question(coin, newOwner, "frogdao");
+        OracleAttestation memory yes = _att(q, true);
+        yes.issuedAt = uint64(P - 2 hours);
+        bytes memory yesSig = _sign(yes, oracleKey);
+        OracleAttestation memory no = _att(q, false);
+        no.issuedAt = uint64(P - 1 hours); // a later panel said "no"
+        bytes memory noSig = _sign(no, oracleKey);
+        cto.recordNo(coin, newOwner, "frogdao", no, noSig);
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.BlockedByNo.selector);
+        cto.propose(coin, newOwner, yes, yesSig);
+
+        OracleAttestation memory late = _att(q, true);
+        late.issuedAt = uint64(P - 1 hours + 90 days);
+        bytes memory lateSig = _sign(late, oracleKey);
+        vm.warp(P - 1 hours + 90 days);
+        vm.prank(bob);
+        cto.propose(coin, newOwner, late, lateSig);
+        assertEq(cto.pendingOf(coin).newRecipient, newOwner);
+    }
+
+    /// @dev Audit P4-2 (D-81): the handle is lowercased in the question, its key, the stored handle and `recordNo`, so
+    ///      relinking the same X account in another casing is the same question and can't dodge a recorded "no".
+    function test_cto_handleCaseIsTheSameQuestion() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
+        address otherSafe = address(new MockSafe());
+        _announce(bob, coin, otherSafe);
+        vm.warp(P);
+        assertEq(cto.question(coin, newOwner, "FrogDAO"), cto.question(coin, newOwner, "frogdao"), "same question");
+        assertEq(cto.questionKey(coin, newOwner, "FrogDAO"), cto.questionKey(coin, newOwner, "frogdao"), "same key");
+
+        OracleAttestation memory no = _att(cto.question(coin, newOwner, "frogdao"), false);
+        no.issuedAt = uint64(P - 2 hours);
+        bytes memory noSig = _sign(no, oracleKey);
+        cto.recordNo(coin, newOwner, "FROGDAO", no, noSig); // any casing names the same question
+
+        _linkX(bob, "FrogDAO"); // same X account, new voucher, another casing
+        assertEq(social.walletHandle(bob), "FrogDAO");
+        OracleAttestation memory yes = _att(cto.question(coin, newOwner, "FrogDAO"), true);
+        yes.issuedAt = uint64(P - 1 hours);
+        bytes memory yesSig = _sign(yes, oracleKey);
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.BlockedByNo.selector);
+        cto.propose(coin, newOwner, yes, yesSig);
+
+        // The relinked wallet's announcement still stands (same question), and the stored handle is lowercased.
+        OracleAttestation memory other = _att(cto.question(coin, otherSafe, "FrogDAO"), true);
+        other.issuedAt = uint64(P - 1 hours);
+        bytes memory otherSig = _sign(other, oracleKey);
+        vm.prank(bob);
+        cto.propose(coin, otherSafe, other, otherSig);
+        assertEq(cto.proposerXOf(coin), "frogdao");
+    }
+
+    /// @dev Audit P4-3 (D-81): answers to a takeover question count only if issued at least 7 days after the proposer's
+    ///      wallet announced it onchain. A "no" asked before then (which the panel must give: CTO-RULES R1 / R5 aren't
+    ///      met yet) can't be recorded, so it can't block or end the takeover; an early "yes" doesn't count either.
+    function test_cto_answerBeforeTheNoticeDoesNotCount() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        string memory q = cto.question(coin, newOwner, "frogdao");
+        OracleAttestation memory unannounced = _att(q, false);
+        bytes memory unannouncedSig = _sign(unannounced, oracleKey);
+        vm.prank(creator);
+        vm.expectRevert(CTOModule.NotAnnounced.selector); // nothing announced: a "no" counts for nothing
+        cto.recordNo(coin, newOwner, "frogdao", unannounced, unannouncedSig);
+        OracleAttestation memory unannouncedYes = _att(cto.question(coin, coin, "frogdao"), true);
+        unannouncedYes.issuedAt = uint64(ASKED);
+        bytes memory unannouncedYesSig = _sign(unannouncedYes, oracleKey);
+
+        _announce(bob, coin, newOwner);
+        vm.warp(P);
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.NotAnnounced.selector); // another recipient is another question, never announced
+        cto.propose(coin, coin, unannouncedYes, unannouncedYesSig);
+
+        OracleAttestation memory earlyYes = _att(q, true);
+        earlyYes.issuedAt = uint64(ASKED - 1); // a second before the 7 days are up
+        bytes memory earlyYesSig = _sign(earlyYes, oracleKey);
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.AnswerBeforeNotice.selector);
+        cto.propose(coin, newOwner, earlyYes, earlyYesSig);
+
+        OracleAttestation memory yes = _att(q, true);
+        yes.issuedAt = uint64(ASKED + 1 hours); // the community's question once the 7 days were up
+        bytes memory yesSig = _sign(yes, oracleKey);
+        vm.prank(bob);
+        cto.propose(coin, newOwner, yes, yesSig);
+
+        OracleAttestation memory early = _att(q, false);
+        early.issuedAt = uint64(ASKED - 1); // asked before the notice was over: a correct "no"
+        bytes memory earlySig = _sign(early, oracleKey);
+        vm.prank(creator);
+        vm.expectRevert(CTOModule.AnswerBeforeNotice.selector);
+        cto.recordNo(coin, newOwner, "frogdao", early, earlySig);
+        assertEq(cto.pendingOf(coin).newRecipient, newOwner, "still pending");
+        assertEq(cto.answeredNoAt(cto.questionKey(coin, newOwner, "frogdao")), 0);
+        vm.warp(P + 3 days);
+        cto.execute(coin);
+        assertEq(vault.recipientOf(coin), newOwner);
+    }
+
+    /// @dev Audit P4-3 (D-81): only a wallet with a linked X account announces, for a known coin and a contract
+    ///      recipient, once per question: a later call (any casing) can't move the 7 days.
+    function test_cto_announcementIsOncePerQuestion() public {
+        address coin = _coinWithCreatorFees(_noTax());
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.NoXAccount.selector);
+        cto.announce(coin, newOwner);
+        _linkX(bob, "FrogDAO");
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.UnknownCoin.selector);
+        cto.announce(makeAddr("notACoin"), newOwner);
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.InvalidRecipient.selector); // a plain wallet
+        cto.announce(coin, alice);
+        address delegated = makeAddr("delegated");
+        vm.etch(delegated, abi.encodePacked(hex"ef0100", address(newOwner)));
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.InvalidRecipient.selector); // an EIP-7702 wallet
+        cto.announce(coin, delegated);
+
+        bytes32 key = cto.questionKey(coin, newOwner, "frogdao");
+        vm.recordLogs();
+        _announce(bob, coin, newOwner);
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        assertEq(logs.length, 1);
+        assertEq(logs[0].topics[0], keccak256("Announced(address,address,address,string,bytes32)"));
+        assertEq(logs[0].topics[3], bytes32(uint256(uint160(bob))));
+        (string memory x, bytes32 k) = abi.decode(logs[0].data, (string, bytes32));
+        assertEq(x, "frogdao");
+        assertEq(k, key);
+        assertEq(cto.announcedAt(key), ANNOUNCED);
+
+        vm.warp(T0 + 5 days);
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.AlreadyAnnounced.selector);
+        cto.announce(coin, newOwner);
+        _linkX(bob, "frogdao");
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.AlreadyAnnounced.selector);
+        cto.announce(coin, newOwner);
+        assertEq(cto.announcedAt(key), ANNOUNCED);
+    }
+
+    /// @dev D-81: a "no" to the first question ends a pending takeover whose "yes" came after it and blocks that
+    ///      question, but not the coin: another proposer with another multisig can propose at once. Only a
+    ///      confirmation "no" blocks the coin for 90 days (`test_cto_confirmationNoEndsTheTakeover`).
+    function test_cto_firstQuestionNoDoesNotBlockTheCoin() public {
+        _approveOracle();
+        address coin = _coinWithCreatorFees(_noTax());
+        _linkX(bob, "frogdao");
+        _announce(bob, coin, newOwner);
+        address carol = makeAddr("carol");
+        _linkX(carol, "toaddao");
+        address otherSafe = address(new MockSafe());
+        _announce(carol, coin, otherSafe);
+        vm.warp(P);
+        string memory q = cto.question(coin, newOwner, "frogdao");
+        OracleAttestation memory no = _att(q, false);
+        no.issuedAt = uint64(P - 2 hours);
+        bytes memory noSig = _sign(no, oracleKey);
+        OracleAttestation memory yes = _att(q, true);
+        yes.issuedAt = uint64(P - 1 hours);
+        bytes memory yesSig = _sign(yes, oracleKey);
+        vm.prank(bob);
+        cto.propose(coin, newOwner, yes, yesSig);
+        vm.prank(creator);
+        cto.recordNo(coin, newOwner, "frogdao", no, noSig);
+        assertEq(cto.pendingOf(coin).newRecipient, address(0), "ended");
+        assertEq(cto.endedByNoAt(coin), 0, "the coin isn't blocked");
+
+        OracleAttestation memory again = _att(q, true);
+        again.issuedAt = uint64(P);
+        bytes memory againSig = _sign(again, oracleKey);
+        vm.prank(bob);
+        vm.expectRevert(CTOModule.BlockedByNo.selector); // the question is
+        cto.propose(coin, newOwner, again, againSig);
+
+        OracleAttestation memory other = _att(cto.question(coin, otherSafe, "toaddao"), true);
+        other.issuedAt = uint64(P);
+        bytes memory otherSig = _sign(other, oracleKey);
+        vm.prank(carol);
+        cto.propose(coin, otherSafe, other, otherSig);
+        assertEq(cto.pendingOf(coin).newRecipient, otherSafe);
     }
 }
