@@ -367,6 +367,37 @@ IMD's supply can never grow, so there is nothing to print, and printing would al
 
 Early on, yes for some routes: revenue is fixed by the coin's borrowing while TVL is still small, so APRs can reach tens of percent, as the vault table shows. They fall as TVL grows, which is what real yield looks like. Curve-level numbers that last for years would need a new inflationary token; that is not recommended. A fixed, time-limited launch bonus funded by the treasury or by partners is a safer way to attract first farmers.
 
+## Game layer: the Stability Grid
+
+Stability pool depositors play a no-loss grid game with the interest their deposits earn, in crews, and anyone who cashes out rewards early pays those who stay; principal is never at risk. The mechanics are adapted from [SLVR](https://slvr.fun/about) and ORE, minus the real-money lottery.
+
+### 1. No-loss grid on the stability pool
+
+- Each round (for example every hour) has a 5×5 grid of 25 squares.
+- Depositors assign their deposit's weight to one or more squares. They never move or risk the deposit itself.
+- The interest the whole pool earned that round is the prize. A public random beacon (drand, as SLVR uses) picks the winning square after choices close.
+- Depositors on the winning square split the round's interest in proportion to their weight; a small, fixed part always goes to everyone, so nobody earns zero over a long run.
+- Choices are hidden until the round closes (commit, then reveal), so bots cannot pile onto the emptiest square at the last second.
+
+This is prize-linked savings, like PoolTogether, with a faster, social game on top. Average yield is the same as plain interest; the game changes how it is shared and makes holding the coin fun.
+
+### 2. Refining fee on rewards
+
+Cashing out rewards immediately costs 10%, which is paid to everyone who keeps their rewards in the pool. ORE and SLVR use this. Leaving is always possible; staying simply pays more. It applies to rewards only, never to deposits or redemption.
+
+### 3. Crews on the grid
+
+- Up to 12 depositors form a crew, led by a captain who holds an IMD NFT seat.
+- A crew picks squares together and shares any win across its members.
+- The crew's boost grows with how long its members stay deposited, and grows faster through stress events; a member leaving during stress cuts the whole crew's boost, never anyone's deposit.
+- Seasons add a leaderboard, plus a shared goal (for example total pool size) that pays a bonus to every crew when reached.
+
+### Rules and open questions
+
+- Never a real-money lottery on the coin: only interest is played, and the stability pool's job (absorbing liquidations) always comes first.
+- Legal review: prize-linked savings is allowed in some places and restricted in others.
+- Simulation: check that rounds, crews and the refining fee keep the stability pool larger and steadier than plain interest would.
+
 ## Swarm risk team
 
 Agents watch the protocol, run its keeper jobs and publish reports, but can only call public functions whose conditions the contracts check themselves; if every agent went offline, anyone could call the same functions.
