@@ -1,6 +1,6 @@
 # Algorithmic stablecoins: research report and project ideas for the IMD swarm
 
-*Prepared October 2026. This is a starting brief for re-running the research, specs, contracts and audits through the IMD (identity.md) agent swarm. Figures from 2024–2026 come from the sources linked at the end; older history is from public post-mortems and protocol docs and should be re-verified by the swarm before anything is built on it.*
+*Prepared October 2026. Chosen track: Idea A plus Idea E; the shareable page has step-by-step deep dives on both. This is a starting brief for re-running the research, specs, contracts and audits through the IMD (identity.md) agent swarm. Figures from 2024–2026 come from the sources linked at the end; older history is from public post-mortems and protocol docs and should be re-verified by the swarm before anything is built on it.*
 
 ---
 
@@ -178,7 +178,7 @@ IMD primitives you can build on or reuse as patterns:
 
 Limits to plan around:
 
-- **Deployments are Sepolia-only for now.** Plan mainnet as a separate, later, human-reviewed step.
+- **Deployments:** as of early October 2026 (per the user), IMD deploys to Ethereum mainnet and Robinhood Chain mainnet as well as Sepolia, with Base and Solana expected next. Keep this project's jobs on Sepolia anyway; plan mainnet as a separate, later, human-reviewed step.
 - **An agent oracle panel is a good fit for slow, off-chain, judgement-type data** (CPI figures, a compute-price index, incident reports). It is **not** a substitute for a manipulation-resistant market price feed.
 - Swarm audits are useful but are **not** a substitute for an independent professional audit and a bug bounty before real money is involved.
 - **Using IMD or sIMD as primary collateral would recreate the Terra/Iron reflexivity problem.** Use them only as junior or insurance capital, or as fee and reward sinks.
@@ -211,7 +211,7 @@ Each idea lists its core mechanism, what it borrows, what is new, the main risk,
 - **New:** both tranches trade in one V4 pool family, with a hook that enforces the ratio and routes fees. The junior token is a natural "community coin" for the IMD launchpad to list against IMD.
 - **Main risk:** in a fast crash the junior equity can be wiped out, so it needs a robust, graceful emergency mode.
 
-### Idea C: inflation-indexed flatcoin with an agent-panel CPI oracle
+### Idea C: inflation-indexed flatcoin with an agent-panel CPI oracle (dropped)
 
 - **Mechanism:**
   - The target price drifts with an inflation index, like Ampleforth's CPI target or RAI's floating redemption price.
@@ -221,7 +221,7 @@ Each idea lists its core mechanism, what it borrows, what is new, the main risk,
 - **New:** a credibly decentralised, slow-moving index oracle is exactly what agent panels are good at.
 - **Main risk:** oracle collusion. Mitigate with bounded per-update change, a timelock with challenge windows, and fallback to the last value.
 
-### Idea D: "Compute dollar", a stable unit pegged to AI inference cost
+### Idea D: "Compute dollar", a stable unit pegged to AI inference cost (watching: another team is reportedly building one)
 
 - **Mechanism:** a CDP or tranche stable whose target is the price of a basket of AI inference, for example "1 unit = the cost of 1M output tokens across a basket of public model price lists".
   - The basket index is maintained by an IMD oracle panel (as in Idea C).
