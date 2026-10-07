@@ -1,0 +1,202 @@
+{
+  "round": 4,
+  "commit": "4499824f35c2df5d0499680abc631df676f88ba8",
+  "repo": "https://github.com/khaed1/claude",
+  "files": [
+    {
+      "path": "contracts/script/Deploy.s.sol",
+      "sha256": "a5eebf54f43436b7461a4825329db1276a30934c5706103eef0c64d1862963bd",
+      "lines": 555
+    },
+    {
+      "path": "contracts/src/AirdropDistributor.sol",
+      "sha256": "e602d8da61051d9a4ad3bfb3a3631c5c14a40f7048430c7414de5a02dbebc432",
+      "lines": 282
+    },
+    {
+      "path": "contracts/src/AttestationVerifier.sol",
+      "sha256": "3ff00cf4f940d52b90738c47edc1e308860985cb99c3cee830ff4e660000a9d3",
+      "lines": 206
+    },
+    {
+      "path": "contracts/src/BondingCurve.sol",
+      "sha256": "43d75c1a7c2c4bceeb3c0116f7798def1c2f09ec36e42ae532a4fb3bc04743c4",
+      "lines": 412
+    },
+    {
+      "path": "contracts/src/CTOModule.sol",
+      "sha256": "253a52da026407256eea31a11f40a2a4ae7e1c8f23bc325ea8b8722a2536f928",
+      "lines": 479
+    },
+    {
+      "path": "contracts/src/CreatorVault.sol",
+      "sha256": "912bf5d9ccffb98f1944db3bd520bbfd9eb52d7fc47bcc9cbc5bd9f48482a7b1",
+      "lines": 146
+    },
+    {
+      "path": "contracts/src/FeeLib.sol",
+      "sha256": "fab90a930a281f527a353bcc86e59bc5db214696740f6936a5eb4bc9aa03af31",
+      "lines": 50
+    },
+    {
+      "path": "contracts/src/FeeSplitter.sol",
+      "sha256": "6cac06a90e8ea12037c4ce4492fc6f975d3910e1a179e3e6ec8d339eb001f755",
+      "lines": 118
+    },
+    {
+      "path": "contracts/src/FixedOwnable.sol",
+      "sha256": "9d2b74cf91dedc39075cb12a63605f1eef2ebba60dc639c1938ecad889b138f2",
+      "lines": 36
+    },
+    {
+      "path": "contracts/src/GrowthFund.sol",
+      "sha256": "6310c7d7daee31c54210edf9ea532450c220ea095ffe5a625c4bd42afb9ddd80",
+      "lines": 137
+    },
+    {
+      "path": "contracts/src/IntegratorVault.sol",
+      "sha256": "71a3372a91835e80055d7181b57546d510bbd80be1d7673d2256319164048ace",
+      "lines": 63
+    },
+    {
+      "path": "contracts/src/LiquidityReserve.sol",
+      "sha256": "af9e64d3659ae69c075adf6bcddd51dbcde180e25f6fef949f1fb3103042e5ec",
+      "lines": 40
+    },
+    {
+      "path": "contracts/src/MarketController.sol",
+      "sha256": "373f1142a55606eabaa9610a9dc5d791942d98041c3cf3e560210c46473d6085",
+      "lines": 344
+    },
+    {
+      "path": "contracts/src/PadBurner.sol",
+      "sha256": "ab8da80ca864a333a4846a582b2c8e91bd8efced983197354652cf4ed15dca45",
+      "lines": 32
+    },
+    {
+      "path": "contracts/src/PadBuyer.sol",
+      "sha256": "aa9e2c450b1306cf915f771f1f052cab31647c03e5b886dee3018a7e19d585eb",
+      "lines": 159
+    },
+    {
+      "path": "contracts/src/PadConfig.sol",
+      "sha256": "10067a36991341270d658c1f320ee98c2649eef72c6cfc28e39f7059f1adeab3",
+      "lines": 185
+    },
+    {
+      "path": "contracts/src/PadFactory.sol",
+      "sha256": "84425531e4293ebeff9fe3ce191e08b08814284cf1295fdfae823da5f75c563d",
+      "lines": 82
+    },
+    {
+      "path": "contracts/src/PadHook.sol",
+      "sha256": "179924084156518822537a53d4bb4a5003813382050318660aea9cfd8294c542",
+      "lines": 474
+    },
+    {
+      "path": "contracts/src/PadLens.sol",
+      "sha256": "4b1e1c0964d32877419ac39d8d5fbd22b0d5718d35acbe130e74cadf0fcdbc5a",
+      "lines": 253
+    },
+    {
+      "path": "contracts/src/PadMarketHook.sol",
+      "sha256": "c49b60c367a86557fa8bbdcf3a69e28eae4c7b1f4ba7abf6f482ee7fc489364d",
+      "lines": 1411
+    },
+    {
+      "path": "contracts/src/PadRouter.sol",
+      "sha256": "a61e512b6c10f43575fad38d5b3a158c1c1f56cd8592b2d8c94e68d07ef3e8ad",
+      "lines": 200
+    },
+    {
+      "path": "contracts/src/PadSale.sol",
+      "sha256": "438196f40ca2a73fbb3beeb5260d96423a79dec68b9dae650892c84e4681487f",
+      "lines": 341
+    },
+    {
+      "path": "contracts/src/PadToken.sol",
+      "sha256": "9ddbbd59ba254b3411ca197750bb965b9570c9e74875df6ebb640a4302a3e1ce",
+      "lines": 215
+    },
+    {
+      "path": "contracts/src/PaymentSwapper.sol",
+      "sha256": "c3cd58675384779d44af30c104f3bb34d2fcfa6425501b5cef8748c7d5a34bd1",
+      "lines": 147
+    },
+    {
+      "path": "contracts/src/PondPadTimelock.sol",
+      "sha256": "04be6e2a1c4620f9cc5d7ac00b3f18378d332f0394abbaefa591f4dea3ecdd78",
+      "lines": 38
+    },
+    {
+      "path": "contracts/src/PondPadToken.sol",
+      "sha256": "c47e7974e16e993fd02af0edb18fe3a2d6568216218baf206a4090b92ff63663",
+      "lines": 36
+    },
+    {
+      "path": "contracts/src/RewardDripper.sol",
+      "sha256": "75dc125934e508277140b066c5dab16f94bc134eab6417b55b92a8c2946f3af3",
+      "lines": 285
+    },
+    {
+      "path": "contracts/src/Route.sol",
+      "sha256": "055795815564770bd87cbcb3cba88e27da83af7c09dd3cce5ee6af8289ef9fa9",
+      "lines": 10
+    },
+    {
+      "path": "contracts/src/SocialRegistry.sol",
+      "sha256": "c2ebf7435a52566fffc0c12d9d85a949ae98578e5e4d6674e8f53369dba937d2",
+      "lines": 155
+    },
+    {
+      "path": "contracts/src/StakedPONDPAD.sol",
+      "sha256": "7e2eda013bc299f4ce10619676d70d181ae97b0f3c988fac8ceddb8271675f73",
+      "lines": 290
+    },
+    {
+      "path": "contracts/src/SwarmBudget.sol",
+      "sha256": "3804550e3038bff2b5f72e381187c6a42d1632f0650b8ea850846329cca44337",
+      "lines": 137
+    },
+    {
+      "path": "contracts/src/TeamVesting.sol",
+      "sha256": "cca8da2a12acb2246ace8c2347ce588c0dc3febe91567661867382e65513133e",
+      "lines": 71
+    },
+    {
+      "path": "contracts/src/VersionRegistry.sol",
+      "sha256": "76767c40451d362c59c6c40f95ab1d5bb3ce3b7b2bca0c52a2839fb18dff0ceb",
+      "lines": 203
+    },
+    {
+      "path": "contracts/src/WorkerFund.sol",
+      "sha256": "956658c15b3f065b9729a9a601c63faa86e164517a22ce3e3c62e5c6f31db5de",
+      "lines": 60
+    },
+    {
+      "path": "contracts/upstream/CappedBurnHook.sol",
+      "sha256": "24a21287731ba9c2d177f47baaf8bc2e3b4ba5fa24cd18e07f95dc0e017a9d70",
+      "lines": 1285
+    },
+    {
+      "path": "contracts/upstream/RewardDripper.sol",
+      "sha256": "d42023cb6fc72c7450ae6913fcd464e91f4e17266747aee9fde2b1b81ad12a19",
+      "lines": 196
+    },
+    {
+      "path": "contracts/upstream/StakedIMD.sol",
+      "sha256": "b53707577be045415570c073d9de8b3290fbe11d1a393b0775949395c367369d",
+      "lines": 169
+    },
+    {
+      "path": "contracts/upstream/make_fork.py",
+      "sha256": "fc6ca3e76b64234c5b580342b14990866757ebb494fdfb2e9835864402ff7651",
+      "lines": 387
+    },
+    {
+      "path": "contracts/upstream/make_staking.py",
+      "sha256": "f1fee4947e24c5b4f10dcf4414da920dff662e1ad23ec23818cc0f4f67ef8716",
+      "lines": 468
+    }
+  ]
+}
