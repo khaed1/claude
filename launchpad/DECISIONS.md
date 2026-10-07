@@ -100,6 +100,7 @@ Every decision and change, in the order it was made, with the reason. Numbers (D
 
 | Commit | Change |
 |---|---|
+| next after `7f731b0` | Audit round 4 reports (`audit/rounds/4/A1–A4.report.md`) and the findings ledger (`audit/FINDINGS.md`: 24 findings, no Critical or High, 1 Medium in `CTOModule`, 11 Low, 12 Info; 7 answered by the D-82 removal; all open); HANDOFF / ROADMAP updated. No code change |
 | next after `24b068f` | D-82 decided, not implemented: plan `CTO-REMOVAL.md` (remove takeovers from v1, no replacement rule, after the round-4 reports); round-4 job links recorded (all four at `38ad442`); HANDOFF §5 step 21 and §7, ROADMAP. No code change |
 | next after `809941c` | Live oracle test (7 Oct 2026): one IMD oracle request paid through the API from the testnet wallet on Ethereum mainnet (user-funded, 0.5 IMD, 0.25 refunded): attested for a consumer on chain 4663; `test/OracleLive.t.sol` verifies it with our `AttestationVerifier` (183 local tests). HANDOFF §5b step 6 and §7: `@` not escaped (R3-A4-15 settled), `allowAmbiguous` not hashed (the screened questions can be bought without a contract change). No contract change |
 | next after `3c1fbb6` | IMD docs and oracle check (7 Oct 2026): HANDOFF §7 (question-hash form verified on live attestations, `/` `'` `:` not escaped, Robinhood is an evidence chain, the new question screens refuse the confirmation and version questions at the free check, questions for the IMD dev, a test question), §6b (docs features for later); round 4 submitted (HANDOFF, ROADMAP, FINDINGS). No code change |
