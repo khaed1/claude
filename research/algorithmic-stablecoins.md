@@ -235,13 +235,13 @@ The coin must stay solvent even if IMD goes to zero; that rules out IMD as the m
 
 ## Protocol options
 
-Chosen: start with Options 1 and 2 as two branches of one coin. The other options can be added later as new branches or modules, without changing deployed contracts.
+Chosen: launch as Option 3 (Dual Vault), built from branch A (Option 1) and branch B (Option 2) minting one coin, with swarm agents as the risk team. Later branches are added through a narrow, timelocked registry, without changing deployed contracts.
 
 | Option | What it is | Novelty | Risk to funds | Build effort | Time to testnet | Fit with IMD |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1. Peg Hook Liquity | Liquity v2-style troves plus the peg hook (asymmetric fees, buy wall, health-aware redemption) | Medium | Low | Medium | Short | High |
 | 2. Soft Floor | Option 1, but the last stretch before liquidation is converted gradually in Chop Shield bands instead of all at once | High | Medium | High | Medium | High |
-| 3. Dual Vault | One coin, two vault types: the borrower picks a normal trove or a full soft-band vault; both share the redemption floor, stability pool and peg hook | High | Medium to high | Very high | Long | High |
+| 3. Dual Vault (chosen start) | One coin, two branches at launch: branch A (Option 1) and branch B (Option 2); borrowers pick one, and both share the redemption floor, stability pools and peg hook | High | Medium | High | Medium | High |
 | 4. Full Band | A pure crvUSD-style design in V4 with Chop Shield versions 1 and 2, no troves | High | High | Very high | Long | Medium |
 | 5. Peg Hook as a service | No coin of our own at first: a reusable V4 peg-defense hook that existing stablecoins plug into their pools, earning part of the fees | Medium | Low | Low to medium | Shortest | High |
 
@@ -249,17 +249,18 @@ Chosen: start with Options 1 and 2 as two branches of one coin. The other option
 
 - **Option 1** is the safest real stablecoin. Everything in it is proven (Liquity) except the hook, and the hook can never block redemption.
 - **Option 2** is the most original protocol with a manageable risk. Bands only near the end means borrowers rarely sit in bands, so chop losses stay small while cascades are softened.
-- **Option 3** gives borrowers a choice but doubles the code and the audits. It is a later merge of Options 1 and 4, not a starting point.
+- **Option 3** is the chosen start: branches A and B side by side give borrowers a choice of normal or soft liquidation for little more work than building Option 2, since Option 2 already contains Option 1.
 - **Option 4** has the most moving parts and the longest time spent in bands, so chop, MEV and oracle risks are all at their largest.
 - **Option 5** has no coin to lose its peg, and builds a track record and fee income. Its weakness is that it depends on other teams adopting it.
 
 ### Suggested path
 
-1. Simulate branch A (Option 1) and branch B (Option 2) on the same 2021–2026 ETH price history.
-2. Build the shared core (coin, redemption, stability pools), branch A and the peg hook on Sepolia.
-3. In parallel, build branch B (Soft Floor bands with Chop Shield version 1); add it to Sepolia once its simulation looks good.
-4. Offer the peg hook to other stablecoins (Option 5).
-5. Only after A and B have run safely: Chop Shield version 2 (auction) and a full-band branch (Option 4).
+1. Simulate branch A and branch B on the same 2021–2026 ETH price history, including the first-loss vault and the fee split.
+2. Build the shared core (coin, branch registry, redemption router, stability pools, first-loss vault), branch A and the peg hook on Sepolia.
+3. In parallel, build branch B (Soft Floor bands with Chop Shield version 1); register it on Sepolia once its simulation looks good. A plus B is the Dual Vault launch.
+4. Stand up the swarm risk team on testnet: monitoring, keepers and weekly reports; research whether agents should also liquidate.
+5. Offer the peg hook to other stablecoins (Option 5).
+6. Only after A and B have run safely: Chop Shield version 2 (auction) and a full-band branch (Option 4) through the registry.
 
 ### How the options connect without upgrades
 
@@ -268,7 +269,7 @@ Deployed contracts are never changed; each new option is added beside the old on
 - **Immutable core.** The coin, redemption and each branch's troves have no proxy and no upgrade key. Admin upgrade keys are a common way stablecoins get drained or captured.
 - **Branches.** As in Liquity v2, where several collateral branches all mint the same BOLD coin. Branch A is Option 1 (normal liquidation); branch B is Option 2 (Soft Floor bands). Both mint the same coin and share redemption.
 - **Option 3 comes free.** Branches A and B side by side already are the Dual Vault: borrowers pick one.
-- **Adding a branch later (Option 4).** Liquity v2 fixes its branches at deployment. We could add a registry that can only add new branches, after a long timelock (for example 7 days) and with a small starting debt cap; it can never change, pause or remove existing branches or redemption. That registry is a governance power and must stay this narrow. The alternative is no registry, and a new coin version for big changes.
+- **Adding a branch later (Option 4).** Liquity v2 fixes its branches at deployment. Chosen: a registry that can only add new branches, after a long timelock (for example 7 days) and with a small starting debt cap; it can never change, pause or remove existing branches or redemption. That registry is a governance power and must stay this narrow: a new branch is proposed by vote-locked IMD holders (see the yield section), waits out the timelock, then starts with a small debt cap that rises over months.
 - **Option 5 needs nothing.** The peg hook is a separate contract that other stablecoins pair with in their own pools.
 - **New hook versions.** A V4 pool's hook is fixed when the pool is created. A new hook version means a new pool; protocol-owned liquidity moves over and the old pool keeps working.
 - **A bug in an immutable contract.** It cannot be patched. Each branch therefore has a shutdown path, like Liquity v2: if its collateral or oracle fails, it closes to new debt and redemptions wind it down. A fixed branch is then deployed and users move to it.
@@ -278,7 +279,109 @@ Deployed contracts are never changed; each new option is added beside the old on
 - A supply cap that rises slowly after launch.
 - An IMD first-loss vault, sized so the system is safe if it is wiped out.
 - Part of protocol fees buys and burns IMD or pays sIMD stakers.
-- Swarm agents as the risk team: keepers, monitors and weekly risk reports, with only bounded actions.
+- Included at launch: swarm agents as the risk team (details below).
+
+## Protocol structure
+
+One immutable core serves both launch branches, and every branch shares the same redemption floor, oracle, stability pools, first-loss vault and peg pool.
+
+| Layer | Components |
+| --- | --- |
+| Core: immutable, no upgrade keys | Coin (one stablecoin for all branches) · Branch registry (add-only, 7-day timelock, debt caps) · Redemption router ($1 floor across all branches) · Oracle module (median of sources, caps, stale checks) |
+| Branches: borrowers pick one (the Dual Vault) | Branch A: Option 1 (troves, normal liquidation) · Branch B: Option 2 (troves + band hook, Chop Shield) |
+| Safety and fees | Stability pools (absorb liquidations; earn 60% of interest) · IMD first-loss vault (takes bad debt first; earns 15% of interest) · Fee splitter (15% gauges, 10% treasury, half of which buys and burns IMD) |
+| Markets and incentives | Peg hook pool on Uniswap V4 (asymmetric fees, buy wall) · Gauges and IMD vote-lock (lockers steer the 15% gauge budget) |
+| Off-chain | Swarm risk team (monitors, keepers, weekly reports; only public, condition-checked actions) |
+
+Read it top down: the core mints and redeems for the branches; the branches send interest and any bad debt to the safety layer; the fee splitter funds the pool and the gauges; the risk team watches all of it from outside. (The shareable page draws this as a diagram.)
+
+## The IMD first-loss vault
+
+IMD holders deposit into a vault that earns a fixed share of protocol revenue, paid in the stablecoin, and in return their IMD is the first money used if the protocol ever has bad debt. All numbers below are illustrative assumptions for the simulation to test, not promises.
+
+### How it works
+
+- **Deposit:** IMD or sIMD. Accepting sIMD lets stakers keep their normal sIMD rewards and earn vault yield on top.
+- **Earn:** a fixed share of protocol revenue (borrow interest, redemption fees, part of hook fees), paid in the stablecoin, not in new tokens.
+- **Withdraw:** a 14-day cooldown, so depositors cannot leave the moment trouble appears.
+- **Cap:** the vault holds at most 10% of coin supply in value. The system must stay safe even if the vault goes to zero; it is a cushion, not the foundation.
+- **Slash limit:** one bad event can take at most 30% of the vault, so a single crash cannot wipe out every depositor.
+
+### Who pays when there is bad debt
+
+Bad debt is when a liquidated borrower's collateral is worth less than their debt. The loss is taken in this order:
+
+1. The borrower's own collateral, as usual.
+2. **The first-loss vault.** The stability pool covers the gap at once and is paid back as the vault's IMD is sold gradually over several days, so the vault never dumps IMD into its own thin market in one go.
+3. The stability pool of that branch.
+4. Spread across the other troves of that branch (Liquity's fallback).
+
+Redemption at $1 is never reduced at any step.
+
+### Example yields
+
+Assumptions: average borrow rate 6% a year; 15% of interest goes to the vault; hook and redemption fees left out. Vault APR = 15% × 6% × coin supply ÷ vault size.
+
+| Vault size | Coin supply $20M | Coin supply $50M | Coin supply $100M |
+| --- | --- | --- | --- |
+| $1M of IMD | 18% | 45% | 90% |
+| $2.5M of IMD | Over the 10% cap | 18% | 36% |
+| $5M of IMD | Over the 10% cap | 9% | 18% |
+
+The pattern: yield is high when the vault is small compared with the coin's supply, and falls as more IMD joins. It moves with the market until the vault fills to its cap. On top, depositors carry IMD's price risk and the chance of losing up to 30% per bad-debt event, which is why this yield should sit well above the stability pool's.
+
+### Why it helps IMD
+
+- It creates steady demand to hold and lock IMD, paid from real revenue.
+- It adds a cushion for coin holders without making the coin depend on IMD's price.
+- Combined with the treasury's IMD buy-and-burn, IMD gains from the coin's growth in two ways.
+
+## Yield farming
+
+Yes: farmers get Curve-style gauges and vote-locking, but paid from real protocol revenue instead of printing a new token, and the votes are made with locked IMD.
+
+### How Curve does it, and what we change
+
+Curve pays liquidity providers in newly minted CRV. Holders lock CRV for up to 4 years as veCRV, which lets them vote each week on which pools get the CRV, boosts their own rewards and earns fees. Other protocols then pay lockers "bribes" to vote for their pools: the Curve wars. The high yields came mostly from CRV inflation, which kept selling pressure on CRV.
+
+IMD's supply can never grow, so there is nothing to print, and printing would also be rented demand (design rule 8). Instead:
+
+- **The budget is real revenue.** Proposed split of borrow interest: 60% stability pools, 15% first-loss vault, 15% liquidity gauges, 10% treasury (half of it buys and burns IMD). For comparison, Liquity v2 sends 75% of interest to its stability pools.
+- **Lock IMD to vote.** Lock IMD or sIMD for 1 week to 2 years; longer locks get more votes. Each week, lockers decide how the 15% gauge budget is split across pools.
+- **Lockers earn too:** part of the treasury share, plus bribes from protocols that want liquidity for the coin in their own pools.
+- **Boost:** LPs who also lock IMD can earn up to 2.5 times the base gauge rewards, as on Curve.
+- **Narrow powers:** locker votes control the gauge budget and propose registry branches; they can never touch redemption, existing branches or collateral rules.
+
+### Ways to farm the protocol
+
+| Route | Earns | Main risk |
+| --- | --- | --- |
+| Stability pool (branch A or B) | Interest share plus liquidation gains (collateral bought at a discount) | Losses only after the first-loss vault is used up |
+| LP in the peg hook pool | Swap fees (higher when off-peg) plus gauge rewards | Low: a stable-to-stable pool moves little |
+| IMD first-loss vault | Revenue share in the coin, high when the vault is small | First to lose in bad debt; IMD price |
+| Lock IMD | Votes, a treasury share and bribes | IMD price; locked until the lock ends |
+| Loop: borrow the coin at a low rate, deposit it in a pool | The gap between the borrow rate and the pool's yield | Liquidation and redemption of the loan |
+| Partner pools on other DEXs | Gauge rewards if lockers vote for them | That DEX's own risks |
+
+### Will yields be high?
+
+Early on, yes for some routes: revenue is fixed by the coin's borrowing while TVL is still small, so APRs can reach tens of percent, as the vault table shows. They fall as TVL grows, which is what real yield looks like. Curve-level numbers that last for years would need a new inflationary token; that is not recommended. A fixed, time-limited launch bonus funded by the treasury or by partners is a safer way to attract first farmers.
+
+## Swarm risk team
+
+Agents watch the protocol, run its keeper jobs and publish reports, but can only call public functions whose conditions the contracts check themselves; if every agent went offline, anyone could call the same functions.
+
+| Role | What agents do | Limit | Status |
+| --- | --- | --- | --- |
+| Monitoring | Track collateral ratios, oracle gaps, pool depth, staking-token pegs and vault size; raise alerts | Read only | Launch |
+| Keepers | Trigger the buy wall, update redemption fees, reopen bands if an auction winner goes idle | Public functions; the contract checks the condition | Launch |
+| Circuit breaker | Pause new borrowing in a branch when the oracle sources disagree | Only when the contract confirms the disagreement; never redemption | Launch |
+| Reports and reviews | Weekly public risk report; simulate parameter changes; review branch proposals before the registry vote | Advice only | Launch |
+| Liquidations | Possibly act as a backstop liquidator | Same rules as any liquidator | Research |
+
+**The open question on liquidations.** Professional MEV bots liquidate within the same block; agents take seconds to minutes, so they would usually lose that race. They may still be useful as a backstop: small or unprofitable positions that bots skip, or moments when gas spikes and bots step back. The testnet game day should measure how often a liquidation goes untaken and how quickly agents would fill that gap.
+
+Agents are paid per job from the treasury through IMD's job rail, so the protocol becomes steady paid work for the swarm.
 
 ## Other ideas and what to avoid
 
