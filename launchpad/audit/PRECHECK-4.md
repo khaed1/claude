@@ -4,6 +4,8 @@ Claude's own check of the D-80 fixes before the user submits round 4, at code co
 
 **Result: the tests pass and most fixes close their paths, but the R3-A4-8 fix (recorded "no" answers) has three holes (P4-1 to P4-3) and the R3-A4-4 fix leaves freeze paths in the timelocks (P4-4).** Round 4 as generated at `4499824` is **not to be submitted**. The user decided the fixes (D-81): items P4-1, P4-2, P4-3 and P4-5 are approved; P4-4 is waiting on the user. Next session: implement D-81, then regenerate round 4 at the new pushed commit (`python3 launchpad/audit/make_jobs.py round 4 --check`). The ledger rows are in `FINDINGS.md` ("Checks before a round").
 
+**Outcome (7 Oct 2026):** D-81 implemented in `505fe96`: P4-1, P4-2 and P4-3 fixed in `CTOModule` (`announce` / `announcedAt`, "no" ordering, lowercase handles, per-coin block only after a confirmation "no"), each with a regression test that fails on `4499824` and passes after; P4-4 accepted and documented (the user's choice); P4-5 docs fixed. Fails-before: worktree of `4499824` with `lib/` copied, the new `test/` copied in, and only these stand-ins in `CTOModule`: empty `announce` and `announcedAt`, errors `NotAnnounced`, `AlreadyAnnounced`, `AnswerBeforeNotice` (the §1 stand-ins aren't needed there: `4499824` already has the D-80 code). 7 of 182 local tests fail there: the 6 new ones (`test_cto_laterNoDoesNotUnblockAnEarlierYes`, `test_cto_noIssuedAfterAYesBlocksProposingIt`, `test_cto_handleCaseIsTheSameQuestion`, `test_cto_answerBeforeTheNoticeDoesNotCount`, `test_cto_announcementIsOncePerQuestion`, `test_cto_firstQuestionNoDoesNotBlockTheCoin`), each on the behaviour it asserts, and the updated `test_cto_guards` (a plain-wallet recipient is now refused at `announce`); all 182 pass after. Round 4 regenerated at the ledger commit after it.
+
 ## 1. What was run (all as expected)
 
 | Check | Result |
@@ -65,7 +67,7 @@ R1 and R5 require the X announcement at least 7 days before the oracle question,
 - The alternative B (drop first-question "no" recording, keep only `recordConfirmNo`) was not chosen.
 **Per-coin 90-day block (approved, D-81):** keep it only after a confirmation "no" (`recordConfirmNo`: asked after the contest, panel ≥ 75, naming the contest time, so it can't be asked early; this matches the council's 90-day wait after a contested lapse). A first-question "no" still ends a pending takeover whose "yes" was issued after it, and blocks that question for 90 days, but no longer blocks the coin. (The user had not explicitly approved the per-coin block in D-80.)
 
-### P4-4 (Low): the timelocks can still freeze themselves or change their proposer (R3-A4-4 fix incomplete) — waiting on the user
+### P4-4 (Low): the timelocks can still freeze themselves or change their proposer (R3-A4-4 fix incomplete) — decided: accept and document (D-81)
 `src/PondPadTimelock.sol:32` (`updateDelay`), OpenZeppelin 5.0.2 `TimelockController` (the constructor makes the timelock its own `DEFAULT_ADMIN_ROLE`), `AccessControl.renounceRole`.
 None of these lets anything act faster than the delay or moves funds; each needs the Safe:
 - `updateDelay` has a floor but no ceiling: one delayed self-call to a huge delay means no later operation can ever become ready, so everything that timelock owns is frozen for good (the freeze `FixedOwnable` blocks for `renounceOwnership`, by another route). For the 48 h timelock that includes the 30M liquidity reserve it receives from `LiquidityReserve`.
