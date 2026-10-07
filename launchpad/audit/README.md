@@ -13,7 +13,7 @@ The IMD swarm audits PondPad v1 before deploy (ARCHITECTURE §10, ROADMAP item 1
 
 ## Scope
 
-All of `contracts/src/` (32 contracts), `contracts/script/Deploy.s.sol` and the fork generators in `contracts/upstream/` (38 files, ~9,700 lines; the exact count is in each round's `manifest.json`). Community takeovers (`CTOModule`, `CTO-RULES.md`) were removed after round 4 (D-82). `make_jobs.py` refuses a round if any in-scope file is in no area.
+All of `contracts/src/` (32 contracts), `contracts/script/Deploy.s.sol` and the fork generators in `contracts/upstream/` (38 files, ~9,800 lines; the exact count is in each round's `manifest.json`). Community takeovers (`CTOModule`, `CTO-RULES.md`) were removed after round 4 (D-82). `make_jobs.py` refuses a round if any in-scope file is in no area.
 
 | Job | Area | Files |
 |---|---|---|
