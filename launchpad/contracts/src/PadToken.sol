@@ -12,8 +12,9 @@ import {TransientStateLibrary} from "v4-core/libraries/TransientStateLibrary.sol
 ///         permit. Holders earn IMD dividends when the coin's creator chose a holder tax at launch.
 /// @dev Dividends use "reward per share" accounting, so payouts are O(1) and holders withdraw with `claim()`.
 ///      The bonding curve, the hook, the PoolManager and the dead address hold tokens on behalf of the market,
-///      so they never earn dividends. Distribution is skipped while the PoolManager is unlocked by anyone but the
-///      hook: inside an unlock, pool tokens can be flash-borrowed and would otherwise count as held.
+///      so they never earn dividends; nor does the coin's own address, which can't claim (audit R4-A1-3).
+///      Distribution is skipped while the PoolManager is unlocked by anyone but the hook: inside an unlock, pool
+///      tokens can be flash-borrowed and would otherwise count as held.
 ///      Holder stream (D-78, D-80): IMD routed to a coin's holders as a lump (creator fees of a coin whose fees go
 ///      to holders, its swept swarm budget) is paid out second by second over about 7 days, to the balances held
 ///      during each second. The stream is settled before every balance change, so a position held for no time
@@ -99,7 +100,7 @@ contract PadToken is ERC20, ReentrancyGuard {
 
     function isExcluded(address account) public view returns (bool) {
         return account == curve || account == hook || account == address(poolManager) || account == DEAD
-            || account == address(0);
+            || account == address(0) || account == address(this); // tokens sent to the coin itself (audit R4-A1-3)
     }
 
     /// @notice Credits any IMD sent to this contract since the last distribution to current holders. IMD in the

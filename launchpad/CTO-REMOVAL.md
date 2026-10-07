@@ -1,6 +1,6 @@
 # Plan: remove community takeovers from v1 (D-82)
 
-**Decided by the user on 7 October 2026. Not implemented yet.** Do it after reading the round-4 audit reports, in the same change set as the round-4 fixes, so round 5 audits one smaller codebase (HANDOFF §5 step 21).
+**Decided by the user on 7 October 2026. Implemented on 7 October 2026 in the D-83 commit, with the round-4 fixes (D-83), so round 5 audits one smaller codebase (HANDOFF §5 steps 21–22).** Kept as the record of what was removed. The frontend items below wait for the testnet redeploy (HANDOFF §2, "Frontend and the D-79 to D-83 contracts").
 
 ## The decision
 

@@ -111,9 +111,9 @@ contract SwarmBudget is FixedOwnable, ReentrancyGuard {
         emit SpendCancelled(id);
     }
 
-    /// @notice When a coin's fees were routed to its holders (fee recipient = the coin itself, after a CTO), no one
-    ///         can request swarm jobs for it any more, so its unreserved budget goes to holders as IMD dividends,
-    ///         through the CreatorVault's holder stream (released over ~7 days, D-78, audit R1-A4-1).
+    /// @notice When a coin's fees were routed to its holders (fee recipient = the coin itself, set by the recipient),
+    ///         no one can request swarm jobs for it any more, so its unreserved budget goes to holders as IMD
+    ///         dividends, through the coin's holder stream (paid second by second over ~7 days, D-78, D-80).
     ///         Anyone can call it.
     function sweepToHolders(address coin) external nonReentrant returns (uint256 amount) {
         if (creatorVault.recipientOf(coin) != coin) revert Unauthorized();

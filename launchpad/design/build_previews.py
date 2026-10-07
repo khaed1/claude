@@ -81,10 +81,10 @@ PREVIEWS = {
     "StageChip": ("Lifecycle", 64, '<div class="pp-demo"><span class="pp-stage pp-stage-egg">Egg</span>'
                   '<span class="pp-stage pp-stage-tadpole">Tadpole · 63%</span><span class="pp-stage pp-stage-frog">Frog · leapt 3d ago</span></div>'),
     "LeapMeter": ("Lifecycle", 200, '<div class="pp-demo-col">' + leap(8, "320") + leap(63, "2,520") + leap(94, "3,760", near=True) + leap(100, "4,000", done=True) + "</div>"),
-    "Badge": ("Status", 64, '<div class="pp-demo">' + ALL_BADGES + '<span class="pp-badge pp-badge-warn">Takeover notice</span><span class="pp-badge">Paid in ETH</span></div>'),
+    "Badge": ("Status", 64, '<div class="pp-demo">' + ALL_BADGES + '<span class="pp-badge pp-badge-warn">Duplicate handle</span><span class="pp-badge">Paid in ETH</span></div>'),
     "Notice": ("Status", 260, '<div class="pp-demo-col">'
                '<div class="pp-notice pp-notice-tax">'+ICON["clock"]+'<div><b>Early-bird tax is on for 14 more seconds.</b> It\'s there to keep bots honest.</div></div>'
-               '<div class="pp-notice pp-notice-chorus">'+ICON["chorus"]+'<div><b>Takeover in progress.</b> The swarm agreed this coin was abandoned. Creator fees move to the community\'s wallet in 2 days unless something changes.</div></div>'
+               '<div class="pp-notice pp-notice-chorus">'+ICON["chorus"]+'<div><b>The Chorus is building this coin\'s site.</b> A swarm job started at the Leap; the site appears here once the panel accepts it.</div></div>'
                '<div class="pp-notice pp-notice-danger">'+ICON["alert"]+'<div><b>You\'re in the wrong pond.</b> Switch to Robinhood Chain.</div></div>'
                '<div class="pp-notice">'+ICON["info"]+'<div>Coins here are made by anyone and can go to zero. Read the risks before you trade.</div></div></div>'),
     "Toast": ("Status", 150, '<div class="pp-demo-col"><div class="pp-toast is-ok">It\'s alive. Your tadpole is swimming. <a href="#">View</a></div>'

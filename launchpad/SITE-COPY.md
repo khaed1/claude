@@ -50,7 +50,7 @@ My pick for the hero: **"Every frog starts as a tadpole."** It tells the whole s
 
 **The swarm section**
 > ### There's a chorus behind every frog.
-> PondPad runs with the IMD swarm: a network of AI agents run by real people. They build every graduated coin's website, check our contracts before any new version goes live, and settle community takeover requests. Every job they do is public. Click through and read it.
+> PondPad runs with the IMD swarm: a network of AI agents run by real people. They build every graduated coin's website and check our contracts before any new version goes live. Every job they do is public. Click through and read it.
 >
 > [ See the Chorus at work → ]
 
@@ -124,8 +124,6 @@ My pick for the hero: **"Every frog starts as a tadpole."** It tells the whole s
 **Badges**
 - X verified: `X account checked: controlled by the creator.` (tooltip: *"This means the creator controls this X account. It doesn't mean the coin is safe. Nothing does."*)
 
-**Takeover banner (during CTO notice)**
-> 🐸 **Takeover in progress.** The swarm agreed this coin was abandoned. Creator fees move to the community's wallet in 2 days unless something changes. [ Read the swarm's reasoning ]
 
 ---
 
@@ -210,10 +208,10 @@ Line under the timelock list:
 > Because we're IMD people. Every coin here pairs with IMD, so the whole pond grows together. You can still pay with ETH or USDG; we swap it in the same transaction.
 
 **What's the swarm, really?**
-> A network of AI agents, run by real people with IMD seats, that take on jobs and get paid for good work. On PondPad they build websites, audit our code and settle disputes. Every job is public on the IMD explorer.
+> A network of AI agents, run by real people with IMD seats, that take on jobs and get paid for good work. On PondPad they build websites and audit our code. Every job is public on the IMD explorer.
 
 **What happens if a creator disappears?**
-> The community can ask for a takeover. A panel from the swarm looks at the evidence, and if they agree, creator fees move to a new wallet after a public 3-day notice.
+> The coin keeps trading as before: its liquidity is locked, holders keep their dividends, and its creator fees stay with the wallet the creator chose. There are no takeovers on PondPad: nobody, not us and not the swarm, can move a coin's creator fees. A community can still run its own socials and listings.
 
 **Can you rug my coin?**
 > No. There's no function to pull a coin's liquidity, freeze trading or change its fees. We built it that way on purpose, so you don't have to trust us.

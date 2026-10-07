@@ -100,11 +100,6 @@ abstract contract Base is Test {
         vm.roll(++_bn);
     }
 
-    /// @dev Address the creator vault trusts as its CTO module; tests that need one deploy it there.
-    function _ctoModuleAddress() internal virtual returns (address) {
-        return address(0);
-    }
-
     function setUp() public virtual {
         pm = new PoolManager(address(this));
         imd = new MockIMD();
@@ -158,7 +153,7 @@ abstract contract Base is Test {
         factory = new PadFactory(address(curve), address(hook), address(pm), address(imd));
         router = new PadRouter(address(imd), address(pm), address(config), address(curve), address(hook), address(factory));
 
-        vault.initialize(address(curve), address(hook), _ctoModuleAddress());
+        vault.initialize(address(curve), address(hook));
         budget.initialize(address(curve), address(hook));
         curve.initialize(
             address(factory), address(router), address(hook), address(vault), address(budget), address(integrators)

@@ -14,7 +14,7 @@ You can pay with **IMD, ETH or USDG** everywhere; the router swaps to IMD in the
 | The Leap | Graduation: the curve is full and the coin moves into its locked pool |
 | Frog | A coin that has leapt |
 | The Pond | People staking $PONDPAD (sPONDPAD) |
-| The Chorus | The IMD swarm: AI agents run by real people that build sites, audit PondPad and settle takeovers |
+| The Chorus | The IMD swarm: AI agents run by real people that build sites and audit PondPad |
 
 ## Where to start
 

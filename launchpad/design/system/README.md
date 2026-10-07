@@ -57,7 +57,7 @@ Two themes from one set of tokens: **night** (default; trading happens here) and
 - **Ink:** `ink` for text and numbers, `ink-muted` for labels and metadata, `ink-faint` only for placeholders.
 - **Lily (brand green):** primary actions, buys, positive change, links. Text on a lily fill is `on-lily`. One primary (lily) button per view: the thing the page is for.
 - **Firefly (gold):** the Leap and $PONDPAD. `firefly` is a fill (Leap meter near the end, the $PONDPAD button, the "About to Leap" spotlight border) with `on-firefly` text; `firefly-ink` is gold as text.
-- **Lotus (pink):** the Chorus and social proof: "Site by the Chorus", "X verified", swarm job links, takeover notices.
+- **Lotus (pink):** the Chorus and social proof: "Site by the Chorus", "X verified", swarm job links, Chorus notices.
 - **Coral:** sells, losses, errors. Always paired with a word or ▲▼ arrow; never color alone.
 - **Ripple (teal):** the water in the Leap meter, IMD price lines in charts, decorative water.
 - **Focus:** `focus` ring, 2px solid with 2px offset, on every interactive element.
@@ -113,7 +113,7 @@ The components (`pp-` classes in `components/bundle.css`) are the frontend's rea
 ## Do and don't
 
 - Do show the fee on every trade, before the button. Don't hide it behind "details".
-- Do label every state with a word (Tadpole, Sell, Takeover). Don't rely on color alone.
+- Do label every state with a word (Tadpole, Sell, Leap). Don't rely on color alone.
 - Do keep one lily button per view. Don't make every button green.
 - Do let coin images bring the color. Don't add gradients or glows to chrome.
 - Do say "can go to zero". Don't say "safe", "guaranteed" or show APY promises.

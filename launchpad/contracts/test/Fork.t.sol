@@ -104,7 +104,7 @@ contract ForkTest is Test {
         hook = PadHook(hookAddr);
         PadFactory factory = new PadFactory(address(curve), address(hook), address(PM), IMD);
         router = new PadRouter(IMD, address(PM), address(config), address(curve), address(hook), address(factory));
-        vault.initialize(address(curve), address(hook), address(0));
+        vault.initialize(address(curve), address(hook));
         budget.initialize(address(curve), address(hook));
         curve.initialize(
             address(factory), address(router), address(hook), address(vault), address(budget), address(integrators)

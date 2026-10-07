@@ -92,22 +92,35 @@ contract DeployAirdropListTest is Test {
     }
 
     /// @dev The 7-claim tree `snapshot.py selftest` built (fixture): the script rebuilds the same root.
-    function _fixture() internal view returns (bytes32 root, uint256 total, string memory claims) {
+    function _fixture() internal view returns (bytes32 root, uint256 total, string memory claims, bytes32[] memory leaves) {
         string memory f = vm.readFile("test/fixtures/airdrop-tree.json");
         root = vm.parseJsonBytes32(f, ".root");
         address[] memory accounts = vm.parseJsonAddressArray(f, ".accounts");
         string[] memory amounts = vm.parseJsonStringArray(f, ".amounts");
+        leaves = new bytes32[](accounts.length);
         for (uint256 i; i < accounts.length; ++i) {
             uint256 amount = vm.parseUint(amounts[i]);
             total += amount;
             claims = string.concat(claims, i == 0 ? "" : ",", _claim(accounts[i], amount));
+            leaves[i] = _leaf(accounts[i], amount);
         }
+    }
+
+    /// @dev `n` wallets with `amount` each, and the root the script must rebuild for them.
+    function _list(Deploy d, uint256 n, uint256 amount) internal pure returns (bytes32 root, string memory claims) {
+        bytes32[] memory leaves = new bytes32[](n);
+        for (uint256 i; i < n; ++i) {
+            address w = address(uint160(0x5000 + i));
+            leaves[i] = _leaf(w, amount);
+            claims = string.concat(claims, i == 0 ? "" : ",", _claim(w, amount));
+        }
+        root = d.standardMerkleRoot(leaves);
     }
 
     function test_deploy_airdropRootMustMatchTheClaims() public {
         Deploy d = new Deploy();
-        (bytes32 root, uint256 total, string memory claims) = _fixture();
-        assertEq(d.airdropRootFromClaims(_json(root, total, claims)), root, "the Python tree, rebuilt");
+        (bytes32 root, uint256 total, string memory claims, bytes32[] memory leaves) = _fixture();
+        assertEq(d.standardMerkleRoot(leaves), root, "the Python tree, rebuilt");
 
         vm.expectRevert(bytes("airdrop total doesn't match the claims"));
         d.airdropRootFromClaims(_json(root, total - 1, claims));
@@ -124,9 +137,28 @@ contract DeployAirdropListTest is Test {
         vm.expectRevert(bytes("airdrop list exceeds 50M"));
         d.airdropRootFromClaims(_json(root60, 60_000_000e18, both));
 
-        // 50M exactly is fine.
-        bytes32 root50 = _pair(_leaf(a, 30_000_000e18), _leaf(b, 20_000_000e18));
-        string memory fifty = string.concat(_claim(a, 30_000_000e18), ",", _claim(b, 20_000_000e18));
+        // 50M exactly is fine (with at least 100 wallets, R4-A3-4).
+        (bytes32 root50, string memory fifty) = _list(d, 100, 500_000e18);
         assertEq(d.airdropRootFromClaims(_json(root50, 50_000_000e18, fifty)), root50);
+    }
+
+    /// @dev Audit R4-A3-4: a list shorter than the 100 initiators the distributor needs could never activate nor be
+    ///      swept, so the 50M would be locked for ever: the deploy refuses it, the Python fixture's 7 claims included.
+    function test_deploy_airdropListNeedsAHundredWallets() public {
+        Deploy d = new Deploy();
+        address a = address(0xA11CE);
+        address b = address(0xB0B);
+        bytes32 root2 = _pair(_leaf(a, 30_000_000e18), _leaf(b, 20_000_000e18));
+        string memory two = string.concat(_claim(a, 30_000_000e18), ",", _claim(b, 20_000_000e18));
+        vm.expectRevert(bytes("airdrop list below 100 wallets"));
+        d.airdropRootFromClaims(_json(root2, 50_000_000e18, two));
+        (bytes32 root7, uint256 total7, string memory seven,) = _fixture();
+        vm.expectRevert(bytes("airdrop list below 100 wallets"));
+        d.airdropRootFromClaims(_json(root7, total7, seven));
+        (bytes32 root99, string memory list99) = _list(d, 99, 500_000e18);
+        vm.expectRevert(bytes("airdrop list below 100 wallets"));
+        d.airdropRootFromClaims(_json(root99, 99 * 500_000e18, list99));
+        (bytes32 root100, string memory list100) = _list(d, 100, 400_000e18);
+        assertEq(d.airdropRootFromClaims(_json(root100, 40_000_000e18, list100)), root100);
     }
 }

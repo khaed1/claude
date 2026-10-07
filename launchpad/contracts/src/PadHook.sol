@@ -348,7 +348,8 @@ contract PadHook is IHooks, IUnlockCallback {
 
     /// @notice The router's flush after its own pool trade: like `flush`, but the holder tax goes to growth when
     ///         nobody other than `trader` holds an eligible balance, so a sole holder isn't credited its own tax
-    ///         (audit R3-A1-1). It applies to everything pending for the coin, which is normally just that trade.
+    ///         (audit R3-A1-1). It applies to everything pending for the coin; the router flushes other traders'
+    ///         holder tax with `flush` before its trade, so that is just this trade's (audit R4-A1-1).
     function flushFor(address coin, address trader) external {
         if (msg.sender != router) revert Unauthorized();
         if (poolManager.isUnlocked()) return;

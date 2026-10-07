@@ -48,7 +48,7 @@ About to Leap                                     (spotlight row: ≥ 75% of tar
 MC 10,440 IMD ($65.8k) · ▲ 18.2% 24h · Fee 2.0% · created by 0x4b91…6821 · 12 min ago
 
 ┌ left (2/3) ─────────────────────────────┐ ┌ right (1/3, sticky) ───────┐
-│ [takeover banner, if any]               │ │ [early-bird tax notice]     │
+│ [Chorus notice, if any]                 │ │ [early-bird tax notice]     │
 │ Leap meter (tadpoles) / "Leapt 3d ago"  │ │ TRADE BOX                    │
 │ chart (price in IMD; 5m 1h 4h 1d)       │ │ Buy|Sell · IMD|ETH|USDG      │
 │ [tabs] Trades · Holders · Creator ·     │ │ amount · presets · quote     │
@@ -106,7 +106,7 @@ Holdings value 3,240 IMD · Creator fees to claim 42.8 IMD · Dividends to colle
 - **Created** (only if the wallet launched coins or is a fee recipient):
   - a **claim section** at the top: "Creator fees to claim: 42.8 IMD across 3 coins", with **[Claim all]** (one transaction per coin through `CreatorVault.claim`, batched where the wallet supports it)
   - then one row per coin: fees earned, claimable now, tax split, swarm budget balance and its jobs, [Claim] [Change recipient] [Link X] [Request a swarm job]
-  - coins whose fees now go to holders (takeover) show "Fees go to holders" instead of Claim
+  - coins whose fees now go to holders (the recipient routed them there, final) show "Fees go to holders" instead of Claim
 - **Rewards:** dividends to collect per coin ([Collect all]), integrator earnings if the wallet is a registered integrator (`IntegratorVault`, [Claim]), airdrop vesting and claim.
 - **Activity:** trades, spawns, claims, stakes, with tx links.
 - Someone else's profile (`/u/<address>`) is read-only: the same tabs without the claim buttons.
@@ -120,7 +120,7 @@ Read from the chain: protocol fees in, the 40/25/20/15 split (and integrator sha
 Inside the site, same nav and style, a left sidebar (a drawer on phones), "On this page" on wide screens, search, and an "Edit on GitHub" link. Written for people first, then developers.
 
 - **Start here:** What is PondPad · Your first trade · Spawn a coin · Glossary (Spawn, Egg, Tadpole, Leap, Frog, Pond, Chorus)
-- **How it works:** Bonding curve and the Leap · Fees and where they go · Coin tax · Paying with IMD, ETH or USDG · Early-bird tax and max-buy · Dividends · Creator fees · Swarm budget and websites · X badge · Community takeovers (links the pinned CTO rules)
+- **How it works:** Bonding curve and the Leap · Fees and where they go · Coin tax · Paying with IMD, ETH or USDG · Early-bird tax and max-buy · Dividends · Creator fees · Swarm budget and websites · X badge
 - **$PONDPAD:** The sale · The market (fee schedule, cap, burns, backstop) · Staking (the Pond) · Airdrop (who is on the list, waking the pond, vesting) · Team vesting and supply
 - **Safety:** Risks · Admin powers and timelocks (what we can and can never do) · Audits (swarm rounds, `FINDINGS.md`) · Contracts and addresses · Bug reports
 - **Developers:** Contracts and ABIs · Reading state with PadLens · Events · Trading through PadRouter · Integrator programme (15% of the protocol fee) · Keepers (permissionless upkeep) · Gas notes (+50% on market swaps)

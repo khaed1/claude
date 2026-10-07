@@ -11,7 +11,8 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 /// unpaused between pauses; `rescueERC20` can never touch the staked $PONDPAD; and every power expires
 /// `powersExpireAt` (12 months after launch). Audit fixes: only the shares that arrived this block are held
 /// (R1-A3-2); `totalAssets` is the vault's own count, not its raw balance, so a transfer into an empty vault can't
-/// move the share price, and rewards are taken in only while at least one whole $PONDPAD is staked (R2-A3-1).
+/// move the share price, and rewards are taken in only while at least one whole $PONDPAD is staked (R2-A3-1);
+/// shares can't be minted or sent to address(0) or to the vault itself (R4-A3-1).
 /// Upstream doc follows ("IMD" = the asset).
 ///
 /// Single-asset, autocompounding IMD staking vault. Stake IMD, receive `sIMD` shares; as
@@ -21,18 +22,18 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 /// frequent steps, and a one-block hold here blocks a same-block deposit→redeem, which together defeat
 /// the atomic (flash-loanable) `deposit → drip → redeem` sandwich that could otherwise farm a drip.
 ///
-/// @dev A plain ERC4626 (deposit/withdraw any time bar the one-block hold) plus a renounceable owner.
+/// @dev A plain ERC4626 (deposit/withdraw any time bar the one-block hold) plus an owner (PondPad: fixed, with
+/// expiring powers).
 /// Solady's virtual shares (on by default) plus a decimals offset neutralise the first-depositor
 /// inflation attack. Assumes an 18-decimal asset (IMD is 18).
 ///
-/// EMERGENCY POWERS (all held by the owner, all removed the instant `renounceOwnership()` is called):
-///   - `setPaused(true)` — a full stop: every deposit, mint, withdraw and redeem reverts.
-///   - `rescueERC20` / `rescueETH` — sweep ANY balance, INCLUDING the staked IMD, to a chosen address.
-///
-/// The rescue functions can move stakers' IMD, so until ownership is renounced the owner is a trusted
-/// party (this is a deliberate "move funds to safety in a worst case" hatch, not a trustless design).
-/// Renouncing drops both powers permanently and leaves an immutable, trustless ERC4626. To avoid
-/// bricking the vault, ownership cannot be renounced while paused — unpause first.
+/// EMERGENCY POWERS (PondPad: held by the owner, the 7-day timelock, until `powersExpireAt`; the upstream text, which
+/// let the owner sweep the staked asset, is replaced here, audit R4-A3-5):
+///   - `setPaused(true)` — a stop of at most 3 days, then at least 4 days unpaused: deposits, mints, withdrawals and
+///     redemptions revert meanwhile.
+///   - `rescueERC20` / `rescueETH` — sweep a stray balance to a chosen address; never the staked $PONDPAD and never
+///     sPONDPAD itself.
+/// Ownership can't be renounced, transferred or handed over (FixedOwnable); the powers end at `powersExpireAt`.
 contract StakedPONDPAD is ERC4626, FixedOwnable {
     using SafeTransferLib for address;
 
@@ -84,6 +85,7 @@ contract StakedPONDPAD is ERC4626, FixedOwnable {
     error RenounceWhilePaused();
     error SameBlockRedeem();
     error CannotRescueStake();
+    error InvalidReceiver();
     error PauseCooldown();
     error RewardsClosed();
 
@@ -131,6 +133,10 @@ contract StakedPONDPAD is ERC4626, FixedOwnable {
     /// @notice PondPad (audit R2-A3-1): takes $PONDPAD that reached the vault by plain transfer (the dripper's drips,
     /// or a stray transfer) into `totalAssets`, raising every share's value. Permissionless, and only while rewards
     /// are open, so nothing sent to an empty or dust-only vault can ever move the share price.
+    /// Only the dripper should send $PONDPAD here (audit R4-A3-2): anything else sent straight to the vault (a grant,
+    /// a mistaken transfer, a sink pointed at the vault) is taken in as one lump at the next sync, and a stake held
+    /// across one block shares it pro rata; the dripper's 1/7 bound covers only what streams through it. Nobody gains
+    /// by sending it, so this is documented, not prevented.
     function syncRewards() external returns (uint256 amount) {
         if (rewardsOpenSince == 0) revert RewardsClosed();
         uint256 bal = SafeTransferLib.balanceOf(_asset, address(this));
@@ -165,6 +171,9 @@ contract StakedPONDPAD is ERC4626, FixedOwnable {
         // The hold stamp lives in `_beforeTokenTransfer` (fired by the mint below), NOT here: keying it on
         // the deposit `to` let a third party stamp any address for free (griefing) and let a depositor shed
         // it by transferring shares to a fresh account (JIT bypass). See _beforeTokenTransfer.
+        // PondPad (audit R4-A3-1): no shares minted to address(0) or to the vault itself. Nobody could ever redeem them,
+        // yet they would count toward the reward gate, keep the vault open for ever and take a cut of every drip.
+        if (to == address(0) || to == address(this)) revert InvalidReceiver();
         super._deposit(by, to, assets, shares);
         trackedAssets += assets; // PondPad (R2-A3-1)
         _updateRewardsOpen();
@@ -212,8 +221,9 @@ contract StakedPONDPAD is ERC4626, FixedOwnable {
     /// holder; a positive transfer carries the sender's hold forward (never lowering the recipient's);
     /// zero-amount moves and burns stamp nothing.
     function _beforeTokenTransfer(address from, address to, uint256 amount) internal override {
-        // PondPad (audit R3-A3-5): burns and transfers to address(0) also go through the bookkeeping, so the sender's
-        // held count never stays above its balance (a redeem only burns unheld shares, so it changes nothing there).
+        // PondPad (audit R3-A3-5): burns also go through the bookkeeping, so the sender's held count never stays above
+        // its balance (a redeem only burns unheld shares, so it changes nothing there). Transfers to address(0) are
+        // refused (`transfer` / `transferFrom`, audit R4-A3-1).
         if (amount == 0) return;
         if (from == address(0)) {
             _hold(to, amount); // mint (deposit): the new shares are held
@@ -229,6 +239,19 @@ contract StakedPONDPAD is ERC4626, FixedOwnable {
                 if (to != address(0)) _hold(to, moved);
             }
         }
+    }
+
+    /// @dev PondPad (audit R4-A3-1): shares can't be sent to address(0) or to the vault itself (Solady's ERC20 allows
+    /// both). Nobody could redeem them, yet they would keep the vault open for rewards and take a cut of every drip.
+    /// Burns (withdraw, redeem) don't go through here.
+    function transfer(address to, uint256 amount) public override returns (bool) {
+        if (to == address(0) || to == address(this)) revert InvalidReceiver();
+        return super.transfer(to, amount);
+    }
+
+    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+        if (to == address(0) || to == address(this)) revert InvalidReceiver();
+        return super.transferFrom(from, to, amount);
     }
 
     // ─────────────────────────────── ERC4626 max* (pause-aware) ───────────────────────────────
@@ -270,9 +293,10 @@ contract StakedPONDPAD is ERC4626, FixedOwnable {
 
     // ─────────────────────────────── Emergency recovery ───────────────────────────────
 
-    /// @notice Owner sweeps a stray ERC20 balance to `to`. PondPad: never the staked asset.
+    /// @notice Owner sweeps a stray ERC20 balance to `to`. PondPad: never the staked asset, and never sPONDPAD itself,
+    /// whose shares stand for staked $PONDPAD (audit R4-A3-5).
     function rescueERC20(address token, address to, uint256 amount) external onlyOwnerActive {
-        if (token == _asset) revert CannotRescueStake();
+        if (token == _asset || token == address(this)) revert CannotRescueStake();
         token.safeTransfer(to, amount);
         emit EmergencyRescue(token, to, amount);
     }

@@ -23,6 +23,7 @@ pragma solidity 0.8.26;
        closed market can never be reopened (R2-A2-7); two upstream comments corrected (R2-A2-6).
     7. Audit round 3: `refTick` steps `maxRefStep` per block elapsed since the last swap (R3-A3-2); matured claims are
        not realised inside a swap while the swapper has IMD or $PONDPAD synced (R3-A2-3).
+    8. Audit round 4: `referenceTick()` reports that catch-up before the next swap applies it, for PadBuyer (R4-A3-3).
   The owner is MarketController. It never exposes `withdrawRetainedQuote`; it calls `closeMarket` only inside
   `migrate`, which moves everything into a new market hook (7-day timelock, first 12 months only, D-40).
 */
@@ -1043,17 +1044,27 @@ contract PadMarketHook is Ownable {
     /// Dragging it still needs the manipulated price to stand for one block per step, as before.
     function _observeTick() internal {
         if (block.number != refBlock) {
-            int24 target = curBlockTick;
-            uint256 blocks = block.number - refBlock;
-            if (blocks > MAX_CATCHUP_BLOCKS) blocks = MAX_CATCHUP_BLOCKS;
-            int256 step = int256(maxRefStep) * int256(blocks);
-            int256 delta = int256(target) - int256(refTick);
-            if (delta > step) target = int24(int256(refTick) + step);
-            else if (delta < -step) target = int24(int256(refTick) - step);
-            refTick = target; // stays a valid tick: |target - refTick| <= |curBlockTick - refTick|
+            refTick = referenceTick(); // PondPad (audit R4-A3-3): the same catch-up the view reports
             refBlock = uint64(block.number);
         }
         curBlockTick = currentTick();
+    }
+
+    /// @notice PondPad (audit R4-A3-3): the reference as it stands for this block: `refTick` caught up toward the
+    /// last swapped block's close by `maxRefStep` per block elapsed since, exactly as the next swap's `_observeTick`
+    /// will set it before its own price counts (`refTick` itself once this block has had a swap). Its target is an
+    /// earlier block's close, so nothing done in the current block moves it. `PadBuyer` reads this, not the stored
+    /// `refTick`, which only catches up at the next swap.
+    function referenceTick() public view returns (int24) {
+        if (block.number == refBlock) return refTick;
+        int24 target = curBlockTick;
+        uint256 blocks = block.number - refBlock;
+        if (blocks > MAX_CATCHUP_BLOCKS) blocks = MAX_CATCHUP_BLOCKS;
+        int256 step = int256(maxRefStep) * int256(blocks);
+        int256 delta = int256(target) - int256(refTick);
+        if (delta > step) target = int24(int256(refTick) + step);
+        else if (delta < -step) target = int24(int256(refTick) - step);
+        return target; // stays a valid tick: |target - refTick| <= |curBlockTick - refTick|
     }
 
     // -------------------------------------------------------------------------

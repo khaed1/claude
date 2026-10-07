@@ -380,6 +380,53 @@ rep('''    6. Audit round 2: an owner `closeBackstop` or a migration seed earns 
     7. Audit round 3: `refTick` steps `maxRefStep` per block elapsed since the last swap (R3-A3-2); matured claims are
        not realised inside a swap while the swapper has IMD or $PONDPAD synced (R3-A2-3).''')
 
+# ---------- 17. audit round 4 (R4-A3-3)
+# The catch-up of R3-A3-2 is applied lazily, by the next swap's afterSwap. PadBuyer checks the reference before its own
+# swap, so after a genuine move and quiet blocks it read the stale stored `refTick` and refused to buy. `referenceTick()`
+# is the reference as the next swap in this block will leave it before its own price counts; `_observeTick` uses it, so
+# the two can't drift apart. Nothing in the current block moves it: its target is the close of an earlier block.
+rep('''    function _observeTick() internal {
+        if (block.number != refBlock) {
+            int24 target = curBlockTick;
+            uint256 blocks = block.number - refBlock;
+            if (blocks > MAX_CATCHUP_BLOCKS) blocks = MAX_CATCHUP_BLOCKS;
+            int256 step = int256(maxRefStep) * int256(blocks);
+            int256 delta = int256(target) - int256(refTick);
+            if (delta > step) target = int24(int256(refTick) + step);
+            else if (delta < -step) target = int24(int256(refTick) - step);
+            refTick = target; // stays a valid tick: |target - refTick| <= |curBlockTick - refTick|
+            refBlock = uint64(block.number);
+        }
+        curBlockTick = currentTick();
+    }''', '''    function _observeTick() internal {
+        if (block.number != refBlock) {
+            refTick = referenceTick(); // PondPad (audit R4-A3-3): the same catch-up the view reports
+            refBlock = uint64(block.number);
+        }
+        curBlockTick = currentTick();
+    }
+
+    /// @notice PondPad (audit R4-A3-3): the reference as it stands for this block: `refTick` caught up toward the
+    /// last swapped block's close by `maxRefStep` per block elapsed since, exactly as the next swap's `_observeTick`
+    /// will set it before its own price counts (`refTick` itself once this block has had a swap). Its target is an
+    /// earlier block's close, so nothing done in the current block moves it. `PadBuyer` reads this, not the stored
+    /// `refTick`, which only catches up at the next swap.
+    function referenceTick() public view returns (int24) {
+        if (block.number == refBlock) return refTick;
+        int24 target = curBlockTick;
+        uint256 blocks = block.number - refBlock;
+        if (blocks > MAX_CATCHUP_BLOCKS) blocks = MAX_CATCHUP_BLOCKS;
+        int256 step = int256(maxRefStep) * int256(blocks);
+        int256 delta = int256(target) - int256(refTick);
+        if (delta > step) target = int24(int256(refTick) + step);
+        else if (delta < -step) target = int24(int256(refTick) - step);
+        return target; // stays a valid tick: |target - refTick| <= |curBlockTick - refTick|
+    }''')
+rep('''    7. Audit round 3: `refTick` steps `maxRefStep` per block elapsed since the last swap (R3-A3-2); matured claims are
+       not realised inside a swap while the swapper has IMD or $PONDPAD synced (R3-A2-3).''', '''    7. Audit round 3: `refTick` steps `maxRefStep` per block elapsed since the last swap (R3-A3-2); matured claims are
+       not realised inside a swap while the swapper has IMD or $PONDPAD synced (R3-A2-3).
+    8. Audit round 4: `referenceTick()` reports that catch-up before the next swap applies it, for PadBuyer (R4-A3-3).''')
+
 code = '\n'.join(l.split('//')[0] for l in s.splitlines())
 for bad in ['msg.value', 'settle{value', 'safeTransferETH', 'lpFee', ' ether', 'external payable']:
     assert bad not in code, (bad, [l for l in s.splitlines() if bad in l.split('//')[0]])

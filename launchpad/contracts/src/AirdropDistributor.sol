@@ -5,6 +5,7 @@ import {FixedOwnable} from "./FixedOwnable.sol";
 import {EIP712} from "solady/utils/EIP712.sol";
 import {MerkleProofLib} from "solady/utils/MerkleProofLib.sol";
 import {SignatureCheckerLib} from "solady/utils/SignatureCheckerLib.sol";
+import {ECDSA} from "solady/utils/ECDSA.sol";
 import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 import {ReentrancyGuard} from "solady/utils/ReentrancyGuard.sol";
 
@@ -110,6 +111,15 @@ contract AirdropDistributor is FixedOwnable, EIP712, ReentrancyGuard {
         return ("PondPad Airdrop", "1");
     }
 
+    /// @dev The signer's plain ECDSA signature first, then ERC-1271, as OpenZeppelin's SignatureChecker does. Solady's
+    ///      checker asks only ERC-1271 once the signer has code, which refused the own-key signature of an EOA carrying
+    ///      an EIP-7702 delegation whose delegate doesn't implement it (audit R4-A3-8).
+    function _validSignature(address signer, bytes32 digest, bytes calldata signature) internal view returns (bool) {
+        if (signer == address(0)) return false;
+        return ECDSA.tryRecoverCalldata(digest, signature) == signer
+            || SignatureCheckerLib.isValidERC1271SignatureNowCalldata(signer, digest, signature);
+    }
+
     // ------------------------------------------------------------------ Views
 
     /// @notice The wallet that receives `account`'s claims: its claim wallet if set, else itself.
@@ -171,7 +181,7 @@ contract AirdropDistributor is FixedOwnable, EIP712, ReentrancyGuard {
         _verifyLeaf(account, amount, proof);
         bytes32 digest =
             _hashTypedData(keccak256(abi.encode(INITIATION_TYPEHASH, account, handleHash, tweetHash, deadline)));
-        if (!SignatureCheckerLib.isValidSignatureNowCalldata(verifier, digest, voucher)) revert BadVoucher();
+        if (!_validSignature(verifier, digest, voucher)) revert BadVoucher();
 
         initiated[account] = true;
         handleUsed[handleHash] = true;
@@ -201,7 +211,7 @@ contract AirdropDistributor is FixedOwnable, EIP712, ReentrancyGuard {
         if (block.timestamp > deadline) revert Expired();
         bytes32 digest =
             _hashTypedData(keccak256(abi.encode(DELEGATE_TYPEHASH, account, claimWallet, nonces[account]++, deadline)));
-        if (!SignatureCheckerLib.isValidSignatureNowCalldata(account, digest, signature)) revert BadSignature();
+        if (!_validSignature(account, digest, signature)) revert BadSignature();
         _setClaimWallet(account, claimWallet);
     }
 

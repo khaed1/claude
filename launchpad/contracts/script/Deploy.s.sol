@@ -32,7 +32,6 @@ import {WorkerFund} from "../src/WorkerFund.sol";
 import {GrowthFund} from "../src/GrowthFund.sol";
 import {AttestationVerifier} from "../src/AttestationVerifier.sol";
 import {SocialRegistry} from "../src/SocialRegistry.sol";
-import {CTOModule} from "../src/CTOModule.sol";
 import {VersionRegistry} from "../src/VersionRegistry.sol";
 import {AirdropDistributor} from "../src/AirdropDistributor.sol";
 import {TeamVesting} from "../src/TeamVesting.sol";
@@ -43,10 +42,10 @@ import {LiquidityReserve} from "../src/LiquidityReserve.sol";
 ///
 ///   forge script script/Deploy.s.sol --rpc-url robinhood --broadcast --sender <deployer> [--account|--private-key …]
 ///
-/// Required env: SAFE (team Safe: timelock proposer, council, granter, guardian, treasury, team vesting),
+/// Required env: SAFE (team Safe: timelock proposer, granter, guardian, treasury, team vesting, market migrator),
 /// RELAY (Swarm Relay wallet), X_LINK_KEY (X link service key), TWEET_CHECKER (airdrop tweet checker key),
-/// AIRDROP_CLAIMS (claims.json from airdrop/snapshot.py build; test chains may give AIRDROP_ROOT instead), SALE_START,
-/// CTO_RULES (ipfs://… link). Optional: WORKER_REWARDS (default: not set yet),
+/// AIRDROP_CLAIMS (claims.json from airdrop/snapshot.py build; test chains may give AIRDROP_ROOT instead), SALE_START.
+/// Optional: WORKER_REWARDS (default: not set yet),
 /// AUDIT_LINK (activates version 1 at deploy), POWERS_EXPIRE_AT (staking powers; default SALE_START + 365 days).
 ///
 /// On Robinhood Chain (4663) the chain addresses and the 48 h / 7-day delays are the constants below and cannot be
@@ -78,6 +77,8 @@ contract Deploy is Script {
     uint256 internal constant CAP_DECAY = 500_000e18; // D-21
     uint256 internal constant SALE_SUPPLY = 900_000_000e18; // 60% curve + 30% pool (D-17)
     uint256 internal constant AIRDROP = 50_000_000e18; // 5%
+    /// @dev `AirdropDistributor.INITIATORS_NEEDED`: a shorter list could never activate nor be swept (audit R4-A3-4).
+    uint256 internal constant AIRDROP_MIN_WALLETS = 100;
     uint256 internal constant TEAM = 20_000_000e18; // 2%
     uint256 internal constant LIQUIDITY_RESERVE = 30_000_000e18; // 3%, LiquidityReserve → 48 h timelock once the market opens
 
@@ -105,7 +106,6 @@ contract Deploy is Script {
         bytes32 airdropRoot;
         uint256 saleStart;
         uint256 powersExpireAt;
-        string ctoRules;
         string auditLink;
     }
 
@@ -125,7 +125,6 @@ contract Deploy is Script {
         PadLens lens;
         AttestationVerifier verifier;
         SocialRegistry social;
-        CTOModule cto;
         VersionRegistry versions;
         WorkerFund workerFund;
         GrowthFund growthFund;
@@ -153,7 +152,6 @@ contract Deploy is Script {
             airdropRoot: _airdropRoot(),
             saleStart: vm.envUint("SALE_START"),
             powersExpireAt: 0,
-            ctoRules: vm.envString("CTO_RULES"),
             auditLink: vm.envOr("AUDIT_LINK", string(""))
         });
         p.powersExpireAt = vm.envOr("POWERS_EXPIRE_AT", p.saleStart + 365 days);
@@ -179,7 +177,8 @@ contract Deploy is Script {
         require(given == bytes32(0) || given == root, "AIRDROP_ROOT differs from the claims file");
     }
 
-    /// @notice The root of a `snapshot.py build` claims.json, after checking its list total fits the airdrop.
+    /// @notice The root of a `snapshot.py build` claims.json, after checking its list total fits the airdrop and it lists
+    ///         at least the 100 wallets the distributor needs to activate (audit R4-A3-4).
     /// @dev Audit R3-A3-3 / R3-A4-13: the file's own `total` and `root` are not trusted. The listed amounts must add up
     ///      to `total`, `total` must fit the 50M airdrop, and `root` must be the OpenZeppelin StandardMerkleTree root
     ///      of exactly the listed (address, amount) leaves, rebuilt here as `airdrop/snapshot.py` builds it (leaves
@@ -200,6 +199,9 @@ contract Deploy is Script {
         require(sum == total, "airdrop total doesn't match the claims");
         require(total <= AIRDROP, "airdrop list exceeds 50M");
         require(standardMerkleRoot(leaves) == root, "airdrop root doesn't match the claims");
+        // The distributor activates only when 100 listed wallets initiate, and only then can anything be claimed or
+        // swept: a shorter list would lock the 50M for ever (audit R4-A3-4).
+        require(accounts.length >= AIRDROP_MIN_WALLETS, "airdrop list below 100 wallets");
     }
 
     /// @notice OpenZeppelin StandardMerkleTree root of `leaves` (already hashed), as `airdrop/snapshot.py` builds it.
@@ -351,14 +353,11 @@ contract Deploy is Script {
         d.router = new PadRouter(imd, pm, address(d.config), address(d.curve), address(d.hook), address(d.factory));
         d.lens = new PadLens(address(d.curve), address(d.hook), address(d.creatorVault), address(d.swarmBudget));
 
-        // 5. Oracle, X links and takeovers (the vault takes the CTO module once, so it comes first).
+        // 5. Oracle and X links (no takeover module, D-82: only a coin's fee recipient changes its recipient).
         d.verifier = new AttestationVerifier(slow);
         d.social = new SocialRegistry(fast, address(d.creatorVault), p.xLinkKey);
-        d.cto = new CTOModule(
-            slow, address(d.creatorVault), address(d.curve), address(d.social), address(d.verifier), p.safe, p.ctoRules
-        );
 
-        d.creatorVault.initialize(address(d.curve), address(d.hook), address(d.cto));
+        d.creatorVault.initialize(address(d.curve), address(d.hook));
         d.swarmBudget.initialize(address(d.curve), address(d.hook));
         d.curve.initialize(
             address(d.factory), address(d.router), address(d.hook), address(d.creatorVault), address(d.swarmBudget),
@@ -512,7 +511,6 @@ contract Deploy is Script {
         vm.serializeAddress(k, "lens", address(d.lens));
         vm.serializeAddress(k, "attestationVerifier", address(d.verifier));
         vm.serializeAddress(k, "socialRegistry", address(d.social));
-        vm.serializeAddress(k, "ctoModule", address(d.cto));
         vm.serializeAddress(k, "versionRegistry", address(d.versions));
         vm.serializeAddress(k, "workerFund", address(d.workerFund));
         vm.serializeAddress(k, "growthFund", address(d.growthFund));
@@ -540,7 +538,6 @@ contract Deploy is Script {
         console2.log("PadHook              ", address(d.hook));
         console2.log("PadRouter            ", address(d.router));
         console2.log("PadLens              ", address(d.lens));
-        console2.log("CTOModule            ", address(d.cto));
         console2.log("VersionRegistry      ", address(d.versions));
         console2.log("PadSale              ", address(d.sale));
         console2.log("MarketController     ", address(d.controller));

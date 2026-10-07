@@ -273,7 +273,7 @@ contract BondingCurve is ReentrancyGuard {
         // what they still hold; with nobody else eligible it goes to growth (audit R3-A1-1).
         _routeFees(coin, c.fees, fee, referrer, trader);
         imd.safeTransfer(recipient, out);
-        emit CurveTrade(coin, recipient, false, gross, tokensIn, fee, 0, c.raised);
+        emit CurveTrade(coin, trader, false, gross, tokensIn, fee, 0, c.raised); // the seller, not the payout (R4-A1-2)
     }
 
     /// @dev Curve trades revert while anyone holds the PoolManager unlock (audit R1-A1-1). PadToken skips dividend

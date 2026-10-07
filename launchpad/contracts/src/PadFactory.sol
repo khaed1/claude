@@ -9,7 +9,7 @@ interface ICurveRegistry {
 }
 
 /// @notice What a creator chooses at launch. Everything here is fixed for the coin's lifetime, except the fee
-///         recipient, which the recipient itself (or a swarm-approved takeover) can change later.
+///         recipient, which only the recipient itself can change later (D-82: no takeovers).
 struct LaunchParams {
     string name;
     string symbol;

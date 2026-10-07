@@ -58,10 +58,6 @@ const abi = {
   sale: parseAbi(["function graduate()", "function status() view returns (uint8)"]),
   curve: parseAbi(["function graduate(address)", "function coinCount() view returns (uint256)", "function coinAt(uint256) view returns (address)", "function statusOf(address) view returns (uint8)"]),
   hook: parseAbi(["function flush(address)", "function pending(address) view returns (uint128 protocol, uint128 creator, uint128 holders, uint128 swarm)"]),
-  cto: parseAbi([
-    "function execute(address)",
-    "function pendingOf(address) view returns ((address newRecipient, address proposer, uint64 executableAt, uint64 expiresAt, bool byCouncil, bool contested, bool confirmed, uint64 contestedAt))",
-  ]),
   workerFund: parseAbi(["function release() returns (uint256, uint256)", "function workerRewards() view returns (address)"]),
   vault: parseAbi(["function claim(address) returns (uint256)", "function recipientOf(address) view returns (address)", "function balanceOf(address) view returns (uint256)"]),
   budget: parseAbi(["function sweepToHolders(address) returns (uint256)", "function balanceOf(address) view returns (uint256)"]),
@@ -177,18 +173,8 @@ async function pass() {
         }
         state["coins.flush"] = now;
       }
-      if (due("coins.cto", HOUR, now)) {
-        const pend = await multi(list, "cto", a.ctoModule, "pendingOf");
-        for (let i = 0; i < list.length; i++) {
-          const t = pend[i];
-          if (t.executableAt > 0n && BigInt(now) >= t.executableAt && BigInt(now) < t.expiresAt) {
-            await send(`CTOModule.execute(${list[i]})`, a.ctoModule, "cto", "execute", [list[i]]);
-          }
-        }
-        state["coins.cto"] = now;
-      }
       if (due("coins.holders", WEEK, now)) {
-        // Coins whose takeover routed fees to holders (recipient = the coin itself, D-52): move their creator fees
+        // Coins whose fees go to holders (recipient = the coin itself, D-52): move their creator fees
         // and swarm budget into the coin's holder stream (D-78, D-80), which pays them out second by second over
         // ~7 days by itself (no release call needed).
         const recipients = await multi(list, "vault", a.creatorVault, "recipientOf");

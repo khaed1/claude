@@ -62,7 +62,6 @@ contract TestnetForkTest is Test {
             airdropRoot: keccak256("testnet root"),
             saleStart: saleStart,
             powersExpireAt: saleStart + 365 days,
-            ctoRules: "ipfs://bafytestnetrules",
             auditLink: "https://imd.fun/jobs/testnet"
         });
         d = script.deploy(p);

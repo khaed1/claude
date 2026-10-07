@@ -13,14 +13,14 @@ The IMD swarm audits PondPad v1 before deploy (ARCHITECTURE §10, ROADMAP item 1
 
 ## Scope
 
-All of `contracts/src/` (33 contracts), `contracts/script/Deploy.s.sol` and the fork generators in `contracts/upstream/` (39 files, ~10,000 lines; the exact count is in each round's `manifest.json`); A4 also reads `CTO-RULES.md`. `make_jobs.py` refuses a round if any in-scope file is in no area.
+All of `contracts/src/` (32 contracts), `contracts/script/Deploy.s.sol` and the fork generators in `contracts/upstream/` (38 files, ~9,700 lines; the exact count is in each round's `manifest.json`). Community takeovers (`CTOModule`, `CTO-RULES.md`) were removed after round 4 (D-82). `make_jobs.py` refuses a round if any in-scope file is in no area.
 
 | Job | Area | Files |
 |---|---|---|
 | A1 | Coin trading core | curve, `PadHook`, router, payment swapper, coin token, factory, config, fee lib, vaults, splitter, lens |
 | A2 | $PONDPAD sale and market | `PondPadToken`, `PadSale`, `PadMarketHook` + POOL4 original + `make_fork.py`, `MarketController`, `PadBurner` |
 | A3 | Staking, funds, distribution | `StakedPONDPAD`, `RewardDripper` + POOL4 originals + `make_staking.py`, `PadBuyer`, splitter, `WorkerFund`, `GrowthFund`, `AirdropDistributor`, `TeamVesting` |
-| A4 | Governance, takeovers, deploy | `AttestationVerifier`, `CTOModule`, `VersionRegistry`, `SocialRegistry`, `PadConfig`, `FixedOwnable`, `PondPadTimelock`, `PadToken` (holder stream), `Deploy.s.sol`, `CTO-RULES.md` |
+| A4 | Governance, versions, deploy | `AttestationVerifier`, `VersionRegistry`, `SocialRegistry`, `CreatorVault` (recipient changes, holder routing), `SwarmBudget`, `PadConfig`, `FixedOwnable`, `PondPadTimelock`, `PadToken` (holder stream), `Deploy.s.sol` |
 
 Out of scope: tests, `lib/`, `keeper/`, `airdrop/` (offchain tools; the airdrop root is checked by rerunning `snapshot.py build`).
 

@@ -28,7 +28,7 @@ struct OracleAttestation {
 }
 
 /// @title AttestationVerifier
-/// @notice Checks IMD oracle attestations for PondPad's consumers (CTOModule, VersionRegistry): the signer is an
+/// @notice Checks IMD oracle attestations for PondPad's consumers (VersionRegistry, and future ones): the signer is an
 ///         approved oracle signer, the panel was large enough and agreed strongly enough, the answer is still
 ///         valid, and the question is exactly the one the consumer expects.
 /// @dev The oracle's `questionHash` is keccak256 of the canonical JSON of the question (sorted keys, no

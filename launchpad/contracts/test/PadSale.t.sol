@@ -425,4 +425,61 @@ contract PadSaleTest is Base {
         vm.expectRevert(PadSale.NotFull.selector);
         sale.graduate();
     }
+
+    // ------------------------------------------------------------------ Audit round 4 (coverage, R4-A2-3)
+
+    /// @dev Audit R4-A2-3 (coverage): the buy that completes the sale paid in USDG (USDG → ETH → IMD) respects `minImd`,
+    ///      gets the last tokens and refunds the unused IMD.
+    function test_sale_completingUsdgBuy() public {
+        vm.warp(START + 30 minutes);
+        _fillUntilCompletes(300e18);
+        vm.prank(bob);
+        vm.expectRevert(PadSale.Slippage.selector); // 3,000 USDG buys ~460 IMD, not 1,000
+        sale.buyWith(address(usdg), 3_000e6, 1_000e18, 1, START + 30 minutes, address(0));
+        uint256 imdBefore = imd.balanceOf(bob);
+        uint256 left = sale.CURVE_SUPPLY() - sale.sold();
+        vm.prank(bob);
+        uint256 out = sale.buyWith(address(usdg), 3_000e6, 400e18, 1, START + 30 minutes, address(0));
+        assertEq(out, left, "the last tokens");
+        assertEq(uint8(sale.status()), uint8(PadSale.Status.Graduated));
+        assertGt(imd.balanceOf(bob) - imdBefore, 100e18, "the unused IMD comes back");
+        assertEq(usdg.balanceOf(address(sale)), 0);
+    }
+
+    /// @dev Audit R4-A2-3 (coverage): a sale sell with a permit instead of an approval; a permit someone already submitted
+    ///      (a front-runner) is ignored and the sell goes through on the allowance it set.
+    function test_sale_sellForWithPermit() public {
+        vm.warp(START + 30 minutes);
+        uint256 key = 0xC0FFEE;
+        address seller = vm.addr(key);
+        imd.mint(seller, 100e18);
+        vm.prank(seller);
+        imd.approve(address(sale), type(uint256).max);
+        uint256 got = _saleBuy(seller, 100e18);
+        uint256 deadline = START + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s_) = vm.sign(key, _permitDigest(seller, got, pondpad.nonces(seller), deadline));
+        pondpad.permit(seller, address(sale), got, deadline, v, r, s_); // a front-runner submits it first
+        vm.prank(seller);
+        uint256 out = sale.sellForWithPermit(address(imd), got / 2, 1, deadline, address(0), got, v, r, s_);
+        assertGt(out, 0);
+
+        uint256 rest = got - got / 2;
+        (v, r, s_) = vm.sign(key, _permitDigest(seller, rest, pondpad.nonces(seller), deadline));
+        vm.prank(seller);
+        sale.sellForWithPermit(address(imd), rest, 1, deadline, address(0), rest, v, r, s_);
+        assertEq(pondpad.balanceOf(seller), 0);
+        assertEq(pondpad.allowance(seller, address(sale)), 0);
+    }
+
+    function _permitDigest(address owner_, uint256 value, uint256 nonce, uint256 deadline) internal view returns (bytes32) {
+        bytes32 typehash =
+            keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+        return keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                pondpad.DOMAIN_SEPARATOR(),
+                keccak256(abi.encode(typehash, owner_, address(sale), value, nonce, deadline))
+            )
+        );
+    }
 }

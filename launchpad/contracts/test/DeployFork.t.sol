@@ -55,7 +55,6 @@ contract DeployForkTest is Test {
             airdropRoot: keccak256("rehearsal root"),
             saleStart: saleStart,
             powersExpireAt: saleStart + 365 days,
-            ctoRules: "ipfs://bafyrehearsalrules",
             auditLink: "https://imd.fun/jobs/rehearsal-audit"
         });
         d = script.deploy(p);
@@ -87,7 +86,6 @@ contract DeployForkTest is Test {
         assertEq(d.swarmBudget.owner(), fast);
         assertEq(d.verifier.owner(), slow);
         assertEq(d.social.owner(), fast);
-        assertEq(d.cto.owner(), slow);
         assertEq(d.versions.owner(), slow);
         assertEq(d.workerFund.owner(), slow);
         assertEq(d.growthFund.owner(), fast);
@@ -99,7 +97,10 @@ contract DeployForkTest is Test {
         assertEq(d.buyer.owner(), fast);
         assertEq(d.airdrop.owner(), fast);
         assertEq(d.config.guardian(), safe);
-        assertEq(d.cto.council(), safe);
+        // No takeover module (D-82): the creator vault is wired to the curve and the hook only.
+        assertEq(d.creatorVault.curve(), address(d.curve));
+        assertEq(d.creatorVault.hook(), address(d.hook));
+        assertEq(d.airdrop.INITIATORS_NEEDED(), 100); // the deploy refuses a shorter claims list (R4-A3-4)
         assertEq(d.vesting.beneficiary(), safe);
 
         // Fee routing.
@@ -137,10 +138,10 @@ contract DeployForkTest is Test {
     function test_deployFork_ownersAndDelaysAreFixed() public {
         if (!forked) return;
         address undelayed = makeAddr("undelayed");
-        address[14] memory owned = [
+        address[13] memory owned = [
             address(d.config), address(d.splitter), address(d.swarmBudget), address(d.verifier), address(d.social),
-            address(d.cto), address(d.versions), address(d.workerFund), address(d.growthFund), address(d.controller),
-            address(d.sVault), address(d.dripper), address(d.buyer), address(d.airdrop)
+            address(d.versions), address(d.workerFund), address(d.growthFund), address(d.controller), address(d.sVault),
+            address(d.dripper), address(d.buyer), address(d.airdrop)
         ];
         for (uint256 i; i < owned.length; i++) {
             address owner_ = Ownable(owned[i]).owner();

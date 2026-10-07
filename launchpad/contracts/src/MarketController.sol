@@ -178,9 +178,11 @@ contract MarketController is FixedOwnable, IPadMarketLauncher {
     // ------------------------------------------------------------------ Fees (permissionless)
 
     /// @notice Sends the market's trading fees to the fee splitter and splits them: IMD with the usual 40/25/20/15,
-    ///         the $PONDPAD that sellers paid with the same shares in $PONDPAD (D-38). Anyone can call it.
+    ///         the $PONDPAD that sellers paid with the same shares in $PONDPAD (D-38). Also burns the trimmed $PONDPAD
+    ///         waiting in the burner, so the supply follows the hook's `totalBurned` (audit R4-A2-2). Anyone can call it.
     function collectFees() external {
         _collectFees(hook);
+        IPadBurner(burner).burn();
     }
 
     function _collectFees(PadMarketHook h) internal {
@@ -195,9 +197,12 @@ contract MarketController is FixedOwnable, IPadMarketLauncher {
     // ------------------------------------------------------------------ Policy (48 h timelock)
 
     /// @notice The cap never falls below the deploy floor (150M, D-21): it can be raised, and lowered back to that,
-    ///         but owner settings can't let ordinary trading trim the market position away (audit R3-A2-1).
+    ///         but owner settings can't let ordinary trading trim the market position away (audit R3-A2-1). The floor
+    ///         can't go above the market's current cap either: the hook would lift the cap to it, and nothing but the
+    ///         rate-limited ratchet ever lowers the cap again, so trims would stop for good (audit R4-A2-1). Raised to
+    ///         the cap, it only holds the cap where it is (the ratchet stops there), and lowering it undoes that.
     function setCapFloor(uint256 newFloor) external onlyOwner {
-        if (newFloor < initialCapFloor) revert PolicyOutOfBounds();
+        if (newFloor < initialCapFloor || newFloor > hook.inventoryCap()) revert PolicyOutOfBounds();
         hook.setCapFloor(newFloor);
     }
 

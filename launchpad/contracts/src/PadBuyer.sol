@@ -22,10 +22,11 @@ interface IMarketControllerView {
 ///         $PONDPAD it receives directly (the stakers' share of the market's sell-side fees, D-38) is forwarded
 ///         as is. `buy()` is permissionless and pays its caller a small IMD tip.
 /// @dev Buys are small and spaced out: at most `maxChunk` IMD per call, at most one call per `interval`. Each buy
-///      is price-guarded against the market hook's block-lagged, rate-limited reference tick (`refTick`, which
-///      the current transaction cannot move): it refuses to buy when spot is already more than `maxDeviationTicks`
-///      above the reference in $PONDPAD's price, and its swap limit stops the fill at reference + deviation +
-///      slippage. A sandwich can therefore cost the stakers at most about 2% on one small chunk (defaults).
+///      is price-guarded against the market hook's block-lagged, rate-limited reference tick (`referenceTick()`:
+///      `refTick` caught up to the current block, which the current transaction cannot move; audit R4-A3-3): it
+///      refuses to buy when spot is already more than `maxDeviationTicks` above the reference in $PONDPAD's price,
+///      and its swap limit stops the fill at reference + deviation + slippage. A sandwich can therefore cost the
+///      stakers at most about 2% on one small chunk (defaults).
 ///      IMD is currency0, so buying $PONDPAD moves the tick down.
 contract PadBuyer is FixedOwnable, IUnlockCallback {
     using SafeTransferLib for address;
@@ -82,7 +83,9 @@ contract PadBuyer is FixedOwnable, IUnlockCallback {
 
         PadMarketHook market = controller.hook();
         if (!market.marketOpen()) revert MarketClosed();
-        int24 ref = market.refTick();
+        // The reference caught up to this block, not the stored `refTick`, which only moves at the next swap: after a
+        // genuine rise and quiet blocks the stored one still sat before the rise and refused every buy (R4-A3-3).
+        int24 ref = market.referenceTick();
         int24 spot = market.currentTick();
         // A lower tick = $PONDPAD dearer. Refuse when someone already pushed it up past the guard band.
         if (spot < ref - maxDeviationTicks) revert PriceOutOfRange();
@@ -133,8 +136,10 @@ contract PadBuyer is FixedOwnable, IUnlockCallback {
         return abi.encode(spent, out);
     }
 
-    /// @notice Tunes buying, within hard bounds. Owner: the 48 h timelock. The buyer can only ever send
-    ///         $PONDPAD to the dripper and tips to keepers, whatever the settings.
+    /// @notice Tunes buying, within hard bounds. Owner: the 48 h timelock; unlike the vault's and the dripper's, this
+    ///         power doesn't expire (D-43, audit R4-A3-6). The buyer can only ever send $PONDPAD to the dripper and tips
+    ///         to keepers, whatever the settings. `minChunk` is at least 1 wei, so an empty buyer reverts
+    ///         `NothingToBuy` (audit R4-A3-7).
     function setSettings(
         uint256 maxChunk_,
         uint256 minChunk_,
@@ -144,7 +149,7 @@ contract PadBuyer is FixedOwnable, IUnlockCallback {
         uint16 tipBps_
     ) external onlyOwner {
         if (
-            maxChunk_ == 0 || maxChunk_ > MAX_CHUNK || minChunk_ > maxChunk_ || interval_ < MIN_INTERVAL
+            maxChunk_ == 0 || maxChunk_ > MAX_CHUNK || minChunk_ == 0 || minChunk_ > maxChunk_ || interval_ < MIN_INTERVAL
                 || maxDeviation_ <= 0 || maxDeviation_ > MAX_TICKS || maxSlippage_ <= 0 || maxSlippage_ > MAX_TICKS
                 || tipBps_ > MAX_TIP_BPS
         ) revert InvalidSetting();

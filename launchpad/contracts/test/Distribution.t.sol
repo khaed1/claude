@@ -2,9 +2,23 @@
 pragma solidity 0.8.26;
 
 import {Ownable} from "solady/auth/Ownable.sol";
+import {ECDSA} from "solady/utils/ECDSA.sol";
 import {MarketBase} from "./Market.t.sol";
 import {AirdropDistributor} from "../src/AirdropDistributor.sol";
 import {TeamVesting} from "../src/TeamVesting.sol";
+
+/// @dev A contract wallet (ERC-1271) that accepts its owner key's signatures.
+contract Mock1271Wallet {
+    address internal immutable signer;
+
+    constructor(address signer_) {
+        signer = signer_;
+    }
+
+    function isValidSignature(bytes32 hash, bytes calldata sig) external view returns (bytes4) {
+        return ECDSA.recoverCalldata(hash, sig) == signer ? bytes4(0x1626ba7e) : bytes4(0xffffffff);
+    }
+}
 
 contract DistributionTest is MarketBase {
     uint256 internal constant OPEN = START + 30 minutes; // the market opens in `_graduate()` at this time
@@ -440,5 +454,65 @@ contract DistributionTest is MarketBase {
         vesting.release();
         assertEq(pondpad.balanceOf(newSafe), TEAM);
         assertEq(pondpad.balanceOf(teamSafe), 0);
+    }
+
+    // ------------------------------------------------------------------ Audit round 4
+
+    /// @dev Audit R4-A3-8: a listed EOA carrying an EIP-7702 delegation (code `0xef0100…`) still names its claim wallet
+    ///      with its own key's signature, and a tweet checker key in the same state still signs initiations.
+    function test_airdrop_delegatedEoaSignaturesStillCount() public {
+        vm.etch(seat, abi.encodePacked(hex"ef0100", address(0xdead)));
+        bytes memory sig = _delegateSig(hot, 0, OPEN);
+        airdrop.setClaimWalletBySig(seat, hot, OPEN, sig);
+        assertEq(airdrop.claimWalletOf(seat), hot);
+
+        vm.etch(xChecker, abi.encodePacked(hex"ef0100", address(0xdead)));
+        _graduate();
+        vm.warp(OPEN + 1 days);
+        _initiate(4, OPEN + 1 days);
+        assertEq(airdrop.initiatorCount(), 1);
+    }
+
+    /// @dev Audit R4-A3-9 (coverage): a contract wallet on the list (ERC-1271) names its claim wallet by signature, and
+    ///      a contract tweet checker (ERC-1271) signs initiations.
+    function test_airdrop_contractWalletAndContractChecker() public {
+        (address walletOwner, uint256 walletKey) = makeAddrAndKey("walletOwner");
+        address c = accounts[2];
+        vm.etch(c, address(new Mock1271Wallet(walletOwner)).code);
+        bytes memory sig = _sign(walletKey, keccak256(abi.encode(DELEGATE_TYPEHASH, c, hot, 0, OPEN)));
+        airdrop.setClaimWalletBySig(c, hot, OPEN, sig);
+        assertEq(airdrop.claimWalletOf(c), hot);
+        bytes memory wrong = _sign(seatKey, keccak256(abi.encode(DELEGATE_TYPEHASH, c, staker, 1, OPEN)));
+        vm.expectRevert(AirdropDistributor.BadSignature.selector); // not the wallet's key
+        airdrop.setClaimWalletBySig(c, staker, OPEN, wrong);
+
+        (address checkerOwner, uint256 checkerKey) = makeAddrAndKey("checkerOwner");
+        Mock1271Wallet checker = new Mock1271Wallet(checkerOwner);
+        vm.prank(timelock);
+        airdrop.setVerifier(address(checker));
+        _graduate();
+        vm.warp(OPEN + 1 days);
+        address a = accounts[4];
+        bytes32 handle = keccak256("contract-checker-handle");
+        bytes32 tweet = keccak256("contract-checker-tweet");
+        bytes memory v = _voucher(checkerKey, a, handle, tweet, OPEN + 2 days);
+        bytes32[] memory p = _proof(4);
+        vm.prank(a);
+        airdrop.initiate(a, amounts[4], p, handle, tweet, OPEN + 2 days, v);
+        assertEq(airdrop.initiatorCount(), 1);
+    }
+
+    /// @dev Audit R4-A3-9 (coverage): a claim wallet set directly with `setClaimWallet` claims, and is paid.
+    function test_airdrop_claimThroughADirectlySetClaimWallet() public {
+        vm.prank(staker);
+        airdrop.setClaimWallet(hot);
+        _activate();
+        vm.warp(ACT + 30 days);
+        bytes32[] memory p = _proof(1);
+        vm.prank(hot);
+        uint256 paid = airdrop.claim(staker, amounts[1], p);
+        assertEq(paid, amounts[1]);
+        assertEq(pondpad.balanceOf(hot), amounts[1]);
+        assertEq(pondpad.balanceOf(staker), 0);
     }
 }

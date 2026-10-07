@@ -439,11 +439,12 @@ contract StakingTest is MarketBase {
         assertLe(toVault + tip, buffer / 7, "highest floor");
     }
 
-    /// @dev Audit R3-A3-5: moving held shares to address(0) still goes through the hold bookkeeping, so the holder's
-    ///      next transfer in the same block works instead of underflowing.
+    /// @dev Audits R3-A3-5 / R4-A3-1: held shares can't be sent to address(0) any more, and the holder's next transfer
+    ///      in the same block works with the hold bookkeeping intact.
     function test_vault_transferToZeroKeepsHoldBookkeeping() public {
         uint256 shares = _stake(2e18); // all held this block
         vm.startPrank(staker);
+        vm.expectRevert(StakedPONDPAD.InvalidReceiver.selector);
         sVault.transfer(address(0), shares / 2);
         sVault.transfer(bob, 1);
         vm.stopPrank();
@@ -561,6 +562,167 @@ contract StakingTest is MarketBase {
         vm.warp(t0 + 3 days);
         rewards.drip(); // a full window from the reopening
         assertGt(sVault.totalAssets(), 2e18);
+    }
+
+    // ------------------------------------------------------------------ Audit round 4
+
+    /// @dev Audit R4-A3-1: shares can't be minted or sent to address(0) or to the vault itself, where nobody could ever
+    ///      redeem them; so one $PONDPAD parked there can't open the vault and set the dripper streaming into it.
+    function test_vault_noSharesForAddressZeroOrTheVault() public {
+        pondpad.transfer(address(rewards), 7_000_000e18);
+        vm.startPrank(staker);
+        vm.expectRevert(StakedPONDPAD.InvalidReceiver.selector);
+        sVault.deposit(1e18, address(0));
+        vm.expectRevert(StakedPONDPAD.InvalidReceiver.selector);
+        sVault.mint(1e24, address(0));
+        vm.expectRevert(StakedPONDPAD.InvalidReceiver.selector);
+        sVault.deposit(1e18, address(sVault));
+        vm.stopPrank();
+        assertEq(sVault.rewardsOpenSince(), 0, "still closed for rewards");
+        vm.warp(START + 30 minutes + 1 days);
+        assertEq(rewards.drippable(), 0, "the buffer waits for a real staker");
+
+        uint256 shares = _stake(10e18);
+        vm.startPrank(staker);
+        vm.expectRevert(StakedPONDPAD.InvalidReceiver.selector);
+        sVault.transfer(address(0), shares);
+        vm.expectRevert(StakedPONDPAD.InvalidReceiver.selector);
+        sVault.transfer(address(sVault), shares);
+        sVault.approve(bob, shares);
+        vm.stopPrank();
+        vm.startPrank(bob);
+        vm.expectRevert(StakedPONDPAD.InvalidReceiver.selector);
+        sVault.transferFrom(staker, address(0), shares);
+        vm.expectRevert(StakedPONDPAD.InvalidReceiver.selector);
+        sVault.transferFrom(staker, address(sVault), shares);
+        vm.stopPrank();
+        assertEq(sVault.balanceOf(staker), shares);
+        assertEq(sVault.balanceOf(address(0)) + sVault.balanceOf(address(sVault)), 0);
+    }
+
+    /// @dev Audit R4-A3-5: the owner can't rescue sPONDPAD itself, whose shares stand for staked $PONDPAD.
+    function test_vault_cantRescueItsOwnShares() public {
+        _stake(1_000e18);
+        vm.prank(slowTimelock);
+        vm.expectRevert(StakedPONDPAD.CannotRescueStake.selector);
+        sVault.rescueERC20(address(sVault), slowTimelock, 0);
+    }
+
+    /// @dev Audit R4-A3-3: after a genuine rise and blocks without swaps, PadBuyer reads the reference caught up to this
+    ///      block (`referenceTick()`), not the stored `refTick`, which only moves at the next swap; so it buys without
+    ///      waiting for someone else to trade.
+    function test_buyer_buysAfterAGenuineRiseAndQuietBlocks() public {
+        _graduate();
+        imd.mint(address(buyer), 25e18);
+        _nextBlock();
+        _swap(true, 1e15); // the reference stands at the current price
+        _nextBlock();
+        _swap(true, 80e18); // $PONDPAD rises past the 1% guard, within one block's reference step
+        int24 rose = market.currentTick();
+        assertLt(rose, market.refTick() - buyer.maxDeviationTicks());
+        for (uint256 i; i < 20; i++) {
+            _nextBlock(); // nobody trades
+        }
+        assertGt(market.refTick(), rose, "the stored reference still sits before the rise");
+        vm.prank(keeper);
+        assertGt(buyer.buy(), 0, "buys without waiting for another trade");
+        assertEq(market.refTick(), rose, "its own swap applied the catch-up it read");
+    }
+
+    /// @dev Audit R4-A3-3: `referenceTick()` is exactly what the next swap writes into `refTick`, after quiet blocks and
+    ///      within the block of a swap, and a pump in the current block doesn't move it.
+    function test_market_referenceTickIsWhatTheNextSwapSets() public {
+        _graduate();
+        _nextBlock();
+        _swap(false, 20_000_000e18); // $PONDPAD cheaper
+        for (uint256 i; i < 3; i++) {
+            _nextBlock();
+        }
+        int24 expected = market.referenceTick();
+        assertTrue(expected != market.refTick(), "a catch-up is pending");
+        _swap(true, 500e18); // the first swap of this block: a pump
+        assertEq(market.refTick(), expected, "the swap set what the view reported");
+        assertEq(market.referenceTick(), expected, "the pump in this block doesn't move it");
+    }
+
+    /// @dev Audit R4-A3-7: `minChunk` can't be 0, so an empty buyer reverts `NothingToBuy`, not inside the PoolManager.
+    function test_buyer_minChunkCantBeZero() public {
+        vm.prank(timelock);
+        vm.expectRevert(PadBuyer.InvalidSetting.selector);
+        buyer.setSettings(25e18, 0, 10 minutes, 100, 100, 50);
+        _graduate();
+        _nextBlock();
+        vm.expectRevert(PadBuyer.NothingToBuy.selector);
+        buyer.buy();
+    }
+
+    /// @dev Audit R4-A3-9 (coverage): `syncRewards` refuses while the vault is closed, and while it is open it takes in
+    ///      $PONDPAD sent straight to the vault as one lump (documented, R4-A3-2: only the dripper should send here).
+    function test_vault_syncRewardsClosedAndStrayLump() public {
+        pondpad.transfer(address(sVault), 100e18);
+        vm.expectRevert(StakedPONDPAD.RewardsClosed.selector);
+        sVault.syncRewards();
+        uint256 shares = _stake(1_000e18);
+        assertEq(sVault.totalAssets(), 1_000e18, "the stray transfer isn't counted on its own");
+        assertEq(sVault.syncRewards(), 100e18);
+        assertApproxEqAbs(sVault.convertToAssets(shares), 1_100e18, 1e6);
+    }
+
+    /// @dev Audit R4-A3-9 (coverage): while paused, `deposit` and `mint` revert with ERC-4626's max errors (the max views
+    ///      report 0); a drip into a paused vault still works, and a `minDripAmount` of 0 drips every second untipped.
+    function test_vault_pausedDepositMintAndDripWhilePaused() public {
+        _stake(1_000e18);
+        pondpad.transfer(address(rewards), 7_000e18);
+        vm.prank(slowTimelock);
+        sVault.setPaused(true);
+        vm.startPrank(staker);
+        vm.expectRevert(ERC4626.DepositMoreThanMax.selector);
+        sVault.deposit(1e18, staker);
+        vm.expectRevert(ERC4626.MintMoreThanMax.selector);
+        sVault.mint(1e24, staker);
+        vm.stopPrank();
+        vm.warp(START + 30 minutes + 1 days);
+        (uint256 toVault,) = rewards.drip();
+        assertGt(toVault, 0, "rewards still reach the paused vault");
+
+        vm.prank(timelock);
+        rewards.setKeeperReward(0);
+        vm.prank(timelock);
+        rewards.setMinDripAmount(0);
+        vm.warp(START + 30 minutes + 1 days + 1);
+        (uint256 again, uint256 tip) = rewards.drip();
+        assertGt(again, 0);
+        assertEq(tip, 0);
+    }
+
+    /// @dev Audit R4-A3-9 (coverage): the keeper tip can't exceed the minimum drip's share, from either setter.
+    function test_dripper_keeperRewardBoundFromBothSetters() public {
+        vm.startPrank(timelock);
+        vm.expectRevert(RewardDripper.KeeperRewardExceedsMin.selector);
+        rewards.setKeeperReward(1_000e18);
+        vm.expectRevert(RewardDripper.KeeperRewardExceedsMin.selector);
+        rewards.setMinDripAmount(1e18);
+        vm.stopPrank();
+    }
+
+    /// @dev Audit R4-A3-9 (coverage): PadBuyer's buy can be the first swap after a sell-side trim: the matured claims
+    ///      are realised inside its unlock (it swaps before it pays) and the buy goes through.
+    function test_buyer_buysFirstAfterATrim() public {
+        _graduate();
+        imd.mint(address(buyer), 25e18);
+        _nextBlock();
+        _swap(false, 40_000_000e18); // a trim
+        assertGt(market.burnClaims(), 0);
+        for (uint256 i; i < 50; i++) {
+            _nextBlock(); // the reference catches up with the cheaper price
+        }
+        uint256 rewardShare = market.rewardClaims();
+        uint256 before = pondpad.balanceOf(address(rewards));
+        vm.prank(keeper);
+        uint256 out = buyer.buy(); // the first swap after the trim
+        assertGt(out, 0);
+        assertEq(pondpad.balanceOf(address(rewards)) - before, out + rewardShare, "the buy plus the trim's reward share");
+        assertEq(market.burnClaims(), 0, "the matured claims were realised");
     }
 
     // ------------------------------------------------------------------ End to end

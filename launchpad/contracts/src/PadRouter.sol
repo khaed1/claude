@@ -114,6 +114,7 @@ contract PadRouter is PaymentSwapper, ReentrancyGuard {
                 hops[i] = route[i];
             }
             hops[route.length] = _coinHop(coin, true);
+            _flushOthers(coin);
             tokensOut = _execute(Path(hops, amountIn, _payer(tokenIn, amountIn), msg.sender, msg.sender, referrer));
             _flushFees(coin, referrer);
         } else {
@@ -168,6 +169,7 @@ contract PadRouter is PaymentSwapper, ReentrancyGuard {
             for (uint256 i; i < back.length; i++) {
                 hops[i + 1] = back[i];
             }
+            _flushOthers(coin);
             out = _execute(Path(hops, tokensIn, msg.sender, msg.sender, msg.sender, referrer));
             _flushFees(coin, referrer);
         } else {
@@ -183,6 +185,14 @@ contract PadRouter is PaymentSwapper, ReentrancyGuard {
     }
 
     // ------------------------------------------------------------------ Payment conversion
+
+    /// @dev Before a pool trade: holder tax still pending from other traders' swaps (outside routers since the last
+    ///      flush) is paid out as `flush` pays it, to whoever holds now, so the `flushFor` after this trade applies the
+    ///      sole-holder rule to this trade's own tax only (audit R4-A1-1).
+    function _flushOthers(address coin) internal {
+        (,, uint128 holders,) = hook.pending(coin);
+        if (holders != 0) hook.flush(coin);
+    }
 
     /// @dev Flushes a graduated coin's pending fees (leaving the trader out of the holder-tax check, audit R3-A1-1),
     ///      and the integrator's earnings when there is one.

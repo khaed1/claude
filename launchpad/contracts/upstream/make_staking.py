@@ -249,6 +249,73 @@ make('upstream/StakedIMD.sol', 'src/StakedPONDPAD.sol', [
         super.renounceOwnership();
     }""", """    // PondPad (audits R3-A2-2 / R3-A4-4): the owner can't renounce, transfer or hand over ownership
     // (FixedOwnable); its powers end at `powersExpireAt` instead, which can't leave the vault paused."""),
+    # PondPad (audits R4-A3-1, R4-A3-5): no shares at address(0) or at the vault itself, which nobody can redeem but
+    # which would keep the vault open for rewards; sPONDPAD itself can't be rescued; the upstream power text replaced.
+    ("""    error CannotRescueStake();
+""", """    error CannotRescueStake();
+    error InvalidReceiver();
+"""),
+    ("""        super._deposit(by, to, assets, shares);
+        trackedAssets += assets; // PondPad (R2-A3-1)""", """        // PondPad (audit R4-A3-1): no shares minted to address(0) or to the vault itself. Nobody could ever redeem them,
+        // yet they would count toward the reward gate, keep the vault open for ever and take a cut of every drip.
+        if (to == address(0) || to == address(this)) revert InvalidReceiver();
+        super._deposit(by, to, assets, shares);
+        trackedAssets += assets; // PondPad (R2-A3-1)"""),
+    ("""        // PondPad (audit R3-A3-5): burns and transfers to address(0) also go through the bookkeeping, so the sender's
+        // held count never stays above its balance (a redeem only burns unheld shares, so it changes nothing there).""",
+     """        // PondPad (audit R3-A3-5): burns also go through the bookkeeping, so the sender's held count never stays above
+        // its balance (a redeem only burns unheld shares, so it changes nothing there). Transfers to address(0) are
+        // refused (`transfer` / `transferFrom`, audit R4-A3-1)."""),
+    ("""    // ─────────────────────────────── ERC4626 max* (pause-aware) ───────────────────────────────""",
+     """    /// @dev PondPad (audit R4-A3-1): shares can't be sent to address(0) or to the vault itself (Solady's ERC20 allows
+    /// both). Nobody could redeem them, yet they would keep the vault open for rewards and take a cut of every drip.
+    /// Burns (withdraw, redeem) don't go through here.
+    function transfer(address to, uint256 amount) public override returns (bool) {
+        if (to == address(0) || to == address(this)) revert InvalidReceiver();
+        return super.transfer(to, amount);
+    }
+
+    function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+        if (to == address(0) || to == address(this)) revert InvalidReceiver();
+        return super.transferFrom(from, to, amount);
+    }
+
+    // ─────────────────────────────── ERC4626 max* (pause-aware) ───────────────────────────────"""),
+    ("""    /// @notice Owner sweeps a stray ERC20 balance to `to`. PondPad: never the staked asset.
+    function rescueERC20(address token, address to, uint256 amount) external onlyOwnerActive {
+        if (token == _asset) revert CannotRescueStake();""", """    /// @notice Owner sweeps a stray ERC20 balance to `to`. PondPad: never the staked asset, and never sPONDPAD itself,
+    /// whose shares stand for staked $PONDPAD (audit R4-A3-5).
+    function rescueERC20(address token, address to, uint256 amount) external onlyOwnerActive {
+        if (token == _asset || token == address(this)) revert CannotRescueStake();"""),
+    ("""/// @dev A plain ERC4626 (deposit/withdraw any time bar the one-block hold) plus a renounceable owner.""",
+     """/// @dev A plain ERC4626 (deposit/withdraw any time bar the one-block hold) plus an owner (PondPad: fixed, with
+/// expiring powers)."""),
+    ("""/// EMERGENCY POWERS (all held by the owner, all removed the instant `renounceOwnership()` is called):
+///   - `setPaused(true)` — a full stop: every deposit, mint, withdraw and redeem reverts.
+///   - `rescueERC20` / `rescueETH` — sweep ANY balance, INCLUDING the staked IMD, to a chosen address.
+///
+/// The rescue functions can move stakers' IMD, so until ownership is renounced the owner is a trusted
+/// party (this is a deliberate "move funds to safety in a worst case" hatch, not a trustless design).
+/// Renouncing drops both powers permanently and leaves an immutable, trustless ERC4626. To avoid
+/// bricking the vault, ownership cannot be renounced while paused — unpause first.""",
+     """/// EMERGENCY POWERS (PondPad: held by the owner, the 7-day timelock, until `powersExpireAt`; the upstream text, which
+/// let the owner sweep the staked asset, is replaced here, audit R4-A3-5):
+///   - `setPaused(true)` — a stop of at most 3 days, then at least 4 days unpaused: deposits, mints, withdrawals and
+///     redemptions revert meanwhile.
+///   - `rescueERC20` / `rescueETH` — sweep a stray balance to a chosen address; never the staked $PONDPAD and never
+///     sPONDPAD itself.
+/// Ownership can't be renounced, transferred or handed over (FixedOwnable); the powers end at `powersExpireAt`."""),
+    ("""/// move the share price, and rewards are taken in only while at least one whole $PONDPAD is staked (R2-A3-1).""",
+     """/// move the share price, and rewards are taken in only while at least one whole $PONDPAD is staked (R2-A3-1);
+/// shares can't be minted or sent to address(0) or to the vault itself (R4-A3-1)."""),
+    # PondPad (audit R4-A3-2, documented): only the dripper should send $PONDPAD to the vault.
+    ("""    /// are open, so nothing sent to an empty or dust-only vault can ever move the share price.
+    function syncRewards() external returns (uint256 amount) {""", """    /// are open, so nothing sent to an empty or dust-only vault can ever move the share price.
+    /// Only the dripper should send $PONDPAD here (audit R4-A3-2): anything else sent straight to the vault (a grant,
+    /// a mistaken transfer, a sink pointed at the vault) is taken in as one lump at the next sync, and a stake held
+    /// across one block shares it pro rata; the dripper's 1/7 bound covers only what streams through it. Nobody gains
+    /// by sending it, so this is documented, not prevented.
+    function syncRewards() external returns (uint256 amount) {"""),
 ], ['bool public paused', 'paused ?', 'external onlyOwner {', 'is ERC4626, Ownable'])
 
 # ------------------------------------------------------------------ RewardDripper

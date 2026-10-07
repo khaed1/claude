@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import {Ownable} from "solady/auth/Ownable.sol";
 import {MarketBase} from "./Market.t.sol";
+import {MockIMD} from "./Base.t.sol";
 import {WorkerFund} from "../src/WorkerFund.sol";
 import {GrowthFund} from "../src/GrowthFund.sol";
 import {FeeSplitter} from "../src/FeeSplitter.sol";
@@ -106,5 +107,67 @@ contract FundsTest is MarketBase {
         vm.prank(timelock);
         growthFund.setGrantCap(address(usdg), 5e6);
         assertEq(growthFund.grantAvailable(address(usdg)), 5e6);
+    }
+
+    // ------------------------------------------------------------------ Audit round 4 (coverage, R4-A3-9)
+
+    /// @dev Audit R4-A3-9 (coverage): the splitter's shares stay in their ranges and add up to 100%; only its owner sets
+    ///      them.
+    function test_splitter_sharesStayInTheirRanges() public {
+        FeeSplitter.Shares[6] memory bad = [
+            FeeSplitter.Shares({stakers: 4_000, workers: 2_500, growth: 2_000, treasury: 1_400}), // 99.9%
+            FeeSplitter.Shares({stakers: 2_400, workers: 3_500, growth: 3_000, treasury: 1_100}), // stakers < 25%
+            FeeSplitter.Shares({stakers: 6_100, workers: 1_500, growth: 1_400, treasury: 1_000}), // stakers > 60%
+            FeeSplitter.Shares({stakers: 4_500, workers: 1_400, growth: 2_100, treasury: 2_000}), // workers < 15%
+            FeeSplitter.Shares({stakers: 3_000, workers: 2_500, growth: 3_100, treasury: 1_400}), // growth > 30%
+            FeeSplitter.Shares({stakers: 4_000, workers: 2_500, growth: 1_400, treasury: 2_100}) // treasury > 20%
+        ];
+        for (uint256 i; i < bad.length; i++) {
+            vm.expectRevert(FeeSplitter.InvalidShares.selector);
+            splitter.setShares(bad[i]);
+        }
+        vm.prank(alice);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        splitter.setShares(FeeSplitter.Shares({stakers: 6_000, workers: 1_500, growth: 1_500, treasury: 1_000}));
+        splitter.setShares(FeeSplitter.Shares({stakers: 6_000, workers: 1_500, growth: 1_500, treasury: 1_000}));
+        FeeSplitter.Shares memory s = splitter.shares();
+        assertEq(s.stakers, 6_000);
+    }
+
+    /// @dev Audit R4-A3-9 (coverage): the 48 h timelock replaces the relay and the granter (zero switches a path off);
+    ///      the old keys lose their power at once.
+    function test_growthFund_relayAndGranterReplaced() public {
+        imd.mint(address(growthFund), 1_000e18);
+        address newRelay = makeAddr("newRelay");
+        vm.prank(alice);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        growthFund.setRelay(newRelay);
+        vm.startPrank(timelock);
+        growthFund.setRelay(newRelay);
+        growthFund.setGranter(address(0));
+        vm.stopPrank();
+        vm.prank(relay);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        growthFund.payJob(1e18, bytes32("old"), "old relay");
+        vm.prank(newRelay);
+        growthFund.payJob(1e18, bytes32("new"), "new relay");
+        assertEq(imd.balanceOf(newRelay), 1e18);
+        vm.prank(safe);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        growthFund.grant(address(imd), grantee, 1e18, bytes32("g"), "granter switched off");
+    }
+
+    /// @dev Audit R4-A3-9 (coverage): `WorkerFund.releaseToken` forwards a third token sent there to the worker rewards
+    ///      address, only once that address is set.
+    function test_workerFund_releasesAThirdToken() public {
+        MockIMD other = new MockIMD();
+        other.mint(address(workerFund), 7e18);
+        vm.expectRevert(WorkerFund.RecipientNotSet.selector);
+        workerFund.releaseToken(address(other));
+        vm.prank(slowTimelock);
+        workerFund.setWorkerRewards(workerRewards);
+        assertEq(workerFund.releaseToken(address(other)), 7e18);
+        assertEq(other.balanceOf(workerRewards), 7e18);
+        assertEq(workerFund.releaseToken(address(other)), 0);
     }
 }

@@ -155,6 +155,31 @@ contract PayFirstRouter is IUnlockCallback {
     }
 }
 
+/// @dev A v4-legal router that pays $PONDPAD before it sells: sync $PONDPAD, transfer, swap, settle, take IMD (audit
+///      R4-A2-3, the `synced == token` half of the R3-A2-3 guard).
+contract PayFirstSellRouter is IUnlockCallback {
+    IPoolManager internal immutable pm;
+
+    constructor(IPoolManager pm_) {
+        pm = pm_;
+    }
+
+    function sell(PoolKey memory key, uint256 tokensIn) external returns (uint256 out) {
+        out = abi.decode(pm.unlock(abi.encode(key, tokensIn, msg.sender)), (uint256));
+    }
+
+    function unlockCallback(bytes calldata data) external returns (bytes memory) {
+        (PoolKey memory key, uint256 tokensIn, address to) = abi.decode(data, (PoolKey, uint256, address));
+        pm.sync(key.currency1);
+        ERC20(Currency.unwrap(key.currency1)).transfer(address(pm), tokensIn);
+        BalanceDelta d = pm.swap(key, SwapParams(false, -int256(tokensIn), TickMath.MAX_SQRT_PRICE - 1), "");
+        pm.settle();
+        uint256 out = uint256(uint128(d.amount0()));
+        pm.take(key.currency0, to, out);
+        return abi.encode(out);
+    }
+}
+
 contract MarketTest is MarketBase {
     using StateLibrary for IPoolManager;
 
@@ -629,7 +654,7 @@ contract MarketTest is MarketBase {
         controller.setCapDecay(type(uint128).max);
         vm.expectRevert(MarketController.PolicyOutOfBounds.selector);
         controller.setCapDecay(CAP_DECAY * 5 + 1);
-        controller.setCapFloor(CAP_FLOOR * 2); // raising is fine
+        controller.setCapFloor(market.inventoryCap()); // raising up to the cap is fine (R4-A2-1)
         controller.setCapFloor(CAP_FLOOR); // and back down to the deploy floor
         controller.setCapDecay(CAP_DECAY * 5);
         controller.setCapDecay(0);
@@ -726,6 +751,135 @@ contract MarketTest is MarketBase {
         _nextBlock();
         _swap(true, 1e18); // the next block's first swap realises the claims
         assertEq(market.quoteClaims(), 0);
+    }
+
+    // ------------------------------------------------------------------ Audit round 4
+
+    /// @dev Audit R4-A2-1: the cap floor can't go above the market's current cap, where the hook would lift the cap for
+    ///      good and stop every trim; raised to the cap and lowered back, the cap stays where it was and trims go on.
+    function test_market_capFloorCantLiftTheCap() public {
+        _graduate();
+        _swap(true, 1_000e18);
+        vm.warp(START + 30 minutes + 10 days);
+        _swap(true, 10e18); // the cap ratchets down by the 10-day allowance
+        uint256 cap = market.inventoryCap();
+        assertLt(cap, 300_000_000e18);
+        vm.startPrank(timelock);
+        vm.expectRevert(MarketController.PolicyOutOfBounds.selector);
+        controller.setCapFloor(400_000_000e18);
+        vm.expectRevert(MarketController.PolicyOutOfBounds.selector);
+        controller.setCapFloor(cap + 1);
+        controller.setCapFloor(cap); // holds the cap where it is
+        controller.setCapFloor(CAP_FLOOR); // and back
+        vm.stopPrank();
+        assertEq(market.capFloor(), CAP_FLOOR);
+        assertEq(market.inventoryCap(), cap, "the cap didn't move");
+        uint256 burnedBefore = market.totalBurned();
+        _swap(false, 40_000_000e18);
+        assertGt(market.totalBurned(), burnedBefore, "sells above the cap still trim");
+    }
+
+    /// @dev Audit R4-A2-2: `collectFees` also burns the trimmed $PONDPAD waiting in the burner, so the supply follows
+    ///      the hook's `totalBurned` without a separate call.
+    function test_market_collectFeesBurnsTrimmedTokens() public {
+        _graduate();
+        uint256 supplyBefore = pondpad.totalSupply();
+        _swap(false, 5_000_000e18);
+        _nextBlock();
+        market.settleClaims();
+        assertGt(pondpad.balanceOf(address(burner)), 0);
+        controller.collectFees();
+        assertEq(pondpad.balanceOf(address(burner)), 0);
+        assertApproxEqAbs(supplyBefore - pondpad.totalSupply(), market.totalBurned(), 1);
+    }
+
+    /// @dev Gathers the $PONDPAD the sale's buyers hold into the trader's wallet.
+    function _gatherSaleTokens() internal {
+        for (uint256 i; i < 200; i++) {
+            address buyer = address(uint160(0x40000 + i));
+            uint256 bal = pondpad.balanceOf(buyer);
+            if (bal == 0) break;
+            vm.prank(buyer);
+            pondpad.transfer(trader, bal);
+        }
+    }
+
+    /// @dev Audit R4-A2-3 (coverage): a dump fills the backstop band; the keeper's settlement in a later block pays a tip
+    ///      bounded by the reward ceiling and the fee on the measured work, burns 85% and shares 15% of what the band
+    ///      bought, and deploys a fresh band.
+    function test_market_backstopFillSettlement() public {
+        _graduate();
+        _gatherSaleTokens();
+        _swap(false, 40_000_000e18); // trims: retained IMD
+        _nextBlock();
+        market.rebalance(); // the band goes up below the price
+        for (uint256 i; i < 30 && !market.backstopIsFilled(); i++) {
+            _nextBlock();
+            _swap(false, 10_000_000e18);
+        }
+        assertTrue(market.backstopIsFilled(), "the dump filled the band");
+        _nextBlock();
+        uint256 converted = market.backstopConvertedQuote();
+        uint256 idle = market.retainedQuote();
+        uint256 work = converted > idle ? converted : idle;
+        uint256 bound = (work * market.currentFee()) / 1e6;
+        uint256 burnedBefore = market.totalBurned();
+        uint256 rewardedBefore = market.totalRewarded();
+        address keeper = makeAddr("keeper");
+        vm.prank(keeper);
+        market.rebalance();
+        uint256 tip = imd.balanceOf(keeper);
+        assertLe(tip, market.keeperReward(), "the tip is capped by the reward");
+        assertLe(tip, bound, "and by the fee on the measured work");
+        vm.prank(keeper);
+        vm.expectRevert(PadMarketHook.RebalanceNotNeeded.selector);
+        market.rebalance();
+        uint256 burned = market.totalBurned() - burnedBefore;
+        uint256 rewarded = market.totalRewarded() - rewardedBefore;
+        assertGt(burned, 0, "the band's tokens are burned");
+        assertApproxEqRel(rewarded * 100, (burned + rewarded) * 15, 0.001e18, "15% shared");
+        (int24 lower,, uint128 band) = market.backstop();
+        assertGt(band, 0, "a fresh band");
+        assertGt(lower, market.currentTick(), "placed above spot in ticks, below the price");
+    }
+
+    /// @dev Audit R4-A2-3 (coverage): a migration in the same Ethereum block as a trim, with the backstop band in range:
+    ///      the old hook keeps no claims and no IMD, the controller nothing, and the new market keeps the cap.
+    function test_market_migrateInTheTrimBlockWithTheBandInRange() public {
+        _graduate();
+        _swap(false, 15_000_000e18);
+        _nextBlock();
+        market.rebalance();
+        _nextBlock();
+        _swap(false, 5_000_000e18); // a trim in this block, the price moves into the band
+        assertEq(market.lastClaimBlock(), _bn); // `_bn`: the block `_nextBlock` rolled to (via-IR)
+        assertGt(market.backstopConvertedQuote(), 0, "the band is in range");
+        uint256 capBefore = market.inventoryCap();
+        PadMarketHook next = _newHook(0x9999, address(controller), address(burner));
+        _approveAndMigrate(address(next));
+        assertEq(market.burnClaims() + market.rewardClaims() + market.quoteClaims(), 0, "no claims left behind");
+        assertLe(imd.balanceOf(address(market)), 1);
+        assertEq(imd.balanceOf(address(controller)), 0);
+        assertEq(pondpad.balanceOf(address(controller)), 0);
+        assertGe(next.inventoryCap(), capBefore);
+        assertTrue(next.marketOpen());
+    }
+
+    /// @dev Audit R4-A2-3 (coverage): a router that pays $PONDPAD before it sells works in the first block after a trim
+    ///      (the `synced == token` half of the R3-A2-3 guard); the claims are realised later.
+    function test_market_payFirstSellRouterWorksWhileClaimsMature() public {
+        _graduate();
+        _swap(false, 40_000_000e18);
+        assertGt(market.burnClaims(), 0);
+        _nextBlock();
+        PayFirstSellRouter r = new PayFirstSellRouter(IPoolManager(address(pm)));
+        pondpad.transfer(address(r), 1_000_000e18);
+        uint256 before = imd.balanceOf(address(this));
+        uint256 got = r.sell(market.poolKey(), 1_000_000e18);
+        assertGt(got, 0);
+        assertEq(imd.balanceOf(address(this)) - before, got);
+        market.settleClaims();
+        assertEq(market.burnClaims(), 0);
     }
 
     /// @dev Audit R3-A3-8: the splitter splits only $PONDPAD besides IMD; another token's 40% would be stuck at
