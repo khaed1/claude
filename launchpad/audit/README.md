@@ -6,6 +6,7 @@ The IMD swarm audits PondPad v1 before deploy (ARCHITECTURE §10, ROADMAP item 1
 |---|---|
 | [`THREAT-MODEL.md`](THREAT-MODEL.md) | Actors, trust, the 22 invariants, deliberate behaviour (not findings), severity scale. Every job reads it |
 | [`FINDINGS.md`](FINDINGS.md) | Ledger of rounds and findings (open / fixed / accepted). Every job reads it |
+| [`PRECHECK-4.md`](PRECHECK-4.md) | Claude's check before round 4 (D-81): what was run, problems with reproductions, the fixes chosen |
 | [`jobs/`](jobs/) | `_common.md` (shared objective) and one file per area: `A1-core.md`, `A2-market.md`, `A3-staking.md`, `A4-governance.md` |
 | [`make_jobs.py`](make_jobs.py) | Builds a round at a pinned commit; `--check` runs IMD's free check on each job |
 | `rounds/<n>/` | Per round: `manifest.json` (every in-scope file, sha256, lines), `<ID>.objective.txt` (paste into the form), `<ID>.request.json` (API body) |
