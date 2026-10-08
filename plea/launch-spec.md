@@ -209,7 +209,7 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 >      - a big stamp: **APPROVED** (green), **DENIED** (red), **THE CABAL IS DELIBERATING…** (pending, with a live timer) or **EXPIRED** (no verdict within 1h)
 >      - for approved pleas, whether the sell was executed or the window lapsed
 >    - **Panel vote:** e.g. "24/30 judges". Also show one short judge quote when available, taken from the public oracle record (`api.imd.fun/oracle/requests/:id`, the members' notes), trimmed to 140 characters and labelled "a judge said:". If the API has no notes, show nothing.
->    - **Filters:** All · Approved · Denied · Pending. Sort: Latest · Biggest sells · Funniest isn't possible on-chain, so skip it.
+>    - **Filters:** All · Approved · Denied · Pending. Sort: Latest · Biggest sells.
 >    - **Permalink** per card: `#/p/<requestId>`, opening that single card.
 >    - **Share:**
 >      - "Download image": a 1200×675 PNG rendered client-side in the imd.fun style, with the stamp, the plea and the stats, plus the site URL in the footer.
