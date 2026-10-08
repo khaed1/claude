@@ -8,6 +8,7 @@ The IMD swarm audits PondPad v1 before deploy (ARCHITECTURE §10, ROADMAP item 1
 | [`FINDINGS.md`](FINDINGS.md) | Ledger of rounds and findings (open / fixed / accepted). Every job reads it |
 | [`PRECHECK-4.md`](PRECHECK-4.md) | Claude's check before round 4 (D-81): what was run, problems with reproductions, the fixes chosen |
 | [`PRECHECK-5.md`](PRECHECK-5.md) | Claude's check before round 5 (8 Oct 2026, at `881abb7`): what was run, P5-1 to P5-4 with reproductions and proposed fixes; all fixed in `42342e5` (D-84) |
+| [`PRECHECK-6.md`](PRECHECK-6.md) | Claude's check before round 6 (8 Oct 2026, at `ffac7be`, the D-86 fixes): what was run, P6-1 to P6-3 with reproductions and proposed fixes; open for the user |
 | [`jobs/`](jobs/) | `_common.md` (shared objective) and one file per area: `A1-core.md`, `A2-market.md`, `A3-staking.md`, `A4-governance.md` |
 | [`make_jobs.py`](make_jobs.py) | Builds a round at a pinned commit; `--check` runs IMD's free check on each job |
 | `rounds/<n>/` | Per round: `manifest.json` (every in-scope file, sha256, lines), `<ID>.objective.txt` (paste into the form), `<ID>.request.json` (API body) |
