@@ -14,14 +14,14 @@ If the Cabal gives no verdict for 48 hours, it dies and PLEA trades freely forev
 | `chainId` | `1` (Ethereum mainnet) |
 | `pairWith` | `"imd"` |
 | `economics.poolBps` | `9000` (all non-swarm supply goes to the pool; no `remainderTo` needed) |
-| `economics.initialMarketCapWei` | IMD amount ≈ $50k, e.g. `"6500000000000000000000"` (6,500 IMD at ~$7.7/IMD). **Recompute on launch day:** `50000 / IMD price in USD`, then append 18 zeros. Allowed range is 250–250,000 IMD. |
+| `economics.initialMarketCapWei` | IMD amount ≈ $50k, e.g. `"5556000000000000000000"` (5,556 IMD at ~$9/IMD). **Recompute on launch day:** `50000 / IMD price in USD`, then append 18 zeros. Allowed range is 250–250,000 IMD. |
 | `ipfs` | `"plea"` (site served at `plea.sites.imd.fun`) |
 | `github` | `true` |
 | Token | name `The Cabal`, symbol `PLEA`, supply 1,000,000,000, 18 decimals |
 
 Supply: 90% single-sided in the PLEA/IMD pool, 10% swarm (Merkle distributor).
-Trading fee: the factory's standard 1.25% (1% to the paying wallet, 0.25% to the network). After launch protection ends, the hook adds no extra fee.
-Oracle: panel of 21, quorum 14, `answerType: bool`, 0.5 IMD per plea.
+Trading fees: the factory's standard 1.25% (1% to the paying wallet, 0.25% to the network), plus a 0.25% PLEA burn from the hook on every trade. Total: 1.5%.
+Oracle: panel of 30, quorum 20, `answerType: bool`, 0.5 IMD per plea. The oracle settings are immutable.
 
 ---
 
@@ -36,7 +36,7 @@ Oracle: panel of 21, quorum 14, `answerType: bool`, 0.5 IMD per plea.
 >      - the Uniswap v4 PoolManager
 >      - CabalHook
 >      - CabalGate
->      - the launch's Merkle distributor, as `from` only, so the swarm's 10% claims work
+>      - the launch's Merkle distributor, as `from` only, so the swarm's 10% claims work. If the launch factory deploys the distributor after the token, the token exposes a one-time `setDistributor(address)` callable only by the factory or owner before the first claim, and the launch must call it in the same deployment flow.
 >      - the Uniswap Universal Router and the v4 PositionManager
 >      - any router the owner adds later
 >    - Every other wallet-to-wallet transfer reverts with `CabalIsWatching()`. This prevents bypassing the Cabal by seeding a second pool elsewhere.
@@ -45,6 +45,7 @@ Oracle: panel of 21, quorum 14, `answerType: bool`, 0.5 IMD per plea.
 > 2. **CabalHook** (Uniswap v4 hook on the PLEA/IMD pool).
 >    - **Buys (IMD → PLEA):** always allowed for any caller.
 >    - **Launch protection:** for the first 90 minutes after the pool opens, buys pay an extra fee that starts at 70% and decays linearly to 0%. Every buy is capped at 0.5% of supply (5,000,000 PLEA) per transaction. The extra fee goes to protocol-owned liquidity in the same pool. Immutable.
+>    - **Burn:** 0.25% of every trade, buy or sell, for the token's whole life, including after the Cabal dies. The fee is taken in PLEA (buys: from the PLEA output; sells: from the PLEA input) and burned, reducing `totalSupply`. Emits `Burned(amount)`. Immutable.
 >    - **Sells (PLEA → IMD):** revert unless the swap is initiated by CabalGate while the Cabal is alive. After `killCabal()`, sells are open to everyone.
 >    - **Cost basis:** in `afterSwap`, record per-buyer (`tx.origin`) total IMD spent, total PLEA bought, and the first-buy timestamp. On a gated sell, reduce the basis proportionally. Wallets with no recorded buys (for example swarm claimers) have cost basis 0.
 >    - Expose a 24h price trend from pool observations, so CabalGate can report "price up or down over 24h".
@@ -55,9 +56,10 @@ Oracle: panel of 21, quorum 14, `answerType: bool`, 0.5 IMD per plea.
 >        - `amount` must be ≤ min(0.25% of supply, 25% of the caller's balance).
 >        - The caller must have no pending request.
 >        - The caller's last approved sell must be at least 4 hours old.
+>        - The pool must hold some IMD (someone has bought). Otherwise revert `NoBuyersYet()` before taking the fee, since there'd be nothing to sell into.
 >      - Pulls the 0.5 IMD request price, then calls Intake `0x1397434cd35e8a9c8ac312a61d3a285eb31dea56` with:
 >        - action `oracle.request@oracle-1`
->        - `answerType: bool`, `panelSize: 21`, `quorum: 14`
+>        - `answerType: bool`, `panelSize: 30`, `quorum: 20`
 >        - this contract as the callback target
 >        - the question below
 >      - Stores the request (id, caller, amount, questionHash, deadline = now + 1h) and emits `PleaSubmitted(requestId, seller, amount, plea, pnlBps, holdSeconds, pctOfHoldingsBps, trend)`.
@@ -89,7 +91,7 @@ Oracle: panel of 21, quorum 14, `answerType: bool`, 0.5 IMD per plea.
 >      - No separate slippage-setup call, and no price-impact or drift checks beyond `minOut`.
 >      - Emits `SellExecuted`.
 >    - **`clearRequest(requestId)`**: after the 1h deadline with no verdict, the seller can clear the request (the IMD fee isn't refunded).
->    - Requests must work even when the pool has zero active liquidity in range: never refuse a submission because of a price-impact estimate.
+>    - Never refuse a submission or execution because of a price-impact estimate. In particular, when the pool holds IMD but the current tick has zero active liquidity, submissions must still be accepted and executions must still swap. `minOut` is the only price protection.
 > 4. **Dead-man switch**
 >    - `lastVerdictAt` starts at pool open and updates on **every recorded verdict, approve or deny**.
 >    - If `block.timestamp > lastVerdictAt + 48h`, anyone can call `killCabal()`. This permanently lifts all sell and transfer restrictions and emits `CabalDied`.
@@ -101,27 +103,27 @@ Oracle: panel of 21, quorum 14, `answerType: bool`, 0.5 IMD per plea.
 >   - `killCabalNow()`: unlocks everyone early. Emergency only; the Cabal can never be revived.
 >   - `renounceOwnership()`.
 > - **Can, only through a 48-hour timelock** (queued change emits an event, then executes after 48h; anyone can see it coming):
->   - change the Intake address, oracle action id, or oracle domain/verifying contract, in case IMD upgrades its oracle
->   - change panel size and quorum (panel 5–100, quorum ≥ 2/3 of panel)
 >   - change sell caps, within hard bounds: max per sell 0.05%–1% of supply, max share of holdings 10%–50%, cooldown 1h–24h
 > - **Can never:**
 >   - mint
 >   - pause or block buys
 >   - remove a router from the allowlist
 >   - revive the Cabal
->   - change fees or launch protection
+>   - change the oracle: the Intake address, action id, oracle domain and verifying contract, panel size (30) and quorum (20) are all immutable
+>   - change fees, the burn or launch protection
 >   - touch the pool's liquidity
 >
 > **Required tests** (fork tests against Ethereum mainnet state where possible):
 > - A real attestation fetched from `GET /oracle/requests/:id/attestation` verifies in CabalGate, through both the callback and `deliverVerdict`. The callback stays under 200,000 gas.
-> - Selling works with zero active liquidity in range.
+> - After some buys, a plea is accepted and an approved sell executes even when the current tick has zero active liquidity. Before any buy, `submitSell` reverts with `NoBuyersYet()` without charging the fee.
+> - The 0.25% PLEA burn applies to buys and sells, before and after `killCabal`, and `totalSupply` decreases by exactly the burned amount.
 > - Pleas containing `"`, `\`, `<`, `>`, `&`, newlines and emoji produce a valid, delimited question of ≤ 2,000 characters.
-> - Wallet-to-wallet transfers revert while the Cabal is alive. Creating and selling into a second pool is impossible. Merkle distributor claims succeed. A router added by the owner can buy.
+> - Wallet-to-wallet transfers revert while the Cabal is alive. Creating and selling into a second pool is impossible. Claims from the launch's real Merkle distributor succeed while the Cabal is alive, and claimers can't then transfer wallet-to-wallet. A router added by the owner can buy.
 > - Buys through the Universal Router succeed for any caller. Direct sells revert while the Cabal is alive. Sells succeed after `killCabal`.
 > - Launch fee decay: 70% at t=0, about 35% at 45 minutes, 0% at 90 minutes. The 0.5% per-transaction cap applies only during the window.
 > - Every `submitSell` rule (caps, cooldown, one pending request). Execution expires at 15 minutes. No replay. Only the seller can execute.
 > - `killCabal` reverts at 48h − 1s and succeeds at 48h + 1s. Both approvals and denials reset the timer; unanswered submissions don't.
-> - Timelocked owner changes can't execute before 48h. Bounds are enforced. Nothing can revive the Cabal.
+> - Timelocked owner changes can't execute before 48h. Bounds are enforced. No function can change any oracle setting. Nothing can revive the Cabal.
 > - The launch config contains no placeholder addresses.
 >
 > **Website** (static, IPFS, label `plea`). Visual style must match imd.fun:
@@ -130,13 +132,13 @@ Oracle: panel of 21, quorum 14, `answerType: bool`, 0.5 IMD per plea.
 > - Layout must work on a 360px-wide phone.
 >
 > Sections:
-> 1. **Status bar:** Cabal ALIVE/DEAD, plus a large countdown to `lastVerdictAt + 48h` labelled "THE CABAL DIES IN". Also shows price, market cap, pleas approved and denied, and any pending timelocked owner change.
+> 1. **Status bar:** Cabal ALIVE/DEAD, plus a large countdown to `lastVerdictAt + 48h` labelled "THE CABAL DIES IN". Also shows price, market cap, total PLEA burned, pleas approved and denied, and any pending timelocked owner change.
 > 2. **Buy:** connect wallet, IMD → PLEA swap through the Universal Router to this pool. Shows the current launch-protection fee and per-transaction cap while active.
 > 3. **Plead:** amount input showing the max allowed and the cooldown remaining, and a 280-character plea box.
 >    - Flow: approve 0.5 IMD → `submitSell` → poll the oracle → verdict.
 >    - If the callback didn't record the verdict, call `deliverVerdict` with the attestation from `api.imd.fun/oracle/requests/:id/attestation`.
 >    - If APPROVED: an Execute button with a 15-minute countdown and a `minOut` slippage default of 3%.
-> 4. **The Wall:** a live feed of `PleaSubmitted` and `PleaJudged` events. Each plea is a card with the plea text, the amount, the stats (holding %, P/L, hold time), the panel vote (e.g. 17/21), and an APPROVED or DENIED stamp. Each card has "Download image" (rendered client-side) and "Share on X" with prefilled text and a link.
+> 4. **The Wall:** a live feed of `PleaSubmitted` and `PleaJudged` events. Each plea is a card with the plea text, the amount, the stats (holding %, P/L, hold time), the panel vote (e.g. 24/30), and an APPROVED or DENIED stamp. Each card has "Download image" (rendered client-side) and "Share on X" with prefilled text and a link.
 > 5. **How it works:** five plain sentences, the contract addresses with Etherscan links, the owner's powers and the timelock, a clear warning that selling is restricted while the Cabal lives, and credit: "Inspired by CabalCoin by TokenWorks."
 >
 > Read the chain through a public RPC; there's no backend. Plea text is rendered as text, never HTML.
