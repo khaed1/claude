@@ -24,6 +24,8 @@ pragma solidity 0.8.26;
     7. Audit round 3: `refTick` steps `maxRefStep` per block elapsed since the last swap (R3-A3-2); matured claims are
        not realised inside a swap while the swapper has IMD or $PONDPAD synced (R3-A2-3).
     8. Audit round 4: `referenceTick()` reports that catch-up before the next swap applies it, for PadBuyer (R4-A3-3).
+    9. D-84 (audit R2-A3-6): the default `maxRefStep` is 100 ticks per block, not 200, so PadBuyer's overpay against
+       the price before a pump (step + its 100-tick guard + 100-tick slippage) is ~3% per block, not ~4%.
   The owner is MarketController. It never exposes `withdrawRetainedQuote`; it calls `closeMarket` only inside
   `migrate`, which moves everything into a new market hook (7-day timelock, first 12 months only, D-40).
 */
@@ -227,7 +229,7 @@ contract PadMarketHook is Ownable {
     /// @notice Max ticks `refTick` may advance per block toward the previous block's close. Owner-set
     /// within [1, ceiling]. Smaller = harder to poison but slower to track genuine moves.
     int24 public maxRefStep;
-    int24 internal constant DEFAULT_MAX_REF_STEP = 200;
+    int24 internal constant DEFAULT_MAX_REF_STEP = 100; // PondPad (D-84, audit R2-A3-6): POOL4 uses 200
     int24 internal constant MAX_TICK_RATE_CEIL = 2000;
     /// @dev PondPad (audit R3-A3-2): enough elapsed blocks to cross the whole tick range at the smallest step.
     uint256 internal constant MAX_CATCHUP_BLOCKS = 1 << 21;

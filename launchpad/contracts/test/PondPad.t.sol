@@ -317,8 +317,8 @@ contract PondPadTest is Base {
         assertEq(config.feeSplitter(), address(splitter));
     }
 
-    /// @dev Audit R1-A4-11: once a coin's fees go to its holders, anyone can cancel open swarm requests, so an
-    ///      ousted recipient can't lock the budget the holders should receive.
+    /// @dev Audit R1-A4-11: once a coin's fees go to its holders, anyone can cancel open swarm requests, so requests the
+    ///      recipient opened before routing the fees to the holders can't lock the budget the holders should receive.
     function test_swarmBudget_anyoneCancelsOnceFeesGoToHolders() public {
         address coin = _launch(CoinFees(100, 0, 0, 10_000), 0);
         vm.warp(block.timestamp + 1 hours);

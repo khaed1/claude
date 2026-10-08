@@ -99,8 +99,8 @@ contract SwarmBudget is FixedOwnable, ReentrancyGuard {
     }
 
     /// @notice The requester or the relay can cancel an unreleased request, freeing its reservation. Once the
-    ///         coin's fees go to its holders, anyone can (audit R1-A4-11): an ousted recipient's open requests
-    ///         would otherwise lock the budget the holders should receive.
+    ///         coin's fees go to its holders, anyone can (audit R1-A4-11): requests the recipient opened before it
+    ///         routed the fees to the holders would otherwise lock the budget the holders should receive.
     function cancel(uint256 id) external {
         Request storage r = requests[id];
         address recipient = creatorVault.recipientOf(r.coin);

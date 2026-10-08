@@ -427,6 +427,17 @@ rep('''    7. Audit round 3: `refTick` steps `maxRefStep` per block elapsed sinc
        not realised inside a swap while the swapper has IMD or $PONDPAD synced (R3-A2-3).
     8. Audit round 4: `referenceTick()` reports that catch-up before the next swap applies it, for PadBuyer (R4-A3-3).''')
 
+# ---------- 18. D-84 (audit R2-A3-6): default reference step 100 ticks, not POOL4's 200
+# PadBuyer's overpay against the price before a pump held across a block is maxRefStep + maxDeviation + maxSlippage ticks;
+# with its 100-tick guard and slippage that is 300 ticks (~3%) per block instead of 400 (~4%). The owner's bounds are
+# unchanged (setMaxRefStep: 1..2000, 48 h timelock through MarketController).
+rep('''    int24 internal constant DEFAULT_MAX_REF_STEP = 200;''',
+    '''    int24 internal constant DEFAULT_MAX_REF_STEP = 100; // PondPad (D-84, audit R2-A3-6): POOL4 uses 200''')
+rep('''    8. Audit round 4: `referenceTick()` reports that catch-up before the next swap applies it, for PadBuyer (R4-A3-3).''',
+    '''    8. Audit round 4: `referenceTick()` reports that catch-up before the next swap applies it, for PadBuyer (R4-A3-3).
+    9. D-84 (audit R2-A3-6): the default `maxRefStep` is 100 ticks per block, not 200, so PadBuyer's overpay against
+       the price before a pump (step + its 100-tick guard + 100-tick slippage) is ~3% per block, not ~4%.''')
+
 code = '\n'.join(l.split('//')[0] for l in s.splitlines())
 for bad in ['msg.value', 'settle{value', 'safeTransferETH', 'lpFee', ' ether', 'external payable']:
     assert bad not in code, (bad, [l for l in s.splitlines() if bad in l.split('//')[0]])

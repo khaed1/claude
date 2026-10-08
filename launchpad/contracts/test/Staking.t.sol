@@ -11,6 +11,12 @@ import {RewardDripper} from "../src/RewardDripper.sol";
 import {PadBuyer} from "../src/PadBuyer.sol";
 import {FeeSplitter} from "../src/FeeSplitter.sol";
 import {FixedOwnable} from "../src/FixedOwnable.sol";
+import {PadMarketHook} from "../src/PadMarketHook.sol";
+import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
+import {TickMath} from "v4-core/libraries/TickMath.sol";
+import {PoolSwapTest} from "v4-core/test/PoolSwapTest.sol";
+import {SwapParams} from "v4-core/types/PoolOperation.sol";
+import {PoolKey} from "v4-core/types/PoolKey.sol";
 
 contract StakingTest is MarketBase {
     StakedPONDPAD internal sVault;
@@ -617,7 +623,7 @@ contract StakingTest is MarketBase {
         _nextBlock();
         _swap(true, 1e15); // the reference stands at the current price
         _nextBlock();
-        _swap(true, 80e18); // $PONDPAD rises past the 1% guard, within one block's reference step
+        _swap(true, 80e18); // $PONDPAD rises past the 1% guard
         int24 rose = market.currentTick();
         assertLt(rose, market.refTick() - buyer.maxDeviationTicks());
         for (uint256 i; i < 20; i++) {
@@ -723,6 +729,91 @@ contract StakingTest is MarketBase {
         assertGt(out, 0);
         assertEq(pondpad.balanceOf(address(rewards)) - before, out + rewardShare, "the buy plus the trim's reward share");
         assertEq(market.burnClaims(), 0, "the matured claims were realised");
+    }
+
+    // ------------------------------------------------------------------ Check before round 5, D-84
+
+    /// @dev P5-2 (R4-A3-9 coverage): `PadBuyer.buy()` through a hook reached by `MarketController.migrate`. It reads
+    ///      `controller.hook()` live and the new hook's `referenceTick()`: the inherited `refTick` in the migration
+    ///      block, its catch-up after quiet blocks, which its own swap then writes.
+    function test_buyer_buysThroughAMigratedHook() public {
+        _graduate();
+        imd.mint(address(buyer), 100e18);
+        _nextBlock();
+        _swap(true, 1e15);
+        _nextBlock();
+        address addr = address(uint160(MARKET_FLAGS) | (uint160(0x8888) << 144));
+        deployCodeTo(
+            "PadMarketHook.sol:PadMarketHook",
+            abi.encode(
+                address(controller), IPoolManager(address(pm)), address(imd), address(pondpad), address(burner),
+                address(rewards), uint256(1_500), uint256(1_000e18), int24(200)
+            ),
+            addr
+        );
+        vm.prank(slowTimelock);
+        controller.approveMigration(addr);
+        vm.prank(migrator);
+        controller.migrate(addr);
+        PadMarketHook next = PadMarketHook(addr);
+        assertEq(address(controller.hook()), addr);
+        assertFalse(market.marketOpen(), "old hook closed");
+        assertEq(next.referenceTick(), next.refTick(), "migration block: the inherited reference");
+
+        uint256 dripBefore = pondpad.balanceOf(address(rewards));
+        vm.prank(keeper);
+        assertGt(buyer.buy(), 0, "buys through the new hook in the migration block");
+        assertGt(pondpad.balanceOf(address(rewards)), dripBefore);
+
+        vm.warp(START + 30 minutes + 1 hours);
+        for (uint256 i; i < 5; i++) {
+            _nextBlock();
+        }
+        int24 expected = next.referenceTick();
+        vm.prank(keeper);
+        assertGt(buyer.buy(), 0, "and after quiet blocks");
+        assertEq(next.refTick(), expected, "its swap set what it read");
+    }
+
+    /// @dev Audit R2-A3-6 (D-84): the market's reference moves at most 100 ticks per Ethereum block by default (POOL4:
+    ///      200), no more than PadBuyer's 100-tick guard. Against the price before a pump held across a block, PadBuyer
+    ///      then pays at most maxRefStep + maxDeviation + maxSlippage = 300 ticks (~3%) more per block.
+    function test_buyer_overpayBoundAtTheDefaultRefStep() public {
+        assertEq(market.maxRefStep(), 100, "default step");
+        assertLe(market.maxRefStep(), buyer.maxDeviationTicks(), "step within PadBuyer's guard");
+        _graduate();
+        vm.prank(timelock);
+        buyer.setSettings(500e18, 1e18, 10 minutes, 100, 100, 50); // a large chunk, so it runs into its limit
+        imd.mint(address(buyer), 500e18);
+        _nextBlock();
+        int24 prePump = market.currentTick();
+        _swap(true, 500e18); // the attacker pumps $PONDPAD ~10% and holds it as this block's close
+        assertEq(market.refTick(), prePump);
+        assertLt(market.currentTick(), prePump - 900);
+        _nextBlock();
+        assertEq(market.referenceTick(), prePump - 100, "one step per block");
+        vm.expectRevert(PadBuyer.PriceOutOfRange.selector);
+        buyer.buy();
+
+        // The attacker sells back to just inside PadBuyer's band; PadBuyer then buys as far as its swap limit.
+        PoolKey memory key = market.poolKey();
+        vm.prank(trader);
+        swapper.swap(
+            key,
+            SwapParams({
+                zeroForOne: false,
+                amountSpecified: -int256(30_000_000e18),
+                sqrtPriceLimitX96: TickMath.getSqrtPriceAtTick(prePump - 190)
+            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            ""
+        );
+        assertEq(market.currentTick(), prePump - 190);
+        vm.prank(keeper);
+        assertGt(buyer.buy(), 0);
+        assertGe(market.currentTick(), prePump - 301, "never dearer than 300 ticks above the pre-pump price");
+        assertLe(market.currentTick(), prePump - 299, "its limit stopped the fill there");
+        assertGt(imd.balanceOf(address(buyer)), 0, "the rest of the chunk waits");
     }
 
     // ------------------------------------------------------------------ End to end

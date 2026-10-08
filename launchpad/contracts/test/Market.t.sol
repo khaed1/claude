@@ -559,6 +559,8 @@ contract MarketTest is MarketBase {
     /// @dev Random trades at either fee level keep POOL4's invariants: the position never holds more than the cap
     ///      (beyond the trim threshold), and the cap never drops below the floor.
     function testFuzz_market_capInvariantAtBothFeeLevels(uint256 seed, bool late) public {
+        // P5-1: ten sells of up to 8M each can need more than the trader's 50M; 90M always covers them.
+        pondpad.transfer(trader, 40_000_000e18);
         _graduate();
         if (late) vm.warp(block.timestamp + 8 days);
         assertEq(market.currentFee(), late ? 10_000 : 30_000);
@@ -571,6 +573,17 @@ contract MarketTest is MarketBase {
             assertLe(market.tokensInPool(), market.inventoryCap() + market.minTrimTokens());
             assertGe(market.inventoryCap(), market.capFloor());
         }
+    }
+
+    /// @dev The counterexample of a failing local run of the fuzz test above (`--fuzz-seed 16828384444808715375`).
+    uint256 internal constant FLAKY_SEED = 326153079808023488804245968469740090425867039056974110310716286299697;
+
+    /// @dev P5-1 (check before round 5): with `late`, that seed draws ten sells in a row, 54.2M $PONDPAD in all. It used
+    ///      to run the test trader out of $PONDPAD (`InsufficientBalance`), never the market out of its cap. Replayed
+    ///      on every run, so the fuzz test can't go flaky that way again.
+    function test_market_capFuzzReplaysTheFlakySeed() public {
+        this.testFuzz_market_capInvariantAtBothFeeLevels(FLAKY_SEED, true);
+        assertLe(market.tokensInPool(), market.inventoryCap() + market.minTrimTokens());
     }
 
     /// @dev Audit R2-A2-1: IMD that an owner `closeBackstop` returns to the retained balance earns no keeper tip, so

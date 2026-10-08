@@ -178,7 +178,8 @@ contract Deploy is Script {
     }
 
     /// @notice The root of a `snapshot.py build` claims.json, after checking its list total fits the airdrop and it lists
-    ///         at least the 100 wallets the distributor needs to activate (audit R4-A3-4).
+    ///         at least the 100 wallets the distributor needs to activate (audit R4-A3-4), each key its own non-zero
+    ///         wallet (audit P5-3).
     /// @dev Audit R3-A3-3 / R3-A4-13: the file's own `total` and `root` are not trusted. The listed amounts must add up
     ///      to `total`, `total` must fit the 50M airdrop, and `root` must be the OpenZeppelin StandardMerkleTree root
     ///      of exactly the listed (address, amount) leaves, rebuilt here as `airdrop/snapshot.py` builds it (leaves
@@ -189,16 +190,26 @@ contract Deploy is Script {
         string[] memory accounts = vm.parseJsonKeys(json, ".claims");
         require(accounts.length != 0, "airdrop list is empty");
         bytes32[] memory leaves = new bytes32[](accounts.length);
+        bytes32[] memory wallets = new bytes32[](accounts.length);
         uint256 sum;
         for (uint256 i; i < accounts.length; ++i) {
+            address account = vm.parseAddress(accounts[i]);
             uint256 amount =
                 vm.parseUint(vm.parseJsonString(json, string.concat(".claims.", accounts[i], ".amount")));
             sum += amount;
-            leaves[i] = keccak256(bytes.concat(keccak256(abi.encode(vm.parseAddress(accounts[i]), amount))));
+            wallets[i] = bytes32(uint256(uint160(account)));
+            leaves[i] = keccak256(bytes.concat(keccak256(abi.encode(account, amount))));
         }
         require(sum == total, "airdrop total doesn't match the claims");
         require(total <= AIRDROP, "airdrop list exceeds 50M");
         require(standardMerkleRoot(leaves) == root, "airdrop root doesn't match the claims");
+        // Count wallets, not keys (audit P5-3): the same address in another letter case is a second key and a second
+        // leaf but initiates only once, and address 0 can never initiate.
+        _sortBytes32(wallets, 0, int256(wallets.length) - 1);
+        require(wallets[0] != bytes32(0), "airdrop list names address 0");
+        for (uint256 i = 1; i < wallets.length; ++i) {
+            require(wallets[i] != wallets[i - 1], "airdrop list repeats a wallet");
+        }
         // The distributor activates only when 100 listed wallets initiate, and only then can anything be claimed or
         // swept: a shorter list would lock the 50M for ever (audit R4-A3-4).
         require(accounts.length >= AIRDROP_MIN_WALLETS, "airdrop list below 100 wallets");

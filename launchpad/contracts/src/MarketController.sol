@@ -224,6 +224,9 @@ contract MarketController is FixedOwnable, IPadMarketLauncher {
         hook.setKeeperReward(reward);
     }
 
+    /// @notice The market reference's largest step per Ethereum block (1..2000; default 100, D-84). The owner keeps it at
+    ///         or below `PadBuyer.maxDeviationTicks`: PadBuyer's overpay against the price before a pump is at most
+    ///         maxRefStep + maxDeviation + maxSlippage ticks per block (audit R2-A3-6, THREAT-MODEL invariant 14).
     function setMaxRefStep(int24 maxStep) external onlyOwner {
         hook.setMaxRefStep(maxStep);
     }

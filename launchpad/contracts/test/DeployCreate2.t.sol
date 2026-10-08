@@ -161,4 +161,22 @@ contract DeployAirdropListTest is Test {
         (bytes32 root100, string memory list100) = _list(d, 100, 400_000e18);
         assertEq(d.airdropRootFromClaims(_json(root100, 40_000_000e18, list100)), root100);
     }
+
+    /// @dev P5-3 (check before round 5, R4-A3-4 fix incomplete): the 100 counts distinct, non-zero wallets, not the
+    ///      file's keys. Both fixtures (`test/fixtures/make_airdrop_lists.py`, built with `airdrop/snapshot.py`'s own
+    ///      `build_tree`) list 100 keys whose amounts add up to the total and rebuild the root, but only 99 wallets that
+    ///      can initiate: one wallet in lowercase and in uppercase (two keys, two leaves, one `initiated` slot), or 99
+    ///      wallets and address 0. Either would have locked the 50M as in R4-A3-4.
+    function test_deploy_airdropListCountsWalletsNotKeys() public {
+        Deploy d = new Deploy();
+        string memory repeated = vm.readFile("test/fixtures/airdrop-repeated-wallet.json");
+        assertEq(vm.parseJsonKeys(repeated, ".claims").length, 100, "100 keys");
+        vm.expectRevert(bytes("airdrop list repeats a wallet"));
+        d.airdropRootFromClaims(repeated);
+
+        string memory zero = vm.readFile("test/fixtures/airdrop-zero-wallet.json");
+        assertEq(vm.parseJsonKeys(zero, ".claims").length, 100, "100 keys");
+        vm.expectRevert(bytes("airdrop list names address 0"));
+        d.airdropRootFromClaims(zero);
+    }
 }
