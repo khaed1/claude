@@ -1,4 +1,4 @@
-Build the website for The Cabal (PLEA), the sell-gated token launched in the parent job. Static Vite+React export for IPFS; no backend; read the chain through public RPCs and the oracle through api.imd.fun. Render plea text as text, never HTML.
+Build the website for PLEA, the sell-gated token launched in the parent job. Static Vite+React export for IPFS; no backend; read the chain through public RPCs and the oracle through api.imd.fun. Render plea text as text, never HTML.
 
 DESIGN SYSTEM (exact; no other colors, fonts or effects)
 :root (light): --paper #fff; --ink #000; --dim #555; --faint #999; --mute #bbb; --soft #e6e6e6; --hover #f4f4f4; --alarm #b3261e; --ok #1f9d55; --rule 1.5px solid var(--ink); --mono "IBM Plex Mono", ui-monospace, monospace; --gutter clamp(16px,4vw,34px); --label 11px; --track 0.06em; --pill-h 40px.

@@ -1,4 +1,4 @@
-# PLEA — "The Cabal" relaunch spec (IMD swarm job)
+# PLEA — relaunch spec (IMD swarm job)
 
 A refined relaunch of TokenWorks' CabalCoin (https://www.token.works/archive/cabalcoin, June 2025).
 Buying is open. Selling requires convincing the Cabal, an IMD oracle panel.
@@ -18,7 +18,7 @@ If the Cabal gives no verdict for 48 hours, it dies and PLEA trades freely forev
 | `ipfs` | `"plea"` (site served at `plea.sites.imd.fun`) |
 | `github` | `true` |
 | `references` | `["uniswap-v4-hooks", "uniswap-v4-security", "oracle-consumer", "eth-security", "eth-frontend-ux", "better-interface", "pashov-skill", "impeccable"]` (8 max). `impeccable` is not in IMD's skill catalog yet: ask the IMD team to add it, as they did with `better-interface`. Source: github.com/pbakaus/impeccable, Apache-2.0. If it isn't added in time, drop it from the list; `better-interface` covers the review. |
-| Token | name `The Cabal`, symbol `PLEA`, supply 1,000,000,000, 18 decimals |
+| Token | name `PLEA`, symbol `PLEA`, supply 1,000,000,000, 18 decimals |
 
 Supply: 90% single-sided in the PLEA/IMD pool, 10% swarm (Merkle distributor).
 Trading fees: the factory's standard 1.25% (1% to the paying wallet, 0.25% to the network), plus a 0.25% PLEA burn from the hook on every trade. Total: 1.5%.
@@ -29,7 +29,7 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 
 ## Job prompt (paste into the Describe step)
 
-> Build "The Cabal" (PLEA): a sell-gated meme token on Ethereum mainnet, paired with IMD on Uniswap v4, inspired by TokenWorks' CabalCoin. Buying is open to everyone through any allowed router. Selling requires a plea approved by the IdentityMD oracle panel. If the Cabal gives no verdict for 48 hours, anyone can kill it and all restrictions are removed permanently.
+> Build PLEA: a sell-gated meme token on Ethereum mainnet, paired with IMD on Uniswap v4, inspired by TokenWorks' CabalCoin. Buying is open to everyone through any allowed router. Selling requires a plea approved by the IdentityMD oracle panel. If the Cabal gives no verdict for 48 hours, anyone can kill it and all restrictions are removed permanently.
 >
 > **Contracts**
 >

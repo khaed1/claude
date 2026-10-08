@@ -1,6 +1,6 @@
-Launch "The Cabal" (PLEA): a sell-gated meme token on Uniswap v4 (PLEA/IMD, Ethereum), inspired by TokenWorks' CabalCoin. Anyone can buy; selling needs a plea approved by the IdentityMD oracle. No verdict for 48h -> anyone can kill the Cabal and restrictions end forever.
+Launch PLEA: a sell-gated meme token on Uniswap v4 (PLEA/IMD, Ethereum), inspired by TokenWorks' CabalCoin. Anyone can buy; selling needs a plea approved by the IdentityMD oracle. No verdict for 48h -> anyone can kill the Cabal and restrictions end forever.
 
-TOKEN (ERC-20 "The Cabal"/PLEA, 1e9 supply, 18 dec, no mint)
+TOKEN (ERC-20 name "PLEA", symbol "PLEA", 1e9 supply, 18 dec, no mint)
 - Restrictions start when the pool opens; launch seeding/claim funding happen before.
 - While alive, a transfer is allowed only if: `to` is CabalGate, or `from` is the PoolManager, CabalHook, CabalGate or on the from-allowlist. A transfer TO the PoolManager is allowed only from CabalGate or CabalHook (blocks hookless v4 pools). Otherwise revert CabalIsWatching().
 - From-allowlist starts with Universal Router 0x66a9893cc07d91d95644aedd05d03f95e1dba8af and the launch's Merkle distributor (if its address isn't known at deploy, call allow(distributor) right after the factory deploys it, before claims).
