@@ -291,5 +291,3 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 - **If denied:** the seller waits out the remaining cooldown, and can't appeal again.
 - **Wall:** linked cards DENIED → APPEALED → **OVERTURNED** or **UPHELD**.
 - **Dead-man timer:** an appeal verdict resets it like any other verdict.
-
-**Multichain:** stays on Ethereum while the Cabal lives; bridges are blocked by the transfer rule. After `killCabal()`, PLEA is a plain token and can be bridged with a LayerZero OFT adapter added later; no contract change is needed now. A separate game on Robinhood Chain can come later (IMD's Intake contract is on both chains). Solana would need a full rewrite, so it's out of scope.
