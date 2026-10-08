@@ -198,7 +198,25 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 >    - Flow: approve 0.5 IMD → `submitSell` → poll the oracle → verdict.
 >    - If the callback didn't record the verdict, call `deliverVerdict` with the attestation from `api.imd.fun/oracle/requests/:id/attestation`.
 >    - If APPROVED: an Execute button with a 15-minute countdown and a `minOut` slippage default of 3%.
-> 4. **The Wall:** a live feed of `PleaSubmitted` and `PleaJudged` events. Each plea is a card with the plea text, the amount, the stats (holding %, P/L, hold time), the panel vote (e.g. 24/30), and an APPROVED or DENIED stamp. Each card has "Download image" (rendered client-side) and "Share on X" with prefilled text and a link.
+> 4. **The Wall** (its own page, `#/wall`, also linked from the nav and previewed on the home page with the latest 6 cards). A live feed built from `PleaSubmitted` and `PleaJudged` events, newest first.
+>    - **Card:**
+>      - the plea text, rendered as plain text
+>      - the seller (shortened address or ENS)
+>      - the amount
+>      - the stats: holding %, P/L, hold time, fact score
+>      - the "needs N/45" line
+>      - the time
+>      - a big stamp: **APPROVED** (green), **DENIED** (red), **THE CABAL IS DELIBERATING…** (pending, with a live timer) or **EXPIRED** (no verdict within 1h)
+>      - for approved pleas, whether the sell was executed or the window lapsed
+>    - **Panel vote:** e.g. "24/30 judges". Also show one short judge quote when available, taken from the public oracle record (`api.imd.fun/oracle/requests/:id`, the members' notes), trimmed to 140 characters and labelled "a judge said:". If the API has no notes, show nothing.
+>    - **Filters:** All · Approved · Denied · Pending. Sort: Latest · Biggest sells · Funniest isn't possible on-chain, so skip it.
+>    - **Permalink** per card: `#/p/<requestId>`, opening that single card.
+>    - **Share:**
+>      - "Download image": a 1200×675 PNG rendered client-side in the imd.fun style, with the stamp, the plea and the stats, plus the site URL in the footer.
+>      - "Copy image" to the clipboard where the browser supports it.
+>      - "Share on X": opens X with prefilled text such as `The Cabal APPROVED my plea 🟩 "…first 100 characters…" Plead your case: plea.sites.imd.fun/#/p/<id>`, or `DENIED 🟥` for denials.
+>      - The site is static on IPFS, so X can't build a preview per card: links show the site's general preview image. The text tells people to attach the downloaded image.
+>    - **Counters** at the top: total pleas, approved, denied, approval rate, and PLEA burned.
 > 5. **How it works:** five plain sentences, the contract addresses with Etherscan links, the owner's only power (`allow`, which can only let an aggregator *send* PLEA to buyers, never let anyone sell around the Cabal), the oracle failsafe (if the oracle ever stops answering, the Cabal dies after 48h and everything unlocks), a clear warning that selling is restricted while the Cabal lives, and credit: "Inspired by CabalCoin by TokenWorks."
 >
 > Read the chain through a public RPC; there's no backend. Plea text is rendered as text, never HTML.
