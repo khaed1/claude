@@ -182,10 +182,44 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 > - The owner has no function other than `allow` and `renounceOwnership`. No function can change any oracle setting or limit. Nothing can revive the Cabal.
 > - The launch config contains no placeholder addresses.
 >
-> **Website** (static, IPFS, label `plea`). Visual style must match imd.fun:
-> - Black and white only. IBM Plex Mono throughout. 1.5px solid rules. Pill-shaped nav and buttons, 40px tall. Uppercase 11px labels with 0.06em letter spacing. Red `#b3261e` / `#ff6b62` for DENIED and green `#1f9d55` / `#3ecf7a` for APPROVED.
-> - Light and dark themes with a toggle, defaulting to dark and remembered in localStorage.
-> - Layout must work on a 360px-wide phone.
+> **Website** (static, IPFS, label `plea`). Use exactly this design system. These tokens are the source of truth, taken from imd.fun's own stylesheet; don't invent new colors, fonts or effects.
+>
+> ```css
+> :root {                      /* light */
+>   color-scheme: light;
+>   --paper: #fff;  --ink: #000;  --dim: #555;  --faint: #999;  --mute: #bbb;
+>   --soft: #e6e6e6;  --hover: #f4f4f4;
+>   --alarm: #b3261e;  /* DENIED, errors */   --ok: #1f9d55;  /* APPROVED, success */
+>   --rule: 1.5px solid var(--ink);
+>   --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+>   --gutter: clamp(16px, 4vw, 34px);
+>   --label: 11px;  --track: 0.06em;  --pill-h: 40px;
+> }
+> :root[data-theme=dark] {     /* dark (default) */
+>   color-scheme: dark;
+>   --paper: #000;  --ink: #fff;  --dim: #9a9a9a;  --faint: #666;  --mute: #4a4a4a;
+>   --soft: #262626;  --hover: #141414;
+>   --alarm: #ff6b62;  --ok: #3ecf7a;
+>   --rule: 1.5px solid #fff;
+> }
+> ```
+>
+> Components:
+> - **Type:** IBM Plex Mono everywhere (self-hosted woff2, weights 400/500/600). Body 14–16px, `--ink` on `--paper`. Secondary text in `--dim`, disabled in `--faint`.
+> - **Labels:** uppercase, `--label` size, `--track` letter spacing, `--dim` color. Examples: "FACT SCORE", "THE CABAL DIES IN".
+> - **Rules and boxes:** sections and cards are separated by `--rule` borders. Square corners on cards and panels. No shadows, gradients, blur or glass effects.
+> - **Pills:** nav, buttons, inputs and toggles are fully rounded pills, `--pill-h` tall, with a `--rule` border. Grouped pills share borders as segmented "cells" (as in imd.fun's nav).
+>   - Primary button: `--ink` fill with `--paper` text.
+>   - Secondary button: transparent with an `--ink` border.
+>   - Hover: `--hover` background.
+>   - Focus: visible 2px outline in `--ink`.
+> - **Nav:** a left pill with a diamond mark and "PLEA". A pill group with Buy · Plead · Wall · How. On the right, the theme toggle (sun icon) and a "CONNECT" pill. Below 640px, a menu drawer.
+> - **Stamps:** APPROVED and DENIED are bordered uppercase boxes in `--ok` / `--alarm` (border and text, no fill), rotated −3°. PENDING is `--dim` with a blinking cursor.
+> - **Numbers:** tabular figures; the countdown is large (48–72px) in `--ink`.
+> - **Icons:** 1.5px-stroke line icons in `currentColor` only.
+> - **Theme:** `data-theme` on `<html>`, set before first paint from localStorage key `plea-theme` (default dark), toggled by the sun button.
+> - **Layout:** max content width about 1100px, side padding `--gutter`. Works on a 360px-wide phone with no horizontal scroll.
+> - **Motion:** only short opacity and transform transitions (≤150ms). Respect `prefers-reduced-motion`.
 >
 > Sections:
 > 1. **Status bar:** Cabal ALIVE/DEAD, plus a large countdown to `lastVerdictAt + 48h` labelled "THE CABAL DIES IN". Also shows price, market cap, total PLEA burned, and pleas approved and denied.
@@ -213,7 +247,7 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 >    - **Filters:** All · Approved · Denied · Pending. Sort: Latest · Biggest sells.
 >    - **Permalink** per card: `#/p/<requestId>`, opening that single card.
 >    - **Share:**
->      - "Download image": a 1200×675 PNG rendered client-side in the imd.fun style, with the stamp, the plea and the stats, plus the site URL in the footer.
+>      - "Download image": a 1200×675 PNG rendered client-side with the same tokens (dark theme), with the stamp, the plea and the stats, plus the site URL in the footer.
 >      - "Copy image" to the clipboard where the browser supports it.
 >      - "Share on X": opens X with prefilled text such as `The Cabal APPROVED my plea 🟩 "…first 100 characters…" Plead your case: plea.sites.imd.fun/#/p/<id>`, or `DENIED 🟥` for denials.
 >      - The site is static on IPFS, so X can't build a preview per card: links show the site's general preview image. The text tells people to attach the downloaded image.
@@ -223,7 +257,7 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 > Read the chain through a public RPC; there's no backend. Plea text is rendered as text, never HTML.
 >
 > **Design review (required before hosting).** Render every page in a real browser (home, Buy, Plead with each verdict state, Wall, a single-card permalink, How it works) at 360px, 768px and 1280px, in light and dark. Review the screenshots with the design reference skills attached (`impeccable` if available: its audit/critique checklist and its "AI slop" detector; otherwise `better-interface`'s six disciplines). Check:
-> - faithful to the imd.fun style (monochrome, IBM Plex Mono, 1.5px rules, pills)
+> - the design tokens and components above are used exactly, with no off-palette colors, extra fonts or effects
 > - readable type and contrast in both themes
 > - no horizontal scroll on phones
 > - clear wallet connect → approve → submit → verdict → execute states (`eth-frontend-ux`)
