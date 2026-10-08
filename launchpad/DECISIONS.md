@@ -103,6 +103,7 @@ Every decision and change, in the order it was made, with the reason. Numbers (D
 
 | Commit | Change |
 |---|---|
+| next after `f653def` | ROADMAP v1.1: the daily health report can run now on IMD's scheduled tasks (`schedule.create` with a `job.open` report, 0.5 IMD per run paid on Ethereum; no pause or cancel by the owner, frozen input). No code change |
 | next after `28a6d11` | ROADMAP v1.1: the daily health report bought on chain, and jobs paid on chain by `SwarmBudget` / `GrowthFund`, once IMD sells jobs through Intake (the user's note, 8 Oct 2026); HANDOFF §7 row. No code change |
 | next after `9ff08e7` | D-85: the coin-airdrop-to-other-holders idea removed from HANDOFF §6b and ROADMAP v1.1 (the user's decision); the AskOracle notes stay. No code change |
 | next after `bc7c33f` | HANDOFF §6b: the IMD dev's AskOracle app checked (job, contract, site, live record of 15 questions, what to reuse, what is weaker than ours) and the user's idea of coin airdrops to other tokens' holders written down with what the oracle can and can't check (free checks) and Claude's view (not decided); §7 Intake questions (IntakeDelivery now documented); ROADMAP v1.1 item. No code change; round 5 at `3cd764f` unaffected |
