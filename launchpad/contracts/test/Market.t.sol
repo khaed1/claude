@@ -10,6 +10,7 @@ import {BalanceDelta} from "v4-core/types/BalanceDelta.sol";
 import {IPoolManager} from "v4-core/interfaces/IPoolManager.sol";
 import {Hooks} from "v4-core/libraries/Hooks.sol";
 import {TickMath} from "v4-core/libraries/TickMath.sol";
+import {SqrtPriceMath} from "v4-core/libraries/SqrtPriceMath.sol";
 import {StateLibrary} from "v4-core/libraries/StateLibrary.sol";
 import {PoolKey} from "v4-core/types/PoolKey.sol";
 import {SwapParams, ModifyLiquidityParams} from "v4-core/types/PoolOperation.sol";
@@ -405,8 +406,11 @@ contract MarketTest is MarketBase {
         uint256 feeBefore = market.currentFee();
         uint256 capFloorBefore = market.capFloor();
 
+        // The reference as caught up to this block, not the stored `refTick` (audit R5-A2-2): the sell above moved the
+        // price and two blocks passed without a swap.
         (int24 floorBefore, int24 refBefore, uint256 capBefore) =
-            (market.deploymentFloorTick(), market.refTick(), market.inventoryCap());
+            (market.deploymentFloorTick(), market.referenceTick(), market.inventoryCap());
+        assertTrue(refBefore != market.refTick(), "a catch-up is pending");
         PadMarketHook next = _newHook(0x8888, address(controller), address(burner));
         vm.prank(timelock); // the 48 h timelock can't approve a migration
         vm.expectRevert(Ownable.Unauthorized.selector);
@@ -782,7 +786,7 @@ contract MarketTest is MarketBase {
         controller.setCapFloor(400_000_000e18);
         vm.expectRevert(MarketController.PolicyOutOfBounds.selector);
         controller.setCapFloor(cap + 1);
-        controller.setCapFloor(cap); // holds the cap where it is
+        controller.setCapFloor(cap); // at the cap: allowed while nothing has moved the cap since (R5-A2-3)
         controller.setCapFloor(CAP_FLOOR); // and back
         vm.stopPrank();
         assertEq(market.capFloor(), CAP_FLOOR);
@@ -905,5 +909,111 @@ contract MarketTest is MarketBase {
         pondpad.transfer(address(splitter), 100e18);
         splitter.distributeToken(address(pondpad));
         assertEq(pondpad.balanceOf(stakers), 40e18);
+    }
+
+    // ------------------------------------------------------------------ Audit round 5
+
+    address internal attacker = makeAddr("attacker");
+
+    /// @dev Exact-input swap by `who` in the current market, stopping at `limit`. buy = IMD in, $PONDPAD out.
+    function _swapAs(address who, bool buy, uint256 amountIn, uint160 limit) internal {
+        PoolKey memory key = market.poolKey();
+        vm.prank(who);
+        swapper.swap(
+            key,
+            SwapParams({zeroForOne: buy, amountSpecified: -int256(amountIn), sqrtPriceLimitX96: limit}),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            ""
+        );
+    }
+
+    /// @dev Audit R5-A2-1: anyone may execute the 48 h timelock's queued `fundInventory` and choose its block, so it
+    ///      could be run inside a pump of the executor's own: pump $PONDPAD, add the 30M reserve at the pumped price,
+    ///      sell back. On `3cd764f` the judge's sandwich (day 8, the 1% fee, IMD maxima at 1.5x what the add needs at
+    ///      the proposal's price, a 4,200 IMD pump) made +56.69 IMD. Now the add refuses a tick more than 100 from the
+    ///      hook's `referenceTick()`, which nothing in the current block moves; a pump that stays within 100 ticks
+    ///      loses the fees, even with IMD maxima at 10x; a dump is refused like a pump.
+    function test_market_fundInventoryRefusesAPumpedPrice() public {
+        _graduate();
+        vm.warp(START + 30 minutes + 8 days);
+        _nextBlock();
+        assertEq(market.currentFee(), 10_000);
+        // The proposal: the 30M reserve, liquidity sized at today's price, and the IMD it needs at that price.
+        uint160 spot = market.currentSqrtPriceX96();
+        int24 spacing = market.tickSpacing();
+        uint128 liq = controller.fullRangeLiquidity(spot, 1e30, 30_000_000e18, spacing);
+        uint256 imdNeeded = SqrtPriceMath.getAmount0Delta(
+            spot, TickMath.getSqrtPriceAtTick(TickMath.maxUsableTick(spacing)), liq, true
+        );
+        imd.mint(timelock, 100_000e18);
+        pondpad.transfer(timelock, 30_000_000e18);
+        vm.startPrank(timelock);
+        imd.approve(address(controller), type(uint256).max);
+        pondpad.approve(address(controller), type(uint256).max);
+        vm.stopPrank();
+        imd.mint(attacker, 10_000e18);
+        vm.startPrank(attacker);
+        imd.approve(address(swapper), type(uint256).max);
+        pondpad.approve(address(swapper), type(uint256).max);
+        vm.stopPrank();
+        int24 ref = market.referenceTick();
+        assertEq(market.currentTick(), ref);
+
+        // The sandwich: pump with 4,200 IMD, execute the queued add (IMD maxima 1.5x), sell back.
+        uint256 imdBefore = imd.balanceOf(attacker);
+        _swapAs(attacker, true, 4_200e18, TickMath.MIN_SQRT_PRICE + 1);
+        assertLt(market.currentTick(), ref - 100, "the pump moved the price past the band");
+        assertEq(market.referenceTick(), ref, "a swap in this block doesn't move the reference");
+        vm.prank(timelock);
+        vm.expectRevert(MarketController.PriceOutOfRange.selector);
+        controller.fundInventory(liq, 30_000_000e18, imdNeeded * 3 / 2);
+        _swapAs(attacker, false, pondpad.balanceOf(attacker), TickMath.MAX_SQRT_PRICE - 1);
+        assertLt(imd.balanceOf(attacker), imdBefore, "the round trip only paid fees");
+
+        // A pump to just inside the band: the add runs, with IMD maxima at 10x, and the round trip still loses.
+        imdBefore = imd.balanceOf(attacker);
+        uint128 liqBefore = market.positionLiquidity();
+        _swapAs(attacker, true, 5_000e18, TickMath.getSqrtPriceAtTick(ref - 99));
+        assertGe(market.currentTick(), ref - 100);
+        assertLt(market.currentTick(), ref - 90);
+        vm.prank(timelock);
+        controller.fundInventory(liq, 30_000_000e18, imdNeeded * 10);
+        assertEq(market.positionLiquidity(), liqBefore + liq, "added");
+        _swapAs(attacker, false, pondpad.balanceOf(attacker), TickMath.MAX_SQRT_PRICE - 1);
+        assertLt(imd.balanceOf(attacker), imdBefore, "a pump within the band doesn't pay");
+
+        // A dump past the band is refused like a pump.
+        _swap(false, 10_000_000e18);
+        assertGt(market.currentTick(), ref + 100);
+        vm.prank(timelock);
+        vm.expectRevert(MarketController.PriceOutOfRange.selector);
+        controller.fundInventory(liq, 30_000_000e18, imdNeeded * 10);
+    }
+
+    /// @dev Audit R5-A2-3 (documented, no code change): the floor check runs when the 48 h call executes, so a floor at
+    ///      the cap proposed earlier is reverted by any buy in between (the ratchet lowers the cap). Holding the cap is
+    ///      done with `setCapDecay(0)`, which no buy can undo; sells above the cap still trim.
+    function test_market_capDecayZeroHoldsTheCap() public {
+        _graduate();
+        uint256 cap = market.inventoryCap();
+        vm.warp(START + 30 minutes + 1 hours);
+        _swap(true, 1e18); // a dust buy an hour later
+        assertLt(market.inventoryCap(), cap, "the buy ratcheted the cap");
+        vm.prank(timelock);
+        vm.expectRevert(MarketController.PolicyOutOfBounds.selector);
+        controller.setCapFloor(cap); // a floor at the cap as it stood when proposed
+
+        vm.prank(timelock);
+        controller.setCapDecay(0);
+        uint256 held = market.inventoryCap();
+        for (uint256 i; i < 5; i++) {
+            vm.warp(START + 30 minutes + 1 hours + (i + 1) * 3 days);
+            _nextBlock();
+            _swap(true, 200e18);
+            assertEq(market.inventoryCap(), held, "no buy lowers the cap");
+        }
+        uint256 burnedBefore = market.totalBurned();
+        _swap(false, 40_000_000e18);
+        assertGt(market.totalBurned(), burnedBefore, "sells above the cap still trim");
     }
 }

@@ -91,7 +91,9 @@ contract PadBuyer is FixedOwnable, IUnlockCallback {
         if (spot < ref - maxDeviationTicks) revert PriceOutOfRange();
         // Below spot by construction (spot >= ref - maxDeviation), so the swap always has room.
         int24 limitTick = ref - maxDeviationTicks - maxSlippageTicks;
-        if (limitTick < TickMath.MIN_TICK) limitTick = TickMath.MIN_TICK;
+        // v4 refuses a limit at MIN_SQRT_PRICE itself (`PriceLimitOutOfBounds`), so the lowest usable limit is one tick
+        // above it (audit R5-A3-4).
+        if (limitTick <= TickMath.MIN_TICK) limitTick = TickMath.MIN_TICK + 1;
 
         lastBuyAt = block.timestamp;
         uint256 tip = (chunk * keeperTipBps) / 10_000;

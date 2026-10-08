@@ -25,6 +25,8 @@ import {TimelockController} from "openzeppelin-contracts/governance/TimelockCont
 import {FixedOwnable} from "../src/FixedOwnable.sol";
 import {PondPadTimelock} from "../src/PondPadTimelock.sol";
 import {PadRouter} from "../src/PadRouter.sol";
+import {LaunchParams} from "../src/PadFactory.sol";
+import {ERC20} from "solady/tokens/ERC20.sol";
 
 /// @dev Stands in for a multisig a creator hands its fees to.
 contract MockSafe {}
@@ -1099,5 +1101,327 @@ contract GovernanceTest is Base {
         social.link(coin, h, T0 + 1 days, v0);
         (bytes32 badge,) = social.badgeOf(coin);
         assertEq(badge, h);
+    }
+
+    // ------------------------------------------------------------------ Audit round 5
+
+    /// @dev Audit R5-A1-1: a coin's fee recipient can't be the vault itself, the curve, the hook, the hook's PoolManager
+    ///      or another registered coin, at launch or later: anyone's `claim` would hand the fees to a contract that never
+    ///      counts them (or to the other coin's holders) before the recipient could correct it, and the coin's swarm
+    ///      budget could never be spent, cancelled or swept. Naming the coin itself (fees to holders) stays allowed, at
+    ///      launch too; any other address is the recipient's own choice.
+    function test_vault_refusesRecipientsThatStrandFees() public {
+        address coin = _coinWithCreatorFees(_noTax());
+        address other = _launchOrdered(_noTax(), address(imd) > coin);
+        address[5] memory sinks = [address(vault), address(curve), address(hook), address(pm), other];
+        for (uint256 i; i < sinks.length; i++) {
+            vm.prank(creator);
+            vm.expectRevert(CreatorVault.InvalidRecipient.selector);
+            vault.setRecipient(coin, sinks[i]);
+        }
+        assertEq(vault.recipientOf(coin), creator);
+        vm.prank(creator);
+        vault.setRecipient(coin, newOwner);
+        uint256 owed = vault.balanceOf(coin);
+        vault.claim(coin); // anyone's claim pays the recipient
+        assertEq(imd.balanceOf(newOwner), owed);
+
+        for (uint256 i; i < sinks.length; i++) {
+            LaunchParams memory p = _params("SINK", _noTax(), bytes32(uint256(100 + i)));
+            p.feeRecipient = sinks[i];
+            vm.prank(creator);
+            vm.expectRevert(CreatorVault.InvalidRecipient.selector);
+            router.launchWith(p, address(imd), 1e18, false, 0, 0, address(0));
+        }
+        LaunchParams memory own = _params("OWN", _noTax(), bytes32(uint256(200)));
+        own.feeRecipient = factory.predictAddress(own, creator);
+        vm.prank(creator);
+        (address self,) = router.launchWith(own, address(imd), 1e18, false, 0, 0, address(0));
+        assertEq(self, own.feeRecipient);
+        assertEq(vault.recipientOf(self), self, "fees to its holders from the start");
+    }
+
+    /// @dev Audit R5-A4-3: a new fee recipient that clears the previous recipient's stale link (tidying the coin's page
+    ///      before linking its own) doesn't use up the nonce, so the voucher it already holds still works. Clearing a
+    ///      stale link revokes nothing (R4-A4-6); the recipient revoking its own live link still voids earlier
+    ///      vouchers (R3-A4-5, `test_social_strangerClearDoesNotVoidTheNewRecipientsVoucher`).
+    function test_social_newRecipientClearingAStaleLinkKeepsItsVoucher() public {
+        address coin = _launch(_noTax(), 0);
+        uint256 deadline = T0 + 1 days;
+        bytes32 old = keccak256("old");
+        bytes memory v0 = _voucher(coin, old, creator, 0, deadline);
+        vm.prank(creator);
+        social.link(coin, old, deadline, v0);
+        vm.prank(creator);
+        vault.setRecipient(coin, newOwner);
+        bytes32 h = keccak256("new");
+        bytes memory v1 = _voucher(coin, h, newOwner, 1, deadline); // signed before the stale link is cleared
+        vm.prank(newOwner);
+        social.unlink(coin); // the new recipient tidies up
+        assertEq(social.nonces(coin), 1, "the nonce didn't move");
+        vm.prank(newOwner);
+        social.link(coin, h, deadline, v1);
+        (bytes32 badge,) = social.badgeOf(coin);
+        assertEq(badge, h);
+    }
+
+    /// @dev Audit R5-A4-3: the previous recipient clearing its own stale link doesn't use up the nonce either. Its vouchers
+    ///      are useless while it isn't the recipient, so a bump would only void the voucher the new recipient holds (the
+    ///      R4-A4-6 path). Passes on `3cd764f` too: it pins the rule the fix keeps.
+    function test_social_oldRecipientClearingItsStaleLinkKeepsTheNewVoucher() public {
+        address coin = _launch(_noTax(), 0);
+        uint256 deadline = T0 + 1 days;
+        bytes32 old = keccak256("old");
+        bytes memory v0 = _voucher(coin, old, creator, 0, deadline);
+        vm.prank(creator);
+        social.link(coin, old, deadline, v0);
+        vm.prank(creator);
+        vault.setRecipient(coin, newOwner);
+        bytes32 h = keccak256("new");
+        bytes memory v1 = _voucher(coin, h, newOwner, 1, deadline);
+        vm.prank(creator);
+        social.unlink(coin); // the old recipient clears the link it made
+        assertEq(social.nonces(coin), 1, "the nonce didn't move");
+        vm.prank(newOwner);
+        social.link(coin, h, deadline, v1);
+        (bytes32 badge,) = social.badgeOf(coin);
+        assertEq(badge, h);
+    }
+
+    /// @dev Audit R5-A4-5: the version registry's verifier must be a contract: an address without code made `activate`
+    ///      and `retireManualActivation` revert until another 7-day change.
+    function test_versions_verifierNeedsCode() public {
+        address eoa = makeAddr("eoa");
+        vm.expectRevert(VersionRegistry.NoCode.selector);
+        new VersionRegistry(address(this), address(0));
+        vm.expectRevert(VersionRegistry.NoCode.selector);
+        new VersionRegistry(address(this), eoa);
+        vm.expectRevert(VersionRegistry.NoCode.selector);
+        versions.setVerifier(address(0));
+        vm.expectRevert(VersionRegistry.NoCode.selector);
+        versions.setVerifier(eoa);
+        AttestationVerifier other = new AttestationVerifier(slowTimelock);
+        versions.setVerifier(address(other));
+        assertEq(address(versions.verifier()), address(other));
+    }
+
+    /// @dev Audit R5-A4-7: every address of a version must have code, so a version can't commit to the code hash of an
+    ///      empty account (a typo, or a contract not deployed yet); a balance is not code.
+    function test_versions_registerNeedsCodeAtEveryAddress() public {
+        address eoa = makeAddr("eoa");
+        address[5] memory five = [address(factory), address(router), address(curve), address(hook), address(lens)];
+        for (uint256 i; i < 5; i++) {
+            address[5] memory v;
+            for (uint256 j; j < 5; j++) {
+                v[j] = i == j ? eoa : five[j];
+            }
+            vm.expectRevert(VersionRegistry.NoCode.selector);
+            versions.register(v[0], v[1], v[2], v[3], v[4]);
+        }
+        vm.deal(eoa, 1 wei);
+        vm.expectRevert(VersionRegistry.NoCode.selector);
+        versions.register(eoa, five[1], five[2], five[3], five[4]);
+        assertEq(versions.register(five[0], five[1], five[2], five[3], five[4]), 1);
+    }
+
+    /// @dev Audit R5-A4-6: the social registry's verifier can't be address(0), which refused every voucher until another
+    ///      48 h change (the airdrop's setter already refused it).
+    function test_social_verifierCantBeZero() public {
+        vm.expectRevert(SocialRegistry.ZeroAddress.selector);
+        new SocialRegistry(address(this), address(vault), address(0));
+        vm.expectRevert(SocialRegistry.ZeroAddress.selector);
+        social.setVerifier(address(0));
+        assertEq(social.verifier(), linker);
+    }
+
+    /// @dev Audit R5-A4-8 (coverage): an accepted attestation can't be used again, for the same version or another; a
+    ///      "no" is refused and leaves its request id unused; the manual fallback can't be retired while the verifier
+    ///      has no signer (v1 approves none, D-86).
+    function test_versions_attestationReplayAndNoAnswer() public {
+        for (uint256 i; i < 3; i++) {
+            versions.register(address(factory), address(router), address(curve), address(hook), address(lens));
+        }
+        vm.expectRevert(VersionRegistry.CannotRetire.selector);
+        versions.retireManualActivation();
+        _approveOracle();
+        string memory job = "6f1d2c3a-1111-4222-8333-944455556666";
+        OracleAttestation memory a = _att(versions.question(2, job), true);
+        bytes memory sig = _sign(a, oracleKey);
+        versions.activate(2, job, a, sig);
+        assertTrue(versions.usedRequest(a.requestId));
+        vm.expectRevert(VersionRegistry.RequestUsed.selector);
+        versions.activate(2, job, a, sig);
+        vm.expectRevert(VersionRegistry.RequestUsed.selector);
+        versions.activate(3, job, a, sig);
+
+        OracleAttestation memory no = _att(versions.question(3, job), false);
+        bytes memory noSig = _sign(no, oracleKey);
+        vm.expectRevert(VersionRegistry.AnswerNo.selector);
+        versions.activate(3, job, no, noSig);
+        assertFalse(versions.usedRequest(no.requestId), "a refused 'no' uses nothing up");
+        assertEq(versions.versionInfo(3).activatedAt, 0);
+        assertEq(versions.currentVersion(), 2);
+    }
+
+    /// @dev Audit R5-A4-8 (coverage): strangers can't use the owner setters of the governance contracts, nor the vault's
+    ///      and the budget's wiring; unlinking a coin with no link reverts `NotLinked`.
+    function test_governance_strangersOnOwnerSetters() public {
+        address coin = _launch(_noTax(), 0);
+        versions.register(address(factory), address(router), address(curve), address(hook), address(lens));
+        vm.startPrank(alice);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        versions.setVerifier(address(verifier));
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        versions.activateManually(1, "https://api.imd.fun/jobs/audit-1/report.md");
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        versions.setCurrent(1);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        versions.retireManualActivation();
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        verifier.setSigner(alice, true);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        social.setVerifier(alice);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        budget.setRelay(alice);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        budget.setMaxRequest(1);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        budget.initialize(alice, alice);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        budget.credit(coin, 1);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        config.setGuardian(alice);
+        vm.expectRevert(CreatorVault.Unauthorized.selector);
+        vault.initialize(alice, alice);
+        vm.expectRevert(CreatorVault.Unauthorized.selector);
+        vault.register(alice, alice);
+        vm.expectRevert(CreatorVault.Unauthorized.selector);
+        vault.credit(coin, 1);
+        vm.stopPrank();
+        vm.prank(creator);
+        vm.expectRevert(SocialRegistry.NotLinked.selector);
+        social.unlink(coin);
+    }
+
+    /// @dev Audit R5-A4-8 (coverage): the swarm budget's guards: a request above the cap or above the budget, a
+    ///      stranger's cancel while the creator receives the fees, a second cancel or a release of a closed request,
+    ///      and the owner's relay and cap setters.
+    function test_swarmBudget_guardsAndSetters() public {
+        address coin = _launch(CoinFees(100, 0, 0, 10_000), 0); // a 1% tax, all to the swarm budget
+        vm.warp(T0 + 1 hours);
+        _buy(alice, coin, 100e18);
+        uint256 avail = budget.available(coin);
+        assertGt(avail, 0);
+        budget.setMaxRequest(uint96(avail / 2));
+        vm.prank(creator);
+        vm.expectRevert(SwarmBudget.AboveMaxRequest.selector);
+        budget.requestSpend(coin, uint96(avail / 2 + 1), keccak256("site"));
+        budget.setMaxRequest(100e18);
+        vm.prank(creator);
+        vm.expectRevert(SwarmBudget.InsufficientBudget.selector);
+        budget.requestSpend(coin, uint96(avail + 1), keccak256("site"));
+        vm.prank(creator);
+        uint256 id = budget.requestSpend(coin, uint96(avail), keccak256("site"));
+        vm.prank(alice);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        budget.cancel(id);
+        vm.prank(creator);
+        budget.cancel(id);
+        vm.prank(creator);
+        vm.expectRevert(SwarmBudget.RequestClosed.selector);
+        budget.cancel(id);
+        vm.prank(relay);
+        vm.expectRevert(SwarmBudget.RequestClosed.selector);
+        budget.release(id, "job-1");
+
+        address newRelay = makeAddr("newRelay");
+        budget.setRelay(newRelay);
+        vm.prank(creator);
+        uint256 id2 = budget.requestSpend(coin, uint96(avail), keccak256("site"));
+        vm.prank(relay);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        budget.release(id2, "job-2");
+        vm.prank(newRelay);
+        budget.release(id2, "job-2");
+        assertEq(imd.balanceOf(newRelay), avail);
+        assertEq(budget.available(coin), 0);
+    }
+
+    /// @dev Audit R5-A4-1 (documented): a stale link (its linker no longer the fee recipient) still counts in
+    ///      `linkCount`, so the same handle linked on another coin is flagged a duplicate until someone clears the
+    ///      stale link; anyone may, and the flag goes. The site computes its warning from live links.
+    function test_social_staleLinkFlagsADuplicateUntilCleared() public {
+        address coin1 = _launch(_noTax(), 0);
+        address coin2 = _launchOrdered(_noTax(), address(imd) > coin1);
+        bytes32 h = keccak256("frogdao");
+        uint256 deadline = T0 + 1 days;
+        bytes memory v1 = _voucher(coin1, h, creator, 0, deadline);
+        vm.prank(creator);
+        social.link(coin1, h, deadline, v1);
+        vm.prank(creator);
+        vault.setRecipient(coin1, newOwner);
+        (bytes32 b1,) = social.badgeOf(coin1);
+        assertEq(b1, bytes32(0), "coin1 shows no badge");
+        bytes memory v2 = _voucher(coin2, h, creator, 0, deadline);
+        vm.prank(creator);
+        social.link(coin2, h, deadline, v2);
+        (bytes32 b2, bool dup) = social.badgeOf(coin2);
+        assertEq(b2, h);
+        assertTrue(dup, "the stale link still counts");
+        vm.prank(alice); // anyone clears the stale link
+        social.unlink(coin1);
+        (, dup) = social.badgeOf(coin2);
+        assertFalse(dup);
+    }
+
+    /// @dev Audit R5-A4-2 (documented): routing a coin's fees to its holders (recipient = the coin) ends its X badge for
+    ///      good, since the coin never calls `link`; the creator's own wallet link stays on its profile.
+    function test_social_holderRoutingEndsTheBadge() public {
+        address coin = _launch(_noTax(), 0);
+        bytes32 h = keccak256("frogcoin");
+        uint256 deadline = T0 + 1 days;
+        bytes memory v0 = _voucher(coin, h, creator, 0, deadline);
+        vm.prank(creator);
+        social.link(coin, h, deadline, v0);
+        _linkX(creator, "frogcreator");
+        vm.prank(creator);
+        vault.setRecipient(coin, coin);
+        (bytes32 badge,) = social.badgeOf(coin);
+        assertEq(badge, bytes32(0), "no badge once the holders receive the fees");
+        bytes memory v1 = _voucher(coin, h, creator, social.nonces(coin), deadline);
+        vm.prank(creator);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        social.link(coin, h, deadline, v1);
+        assertEq(social.walletHandle(creator), "frogcreator", "the creator's own X link stays");
+    }
+
+    /// @dev Audit R5-A1-3 (coverage): `PadLens` pool quotes still equal router trades to the wei after outside routers
+    ///      moved the price either way, for buys and sells, in both currency orderings.
+    function test_lens_quotesAfterOutsideSwapsMovedThePrice() public {
+        for (uint256 k; k < 2; k++) {
+            address coin = _launchOrdered(_holderTax(200), k == 0);
+            _fillCurve(coin);
+            PoolKey memory key = hook.poolKey(coin);
+            PoolSwapTest swapper = new PoolSwapTest(IPoolManager(address(pm)));
+            imd.mint(address(this), 10_000e18);
+            imd.approve(address(swapper), type(uint256).max);
+            ERC20(coin).approve(address(swapper), type(uint256).max);
+
+            _outsideSwap(swapper, key, true, 1_500e18); // an outside buy moves the price up
+            (uint256 out,,,, bool full) = lens.quoteBuy(coin, 200e18);
+            assertTrue(full);
+            assertEq(_buy(alice, coin, 200e18), out, "buy quote after an outside buy");
+            (uint256 imdOut,,, bool fullSell) = lens.quoteSell(coin, out / 2);
+            assertTrue(fullSell);
+            assertEq(_sell(alice, coin, out / 2), imdOut, "sell quote after an outside buy");
+
+            _outsideSwap(swapper, key, false, ERC20(coin).balanceOf(address(this)) / 2); // an outside sell moves it down
+            (out,,,, full) = lens.quoteBuy(coin, 50e18);
+            assertTrue(full);
+            assertEq(_buy(alice, coin, 50e18), out, "buy quote after an outside sell");
+            (imdOut,,, fullSell) = lens.quoteSell(coin, out);
+            assertTrue(fullSell);
+            assertEq(_sell(alice, coin, out), imdOut, "sell quote after an outside sell");
+        }
     }
 }

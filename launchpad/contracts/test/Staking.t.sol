@@ -836,4 +836,145 @@ contract StakingTest is MarketBase {
 
         assertGt(sVault.convertToAssets(sVault.balanceOf(staker)), valueBefore);
     }
+
+    // ------------------------------------------------------------------ Audit round 5
+
+    /// @dev A fresh market hook owned by the controller, approved by the 7-day timelock and migrated into by the Safe.
+    function _migrate() internal returns (PadMarketHook next) {
+        address addr = address(uint160(MARKET_FLAGS) | (uint160(0x8888) << 144));
+        deployCodeTo(
+            "PadMarketHook.sol:PadMarketHook",
+            abi.encode(
+                address(controller), IPoolManager(address(pm)), address(imd), address(pondpad), address(burner),
+                address(rewards), uint256(1_500), uint256(1_000e18), int24(200)
+            ),
+            addr
+        );
+        vm.prank(slowTimelock);
+        controller.approveMigration(addr);
+        vm.prank(migrator);
+        controller.migrate(addr);
+        next = PadMarketHook(addr);
+        assertEq(address(controller.hook()), addr);
+    }
+
+    /// @dev Audits R5-A2-2 / R5-A3-1: a migration carries the old market's reference as caught up to its block
+    ///      (`referenceTick()`), not the stored `refTick`, which only catches up at the next swap. After a 40M dump and
+    ///      40 quiet blocks the stored one still sat at the price before the dump; inherited, it let a pump to just
+    ///      inside it make PadBuyer pay far above invariant 14's bound (the judge: 2,487 bps on one chunk), where the
+    ///      old market refused. Now the new market starts from the caught-up reference and PadBuyer refuses that pump.
+    function test_buyer_migrationCarriesTheCaughtUpReference() public {
+        _graduate();
+        imd.mint(address(buyer), 25e18);
+        _nextBlock();
+        _swap(true, 1e18); // the reference stands at the current price
+        _nextBlock();
+        _swap(false, 40_000_000e18); // a dump: $PONDPAD much cheaper (a higher tick)
+        int24 staleRef = market.refTick();
+        int24 dumped = market.currentTick();
+        assertGt(dumped, staleRef + 2_000);
+        for (uint256 i; i < 40; i++) {
+            _nextBlock(); // nobody trades
+        }
+        int24 caughtUp = market.referenceTick();
+        assertEq(caughtUp, dumped, "the old market's reference caught up with the price that stood");
+        assertEq(market.refTick(), staleRef, "its stored one still sits before the dump");
+
+        PadMarketHook next = _migrate();
+        assertEq(next.referenceTick(), caughtUp, "the new market keeps the caught-up reference");
+        assertEq(next.refTick(), caughtUp);
+
+        // A pump in the migration block to just inside the stale reference's band: refused, as on the old market.
+        PoolKey memory key = next.poolKey();
+        vm.prank(trader);
+        swapper.swap(
+            key,
+            SwapParams({
+                zeroForOne: true,
+                amountSpecified: -int256(5_000e18),
+                sqrtPriceLimitX96: TickMath.getSqrtPriceAtTick(staleRef - 99)
+            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            ""
+        );
+        assertGe(next.currentTick(), staleRef - 100);
+        assertLe(next.currentTick(), staleRef - 99);
+        vm.prank(keeper);
+        vm.expectRevert(PadBuyer.PriceOutOfRange.selector);
+        buyer.buy();
+    }
+
+    /// @dev Audit R5-A3-2: sPONDPAD parked at the dripper can't be rescued by the dripper's owner (the 48 h timelock):
+    ///      its shares stand for staked $PONDPAD, as the vault's own rescue already says (R4-A3-5); parked there they
+    ///      act like a staker that never exits (THREAT-MODEL §3). Stray tokens can still be rescued.
+    function test_dripper_cantRescueParkedShares() public {
+        vm.prank(staker);
+        uint256 shares = sVault.deposit(5e18, address(rewards)); // parked at the dripper
+        _nextBlock();
+        vm.prank(timelock);
+        vm.expectRevert(RewardDripper.CannotRescueRewards.selector);
+        rewards.rescueERC20(address(sVault), timelock, shares);
+        assertEq(sVault.balanceOf(address(rewards)), shares);
+
+        MockIMD stray = new MockIMD();
+        stray.mint(address(rewards), 1e18);
+        vm.prank(timelock);
+        rewards.rescueERC20(address(stray), timelock, 1e18);
+        assertEq(stray.balanceOf(timelock), 1e18);
+    }
+
+    /// @dev Audit R5-A3-3: no exit pays address(0) (the staker's $PONDPAD would end up there) or the vault itself (it
+    ///      would sit uncounted until the next `syncRewards`), as deposits already refuse both (R4-A3-1).
+    function test_vault_noExitToAddressZeroOrTheVault() public {
+        uint256 shares = _stake(10e18);
+        _nextBlock();
+        vm.startPrank(staker);
+        vm.expectRevert(StakedPONDPAD.InvalidReceiver.selector);
+        sVault.redeem(shares, address(0), staker);
+        vm.expectRevert(StakedPONDPAD.InvalidReceiver.selector);
+        sVault.redeem(shares, address(sVault), staker);
+        vm.expectRevert(StakedPONDPAD.InvalidReceiver.selector);
+        sVault.withdraw(5e18, address(0), staker);
+        vm.expectRevert(StakedPONDPAD.InvalidReceiver.selector);
+        sVault.withdraw(5e18, address(sVault), staker);
+        uint256 back = sVault.redeem(shares, staker, staker);
+        vm.stopPrank();
+        assertApproxEqAbs(back, 10e18, 1);
+        assertEq(pondpad.balanceOf(address(0)), 0);
+        assertEq(sVault.totalAssets(), 0);
+    }
+
+    /// @dev Audit R5-A3-4: with the reference within PadBuyer's band of `MIN_TICK`, its clamped limit must be one v4
+    ///      accepts, `MIN_TICK + 1`: `MIN_TICK`'s sqrt price is `MIN_SQRT_PRICE`, which v4 refuses
+    ///      (`PriceLimitOutOfBounds`). Such a price can't be reached (about 1e25 IMD from the opening state), so the
+    ///      market's reference and tick are mocked there; the swap runs in the real pool, where the limit doesn't bind.
+    function test_buyer_clampsItsLimitToATickV4Accepts() public {
+        _graduate();
+        imd.mint(address(buyer), 25e18);
+        _nextBlock();
+        int24 nearMin = TickMath.MIN_TICK + 150;
+        int24 limit = nearMin - buyer.maxDeviationTicks() - buyer.maxSlippageTicks();
+        assertLt(limit, TickMath.MIN_TICK, "the clamp applies");
+        vm.mockCall(address(market), abi.encodeWithSelector(PadMarketHook.referenceTick.selector), abi.encode(nearMin));
+        vm.mockCall(address(market), abi.encodeWithSelector(PadMarketHook.currentTick.selector), abi.encode(nearMin));
+        uint256 before = pondpad.balanceOf(address(rewards));
+        vm.prank(keeper);
+        uint256 out = buyer.buy();
+        vm.clearMockedCalls();
+        assertGt(out, 0, "buys with the lowest limit v4 accepts");
+        assertEq(pondpad.balanceOf(address(rewards)) - before, out);
+    }
+
+    /// @dev Audit R5-A3-5: the generated dripper and vault (`upstream/make_staking.py`) no longer promise powers the
+    ///      fork removed (a rescue of the reward buffer, a renounce) nor keep declarations nothing uses.
+    function test_staking_generatedSourcesKeepNoStaleUpstreamPowers() public view {
+        string memory dripperSrc = vm.readFile("src/RewardDripper.sol");
+        string[5] memory gone = [
+            "can rescue the buffer", "renouncing (blocked", "RenounceWouldFreeze", "MAX_CATCHUP =", "function totalSupply()"
+        ];
+        for (uint256 i; i < gone.length; i++) {
+            assertEq(vm.indexOf(dripperSrc, gone[i]), type(uint256).max, gone[i]);
+        }
+        assertEq(vm.indexOf(vm.readFile("src/StakedPONDPAD.sol"), "RenounceWhilePaused"), type(uint256).max);
+    }
 }

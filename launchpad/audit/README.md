@@ -54,5 +54,5 @@ Cost: 0.5 IMD per job, **2 IMD per round**, paid in IMD on Ethereum mainnet (the
 ## After a clean round
 
 - The four clean reports (or `FINDINGS.md` at that commit) are the `AUDIT_LINK` for `Deploy.s.sol`, which activates version 1 at deploy (D-57, D-59). IMD also records outside audits on a launch (`/launches/:id/assurances`); ours is a self-deployment, so the reports themselves are the record.
-- Once the IMD oracle signs for Robinhood, later versions are activated by an oracle attestation to `VersionRegistry`'s question (version, audit job id, code hash, five addresses).
+- v1 activates versions manually only (D-86): the 7-day timelock's `activateManually`, citing the clean audit. No oracle signer is approved in `AttestationVerifier`, since a live test (HANDOFF §6b) showed panels answer `VersionRegistry`'s question (version, audit job id, code hash, five addresses) by the contracts' names, not their code. A reworded question panels can check, with R2-A4-4's evidence-chain pin, is v1.1 at the earliest.
 - Still before large TVL (ROADMAP item 13): swarm fuzz campaigns (IMD's `fuzz` template, one Foundry harness per job), a human audit, a bug bounty.

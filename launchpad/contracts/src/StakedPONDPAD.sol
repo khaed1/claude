@@ -12,7 +12,7 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 /// `powersExpireAt` (12 months after launch). Audit fixes: only the shares that arrived this block are held
 /// (R1-A3-2); `totalAssets` is the vault's own count, not its raw balance, so a transfer into an empty vault can't
 /// move the share price, and rewards are taken in only while at least one whole $PONDPAD is staked (R2-A3-1);
-/// shares can't be minted or sent to address(0) or to the vault itself (R4-A3-1).
+/// shares can't be minted or sent to address(0) or to the vault itself (R4-A3-1), and no exit pays either (R5-A3-3).
 /// Upstream doc follows ("IMD" = the asset).
 ///
 /// Single-asset, autocompounding IMD staking vault. Stake IMD, receive `sIMD` shares; as
@@ -82,7 +82,6 @@ contract StakedPONDPAD is ERC4626, FixedOwnable {
     event EmergencyRescue(address indexed token, address indexed to, uint256 amount);
 
     error EnforcedPause();
-    error RenounceWhilePaused();
     error SameBlockRedeem();
     error CannotRescueStake();
     error InvalidReceiver();
@@ -184,6 +183,9 @@ contract StakedPONDPAD is ERC4626, FixedOwnable {
         override
         whenNotPaused
     {
+        // PondPad (audit R5-A3-3): no exit to address(0), which would burn the staker's $PONDPAD, or to the vault
+        // itself, which would leave it uncounted until the next `syncRewards` (deposits refuse both, R4-A3-1).
+        if (to == address(0) || to == address(this)) revert InvalidReceiver();
         if (shares > _unheldShares(owner)) revert SameBlockRedeem();
         trackedAssets -= assets; // PondPad (R2-A3-1)
         super._withdraw(by, to, owner, assets, shares);

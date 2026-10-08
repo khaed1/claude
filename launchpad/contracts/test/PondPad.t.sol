@@ -718,4 +718,197 @@ contract PondPadTest is Base {
         );
         assertEq(imd.balanceOf(address(hook)), 0);
     }
+
+    // ------------------------------------------------------------------ Audit round 5 (coverage, R5-A1-3)
+
+    function _permitSig(uint256 key, address coin, uint256 value, uint256 deadline)
+        internal
+        view
+        returns (uint8 v, bytes32 r, bytes32 s_)
+    {
+        address owner_ = vm.addr(key);
+        bytes32 typehash =
+            keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                ERC20(coin).DOMAIN_SEPARATOR(),
+                keccak256(abi.encode(typehash, owner_, address(router), value, ERC20(coin).nonces(owner_), deadline))
+            )
+        );
+        (v, r, s_) = vm.sign(key, digest);
+    }
+
+    /// @dev `PadRouter.sellForWithPermit` sells with a signed permit instead of an approval, on the curve and in the
+    ///      pool, also when someone else submitted the permit first (the router's own permit call is in a try).
+    function test_router_sellForWithPermit() public {
+        uint256 key = 0xC0FFEE;
+        address seller = vm.addr(key);
+        uint256 deadline = 1e10;
+        address coin = _launch(_noTax(), 0);
+        vm.warp(2 hours);
+        imd.mint(seller, 100e18);
+        vm.prank(seller);
+        imd.approve(address(router), type(uint256).max);
+        uint256 got = _buy(seller, coin, 100e18);
+
+        // On the curve, with the permit front-run by someone else.
+        (uint8 v, bytes32 r, bytes32 s_) = _permitSig(key, coin, got, deadline);
+        ERC20(coin).permit(seller, address(router), got, deadline, v, r, s_);
+        uint256 imdBefore = imd.balanceOf(seller);
+        vm.prank(seller);
+        uint256 out = router.sellForWithPermit(coin, address(imd), got / 2, 1, deadline, address(0), got, v, r, s_);
+        assertGt(out, 0);
+        assertEq(imd.balanceOf(seller) - imdBefore, out);
+
+        // In the pool after the Leap, with a fresh permit the router submits itself.
+        _fillCurve(coin);
+        assertEq(uint8(curve.statusOf(coin)), uint8(BondingCurve.Status.Graduated));
+        uint256 rest = ERC20(coin).balanceOf(seller);
+        (v, r, s_) = _permitSig(key, coin, rest, deadline);
+        imdBefore = imd.balanceOf(seller);
+        vm.prank(seller);
+        out = router.sellForWithPermit(coin, address(imd), rest, 1, deadline, address(0), rest, v, r, s_);
+        assertGt(out, 0);
+        assertEq(imd.balanceOf(seller) - imdBefore, out);
+        assertEq(ERC20(coin).balanceOf(seller), 0);
+        assertEq(ERC20(coin).allowance(seller, address(router)), 0);
+    }
+
+    function _pendingFees(address coin) internal view returns (uint256) {
+        (uint128 protocol, uint128 creatorFee, uint128 holders, uint128 swarm) = hook.pending(coin);
+        return uint256(protocol) + creatorFee + holders + swarm;
+    }
+
+    function _hookImdClaims() internal view returns (uint256) {
+        return IPoolManager(address(pm)).balanceOf(address(hook), uint256(uint160(address(imd))));
+    }
+
+    /// @dev Through an outside router, an exact-output sell (IMD specified) that hits a tight price limit reverts
+    ///      `PartialFill` (invariant 4), while an exact-input sell (the coin specified) that hits it fills partly and pays
+    ///      the fee on the IMD actually filled; the hook's ERC-6909 IMD claims grow by exactly what it books.
+    function test_outsideRouter_partialSells_imdFirst() public {
+        _partialSells(true);
+    }
+
+    function test_outsideRouter_partialSells_coinFirst() public {
+        _partialSells(false);
+    }
+
+    function _partialSells(bool imdFirst) internal {
+        address coin = _launchOrdered(_noTax(), imdFirst);
+        _fillCurve(coin);
+        PoolKey memory key = hook.poolKey(coin);
+        PoolSwapTest swapper = new PoolSwapTest(IPoolManager(address(pm)));
+        imd.mint(address(this), 1_000e18);
+        imd.approve(address(swapper), type(uint256).max);
+        ERC20(coin).approve(address(swapper), type(uint256).max);
+        PoolSwapTest.TestSettings memory settings = PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        swapper.swap(
+            key,
+            SwapParams({
+                zeroForOne: imdFirst,
+                amountSpecified: -100e18,
+                sqrtPriceLimitX96: imdFirst ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
+            }),
+            settings,
+            ""
+        );
+        hook.flush(coin);
+
+        // A sell moves the price toward more IMD per coin; the limit allows only a sliver of that.
+        (uint160 sqrtP,,,) = IPoolManager(address(pm)).getSlot0(key.toId());
+        uint160 tight = imdFirst ? sqrtP + sqrtP / 100_000 : sqrtP - sqrtP / 100_000;
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CustomRevert.WrappedError.selector,
+                address(hook),
+                IHooks.afterSwap.selector,
+                abi.encodeWithSelector(PadHook.PartialFill.selector),
+                abi.encodeWithSelector(Hooks.HookCallFailed.selector)
+            )
+        );
+        swapper.swap(key, SwapParams({zeroForOne: !imdFirst, amountSpecified: 10e18, sqrtPriceLimitX96: tight}), settings, "");
+
+        uint256 tokensBefore = ERC20(coin).balanceOf(address(this));
+        uint256 imdBefore = imd.balanceOf(address(this));
+        uint256 claimsBefore = _hookImdClaims();
+        swapper.swap(
+            key,
+            SwapParams({zeroForOne: !imdFirst, amountSpecified: -int256(tokensBefore), sqrtPriceLimitX96: tight}),
+            settings,
+            ""
+        );
+        uint256 sold = tokensBefore - ERC20(coin).balanceOf(address(this));
+        assertGt(sold, 0);
+        assertLt(sold, tokensBefore, "filled only partly");
+        uint256 imdOut = imd.balanceOf(address(this)) - imdBefore;
+        uint256 fee = _pendingFees(coin);
+        assertEq(fee, (imdOut + fee) * 150 / 10_000, "1.5% of the IMD the pool actually paid");
+        assertEq(_hookImdClaims() - claimsBefore, fee, "claims equal the books");
+        hook.flush(coin);
+        assertEq(_hookImdClaims(), 0);
+    }
+
+    /// @dev Exact-output trades through an outside router on a coin with the full 3% tax (4.5% in all), both currency
+    ///      orderings: the buy's fee is 4.5% of what the buyer paid in total, the sell's 4.5% of the gross the pool paid
+    ///      out, and the hook's ERC-6909 IMD claims grow by exactly what it books.
+    function test_outsideRouter_exactOutputFeesOnATaxedCoin_imdFirst() public {
+        _exactOutputTaxed(true);
+    }
+
+    function test_outsideRouter_exactOutputFeesOnATaxedCoin_coinFirst() public {
+        _exactOutputTaxed(false);
+    }
+
+    function _exactOutputTaxed(bool imdFirst) internal {
+        address coin = _launchOrdered(CoinFees(300, 3_334, 3_333, 3_333), imdFirst);
+        _fillCurve(coin);
+        hook.flush(coin);
+        PoolKey memory key = hook.poolKey(coin);
+        PoolSwapTest swapper = new PoolSwapTest(IPoolManager(address(pm)));
+        imd.mint(address(this), 1_000e18);
+        imd.approve(address(swapper), type(uint256).max);
+        ERC20(coin).approve(address(swapper), type(uint256).max);
+        PoolSwapTest.TestSettings memory settings = PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+
+        uint256 imdBefore = imd.balanceOf(address(this));
+        uint256 claimsBefore = _hookImdClaims();
+        swapper.swap(
+            key,
+            SwapParams({
+                zeroForOne: imdFirst,
+                amountSpecified: int256(1_000_000e18),
+                sqrtPriceLimitX96: imdFirst ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
+            }),
+            settings,
+            ""
+        );
+        assertEq(ERC20(coin).balanceOf(address(this)), 1_000_000e18, "exactly the coins asked for");
+        uint256 paid = imdBefore - imd.balanceOf(address(this));
+        uint256 fee = _pendingFees(coin);
+        assertApproxEqAbs(fee, paid * 450 / 10_000, 2, "4.5% of what the buyer paid");
+        assertEq(_hookImdClaims() - claimsBefore, fee, "buy: claims equal the books");
+        hook.flush(coin);
+
+        imdBefore = imd.balanceOf(address(this));
+        claimsBefore = _hookImdClaims();
+        swapper.swap(
+            key,
+            SwapParams({
+                zeroForOne: !imdFirst,
+                amountSpecified: int256(1e18),
+                sqrtPriceLimitX96: imdFirst ? TickMath.MAX_SQRT_PRICE - 1 : TickMath.MIN_SQRT_PRICE + 1
+            }),
+            settings,
+            ""
+        );
+        assertEq(imd.balanceOf(address(this)) - imdBefore, 1e18, "exactly the IMD asked for");
+        fee = _pendingFees(coin);
+        assertEq(fee, uint256(1e18) * 450 / 9_550, "4.5% of the gross the pool paid out");
+        assertEq(_hookImdClaims() - claimsBefore, fee, "sell: claims equal the books");
+        hook.flush(coin);
+        assertEq(_hookImdClaims(), 0);
+        assertEq(imd.balanceOf(address(hook)), 0);
+    }
 }

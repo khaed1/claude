@@ -6,7 +6,6 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
 
 interface IERC20Min {
     function balanceOf(address account) external view returns (uint256);
-    function totalSupply() external view returns (uint256);
 }
 
 /// @dev PondPad: the sPONDPAD vault's reward intake (audits R2-A3-1, R2-A3-3).
@@ -31,8 +30,8 @@ interface IRewardVault {
 ///   - Bounds (audit R2-A3-2, R2-A3-4, R1-A3-8, R3-A3-1): `1 hour <= maxCatchupSeconds <= smoothingPeriod / 7` and
 ///     the floor capped at 1/7 of the buffer, so one drip releases at most 1/7 of the buffer (or a remainder under
 ///     one $PONDPAD) and the floor fires at most hourly; `minDripAmount <= 100,000 $PONDPAD`.
-///   - D-42: the vault is fixed at deploy (no `setVault`); `rescueERC20` can never touch the reward buffer; all
-///     owner powers expire at `powersExpireAt` (12 months after launch).
+///   - D-42: the vault is fixed at deploy (no `setVault`); `rescueERC20` can never touch the reward buffer, nor
+///     sPONDPAD (audit R5-A3-2); all owner powers expire at `powersExpireAt` (12 months after launch).
 /// Upstream doc follows; its "rate" wording describes the original fixed-rate formula.
 ///
 /// Smooths the market's lumpy 10% reward share into a bounded stream for the staking vault.
@@ -53,9 +52,11 @@ interface IRewardVault {
 /// `drip()` is permissionless and pays its caller `keeperReward` IMD (out of the released amount) so a
 /// keeper/bot is compensated for gas. To keep that fee a tiny fraction of each drip, `drip()` only
 /// fires once at least `minDripAmount` is releasable (`keeperReward <= minDripAmount` is enforced, so
-/// the keeper can never take more than the drip). Both are owner-tunable. The owner also tunes the
-/// rate/target and can rescue the buffer; renouncing (blocked if it would freeze the stream) leaves an
-/// autonomous, immutable stream.
+/// the keeper can never take more than the drip). PondPad (audit R5-A3-5; this replaces the upstream sentence on
+/// owner powers, which promised a buffer rescue and a renounce): both are tuned by the owner (the 48 h timelock)
+/// within bounds, as are the smoothing period and the catch-up window; the owner can rescue only stray tokens,
+/// never the reward buffer or sPONDPAD; ownership can't be renounced, transferred or handed over (FixedOwnable);
+/// and every power ends at `powersExpireAt`, which leaves an autonomous stream.
 contract RewardDripper is FixedOwnable {
     using SafeTransferLib for address;
 
@@ -77,9 +78,6 @@ contract RewardDripper is FixedOwnable {
     /// fraction of each drip and stops keepers spamming dust drips to farm the fee.
     uint256 public minDripAmount;
 
-    /// @dev Bounds keep `elapsed * dripRatePerSecond` far below 2^256, so `drip()` can never
-    /// overflow-revert (a self-inflicted DoS) no matter how the knobs are set.
-    uint256 internal constant MAX_CATCHUP = 30 days;
     uint256 public constant MIN_SMOOTHING = 1 days; // PondPad
     uint256 public constant MAX_SMOOTHING = 30 days; // PondPad
     /// @notice PondPad (audit R2-A3-4): a catch-up window of at least an hour, so the `minDripAmount` floor can't
@@ -112,7 +110,6 @@ contract RewardDripper is FixedOwnable {
     error CatchupTooHigh();
     error KeeperRewardExceedsMin();
     error BelowMinDrip();
-    error RenounceWouldFreeze();
     error VaultEmpty();
     error CannotRescueRewards();
 
@@ -268,9 +265,10 @@ contract RewardDripper is FixedOwnable {
 
     // ─────────────────────────────── Emergency ───────────────────────────────
 
-    /// @notice Owner sweeps a stray balance to `to`. PondPad: never the reward buffer.
+    /// @notice Owner sweeps a stray balance to `to`. PondPad: never the reward buffer, and never sPONDPAD, whose
+    /// shares stand for staked $PONDPAD (audit R5-A3-2).
     function rescueERC20(address token, address to, uint256 amount) external onlyOwnerActive {
-        if (token == imd) revert CannotRescueRewards();
+        if (token == imd || token == vault) revert CannotRescueRewards();
         token.safeTransfer(to, amount);
         emit EmergencyRescue(token, to, amount);
     }

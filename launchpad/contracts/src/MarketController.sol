@@ -58,6 +58,10 @@ contract MarketController is FixedOwnable, IPadMarketLauncher {
     uint256 public constant MIGRATION_WINDOW = 365 days;
     /// @notice The cap decay can be raised to at most this multiple of its deploy value (audit R3-A2-1).
     uint256 public constant MAX_CAP_DECAY_MULTIPLE = 5;
+    /// @notice `fundInventory` adds only while the market's tick is within this many ticks (~1%) of the hook's
+    ///         block-lagged `referenceTick()`, so whoever executes the queued call can't run it inside its own pump
+    ///         (audit R5-A2-1). A constant, not a setting.
+    int24 public constant MAX_FUND_DEVIATION_TICKS = 100;
     /// @notice The new hook the 7-day timelock approved for `migrate`; zero when none.
     address public approvedMigration;
 
@@ -72,6 +76,7 @@ contract MarketController is FixedOwnable, IPadMarketLauncher {
     error InvalidSetup();
     error MigrationClosed();
     error PolicyOutOfBounds();
+    error PriceOutOfRange();
 
     modifier onlySinkAdmin() {
         if (msg.sender != sinkAdmin) revert Unauthorized();
@@ -199,8 +204,12 @@ contract MarketController is FixedOwnable, IPadMarketLauncher {
     /// @notice The cap never falls below the deploy floor (150M, D-21): it can be raised, and lowered back to that,
     ///         but owner settings can't let ordinary trading trim the market position away (audit R3-A2-1). The floor
     ///         can't go above the market's current cap either: the hook would lift the cap to it, and nothing but the
-    ///         rate-limited ratchet ever lowers the cap again, so trims would stop for good (audit R4-A2-1). Raised to
-    ///         the cap, it only holds the cap where it is (the ratchet stops there), and lowering it undoes that.
+    ///         rate-limited ratchet ever lowers the cap again, so trims would stop for good (audit R4-A2-1). The check
+    ///         runs when the 48 h call executes, and any buy before then lets the ratchet lower the cap by the decay
+    ///         allowance it has banked (`capDecayTokensPerDay` × the time since the cap last moved, so at least the
+    ///         2-day delay's worth), so a proposal leaves at least that margin below the cap; a floor at the cap itself
+    ///         is reverted by a dust buy. To hold the cap where it is, set the decay to 0 with `setCapDecay(0)` (audit
+    ///         R5-A2-3).
     function setCapFloor(uint256 newFloor) external onlyOwner {
         if (newFloor < initialCapFloor || newFloor > hook.inventoryCap()) revert PolicyOutOfBounds();
         hook.setCapFloor(newFloor);
@@ -250,15 +259,23 @@ contract MarketController is FixedOwnable, IPadMarketLauncher {
     ///         adds it to the market position, raises the cap, and returns what this call pulled and did not use.
     ///         Anything that was already here (sent by someone else) joins the protocol fees or is burned, as in
     ///         `launch` and `migrate`: the controller pays no wallet (audit R3-A2-5).
+    ///         Anyone may execute the queued 48 h call and choose its block, so it reverts unless the market's tick is
+    ///         within `MAX_FUND_DEVIATION_TICKS` of the hook's `referenceTick()`, which nothing done in the current
+    ///         block moves: a pump, the add at the pumped price, a dump, all in one transaction, would otherwise take
+    ///         value from the position up to the IMD slack the proposal left (audit R5-A2-1). A reverted execution
+    ///         stays executable, so it runs once the price is back near its reference.
     function fundInventory(uint128 liquidity, uint256 maximumTokenAmount, uint256 maximumImdAmount)
         external
         onlyOwner
     {
+        PadMarketHook h = hook;
+        int256 deviation = int256(h.currentTick()) - int256(h.referenceTick());
+        if (deviation > MAX_FUND_DEVIATION_TICKS || deviation < -MAX_FUND_DEVIATION_TICKS) revert PriceOutOfRange();
         uint256 tokenBefore = token.balanceOf(address(this));
         uint256 imdBefore = imd.balanceOf(address(this));
         token.safeTransferFrom(msg.sender, address(this), maximumTokenAmount);
         imd.safeTransferFrom(msg.sender, address(this), maximumImdAmount);
-        hook.fundInventory(liquidity, maximumTokenAmount, maximumImdAmount);
+        h.fundInventory(liquidity, maximumTokenAmount, maximumImdAmount);
         // The hook takes at most the maxima, so the balances can't fall below what was here before.
         uint256 tokenLeft = token.balanceOf(address(this)) - tokenBefore;
         if (tokenLeft != 0) token.safeTransfer(msg.sender, tokenLeft);
@@ -296,9 +313,10 @@ contract MarketController is FixedOwnable, IPadMarketLauncher {
     ///         IMD/$PONDPAD pair, owned by this controller, with the same burn sink and rewards recipient. The old
     ///         market's fees go to the splitter; its position and retained IMD reopen the new market at the old
     ///         market's current price, with the same cap floor, decay and policy, and with the old market's
-    ///         backstop placement floor, reference tick and cap (so a price pushed just before the migration
-    ///         can't decide where the backstop goes, audit R1-A2-2); IMD that doesn't fit the full-range
-    ///         position becomes the new market's backstop IMD. The controller keeps nothing and pays no one.
+    ///         backstop placement floor, reference tick (as caught up to this block, `referenceTick()`, audit R5-A2-2)
+    ///         and cap (so a price pushed just before the migration can't decide where the backstop goes, audit
+    ///         R1-A2-2); IMD that doesn't fit the full-range position becomes the new market's backstop IMD. The
+    ///         controller keeps nothing and pays no one.
     function migrate(address newHook_) external {
         if (msg.sender != migrator) revert Unauthorized();
         if (newHook_ == address(0) || newHook_ != approvedMigration) revert InvalidSetup();
@@ -312,7 +330,11 @@ contract MarketController is FixedOwnable, IPadMarketLauncher {
         ) revert InvalidSetup();
 
         uint160 sqrtPriceX96 = old.currentSqrtPriceX96();
-        (int24 oldFloor, int24 oldRef, uint256 oldCap) = (old.deploymentFloorTick(), old.refTick(), old.inventoryCap());
+        // The reference as it stands for this block, caught up over the quiet blocks since the last swap, not the
+        // stored `refTick`, which only catches up at the next swap (audit R5-A2-2, the migration half of R4-A3-3).
+        // Nothing done in this block moves it, so a pump before `migrate` still can't (R1-A2-2).
+        (int24 oldFloor, int24 oldRef, uint256 oldCap) =
+            (old.deploymentFloorTick(), old.referenceTick(), old.inventoryCap());
         old.closeMarket(address(this)); // settles claims, closes the backstop, returns position + retained IMD
         _collectFees(old); // fees realised by the close go to the splitter, as always
         imd.safeApprove(address(old), 0); // the closed hook keeps no allowance (audit R2-A2-5)

@@ -15,6 +15,10 @@ import {AttestationVerifier, OracleAttestation} from "./AttestationVerifier.sol"
 ///      Chain: the owner activates a version citing the audit job link; it retires that path once attestations
 ///      work, one-way (D-46). The owner can switch back to an earlier activated version (rollback). Owner: the
 ///      7-day timelock, the same delay as oracle signer changes, since it can also swap the verifier.
+///      v1 approves no oracle signer in its `AttestationVerifier` (D-86): panels answered the activation question by
+///      the contracts' names, not their code (HANDOFF §6b), so v1 versions are activated manually only (`activate`
+///      always reverts and the manual fallback can't be retired). The verifier and the five addresses of a version
+///      must have code (audits R5-A4-5, R5-A4-7).
 contract VersionRegistry is FixedOwnable {
     using LibString for address;
 
@@ -57,8 +61,10 @@ contract VersionRegistry is FixedOwnable {
     error Retired();
     error CannotRetire();
     error BadAuditJob();
+    error NoCode();
 
     constructor(address owner_, address verifier_) {
+        if (verifier_.code.length == 0) revert NoCode(); // audit R5-A4-5
         _initializeOwner(owner_);
         verifier = AttestationVerifier(verifier_);
     }
@@ -73,6 +79,11 @@ contract VersionRegistry is FixedOwnable {
             factory == address(0) || router == address(0) || curve == address(0) || hook == address(0)
                 || lens == address(0)
         ) revert ZeroAddress();
+        // A version commits to deployed code, never to the hash of an empty account (audit R5-A4-7).
+        if (
+            factory.code.length == 0 || router.code.length == 0 || curve.code.length == 0 || hook.code.length == 0
+                || lens.code.length == 0
+        ) revert NoCode();
         bytes32 h = codeHashOf(factory, router, curve, hook, lens);
         _versions.push(Version(factory, router, curve, hook, lens, h, uint64(block.timestamp), 0, ""));
         version = _versions.length;
@@ -155,7 +166,10 @@ contract VersionRegistry is FixedOwnable {
         emit CurrentSet(version);
     }
 
+    /// @notice Only a contract (audit R5-A4-5): an address without code would make `activate` and
+    ///         `retireManualActivation` revert until another 7-day change.
     function setVerifier(address verifier_) external onlyOwner {
+        if (verifier_.code.length == 0) revert NoCode();
         verifier = AttestationVerifier(verifier_);
         emit VerifierUpdated(verifier_);
     }

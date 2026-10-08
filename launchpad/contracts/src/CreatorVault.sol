@@ -8,6 +8,10 @@ interface IHolderCoin {
     function fundHolderStream(uint256 amount) external;
 }
 
+interface IPoolManagerOf {
+    function poolManager() external view returns (address);
+}
+
 /// @title CreatorVault
 /// @notice Holds each coin's creator fees in IMD until the coin's fee recipient claims them.
 /// @dev The bonding curve and the hook transfer IMD here first, then call `credit`. Only a coin's current recipient
@@ -18,6 +22,10 @@ interface IHolderCoin {
 ///      stream, which pays them out second by second over about 7 days to the balances held during each second
 ///      (D-78, D-80; audits R1-A4-1, R3-A4-1). A lump paid in one go, or a day's share released at a moment the
 ///      caller picks, would be credited to whoever holds at that moment (buy, release, claim, sell).
+///      A recipient can't be this vault, the curve, the hook, the hook's PoolManager or another registered coin: anyone
+///      may `claim`, which would hand the fees to a contract that never counts them (or to the other coin's holders)
+///      before the recipient could correct the mistake, and the coin's swarm budget could never be spent, cancelled or
+///      swept (audit R5-A1-1). Any other address is the recipient's own choice.
 contract CreatorVault is ReentrancyGuard {
     using SafeTransferLib for address;
 
@@ -39,6 +47,7 @@ contract CreatorVault is ReentrancyGuard {
     error AlreadyInitialized();
     error ZeroAddress();
     error UnknownCoin();
+    error InvalidRecipient();
 
     constructor(address imd_) {
         imd = imd_;
@@ -56,6 +65,7 @@ contract CreatorVault is ReentrancyGuard {
     function register(address coin, address recipient) external {
         if (msg.sender != curve) revert Unauthorized();
         if (recipient == address(0)) revert ZeroAddress();
+        _checkRecipient(coin, recipient);
         recipientOf[coin] = recipient;
         emit Registered(coin, recipient);
     }
@@ -108,7 +118,18 @@ contract CreatorVault is ReentrancyGuard {
         address current = recipientOf[coin];
         if (msg.sender != current) revert Unauthorized();
         if (newRecipient == address(0)) revert ZeroAddress();
+        _checkRecipient(coin, newRecipient);
         recipientOf[coin] = newRecipient;
         emit RecipientChanged(coin, current, newRecipient);
+    }
+
+    /// @dev Refuses the system contracts that would strand a permissionless `claim`, and any registered coin other than
+    ///      `coin` itself (naming the coin itself routes the fees to its holders) (audit R5-A1-1).
+    function _checkRecipient(address coin, address recipient) internal view {
+        if (
+            recipient == address(this) || recipient == curve || recipient == hook
+                || recipient == IPoolManagerOf(hook).poolManager()
+                || (recipient != coin && recipientOf[recipient] != address(0))
+        ) revert InvalidRecipient();
     }
 }

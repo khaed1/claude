@@ -316,7 +316,19 @@ make('upstream/StakedIMD.sol', 'src/StakedPONDPAD.sol', [
     /// across one block shares it pro rata; the dripper's 1/7 bound covers only what streams through it. Nobody gains
     /// by sending it, so this is documented, not prevented.
     function syncRewards() external returns (uint256 amount) {"""),
-], ['bool public paused', 'paused ?', 'external onlyOwner {', 'is ERC4626, Ownable'])
+    # PondPad (audits R5-A3-3, R5-A3-5): no exit to address(0) or to the vault itself, as for deposits; the upstream
+    # renounce error, unused since the owner is fixed, is dropped.
+    ("""        if (shares > _unheldShares(owner)) revert SameBlockRedeem();
+        trackedAssets -= assets; // PondPad (R2-A3-1)""", """        // PondPad (audit R5-A3-3): no exit to address(0), which would burn the staker's $PONDPAD, or to the vault
+        // itself, which would leave it uncounted until the next `syncRewards` (deposits refuse both, R4-A3-1).
+        if (to == address(0) || to == address(this)) revert InvalidReceiver();
+        if (shares > _unheldShares(owner)) revert SameBlockRedeem();
+        trackedAssets -= assets; // PondPad (R2-A3-1)"""),
+    ("""    error RenounceWhilePaused();
+""", ""),
+    ("""/// shares can't be minted or sent to address(0) or to the vault itself (R4-A3-1).""",
+     """/// shares can't be minted or sent to address(0) or to the vault itself (R4-A3-1), and no exit pays either (R5-A3-3)."""),
+], ['bool public paused', 'paused ?', 'external onlyOwner {', 'is ERC4626, Ownable', 'RenounceWhilePaused'])
 
 # ------------------------------------------------------------------ RewardDripper
 make('upstream/RewardDripper.sol', 'src/RewardDripper.sol', [
@@ -502,7 +514,6 @@ make('upstream/RewardDripper.sol', 'src/RewardDripper.sol', [
     function totalSupply() external view returns (uint256);
 }""", """interface IERC20Min {
     function balanceOf(address account) external view returns (uint256);
-    function totalSupply() external view returns (uint256);
 }
 
 /// @dev PondPad: the sPONDPAD vault's reward intake (audits R2-A3-1, R2-A3-3).
@@ -531,5 +542,33 @@ interface IRewardVault {
         super.renounceOwnership();
     }""", """    // PondPad (audits R3-A2-2 / R3-A4-4): no renounce, transfer or handover (FixedOwnable); the powers end at
     // `powersExpireAt`, and the self-adjusting release always drains."""),
-], ['external onlyOwner {', 'setVault', 'dripRatePerSecond', 'MAX_RATE', 'is Ownable'])
+    # PondPad (audit R5-A3-2): sPONDPAD parked at the dripper can't be rescued either; its shares stand for staked
+    # $PONDPAD, as the vault's own rescue already says (R4-A3-5).
+    ("""    /// @notice Owner sweeps a stray balance to `to`. PondPad: never the reward buffer.
+    function rescueERC20(address token, address to, uint256 amount) external onlyOwnerActive {
+        if (token == imd) revert CannotRescueRewards();""", """    /// @notice Owner sweeps a stray balance to `to`. PondPad: never the reward buffer, and never sPONDPAD, whose
+    /// shares stand for staked $PONDPAD (audit R5-A3-2).
+    function rescueERC20(address token, address to, uint256 amount) external onlyOwnerActive {
+        if (token == imd || token == vault) revert CannotRescueRewards();"""),
+    ("""///   - D-42: the vault is fixed at deploy (no `setVault`); `rescueERC20` can never touch the reward buffer; all
+///     owner powers expire at `powersExpireAt` (12 months after launch).""", """///   - D-42: the vault is fixed at deploy (no `setVault`); `rescueERC20` can never touch the reward buffer, nor
+///     sPONDPAD (audit R5-A3-2); all owner powers expire at `powersExpireAt` (12 months after launch)."""),
+    # PondPad (audit R5-A3-5): the upstream sentence on owner powers promised a buffer rescue and a renounce this fork
+    # doesn't have; it is replaced, and the declarations nothing uses any more are dropped (`IERC20Min.totalSupply`
+    # with the interface edit above).
+    ("""/// the keeper can never take more than the drip). Both are owner-tunable. The owner also tunes the
+/// rate/target and can rescue the buffer; renouncing (blocked if it would freeze the stream) leaves an
+/// autonomous, immutable stream.""", """/// the keeper can never take more than the drip). PondPad (audit R5-A3-5; this replaces the upstream sentence on
+/// owner powers, which promised a buffer rescue and a renounce): both are tuned by the owner (the 48 h timelock)
+/// within bounds, as are the smoothing period and the catch-up window; the owner can rescue only stray tokens,
+/// never the reward buffer or sPONDPAD; ownership can't be renounced, transferred or handed over (FixedOwnable);
+/// and every power ends at `powersExpireAt`, which leaves an autonomous stream."""),
+    ("""    /// @dev Bounds keep `elapsed * dripRatePerSecond` far below 2^256, so `drip()` can never
+    /// overflow-revert (a self-inflicted DoS) no matter how the knobs are set.
+    uint256 internal constant MAX_CATCHUP = 30 days;
+""", ""),
+    ("""    error RenounceWouldFreeze();
+""", ""),
+], ['external onlyOwner {', 'setVault', 'dripRatePerSecond', 'MAX_RATE', 'is Ownable', 'MAX_CATCHUP',
+    'RenounceWouldFreeze', 'totalSupply'])
 print('ok')

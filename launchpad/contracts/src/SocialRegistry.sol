@@ -21,7 +21,13 @@ interface ICoinRecipients {
 ///      a per-coin nonce and a deadline; a revocation uses up the nonce, so a voucher signed before it is void
 ///      (audit R3-A4-5). A coin's link counts only while the account that made it is still the coin's fee
 ///      recipient: after any recipient change the old badge is gone and anyone can clear it (audit R3-A4-9), without
-///      using up the nonce (R4-A4-6). Signatures: the signer's own key first, then ERC-1271 (R4-A3-8).
+///      using up the nonce (R4-A4-6), the new recipient included (R5-A4-3). Signatures: the signer's own key first,
+///      then ERC-1271 (R4-A3-8). The verifier is never address(0) (R5-A4-6).
+///      `linkCount` (and so `duplicate` in `badgeOf` and `Linked`) counts a coin's link until it is cleared, a stale
+///      one included (audit R5-A4-1): anyone can clear a stale link, so the site clears them and computes its
+///      duplicate warning from live links. A coin whose fees go to its holders (recipient = the coin) has no badge and
+///      can never link one, since the coin never calls `link`; the creator's wallet link (`linkWallet`) stays on its
+///      profile (R5-A4-2).
 contract SocialRegistry is FixedOwnable, EIP712 {
     bytes32 public constant LINK_TYPEHASH =
         keccak256("Link(address coin,bytes32 handleHash,address account,uint256 nonce,uint256 deadline)");
@@ -52,8 +58,10 @@ contract SocialRegistry is FixedOwnable, EIP712 {
     error BadVoucher();
     error NotLinked();
     error BadHandle();
+    error ZeroAddress();
 
     constructor(address owner_, address creatorVault_, address verifier_) {
+        if (verifier_ == address(0)) revert ZeroAddress(); // audit R5-A4-6: it would refuse every voucher
         _initializeOwner(owner_);
         creatorVault = ICoinRecipients(creatorVault_);
         verifier = verifier_;
@@ -91,9 +99,9 @@ contract SocialRegistry is FixedOwnable, EIP712 {
     }
 
     /// @notice Removes a coin's link. The coin's fee recipient, the verifier or the owner; anyone once the account that
-    ///         linked it is no longer the fee recipient (audit R3-A4-9). When the recipient, the verifier or the owner
-    ///         removes it, vouchers signed before are void (R3-A4-5); a stranger's clear of a stale link leaves them
-    ///         (R4-A4-6).
+    ///         linked it is no longer the fee recipient (audit R3-A4-9). When the verifier or the owner removes it, or
+    ///         the recipient removes its own live link, vouchers signed before are void (R3-A4-5); a clear of a stale
+    ///         link leaves them, whoever clears it: a stranger (R4-A4-6), the new recipient or the old one (R5-A4-3).
     function unlink(address coin) external {
         address recipient = creatorVault.recipientOf(coin);
         if (
@@ -101,13 +109,16 @@ contract SocialRegistry is FixedOwnable, EIP712 {
         ) revert Unauthorized();
         bytes32 h = _handleOf[coin];
         if (h == bytes32(0)) revert NotLinked();
+        bool live = linkedBy[coin] == recipient;
         delete _handleOf[coin];
         delete linkedBy[coin];
         linkCount[h]--;
-        // A revocation by the recipient, the verifier or the owner voids every voucher signed before it (R3-A4-5). A
-        // stranger clearing a stale link revokes nothing (the old recipient can't use its vouchers any more), so it
-        // leaves the nonce alone and can't void the voucher the new recipient already holds (audit R4-A4-6).
-        if (msg.sender == recipient || msg.sender == verifier || msg.sender == owner()) nonces[coin]++;
+        // A revocation by the verifier or the owner, or by the recipient of its own live link, voids every voucher
+        // signed before it (R3-A4-5). Clearing a stale link revokes nothing (the account that made it isn't the
+        // recipient, so its vouchers can't be used), so it leaves the nonce alone and can't void the voucher the new
+        // recipient already holds, whoever clears it: a stranger (audit R4-A4-6), the new recipient (R5-A4-3) or the
+        // old one.
+        if (msg.sender == verifier || msg.sender == owner() || (msg.sender == recipient && live)) nonces[coin]++;
         emit Unlinked(coin, h, msg.sender);
     }
 
@@ -153,7 +164,9 @@ contract SocialRegistry is FixedOwnable, EIP712 {
     }
 
     /// @notice The coin's badge: its handle hash and whether another coin links the same handle. Nothing once the
-    ///         account that linked it is no longer the coin's fee recipient (audit R3-A4-9).
+    ///         account that linked it is no longer the coin's fee recipient (audit R3-A4-9), so nothing for a coin
+    ///         whose fees go to its holders (R5-A4-2). `duplicate` counts every link not yet cleared, stale ones
+    ///         included (R5-A4-1): the site computes its warning from live links and clears stale ones (anyone may).
     function badgeOf(address coin) external view returns (bytes32 handleHash, bool duplicate) {
         handleHash = handleOf(coin);
         duplicate = handleHash != bytes32(0) && linkCount[handleHash] > 1;
@@ -164,6 +177,7 @@ contract SocialRegistry is FixedOwnable, EIP712 {
     }
 
     function setVerifier(address verifier_) external onlyOwner {
+        if (verifier_ == address(0)) revert ZeroAddress(); // audit R5-A4-6
         verifier = verifier_;
         emit VerifierUpdated(verifier_);
     }
