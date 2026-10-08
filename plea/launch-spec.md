@@ -33,14 +33,13 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 > **Contracts**
 >
 > 1. **PLEA token** (ERC-20, 1,000,000,000 supply, 18 decimals, no mint).
->    - While the Cabal is alive, a transfer is allowed only if `from` or `to` is on the allowlist:
->      - the Uniswap v4 PoolManager
->      - CabalHook
->      - CabalGate
->      - the Uniswap Universal Router and the v4 PositionManager
->      - the launch's Merkle distributor, so the swarm's 10% claims work. Add it at deployment if its address is known then; otherwise the launch flow calls `allow(distributor)` right after the factory deploys it, before claims open.
->      - any address the owner adds later with `allow(address)` (aggregator routers)
->    - Every other wallet-to-wallet transfer reverts with `CabalIsWatching()`. This prevents bypassing the Cabal by seeding a second pool elsewhere.
+>    - **Directional transfer rule.** While the Cabal is alive (from the moment the pool opens for trading; the launch's own seeding of the pool and the claim contract happens before that), a transfer is allowed only if one of these holds:
+>      - `to` is CabalGate (a seller handing PLEA to the gate for an approved sell)
+>      - `from` is a **trusted sender**: the v4 PoolManager (buy outputs), CabalHook, CabalGate, or an address on the `from`-allowlist
+>    - Additionally, a transfer **to the PoolManager** is allowed only from CabalGate or CabalHook. That stops anyone settling PLEA into a different v4 pool (one without our hook) inside the same PoolManager.
+>    - The `from`-allowlist starts with the Uniswap Universal Router (`0x66a9893cc07d91d95644aedd05d03f95e1dba8af`) and the launch's Merkle distributor, so the swarm's 10% claims work. If the distributor's address isn't known at deploy, the launch flow calls `allow(distributor)` right after the factory deploys it, before claims open. The owner can add more later with `allow(address)` (aggregator routers).
+>    - Allowlisted addresses can only **send** PLEA. Nobody can send PLEA **to** them except through buys. So a holder's PLEA can only ever go to CabalGate while the Cabal is alive, whatever is on the list. Even a pool added by mistake can't be sold into.
+>    - Everything else reverts with `CabalIsWatching()`.
 >    - After `killCabal()`, all transfers are unrestricted.
 >    - No address in any launch file may be a placeholder: no `0xdead`, no `$owner`.
 > 2. **CabalHook** (Uniswap v4 hook on the PLEA/IMD pool).
@@ -126,7 +125,7 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 >    - Unanswered submissions don't reset the timer, so if the oracle is ever unavailable, the token unlocks itself after 48 hours.
 >
 > **Owner** (the paying wallet). Exactly two functions:
-> - `allow(address)`: adds an address to the token's transfer allowlist (aggregator routers, or the swarm's claim contract if it wasn't added at deploy). Add only; nothing can ever be removed. Emits `Allowed(address)`.
+> - `allow(address)`: adds an address to the token's `from`-allowlist (aggregator routers, or the swarm's claim contract if it wasn't added at deploy). It only lets that address **send** PLEA. Add only; nothing can ever be removed. Emits `Allowed(address)`.
 > - `renounceOwnership()`.
 >
 > Everything else is immutable. The owner can never:
@@ -144,7 +143,14 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 > - Signature format: reproduce the EIP-712 digest of the live attestation for request `f7af4af1-b840-4649-9135-283a31158847` (served at `api.imd.fun/oracle/requests/<id>/attestation`) and recover `0x5598aa9146215bc13eb26f2c692ad1461fd32982`. Then, on a fork, a fresh attestation for a real plea request from CabalGate verifies end to end. Attestations that are wrong-signer, wrong-consumer, expired, `agreed < 20`, non-bool or replayed are all rejected.
 > - The 0.25% PLEA burn applies to buys and sells, before and after `killCabal`, and `totalSupply` decreases by exactly the burned amount.
 > - Pleas containing `"`, `\`, `<`, `>`, `&`, newlines and emoji produce a valid, delimited question of ≤ 2,000 characters.
-> - Wallet-to-wallet transfers revert while the Cabal is alive. Creating and selling into a second pool is impossible. Claims from the launch's real Merkle distributor succeed while the Cabal is alive, and claimers can't then transfer wallet-to-wallet. An address added with `allow` can buy; nothing can remove it.
+> - Wallet-to-wallet transfers revert while the Cabal is alive. Holders can't send PLEA to any allowlisted address, router, or pool, only to CabalGate.
+> - A second pool can't be used to sell:
+>   - a v2-style pair, even one added with `allow`
+>   - a hookless v4 pool in the same PoolManager, by settling PLEA directly
+>   - a route through the Universal Router or Permit2
+> - Claims from the launch's real Merkle distributor succeed while the Cabal is alive, and claimers can't then transfer wallet-to-wallet.
+> - An aggregator added with `allow` can deliver bought PLEA to the buyer. Nothing can remove it.
+> - The launch's own seeding transfers (pool liquidity, claim-contract funding) succeed before the pool opens.
 > - Buys through the Universal Router succeed for any caller. Direct sells revert while the Cabal is alive. Sells succeed after `killCabal`.
 > - Launch fee decay: 70% at t=0, about 35% at 45 minutes, 0% at 90 minutes. The 0.5% per-transaction cap applies only during the window.
 > - Every `submitSell` rule (caps, cooldown, one pending request). Execution expires at 15 minutes. No replay. Only the seller can execute.
@@ -165,6 +171,6 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 >    - If the callback didn't record the verdict, call `deliverVerdict` with the attestation from `api.imd.fun/oracle/requests/:id/attestation`.
 >    - If APPROVED: an Execute button with a 15-minute countdown and a `minOut` slippage default of 3%.
 > 4. **The Wall:** a live feed of `PleaSubmitted` and `PleaJudged` events. Each plea is a card with the plea text, the amount, the stats (holding %, P/L, hold time), the panel vote (e.g. 24/30), and an APPROVED or DENIED stamp. Each card has "Download image" (rendered client-side) and "Share on X" with prefilled text and a link.
-> 5. **How it works:** five plain sentences, the contract addresses with Etherscan links, the owner's only power (`allow`), a clear warning that selling is restricted while the Cabal lives, and credit: "Inspired by CabalCoin by TokenWorks."
+> 5. **How it works:** five plain sentences, the contract addresses with Etherscan links, the owner's only power (`allow`, which can only let an aggregator *send* PLEA to buyers, never let anyone sell around the Cabal), the oracle failsafe (if the oracle ever stops answering, the Cabal dies after 48h and everything unlocks), a clear warning that selling is restricted while the Cabal lives, and credit: "Inspired by CabalCoin by TokenWorks."
 >
 > Read the chain through a public RPC; there's no backend. Plea text is rendered as text, never HTML.
