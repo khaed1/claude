@@ -213,7 +213,8 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 >   - Secondary button: transparent with an `--ink` border.
 >   - Hover: `--hover` background.
 >   - Focus: visible 2px outline in `--ink`.
-> - **Nav:** a left pill with a diamond mark and "PLEA". A pill group with Buy · Plead · Wall · How. On the right, the theme toggle (sun icon) and a "CONNECT" pill. Below 640px, a menu drawer.
+> - **Logo:** a text-only wordmark, `PLEA`, uppercase, IBM Plex Mono 600, letter spacing 0.06em, inside the left nav pill, followed by a blinking `_` cursor (static if `prefers-reduced-motion`). No symbol or icon, and don't reuse IMD's diamond mark, so the site isn't mistaken for an official IMD page. Favicon: a bold `P` in `--ink` on `--paper`. The share images use the same wordmark in the footer.
+> - **Nav:** the logo pill on the left. A pill group with Buy · Plead · Wall · How. On the right, the theme toggle (sun icon) and a "CONNECT" pill. Below 640px, a menu drawer.
 > - **Stamps:** APPROVED and DENIED are bordered uppercase boxes in `--ok` / `--alarm` (border and text, no fill), rotated −3°. PENDING is `--dim` with a blinking cursor.
 > - **Numbers:** tabular figures; the countdown is large (48–72px) in `--ink`.
 > - **Icons:** 1.5px-stroke line icons in `currentColor` only.
