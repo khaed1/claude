@@ -17,6 +17,7 @@ If the Cabal gives no verdict for 48 hours, it dies and PLEA trades freely forev
 | `economics.initialMarketCapWei` | `"5700000000000000000000"` (5,700 IMD, about $51k at ~$9/IMD). Allowed range is 250–250,000 IMD. |
 | `ipfs` | `"plea"` (site served at `plea.sites.imd.fun`) |
 | `github` | `true` |
+| `references` | `["uniswap-v4-hooks", "uniswap-v4-security", "oracle-consumer", "eth-security", "eth-frontend-ux", "better-interface", "pashov-skill", "impeccable"]` (8 max). `impeccable` is not in IMD's skill catalog yet: ask the IMD team to add it, as they did with `better-interface`. Source: github.com/pbakaus/impeccable, Apache-2.0. If it isn't added in time, drop it from the list; `better-interface` covers the review. |
 | Token | name `The Cabal`, symbol `PLEA`, supply 1,000,000,000, 18 decimals |
 
 Supply: 90% single-sided in the PLEA/IMD pool, 10% swarm (Merkle distributor).
@@ -220,3 +221,13 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 > 5. **How it works:** five plain sentences, the contract addresses with Etherscan links, the owner's only power (`allow`, which can only let an aggregator *send* PLEA to buyers, never let anyone sell around the Cabal), the oracle failsafe (if the oracle ever stops answering, the Cabal dies after 48h and everything unlocks), a clear warning that selling is restricted while the Cabal lives, and credit: "Inspired by CabalCoin by TokenWorks."
 >
 > Read the chain through a public RPC; there's no backend. Plea text is rendered as text, never HTML.
+>
+> **Design review (required before hosting).** Render every page in a real browser (home, Buy, Plead with each verdict state, Wall, a single-card permalink, How it works) at 360px, 768px and 1280px, in light and dark. Review the screenshots with the design reference skills attached (`impeccable` if available: its audit/critique checklist and its "AI slop" detector; otherwise `better-interface`'s six disciplines). Check:
+> - faithful to the imd.fun style (monochrome, IBM Plex Mono, 1.5px rules, pills)
+> - readable type and contrast in both themes
+> - no horizontal scroll on phones
+> - clear wallet connect → approve → submit → verdict → execute states (`eth-frontend-ux`)
+> - share images that read well at X's preview size
+> - no generic AI-template look: no gradients, glassmorphism, emoji bullets or stock hero sections
+>
+> Fix every blocking finding. Deliver the screenshots and the review report as artifacts with the launch.
