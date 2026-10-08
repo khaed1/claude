@@ -103,6 +103,7 @@ Every decision and change, in the order it was made, with the reason. Numbers (D
 
 | Commit | Change |
 |---|---|
+| next after `4ba4bbf` | Audit round 5 reports (`audit/rounds/5/A1–A4.report.md`) and the findings ledger (`audit/FINDINGS.md`: 19 findings at `3cd764f`, no Critical or High, 1 Medium (R5-A2-1, `fundInventory` sandwich), 6 Low (1 duplicate), 12 Info; 9 say an earlier fix is wrong or incomplete or a stated use doesn't hold; all open); every finding checked against `3cd764f` (all hold; scratch probes not committed); HANDOFF (§5 step 25 with Claude's recommendations, §7, audit note) / ROADMAP / `audit/PRECHECK-5.md` (its §2 migration note was wrong, R5-A2-2) updated. No code change |
 | next after `f653def` | ROADMAP v1.1: the daily health report can run now on IMD's scheduled tasks (`schedule.create` with a `job.open` report, 0.5 IMD per run paid on Ethereum; no pause or cancel by the owner, frozen input). No code change |
 | next after `28a6d11` | ROADMAP v1.1: the daily health report bought on chain, and jobs paid on chain by `SwarmBudget` / `GrowthFund`, once IMD sells jobs through Intake (the user's note, 8 Oct 2026); HANDOFF §7 row. No code change |
 | next after `9ff08e7` | D-85: the coin-airdrop-to-other-holders idea removed from HANDOFF §6b and ROADMAP v1.1 (the user's decision); the AskOracle notes stay. No code change |
