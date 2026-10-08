@@ -23,7 +23,7 @@ Related files:
 | [`frontend/`](frontend/) | The site (Vite + React + wagmi), running against the testnet; see its README (§5c) |
 | [`legal/`](legal/) | Terms of Use and Privacy Policy drafts (D-69) |
 
-Last updated: 7 October 2026 (round-4 fixes and the takeover removal done, D-82 / D-83; round 5 generated, ready for the user to submit; §5 step 22). Branch: `claude/bold-gauss-qhlw86` on `khaed1/claude`.
+Last updated: 8 October 2026 (round-4 fixes and the takeover removal done, D-82 / D-83; round 5 generated, ready for the user to submit; §5 step 22; IMD's onchain Intake checked, §6b, nothing built). Branch: `claude/bold-gauss-qhlw86` on `khaed1/claude`.
 
 ---
 
@@ -159,6 +159,7 @@ Test gotchas found so far:
 | v4 PositionManager | `0x58daec3116aae6d93017baaea7749052e8a04fa7` (also on the testnet) |
 | Universal Router | `0x8876789976decbfcbbbe364623c63652db8c0904` (also on the testnet, same PoolManager; the site's $PONDPAD market router, D-77); Universal Router 2.1.2 `0x204FAca1764B154221e35c0d20aBb3c525710498` (mainnet only). Source: Uniswap's v4 deployments page, checked onchain 6 Oct 2026 |
 | Permit2 | `0x000000000022D473030F116dDEE9F6B43aC78BA3` |
+| IMD Intake (onchain requests for the swarm, §6b) | `0x1397434cd35e8a9C8aC312A61D3A285EB31dea56` (same address on Ethereum mainnet, CREATE2; source verified on Sourcify for Ethereum). On Robinhood since 7 Oct 2026; sells only `oracle.request@oracle-1` at 0.5 IMD (checked 8 Oct 2026) |
 
 Live numbers (4 Oct 2026):
 - IMD supply on Robinhood: **~46,900**. IMD/ETH pool: **~28,900 IMD + 70 ETH**, ~411 IMD per ETH.
@@ -167,7 +168,7 @@ Live numbers (4 Oct 2026):
 
 POOL4 on Ethereum (source we fork): `CappedBurnHook` `0xc6c965bd164c483e87d0b550671798e9a3602840`, `StakedIMD` `0x9efa934d9fad4ae28c998a40195646b965a97247`, `RewardDripper` `0xe6D3De6daEAf327fCA42745f1998FcD989e00884`, `RewardDistributor` `0x9046739E1535B40EfBe6AB3f45d0024b690eCA30`, `BurnExecutor` `0xe29386719C155B6847aD5a4E97C6674f10ffc750`. All MIT, verified; source readable via `https://eth.blockscout.com/api/v2/smart-contracts/<address>`. Live mainnet settings: `capFloor` 9,000 IMD, `capDecayTokensPerDay` 3,000 IMD, reward share 15%.
 
-IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`); jobs cost 0.5 IMD on Ethereum mainnet via x402 + Permit2 today; the dev says Robinhood and Base payments are coming.
+IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`); jobs cost 0.5 IMD on Ethereum mainnet via x402 + Permit2 today; the dev says Robinhood and Base payments are coming. **Oracle questions** can also be bought onchain on Robinhood since 7 Oct 2026, for 0.5 IMD, through IMD's Intake contract (table above, §6b); jobs can't yet.
 
 ---
 
@@ -296,7 +297,7 @@ Nothing below is built. Each needs the user's go-ahead.
 - **Mainnet deploy: by the user with `Deploy.s.sol`, not through the swarm.**
   - A swarm token launch gives 10% of the token to the swarm and opens its own 1.25% pool, which breaks the supply split and PadSale's path to the market.
   - The swarm's contracts-only launch (`evm_contracts`) allows 1 to 8 contracts, simple constructor arguments and no calls after deployment. Our deploy is ~40 contracts in 48 transactions, with mined hook addresses and setup calls.
-  - ~~Swarm deploys run only on Sepolia today.~~ Since 6 Oct 2026 the swarm launches on **Ethereum mainnet and Robinhood (4663)** too (`/requests/capabilities`: all four kinds incl. `evm_contracts`; IMD and ETH pairings on 4663). Payment is still IMD on Ethereum mainnet only (`eip155:1`, 0.5 IMD per action). `evm_contracts` is still 1–8 contracts with static constructor arguments, so the two reasons above still hold.
+  - ~~Swarm deploys run only on Sepolia today.~~ Since 6 Oct 2026 the swarm launches on **Ethereum mainnet and Robinhood (4663)** too (`/requests/capabilities`: all four kinds incl. `evm_contracts`; IMD and ETH pairings on 4663). Payment is still IMD on Ethereum mainnet only (`eip155:1`, 0.5 IMD per action); since 7 Oct 2026 oracle questions, but not jobs, can also be paid onchain on Robinhood through IMD's Intake (below). `evm_contracts` is still 1–8 contracts with static constructor arguments, so the two reasons above still hold.
   - The swarm's role stays auditing, oracle-checked version activation and coin websites.
 - **Multi-chain (later; Base first):**
   - The contracts take every chain-specific address at deploy; only `Deploy.s.sol` hard-codes Robinhood. Each chain needs Uniswap v4, IMD with liquidity (Ethereum and Base have it; other chains need the IMD dev to bridge it), the IMD oracle signing for that chain, and its own Safe and timelocks.
@@ -323,6 +324,40 @@ Nothing below is built. Each needs the user's go-ahead.
 - **Future versions (D-71):** v2 mechanics menu starting with POOL4-style burn per coin, custom hooks after that behind swarm audits; holder rewards in other tokens (stocks, gold) at v3+ or on demand; no delegate.xyz rule for the airdrop.
 - **Decided 5 Oct 2026 (D-70):** Pond wording "a few seconds after joining" (the hold stays in code: it stops flash-loan reward capture); no coin page comments in v1; keep the Egg stage.
 - **IMD docs update (checked 7 Oct 2026), useful later, nothing built:** `job.continue` (the next version of a project, payable only by the wallet that paid for it: the Swarm Relay should pay each coin's first site job from one fixed wallet so updates continue it under the same name); `schedule.create` / `schedule.topup` (a question or job on a cadence, 0.5 IMD per run; the owner can't pause or cancel, only the IMD team can; fits the swarm budget's "scheduled work"); the fuzz template takes one harness per job, `projectPath` for a subfolder (`launchpad/contracts`) and 1,000–10M runs (ROADMAP item 13's fuzz campaigns); audit findings as data at `GET /jobs/:id/submissions`. Not for us: `custom_token` launches (own token, IMD pairing on 4663, but the swarm still takes 10%) and the `owner` field on `evm_contracts` (still 1–8 contracts, no setup calls), so the deploy stays ours (§6b above); member sites are closed (503).
+- **IMD Intake: oracle questions bought and answered onchain (shared by the IMD dev; checked 8 Oct 2026 from the verified source, Intake's events on Robinhood and IMD's API; nothing built):**
+  - **The way in:** `Intake` (§4) has the same address on Robinhood and Ethereum. `request(action, body, callback, asset, amount)` buys one action in one transaction.
+    - `action` is a right-padded `"<action>@<version>"` string (`oracle.request@oracle-1`).
+    - `body` is the same JSON as the HTTP API (at most 16,384 bytes); the `Requested` event carries it whole.
+    - `callback` is an optional `{target, selector}`.
+    - The payment goes whole to `payTo` in the same call.
+    - `pay(quoteHash, …)` settles an API quote onchain instead (signed under EIP-712 "IdentityMD Intake" v1).
+    - On Robinhood only `oracle.request@oracle-1` is priced: 0.5 IMD, ETH not sold, one `PriceSet` since the deploy on 7 Oct 2026 (block ~82.63M). Swarm jobs aren't sold there yet.
+  - **The way out:** IMD's `writer` key calls `complete(requestId, status, resultHash, uri, args)`.
+    - Status 0 = result, 1 = refused, 2 = no result (for example a panel that disagreed).
+    - Only for status 0 with a callback, it calls `target.selector(args)` once, with a fixed 200,000-gas stipend inside a try. A revert, running out of gas or a target without code is recorded as `delivered = false`; there is no onchain retry.
+    - For an oracle answer, `args` is `(bytes32 requestId, Attestation a, bytes signature)`, where `requestId` is Intake's, not the oracle's. The attestation and signature are the same ones our `AttestationVerifier` checks. Intake doesn't check `args`: the writer builds them offchain.
+  - **Live on Robinhood (7 Oct 2026):**
+    - The dev's first request (tx `0x698af915…dca7f2`, no callback).
+    - Two copies of a contest-judge contract (`0x139b20c3…3618`, `0x405ededd…7ed5`, unverified). Each asks an 11-member panel (quorum 6, `allowAmbiguous`, `definitions`, window `{hours: 1}`), names itself as the consumer and sets a callback (selector `0xf40caf8b`).
+    - The second contest request was answered and delivered by callback about 100 s after it was sent, signed by the attester we already know (`0x5598aa91…2982`).
+  - **Lessons:**
+    1. **Intake can't refuse a body, and the fee is paid at once.** The first contest request was refused offchain with `body_invalid` ("consumer.verifyingContract: expected a lowercase EVM address"). Its 0.5 IMD went to `payTo`, and no refund was seen onchain. Run every body through the free `POST /requests/check` first, with every address in lowercase.
+    2. **A callback function is public.** Anyone can call it, not only Intake. The receiving contract must verify the attestation itself (signer, question hash, consumer, quorum) and trust neither the caller nor `status`.
+    3. **Status per onchain request:** `GET https://api.imd.fun/intake/4663/<txHash>` shows the refusal reason, the order, the admission (with the oracle request id) and the completion. It also has a `deliverTo` field, null so far: probably the cross-chain delivery the dev mentioned.
+  - **Trust:**
+    - Intake's owner `0x047F606f…54B7` is a plain account (Ownable2Step). It sets the prices, `payTo` (`0x4e0fA57B…ADbc`), the `writer` (`0x3d3C0Df7…25CB`), the quote `signer` (`0x169B08ea…279F`) and the callback gas.
+    - The writer alone decides each request's status and callback arguments.
+    - **The Intake `signer` signs payment quotes only. It is not the oracle attester and must never be approved in `AttestationVerifier`.**
+  - **For PondPad:**
+    - (a) **Version activation can be bought on Robinhood in IMD, with no contract change.** Anyone (the keeper, the Safe) calls `Intake.request` with the activation question (consumer `AttestationVerifier` in lowercase, no `definitions`, §7). Then they read the attestation from the API and call `VersionRegistry.activate(version, auditJobId, att, signature)` as today.
+    - (b) **Pushing the answer by callback doesn't fit today.** A callback can't pass `version` and `auditJobId`, so a small helper contract would have to make the request, record both per Intake request id, and call the permissionless `activate` on delivery; the registry still checks the attestation, so `VersionRegistry` itself would not change. But `activate` costs about 334k–343k gas in `Governance.t.sol` (`forge test --gas-report`, 8 Oct 2026), over Intake's 200,000-gas stipend, so the delivery would fail unless IMD raises `callbackGas` or the check gets cheaper (ROADMAP §2). The pull `activate()` stays either way, since delivery is best-effort.
+    - (c) **Swarm Relay site jobs** stay paid on Ethereum until jobs are sold through Intake on Robinhood (§7).
+  - **Not seen:** `IntakeDelivery.sol`, which the dev mentioned ("check IntakeDelivery.sol too in case helpful for future ideas"). It isn't in the shared ABI or on Sourcify, and IMD's npm package doesn't exist. Questions for the dev are in §7.
+  - **The docs** (`https://imd.fun/docs/llms.txt`, 8 Oct 2026) don't mention Intake yet; payment is still described as x402 on Ethereum. Nothing conflicts with our verifier:
+    - `agreed` below `quorum` happens only for chain evidence, and our verifier requires `agreed ≥ quorum`.
+    - Version-1 attestations predate 30 Sep 2026.
+    - New routes: `GET /oracle/counts` and `GET /oracle/requests/:id/pools`.
+    - Chain-evidence recipes: `univ4-spot` (spot price, or the median of up to 61 blocks), `log-sum`, `log-count`, `log-rank`, `call-compare`, `v4-volume-rank`. This is the dev's "oracle as a data bridge" idea; v1 needs none of it.
 - **Timelocks need no activating:** `Deploy.s.sol` creates both and hands them ownership in the same run. A change is `schedule` by the Safe, then the delay, then anyone calls `execute`. A small helper that turns a setting change into a ready Safe transaction was offered, not built.
 
 ## 7. Open items waiting on someone
@@ -330,9 +365,10 @@ Nothing below is built. Each needs the user's go-ahead.
 | Item | Waiting on |
 |---|---|
 | Worker rewards address | IMD dev |
-| Oracle attestations for consumer chain 4663 (requests name `consumer: {chainId: 4663, verifyingContract: AttestationVerifier}`), the signer address to approve (the live attester is still `0x5598aa91…2982`, checked 7 Oct 2026), and confirmation that `questionHash` stays the canonical JSON of the request (D-49). **Checked 7 Oct 2026 against ~60 live attested requests:** for `evidence: "panel"` the hash is keccak256 of the canonical JSON `{answerType, chainId, evidence, question, v, window:{fromBlock, toBlock}}` plus `definitions` when the request has them; `guards` and `toleranceBps` are not hashed (our rebuild has no `definitions`, so version-activation requests must not set them, or the contract must hash them too). `chain`-evidence hashes follow another form (not used by us). **Consumer chain 4663 shown live (7 Oct 2026):** a 51-member panel's answer signed for a consumer on chain 4663 verifies with our `AttestationVerifier` (`test_verifier_acceptsLiveRobinhoodAttestation`; the question-screens row below). Left for the IMD dev: confirm the signer and this hash form stay as they are for mainnet | IMD dev |
+| Oracle attestations for consumer chain 4663 (requests name `consumer: {chainId: 4663, verifyingContract: AttestationVerifier}`), the signer address to approve (the live attester is still `0x5598aa91…2982`, checked 7 Oct 2026 and again 8 Oct 2026 on an answer delivered through Intake, §6b; Intake's own `signer` is a different key that signs payment quotes, not answers), and confirmation that `questionHash` stays the canonical JSON of the request (D-49). **Checked 7 Oct 2026 against ~60 live attested requests:** for `evidence: "panel"` the hash is keccak256 of the canonical JSON `{answerType, chainId, evidence, question, v, window:{fromBlock, toBlock}}` plus `definitions` when the request has them; `guards` and `toleranceBps` are not hashed (our rebuild has no `definitions`, so version-activation requests must not set them, or the contract must hash them too). `chain`-evidence hashes follow another form (not used by us). **Consumer chain 4663 shown live (7 Oct 2026):** a 51-member panel's answer signed for a consumer on chain 4663 verifies with our `AttestationVerifier` (`test_verifier_acceptsLiveRobinhoodAttestation`; the question-screens row below). Left for the IMD dev: confirm the signer and this hash form stay as they are for mainnet | IMD dev |
 | ~~CTO rules: review the draft in `CTO-RULES.md`, then freeze and pin it to IPFS~~ Not needed: takeovers are removed from v1 (D-82, `CTO-REMOVAL.md`) | – |
-| Swarm job payments on Robinhood (launches on 4663 are live since 6 Oct 2026; payments are still Ethereum-only per `/requests/capabilities`, rechecked 7 Oct 2026) | IMD dev |
+| Swarm job payments on Robinhood (launches on 4663 are live since 6 Oct 2026; job payments are still Ethereum-only per `/requests/capabilities`, rechecked 7 Oct 2026). **Partly done 7 Oct 2026:** oracle questions can be paid onchain on Robinhood (0.5 IMD) through IMD's Intake (§6b); jobs are not priced there yet (checked 8 Oct 2026) | IMD dev |
+| **IMD Intake questions (8 Oct 2026, §6b):** (1) share `IntakeDelivery.sol` (source or address); (2) is a request that is refused after payment refunded, and how? (The first contest request's 0.5 IMD went to `payTo` with no refund seen onchain.) (3) will `job.*` actions be sold through Intake on Robinhood, and under which action names? (4) will Intake's owner and `writer` move to a multisig or timelock? (5) what does `deliverTo` do (cross-chain delivery)? | IMD dev |
 | POOL4 GitHub repo with tests | IMD dev (said "next week") |
 | Official POOL4 IMD/ETH market on Robinhood | IMD dev (planned, not guaranteed) |
 | Deepen IMD liquidity on Robinhood before the $PONDPAD sale | User + IMD dev / holders |
