@@ -266,3 +266,30 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 > - no generic AI-template look: no gradients, glassmorphism, emoji bullets or stock hero sections
 >
 > Fix every blocking finding. Deliver the screenshots and the review report as artifacts with the launch.
+
+---
+
+## Decisions after the first Check (to be folded into the job prompts)
+
+**Status:** the launch page builds IMD's standard plain token, so PLEA needs a `custom_token` launch. A combined hook (POOL4's `CappedBurnHook` mechanics, verified at 0xc6c965bd164c483e87d0b550671798e9a3602840, adapted to a PLEA/IMD pair, plus the PLEA gate) is under discussion with the IMD dev. The job prompts must also shrink: the launch page caps request + context + draft at 8,000 characters in total.
+
+**Execution window: 7 minutes** (was 15). It starts when the approval is recorded. The site shows a countdown and plays a browser notification and sound while the tab is open.
+
+**Lapsed approval:** if the seller doesn't execute within 7 minutes, the approval expires.
+- The Wall shows a **LAPSED** stamp.
+- No cooldown applies, because the 4-hour cooldown counts from an *executed* sell. The seller can plead again right away for 0.5 IMD, with the facts recalculated.
+- A lapsed approval can't be appealed: there's no verdict to contest.
+
+**Appeal round:**
+- **Denial cooldown:** a denial starts a 4-hour wait before a fresh plea.
+- **One appeal per denial**, within those 4 hours: `appeal(deniedRequestId, amount <= original, plea)` for **0.85 IMD**.
+  - 0.5 IMD pays the oracle request.
+  - **0.35 IMD goes to protocol-owned liquidity** in the PLEA/IMD pool. If the combined hook is used, it goes to the hook's IMD inventory or buy wall.
+- **Same rules as a plea:** the same plea validation, and the facts are recalculated.
+- **The question includes the original plea and the DENIED verdict**, plus the new appeal text. Added to the rubric: "An appeal must add something new; repeating or complaining about the verdict scores low."
+- **If approved:** the normal 7-minute execution window.
+- **If denied:** the seller waits out the remaining cooldown, and can't appeal again.
+- **Wall:** linked cards DENIED → APPEALED → **OVERTURNED** or **UPHELD**.
+- **Dead-man timer:** an appeal verdict resets it like any other verdict.
+
+**Multichain:** stays on Ethereum while the Cabal lives; bridges are blocked by the transfer rule. After `killCabal()`, PLEA is a plain token and can be bridged with a LayerZero OFT adapter added later; no contract change is needed now. A separate game on Robinhood Chain can come later (IMD's Intake contract is on both chains). Solana would need a full rewrite, so it's out of scope.
