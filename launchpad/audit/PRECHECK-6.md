@@ -10,6 +10,8 @@ Claude's own check of the D-86 fixes (round 5, fix commit `d65698e`) before roun
 
 Recommendation in §5: fix P6-1 by documentation and an owner rule (no contract change), fix P6-2, optionally add P6-3, then generate round 6 at the ledger commit. Round 6 generated at `ffac7be` as it is would be safe for funds, but P6-1's wording is likely to come back as a finding.
 
+**Outcome (8 Oct 2026):** the user went ahead with the recommendations (D-87), implemented in `7ba6923`, nothing in `src/`, `script/` or `upstream/`. P6-1, option (a): THREAT-MODEL invariant 11 and §3, ARCHITECTURE §5.4.1 / §5.6, HANDOFF §5a and the A2 job line say the band holds within one Ethereum block and give the owner rule (each maximum's slack below 2 · fee · pool liquidity / added liquidity, 1.2× today; the Safe cancels a queued add when the price leaves that band). P6-2: R2-A3-7's test name, the note on the takeover rows, D-86's R5-A4-3 wording. P6-3: the staking invariant test tries exits to address(0) and the vault and checks that an exit within the max never reverts; it fails on `3cd764f` ("no exit pays address(0) or the vault") and passes 60 fresh-seed campaigns. After: 210 local (6 fresh-seed runs) + 9 mainnet fork + 2 testnet fork tests pass; round-6 objectives A1 6,527, A2 6,861, A3 7,118, A4 7,424 characters. Round 6 is generated at the ledger commit after `7ba6923`.
+
 ## 1. What was run
 
 | Check | Result |
