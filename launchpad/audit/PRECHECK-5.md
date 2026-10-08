@@ -11,6 +11,8 @@ Claude's own check of the D-83 fixes and the D-82 takeover removal (`c85b6a9`) b
 
 Recommendation in §5: fix them (tests, docs and a few lines in `Deploy.s.sol`) and regenerate round 5 before submitting; submitting `881abb7` as it is would also be safe for funds.
 
+**Outcome (8 Oct 2026):** the user chose to fix (D-84), implemented in `42342e5`. P5-1: the fuzz test's trader gets 40M more, and `test_market_capFuzzReplaysTheFlakySeed` replays probe 3's input. P5-2: probe 2 became `test_buyer_buysThroughAMigratedHook`. P5-3, option (a): `airdropRootFromClaims` requires distinct, non-zero wallets, with test `test_deploy_airdropListCountsWalletsNotKeys` and committed fixtures (`test/fixtures/make_airdrop_lists.py`, the appendix's generator moved into the repo). P5-4 (a)–(c) fixed. With them, the user's decision on audit R2-A3-6: the market hook's default `maxRefStep` is 100 instead of 200 (`make_fork.py` change 9; test `test_buyer_overpayBoundAtTheDefaultRefStep`), so `PadBuyer`'s overpay against the pre-pump price is ~3% per block at the defaults. Fails-before: worktree of `881abb7`, `lib/` copied, the new `test/` copied in, no stand-ins needed: 2 of 186 fail (`test_deploy_airdropListCountsWalletsNotKeys`, `test_buyer_overpayBoundAtTheDefaultRefStep`), each on what it asserts; the replay fails against `881abb7`'s own fuzz test (`InsufficientBalance`). After: 186 local + 9 fork + 2 testnet fork tests pass, 10 fresh-seed local runs pass, and the generators reproduce `src/` byte for byte. Round 5 is regenerated at the ledger commit after `42342e5`; `881abb7` is not to be submitted.
+
 ## 1. What was run
 
 | Check | Result |
