@@ -34,7 +34,8 @@ Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), fac
 - **Referral tiers and dashboards** for integrators; open referral links for individuals (needs a design that prevents self-referral discounts).
 - **Milestone bounties** for creators (holders / market-cap milestones, not volume).
 - **Scam / impersonation flags** by swarm oracle (UI warning and no growth perks; never blocks trading).
-- **Daily swarm health report** (solvency, fee flows, suspicious launches).
+- **Daily swarm health report** (solvency, fee flows, suspicious launches). Best bought on chain once IMD sells jobs through Intake on Robinhood (HANDOFF §7): a contract or the keeper pays it in IMD each day. Until then, a `schedule.create` paid on Ethereum can run it.
+- **Jobs paid on chain** (once IMD sells `job.*` through Intake): `SwarmBudget` could pay Intake directly for a coin's site job instead of releasing IMD to the Swarm Relay hot wallet, and `GrowthFund` could pay audits and reports the same way. Each is a contract change for a later version.
 - **X badge level 2**: swarm-verified tweet.
 - More **payment tokens** (other stablecoins, stock tokens) via the timelock.
 - **Oracle answers pushed by callback** (IMD Intake, HANDOFF §6b): a small helper contract that buys the version-activation question through Intake, records the version and audit job per request, and calls the permissionless `VersionRegistry.activate` when Intake delivers the answer (`VersionRegistry` unchanged; it still checks the attestation). Blocked today: `activate` costs ~334k–343k gas and Intake's callback stipend is 200k, so it needs IMD to raise `callbackGas` or a cheaper check. The pull `activate()` stays, since delivery is best-effort. The same pattern could feed other swarm answers onchain (trade-to-earn payouts, scam flags above). Needs an audit round.
