@@ -9,8 +9,9 @@ import {StakedPONDPAD} from "../src/StakedPONDPAD.sol";
 import {RewardDripper} from "../src/RewardDripper.sol";
 
 /// @dev Random stakes (`deposit` / `mint`), exits (`withdraw` / `redeem`), share moves (`transfer` / `transferFrom`),
-///      attempts to park shares at address(0) or the vault, reward inflows, drips, and time and block steps on sPONDPAD
-///      and its dripper. Keeps its own clock and block count (via-IR re-reads `block.*` after cheatcodes).
+///      attempts to park shares at address(0) or the vault, attempts to exit to either (check before round 6, P6-3),
+///      reward inflows, drips, and time and block steps on sPONDPAD and its dripper. Keeps its own clock and block
+///      count (via-IR re-reads `block.*` after cheatcodes).
 contract StakingHandler is CommonBase, StdUtils {
     PondPadToken internal immutable token;
     StakedPONDPAD internal immutable vault;
@@ -22,6 +23,12 @@ contract StakingHandler is CommonBase, StdUtils {
     /// @notice Set when a drip released more than 1/7 of the buffer, other than sweeping a remainder under one $PONDPAD.
     bool public dripTooLarge;
     uint256 public drips;
+    /// @notice Successful exits to the staker itself.
+    uint256 public exits;
+    /// @notice Set when an exit within `maxWithdraw` / `maxRedeem` reverted (nothing pauses the vault here).
+    bool public exitFailed;
+    /// @notice Set when an exit paid address(0) or the vault (refused since audit R5-A3-3).
+    bool public paidNowhere;
 
     constructor(PondPadToken token_, StakedPONDPAD vault_, RewardDripper dripper_, address[] memory actors_) {
         token = token_;
@@ -57,7 +64,11 @@ contract StakingHandler is CommonBase, StdUtils {
         uint256 assets = (vault.maxWithdraw(a) * bound(percent, 1, 100)) / 100;
         if (assets == 0) return;
         vm.prank(a);
-        try vault.withdraw(assets, a, a) {} catch {}
+        try vault.withdraw(assets, a, a) {
+            exits++;
+        } catch {
+            exitFailed = true;
+        }
     }
 
     function redeem(uint256 seed, uint256 percent) external {
@@ -65,7 +76,32 @@ contract StakingHandler is CommonBase, StdUtils {
         uint256 shares = (vault.maxRedeem(a) * bound(percent, 1, 100)) / 100;
         if (shares == 0) return;
         vm.prank(a);
-        try vault.redeem(shares, a, a) {} catch {}
+        try vault.redeem(shares, a, a) {
+            exits++;
+        } catch {
+            exitFailed = true;
+        }
+    }
+
+    /// @dev Tries to exit to address(0) or to the vault itself (refused since audit R5-A3-3; P6-3).
+    function exitNowhere(uint256 seed, uint256 percent, bool atVault, bool byRedeem) external {
+        address a = _actor(seed);
+        address to = atVault ? address(vault) : address(0);
+        if (byRedeem) {
+            uint256 shares = (vault.maxRedeem(a) * bound(percent, 1, 100)) / 100;
+            if (shares == 0) return;
+            vm.prank(a);
+            try vault.redeem(shares, to, a) {
+                paidNowhere = true;
+            } catch {}
+        } else {
+            uint256 assets = (vault.maxWithdraw(a) * bound(percent, 1, 100)) / 100;
+            if (assets == 0) return;
+            vm.prank(a);
+            try vault.withdraw(assets, to, a) {
+                paidNowhere = true;
+            } catch {}
+        }
     }
 
     function transfer(uint256 seed, uint256 percent) external {
@@ -133,7 +169,9 @@ contract StakingHandler is CommonBase, StdUtils {
 /// @dev Audit R4-A3-9: stateful invariants of the staking vault and its dripper (THREAT-MODEL invariants 13 and 14)
 ///      under random interleavings across blocks: the vault never counts more than it holds and never owes more than
 ///      it counts, no shares sit where nobody can redeem them, a held share never exceeds its holder's balance, one
-///      drip releases at most 1/7 of the buffer (bar the final dust sweep), and nothing drips while the vault is closed.
+///      drip releases at most 1/7 of the buffer (bar the final dust sweep), nothing drips while the vault is closed, no
+///      exit pays address(0) or the vault (R5-A3-3) and an exit within `maxWithdraw` / `maxRedeem` never reverts (check
+///      before round 6, P6-3).
 /// forge-config: default.invariant.runs = 48
 /// forge-config: default.invariant.depth = 40
 contract StakingInvariantTest is Test {
@@ -167,10 +205,11 @@ contract StakingInvariantTest is Test {
         targetContract(address(handler));
     }
 
-    /// @dev How many drips the run made (logged with `-vv`; a drip action moves time at least an hour first, so most
-    ///      drip calls release).
+    /// @dev How many drips and exits the run made (logged with `-vv`; a drip action moves time at least an hour first,
+    ///      so most drip calls release).
     function afterInvariant() public view {
         console2.log("drips", handler.drips());
+        console2.log("exits", handler.exits());
     }
 
     function invariant_vaultAndDripperBooks() public view {
@@ -188,6 +227,9 @@ contract StakingInvariantTest is Test {
         assertLe(vault.trackedAssets(), token.balanceOf(address(vault)), "counts no more than it holds");
         assertLe(redeemable, vault.totalAssets(), "owes no more than it counts");
         assertFalse(handler.dripTooLarge(), "one drip <= 1/7 of the buffer");
+        assertFalse(handler.paidNowhere(), "no exit pays address(0) or the vault");
+        assertEq(token.balanceOf(address(0)), 0, "no $PONDPAD reaches address(0)");
+        assertFalse(handler.exitFailed(), "an exit within the max never reverts");
         if (vault.rewardsOpenSince() == 0) assertEq(dripper.drippable(), 0, "closed: nothing drips");
     }
 }
