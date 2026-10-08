@@ -68,7 +68,7 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 >
 >      | Fact | Data source | Points |
 >      |---|---|---|
->      | Share of holdings being sold | `amount / balanceOf(seller)` | ≤5% → 18, ≤10% → 14, ≤20% → 9, ≤35% → 4 |
+>      | Share of holdings being sold | `amount / balanceOf(seller)` | ≤10% → 18, ≤20% → 11, ≤35% → 5 |
 >      | Holding time | `now − firstReceivedAt[seller]` | ≥7 days → 14, ≥3 days → 9, ≥1 day → 5, <1 day → 0 |
 >      | P/L vs cost basis | current pool price × amount vs the seller's average IMD paid per PLEA | at a loss → 14, 0 to +50% → 9, +50% to +200% → 5, above +200% or no cost basis (claimed or free tokens) → 0 |
 >      | 24h price trend | current pool price vs `price24hAgo()` | up more than 2% → 9, within ±2% → 5, down more than 2% → 0 |
@@ -158,7 +158,7 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 > - The 0.25% PLEA burn applies to buys and sells, before and after `killCabal`, and `totalSupply` decreases by exactly the burned amount.
 > - Pleas containing `"`, `\`, `<`, `>`, `&` and emoji produce valid JSON and a question of ≤ 2,000 characters at the 280-byte maximum. Control characters, zero-width or bidi characters, invalid UTF-8, and `[/PLEA` in any casing revert `BadPlea()`.
 > - Cost basis, `firstReceivedAt` and price checkpoints are recorded correctly across buys, partial gated sells, claims, and swaps less than or more than 1 hour apart. `price24hAgo()` works in the first day.
-> - `factScore` matches the table at every boundary (5/10/20/35%, 1/3/7 days, 0/50/200% P/L, ±2% trend, zero cost basis), and `need = 70 − factScore`.
+> - `factScore` matches the table at every boundary (10/20/35%, 1/3/7 days, 0/50/200% P/L, ±2% trend, zero cost basis), and `need = 70 − factScore`.
 > - Wallet-to-wallet transfers revert while the Cabal is alive. Holders can't send PLEA to any allowlisted address, router, or pool, only to CabalGate.
 > - A second pool can't be used to sell:
 >   - a v2-style pair, even one added with `allow`
