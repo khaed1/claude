@@ -37,6 +37,7 @@ Built so far: coin token, bonding curve, v4 hook, router (IMD / ETH / USDG), fac
 - **Daily swarm health report** (solvency, fee flows, suspicious launches).
 - **X badge level 2**: swarm-verified tweet.
 - More **payment tokens** (other stablecoins, stock tokens) via the timelock.
+- **Airdrop a coin to other tokens' holders** (the user's idea, 8 Oct 2026; **not decided**, HANDOFF §6b): the creator names token contracts, an oracle check through Intake gates each one, our server builds the holder list at the attested block, and claims open after the Leap. Claude's view: fund it from the creator's dev buy in a periphery escrow, not from the coin's supply, since holder counts and volume are cheap to fake.
 - **Oracle answers pushed by callback** (IMD Intake, HANDOFF §6b): a small helper contract that buys the version-activation question through Intake, records the version and audit job per request, and calls the permissionless `VersionRegistry.activate` when Intake delivers the answer (`VersionRegistry` unchanged; it still checks the attestation). Blocked today: `activate` costs ~334k–343k gas and Intake's callback stipend is 200k, so it needs IMD to raise `callbackGas` or a cheaper check. The pull `activate()` stays, since delivery is best-effort. The same pattern could feed other swarm answers onchain (trade-to-earn payouts, scam flags above). Needs an audit round.
 
 ## 3. v2

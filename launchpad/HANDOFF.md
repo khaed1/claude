@@ -363,6 +363,51 @@ Nothing below is built. Each needs the user's go-ahead.
     - Version-1 attestations predate 30 Sep 2026.
     - New routes: `GET /oracle/counts` and `GET /oracle/requests/:id/pools`.
     - Chain-evidence recipes: `univ4-spot` (spot price, or the median of up to 61 blocks), `log-sum`, `log-count`, `log-rank`, `call-compare`, `v4-volume-rank`. This is the dev's "oracle as a data bridge" idea; v1 needs none of it.
+- **AskOracle, the IMD dev's swarm-built oracle app (checked 8 Oct 2026; nothing built):**
+  - **What it is:** job `17cab89e-bd76-4a9c-8661-e60b73815177`, an `evm_contracts` launch on 4663. The swarm built it, wrote tests, ran 4 audit specialists and a judge, and deployed it in 28 minutes. Code: `github.com/identity-md-launches/launch-976-askoracle-robinhood-chain-4663`. Contract `0x7c2a56beeca74a75b01054702d1195bfa72124f0`, owned by the dev's wallet. Site `ask-oncahin-questions-onchain.sites.imd.fun` (React + viem). Anyone approves 0.5 IMD and calls `ask(question)`; the contract pays `Intake.request` with a callback to itself and stores the verified yes/no answer.
+  - **Live record (8 Oct 2026):** 15 paid questions.
+    - 9 answered, 1 to 9 minutes after asking.
+    - 5 refused by IMD's screen within seconds as "not answerable from public sources": future events, opinions, and a question about one IMD transfer on Robinhood.
+    - 1 panel ended without a result.
+    - All 15 fees were spent; nothing was refunded on chain.
+  - **Worth reusing:**
+    - Payment checks: exact pull, balance check, the Intake allowance reset to 0.
+    - Strict UTF-8 and JSON escaping for user text (`QuestionText.sol`).
+    - Pending → Answered / Unanswered, with a permissionless 24 h timeout.
+    - A callback of ~106k gas, under Intake's 200k stipend.
+    - The site re-reads the fee and settings before each signature, approves exactly the fee, simulates before sending, detects replaced transactions and finds wallets with EIP-6963.
+  - **Weaker than ours:**
+    - It doesn't pin the question hash (its window is relative), so it trusts IMD's writer to pair each answer with its question. Our `AttestationVerifier` rebuilds the hash (D-49).
+    - Its owner can switch Intake, payment token, action and signer instantly; a user who approved more than the fee is exposed.
+  - **Lesson for job briefs:** the dev's brief was cut off mid-sentence, and the swarm filled in the owner's powers itself. Our audit briefs are stored whole (checked on round 4's A1 and A4).
+  - **IntakeDelivery:** the docs now list it at `0xce0e6a670aa75e161d02aca3c7f00b94ca428ccb` on both chains (live on 4663, 2,021 bytes of code). It hands a result to a contract on the other chain with the same 200k gas; `msg.sender` is IntakeDelivery there (§7).
+- **Idea: a coin airdrop to the holders of other tokens (the user's idea, 8 Oct 2026; not decided):**
+  - **The proposal:**
+    - At launch, a creator names one or more token contracts.
+    - A paid "check" (0.75 IMD) asks the swarm whether each token is real: holders, activity, market cap, volume.
+    - Only if it passes does our server build the holder list: top 300, top 500, or all holders above a minimum balance.
+    - Claims open after the Leap: 50% after 15 minutes and 50% after 24 hours. Claiming early costs 10%, split between the coin's holders and growth.
+  - **What the oracle can do (docs and free checks, 8 Oct 2026):**
+    - An `oracle.request` is one question with one typed answer: bool, address, bytes32, uint256, address[] or bytes32[]. It costs 0.5 IMD, spent even when refused or unanswered.
+    - Chain recipes (`log-count`, `log-sum`, `log-rank`, `call-compare`, `univ4-spot`, `v4-volume-rank`) can't count holders or build a holder list; list answers agree on at most 32 leading entries.
+    - IMD's free check:
+      - Passed: a holder-count question naming the explorer's token page; a "which of these tokens have ≥ 1,000 holders" `address[]` question (one request for several tokens, passed twice); a Transfer-log count (chain evidence).
+      - Refused as ambiguous: one yes/no combining holders and age, and "USD volume over the window".
+    - Jobs (`job.open`) can research many tokens in a report, but a report isn't a signed answer a contract can check, and jobs aren't sold through Intake yet.
+  - **Claude's view:**
+    - Holders, volume and market cap are cheap to fake on an L2 (wallet farming, wash trades in a pool the creator owns, a thin pool for a high market cap). The gate raises the bar, but **where the airdropped coins come from decides the risk**.
+    - Funded from the creator's own dev buy, a self-airdrop gains nothing, and nothing in the launch numbers changes.
+    - A carve-out from the curve or pool supply is a launch-number change (the user's decision, D-76) and would pay a creator who games the gate.
+  - **Suggested shape, if built:**
+    - A periphery escrow that doesn't touch the audited core: the creator deposits coin tokens from the dev buy. `launchWith` makes `msg.sender` the creator, so a helper contract can't launch for them; claims read `BondingCurve.statusOf`, and v1 records no graduation time, so the escrow records it at the first call after the Leap.
+    - A gate contract that buys one oracle request per token through Intake and rebuilds the question hash. Passed tokens are cached for ~30 days for every coin, and an allowlist of known tokens skips the fee.
+    - The snapshot block is the attestation's `toBlock`.
+    - The holder list is built by our server, published with its method, and its root signed by a list-service key (like the tweet checker). Contracts, pools, burn and exchange addresses are excluded, with a per-wallet cap.
+    - Claims: a linear release instead of two cliffs, which every bot would sell at.
+    - The early-claim tax is burned or left for the claimants who wait. `GrowthFund` can only pay out IMD and $PONDPAD, so coin tokens sent to it would be stuck.
+    - Coins that never Leap return the escrow to the creator after a deadline.
+    - A v1.1 item after the mainnet launch, with its own audit, since round 5 audits v1 as it is.
+  - **Open for the user:** where the tokens come from; equal or pro-rata shares; which chains (EVM only: a Solana holder has no address here); the thresholds; the price per token checked.
 - **Timelocks need no activating:** `Deploy.s.sol` creates both and hands them ownership in the same run. A change is `schedule` by the Safe, then the delay, then anyone calls `execute`. A small helper that turns a setting change into a ready Safe transaction was offered, not built.
 
 ## 7. Open items waiting on someone
@@ -373,7 +418,7 @@ Nothing below is built. Each needs the user's go-ahead.
 | Oracle attestations for consumer chain 4663 (requests name `consumer: {chainId: 4663, verifyingContract: AttestationVerifier}`), the signer address to approve (the live attester is still `0x5598aa91…2982`, checked 7 Oct 2026 and again 8 Oct 2026 on an answer delivered through Intake, §6b; Intake's own `signer` is a different key that signs payment quotes, not answers), and confirmation that `questionHash` stays the canonical JSON of the request (D-49). **Checked 7 Oct 2026 against ~60 live attested requests:** for `evidence: "panel"` the hash is keccak256 of the canonical JSON `{answerType, chainId, evidence, question, v, window:{fromBlock, toBlock}}` plus `definitions` when the request has them; `guards` and `toleranceBps` are not hashed (our rebuild has no `definitions`, so version-activation requests must not set them, or the contract must hash them too). `chain`-evidence hashes follow another form (not used by us). **Consumer chain 4663 shown live (7 Oct 2026):** a 51-member panel's answer signed for a consumer on chain 4663 verifies with our `AttestationVerifier` (`test_verifier_acceptsLiveRobinhoodAttestation`; the question-screens row below). Left for the IMD dev: confirm the signer and this hash form stay as they are for mainnet | IMD dev |
 | ~~CTO rules: review the draft in `CTO-RULES.md`, then freeze and pin it to IPFS~~ Not needed: takeovers are removed from v1 (D-82, `CTO-REMOVAL.md`) | – |
 | Swarm job payments on Robinhood (launches on 4663 are live since 6 Oct 2026; job payments are still Ethereum-only per `/requests/capabilities`, rechecked 7 Oct 2026). **Partly done 7 Oct 2026:** oracle questions can be paid onchain on Robinhood (0.5 IMD) through IMD's Intake (§6b); jobs are not priced there yet (checked 8 Oct 2026) | IMD dev |
-| **IMD Intake questions (8 Oct 2026, §6b):** (1) share `IntakeDelivery.sol` (source or address); (2) is a request that is refused after payment refunded, and how? (The first contest request's 0.5 IMD went to `payTo` with no refund seen onchain.) (3) will `job.*` actions be sold through Intake on Robinhood, and under which action names? (4) will Intake's owner and `writer` move to a multisig or timelock? (5) what does `deliverTo` do (cross-chain delivery)? | IMD dev |
+| **IMD Intake questions (8 Oct 2026, §6b):** (1) ~~share `IntakeDelivery.sol`~~ the address is now in IMD's docs (`0xce0e…8ccb` on both chains, live on 4663); its source is still to be seen; (2) is a request that is refused after payment refunded, and how? (The first contest request's 0.5 IMD went to `payTo` with no refund seen onchain; AskOracle's 6 unanswered questions show none either.) (3) will `job.*` actions be sold through Intake on Robinhood, and under which action names? (4) will Intake's owner and `writer` move to a multisig or timelock? (5) ~~what does `deliverTo` do~~ cross-chain delivery through IntakeDelivery (docs, 8 Oct 2026) | IMD dev |
 | POOL4 GitHub repo with tests | IMD dev (said "next week") |
 | Official POOL4 IMD/ETH market on Robinhood | IMD dev (planned, not guaranteed) |
 | Deepen IMD liquidity on Robinhood before the $PONDPAD sale | User + IMD dev / holders |
