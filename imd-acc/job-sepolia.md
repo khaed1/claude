@@ -13,7 +13,7 @@ STACKER:
 
 PAGE (static, IPFS label imd-acc-test, public RPCs):
 - Your stack: IMD stacked, points, sIMD held and its IMD value now, split per project.
-- Listed projects: a projects.json in the site ({address, name}; starts empty, PLEA's hook added later by a site update). Points and leaderboards count only Stacked events from listed projects; others show as "direct, no points".
+- Listed projects: a projects.json in the site ({address, name, fromBlock}; starts empty, PLEA's hook added later by a site update). Points and leaderboards count only Stacked events from listed projects at or after their fromBlock; others show as "direct, no points".
 - Leaderboards: top stackers and top listed projects by IMD stacked, from chunked Stacked logs.
 - Test tools: faucet, and "stack to myself" (approve + credit(self, x)), shown as direct.
 - The three addresses with explorer links.

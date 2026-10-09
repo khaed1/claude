@@ -98,25 +98,25 @@ This history already drives the leaderboards. If imd/acc takes off, it's the bas
 - **Owner:** the Stacker has none, and its IMD and sIMD addresses are immutable. TestSIMD keeps an owner on Sepolia only, so integrators can pause it and test their fallback; mainnet uses the real, renounced sIMD.
 - **Gas:** v1 deposits on every credit. Batching comes in v2 with the ETH route.
 - **Build:** an IMD `evm_contracts` job, shipped **before** PLEA.
+- **Points start at listing:** a listed project's credits earn points only from the block it was listed, never retroactively, so nobody can build fake history and then get approved. Each `projects.json` entry carries a `fromBlock`; PLEA's is its hook's deploy block.
 
 ## Open questions
 
 1. Is an sIMD vault planned on Robinhood Chain?
 2. Should sells get cashback too, or buys only? (PLEA's Sepolia job pays it on every trade.)
-3. Should listed projects earn points from their whole history, or only from the block they were listed? (Recommended: from listing onward.)
 
 ## Which projects earn points
 
 Anyone can call `credit` with their own IMD. That is just staking for someone, and it can't be blocked without giving the Stacker an owner. So points are counted, not gated: the Stacker records everything, and only credits from **listed projects** earn points. Every `Stacked` event names its project, so the list can be applied at any time.
 
-**v1 (decided): a project list in the site.** The test page ships a `projects.json` (`{address, name}`), starting empty. PLEA's hook is added with a site update once it is deployed. Credits from anything else show as "direct, no points". Real trading points already cost money (fees paid to trade), so the only cheap attack was a fake project, and this closes it.
+**v1 (decided): a project list in the site.** The test page ships a `projects.json` (`{address, name, fromBlock}`), starting empty. PLEA's hook is added with a site update once it is deployed. Credits from anything else show as "direct, no points". Real trading points already cost money (fees paid to trade), so the only cheap attack was a fake project, and this closes it.
 
 **Later: the IMD panel decides the list.** The site file is replaced by a small `ProjectRegistry` contract with no owner:
 1. **Apply.** A project calls `apply(project, name, sourceUrl)` and pays the oracle fee (0.5 IMD, plus any application fee we decide).
 2. **The panel votes.** The registry sends an IMD oracle request (`answerType: bool`, a panel like PLEA's) asking: "Is this contract a real trading project that pays imd/acc cashback out of fees its traders pay? Its source must be verified; reject wallets, contracts that just call `credit` with their own IMD, and wash-trading setups."
 3. **Listed.** The verdict comes back signed. The registry checks it the same way PLEA's gate does (EIP-712, the oracle signer, the recomputed `questionHash`), then sets `listed[project] = true` and emits `Listed`.
 4. **Delisting.** Anyone can challenge a listed project for a fee. The panel votes again, and a lost vote emits `Delisted`.
-5. **Points** count credits from listed projects, from the listing block until any delisting.
+5. **Points** count credits from listed projects, from the listing block until any delisting, never before.
 
 The Stacker never changes. The site and any future token snapshot read the registry instead of `projects.json`, and PLEA's gate code already contains the verifier the registry needs. It would ship as its own small `evm_contracts` job, once more than one or two projects want in.
 
