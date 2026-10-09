@@ -326,3 +326,9 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
   - The gate pays the Intake directly and uses the 200k-gas callback, keeping `deliverVerdict` as a fallback.
   - Run the red-team.
   - The full website job comes after.
+
+**Deploy wiring (decided 2026-10-09):** `evm_contracts` deploys the contracts in order, in one transaction, and calls nothing afterwards. PLEA and its hook need each other's addresses, and the pool can't be created inside the hook's own constructor (the PoolManager calls back into the hook, whose code doesn't exist yet). So:
+- PLEA deploys first. Its constructor sets a transient-storage flag (EIP-1153), which exists only until the end of the deployment transaction.
+- The hook and the gate take PLEA's address as a constructor argument (`$contract:PLEA`).
+- The last contract, the MerkleDistributor, calls `PLEA.init(hook, gate, distributor)` from its constructor. `init` runs once, only while the flag is set. It records the addresses, mints 90% to the hook and 10% to the distributor, and calls `hook.seed()` to create the pool.
+- Nobody, including the owner, can call `init` later or point PLEA at other contracts. If any step fails, the whole launch reverts.
