@@ -7,14 +7,15 @@ DEPLOY (Sepolia, in this order):
 
 STACKER:
 - credit(trader, imdAmount) returns shares: pull imdAmount from msg.sender, call sIMD.deposit(imdAmount, trader), so the shares go straight to the trader. project = msg.sender. Trader 0 reverts; amount 0 returns 0, no event.
-- Points (IMD totals): traderStacked, projectStacked, stackedBy[project][trader], totalStacked; plus shares per trader and project.
+- On-chain totals (IMD): traderStacked, projectStacked, stackedBy[project][trader], totalStacked; plus shares per trader and project.
 - event Stacked(address indexed project, address indexed trader, uint256 imd, uint256 shares).
 - IMD path only; the ETH batch route is v2.
 
 PAGE (static, IPFS label imd-acc-test, public RPCs):
-- Your stack: IMD stacked (points), sIMD held and its IMD value now, split per project.
-- Leaderboards: top stackers and top projects by IMD stacked, from chunked Stacked logs.
-- Test tools: faucet, and "stack to myself" (approve + credit(self, x)), labelled direct test.
+- Your stack: IMD stacked, points, sIMD held and its IMD value now, split per project.
+- Listed projects: a projects.json in the site ({address, name}; starts empty, PLEA's hook added later by a site update). Points and leaderboards count only Stacked events from listed projects; others show as "direct, no points".
+- Leaderboards: top stackers and top listed projects by IMD stacked, from chunked Stacked logs.
+- Test tools: faucet, and "stack to myself" (approve + credit(self, x)), shown as direct.
 - The three addresses with explorer links.
 
 TESTS (Foundry): shares go only to the trader; totals and event match; many projects and traders; credit reverts cleanly when the vault is paused or allowance/balance is short (integrators use try/catch); faucet limit; fuzz; invariant: Stacker holds 0 IMD and 0 sIMD.

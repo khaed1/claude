@@ -52,6 +52,8 @@ ol.steps b { font-family: var(--mono); font-weight: 600; }
 .facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--rule); }
 .facts > div { padding: 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
 .facts > div + div { border-left: 1px solid var(--rule); }
+.facts.two { grid-template-columns: repeat(2, 1fr); gap: 1px; background: var(--rule); }
+.facts.two > div { background: var(--paper); border: 0; }
 .facts strong { font: 600 15px var(--mono); }
 .facts p { font-size: 14px; color: var(--dim); }
 
@@ -77,7 +79,7 @@ footer { color: var(--faint); font-size: 13px; display: grid; gap: 6px; }
 @media (max-width: 620px) {
   .calc { grid-template-columns: 1fr; }
   .calc > div + div { border-left: 0; border-top: 1.5px solid var(--ink); }
-  .facts { grid-template-columns: 1fr; }
+  .facts, .facts.two { grid-template-columns: 1fr; }
   .facts > div + div { border-left: 0; border-top: 1px solid var(--rule); }
 }
 </style>
@@ -200,9 +202,10 @@ try stacker.credit(trader, cashback) {             // → sIMD.deposit(cashback,
   <section>
     <h2>Points now, token maybe later</h2>
     <p>imd/acc has no token. The product is IMD, and all of the cashback goes to traders. Every stack still counts: each trader and each project earns points equal to the IMD stacked, recorded on-chain from the first trade.</p>
-    <div class="facts">
-      <div><strong>Trader points</strong><p>All-time IMD stacked for you, across every project.</p></div>
+    <div class="facts two">
+      <div><strong>Trader points</strong><p>All-time IMD stacked for you, across every listed project.</p></div>
       <div><strong>Project points</strong><p>IMD its traders stacked. Shows who brings the volume.</p></div>
+      <div><strong>Only listed projects count</strong><p>Anyone can stack IMD for someone, but only credits from listed projects earn points. Stacking your own IMD earns none.</p></div>
       <div><strong>If it takes off</strong><p>That history can seed a fair-launch token for early stackers and integrating projects. Points are a record, not a promise.</p></div>
     </div>
   </section>
@@ -212,7 +215,7 @@ try stacker.credit(trader, cashback) {             // → sIMD.deposit(cashback,
     <ul class="plain">
       <li>An sIMD vault on Robinhood Chain, for PondPad and other projects there.</li>
       <li>Cashback on buys only, or on sells too. PLEA's test run pays it on both.</li>
-      <li>Anyone can stack their own IMD for someone. If points ever back a token, count only known projects' credits.</li>
+      <li>Who decides which projects earn points. For now it's a list in the site; later an IMD oracle panel could vote projects on and off it.</li>
     </ul>
   </section>
 
