@@ -40,6 +40,19 @@ Every trade in a participating IMD-ecosystem project sends **0.5% of the trade b
 | **PLEA** | Ethereum | 0.5% of every PLEA/IMD trade deposited as sIMD for the trader. It comes out of PLEA's own fee if our hook sets the fee; otherwise it's an extra 0.5% (pending the IMD dev's answer). | Designing |
 | **PondPad** | Robinhood Chain | IMD-paired launchpad; cashback as its trading-rewards feature, funded from existing fees. The sIMD vault is on Ethereum only, so this needs an sIMD vault on Robinhood Chain, a bridge, or plain-IMD cashback there. | Planned |
 
+## Points now, token maybe later
+
+v1 has **no token**:
+- The product is IMD, and a second token would compete with it.
+- imd/acc takes no cut, so a token would have nothing behind it.
+- Projects adopt a neutral tool more easily.
+
+What v1 does keep is a full **points record** from day one. Every `Stacked(project, trader, imd, shares)` event counts:
+- **Trader points**: the IMD stacked for them, all-time, across all projects.
+- **Project points**: the IMD its traders stacked.
+
+This history already drives the leaderboards. If imd/acc takes off, it's the basis for a later token, launched through the IMD swarm and **airdropped to early stackers and integrating projects**. Nothing is promised: points are a record, not a claim. A token would only make sense if imd/acc adds something for it to back, such as a small protocol cut, an integration-incentive budget, or a vote on featured projects.
+
 ## Open questions
 
 1. Is an sIMD vault planned on Robinhood Chain?
