@@ -19,9 +19,14 @@ Repo `khaed1/claude`, branch **`claude/adoring-goodall-pn3jyz`**. Develop and pu
 - The ETH-fee batch route (through POOL4) is planned for v2.
 - The first projects are PLEA (Ethereum) and PondPad (Robinhood Chain, planned).
 
+## Order (decided 2026-10-09)
+1. **imd/acc on Sepolia first** (`imd-acc/job-sepolia.md`, about 1,900 characters): TestIMD, TestSIMD, Stacker and a test page.
+2. **PLEA on Sepolia** (`plea/job-sepolia.md`, about 5,000 characters) reuses those three addresses (`<TEST_IMD>`, `<TEST_SIMD>`, `<STACKER>` placeholders) and pays cashback through `stacker.credit` in try/catch, falling back to plain IMD.
+
 ## Files to read
 - `plea/launch-spec.md` is the full PLEA spec. Sections were appended over time: **later sections override earlier ones**. Read "Decisions after the first Check", "Oracle findings", "IMD dev answers" and "v2 design: smart-contracts launch" last.
-- `plea/job-sepolia.md` is the current PLEA Sepolia job prompt (about 4,650 characters).
+- `plea/job-sepolia.md` is the current PLEA Sepolia job prompt (about 5,000 characters).
+- `imd-acc/job-sepolia.md` is the imd/acc Sepolia job prompt; it ships before PLEA.
 - `plea/job-1-launch.md` and `plea/job-2-website.md` are **outdated** v1 prompts (custom token with the IMD factory). Keep them only for the website design system and the full judge question and definitions text.
 - `plea/cabal-2025-pleas.json` holds all 2,449 original CabalCoin pleas. The red-team examples come from it.
 - `imd-acc/README.md` is the imd/acc spec. `imd-acc/index.html` is its page, published at https://claude.ai/artifact/J6ZsSLedCQsJ88o8pnsFTw; republish the same file path to update it.

@@ -59,6 +59,7 @@ ol.steps b { font-family: var(--mono); font-weight: 600; }
 .proj { border: 1.5px solid var(--ink); padding: 18px; display: grid; gap: 10px; }
 .proj-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
 .proj h3 { font: 600 20px var(--mono); margin: 0; }
+h2 .pill { vertical-align: middle; margin-left: 8px; }
 .chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .pill { font: 500 11px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; border: 1.5px solid currentColor; border-radius: 999px; padding: 6px 10px; }
 .pill.go { color: var(--ok); background: var(--ok-soft); }
@@ -84,7 +85,7 @@ footer { color: var(--faint); font-size: 13px; display: grid; gap: 6px; }
 <div class="wrap">
   <header>
     <div class="mark">imd<span>/</span>acc</div>
-    <span class="label">Design draft · Oct 2026</span>
+    <span class="label">Sepolia first · Oct 2026</span>
   </header>
 
   <div class="hero">
@@ -116,6 +117,16 @@ footer { color: var(--faint); font-size: 13px; display: grid; gap: 6px; }
   </section>
 
   <section>
+    <h2>Shipping order</h2>
+    <p>imd/acc goes live first, on Sepolia. PLEA then plugs into it as the first project, so PLEA's test run is also imd/acc's first real integration test.</p>
+    <ol class="steps">
+      <li><div><b>imd/acc on Sepolia.</b> A contracts-only IMD launch: a test IMD with a faucet, a test copy of the sIMD vault, and the Stacker, plus a small page with your stack and the leaderboards.</div></li>
+      <li><div><b>PLEA on Sepolia, the first integration.</b> PLEA reuses those three contracts. Its hook pays the 0.5% cashback through <code>stacker.credit</code> on every trade.</div></li>
+      <li><div><b>Mainnet.</b> The Stacker is deployed against the real IMD and sIMD vault, and PLEA mainnet points at it.</div></li>
+    </ol>
+  </section>
+
+  <section>
     <h2>Why it holds up</h2>
     <div class="facts">
       <div><strong>Nobody holds your cashback</strong><p>imd/acc never takes custody. Shares are minted directly to the trader's address.</p></div>
@@ -130,13 +141,14 @@ footer { color: var(--faint); font-size: 13px; display: grid; gap: 6px; }
       <article class="proj">
         <div class="proj-top">
           <h3>PLEA</h3>
-          <div class="chips"><span class="pill chain">Ethereum</span><span class="pill go">Designing</span></div>
+          <div class="chips"><span class="pill chain">Ethereum · Sepolia first</span><span class="pill go">First integration</span></div>
         </div>
         <p>A sell-gated meme token: buying is open, but selling takes a plea approved by an IMD oracle panel. Every PLEA/IMD trade stacks sIMD for the trader.</p>
         <dl>
           <dt>Cashback</dt><dd>0.5% of each trade, deposited into sIMD in the trader's name</dd>
-          <dt>Funded by</dt><dd>PLEA's own trading fee, if its hook sets the fee (waiting on the IMD dev)</dd>
-          <dt>Vault</dt><dd>sIMD on Ethereum, the same chain, so it deposits directly</dd>
+          <dt>Funded by</dt><dd>PLEA's own trading fee. Its hook sets the fees, so traders pay nothing extra</dd>
+          <dt>If it fails</dt><dd>The cashback is sent as plain IMD instead, so a trade never reverts</dd>
+          <dt>Vault</dt><dd>The test vault on Sepolia first, then sIMD on Ethereum</dd>
         </dl>
       </article>
       <article class="proj">
@@ -159,16 +171,19 @@ footer { color: var(--faint); font-size: 13px; display: grid; gap: 6px; }
     <p>Any IMD-paired project can join with one call from its hook. Projects without a hook can use the drop-in imd/acc hook.</p>
     <pre>// in your hook's afterSwap, with the trader taken from hookData
 uint256 cashback = imdSideAmount * 50 / 10_000;   // 0.5%
-stacker.credit(trader, cashback);                  // → sIMD.deposit(cashback, trader)</pre>
+try stacker.credit(trader, cashback) {             // → sIMD.deposit(cashback, trader)
+} catch {
+    IMD.transfer(trader, cashback);                // plain IMD; the trade never reverts
+}</pre>
     <ul class="plain">
       <li>Pass the real trader in <code>hookData</code> and fall back to <code>sender</code>, never <code>tx.origin</code>.</li>
-      <li>On Ethereum, the hook can save cashback per trader and deposit in batches to save gas.</li>
+      <li>Approve the Stacker once. It has no owner, and its IMD and sIMD addresses can never change.</li>
       <li>Every credit emits <code>Stacked(project, trader, imd, shares)</code> for leaderboards.</li>
     </ul>
   </section>
 
   <section>
-    <h2>Fees in ETH</h2>
+    <h2>Fees in ETH <span class="pill wait">v2</span></h2>
     <p>Projects paired with ETH join through a batched route. Their cashback still ends up as sIMD, with one swap through POOL4 along the way.</p>
     <ol class="steps">
       <li><div><b>Each trade records the cashback in ETH</b> against the trader's address. There's no swap yet, so it costs little gas.</div></li>
@@ -196,9 +211,8 @@ stacker.credit(trader, cashback);                  // → sIMD.deposit(cashback,
     <h2>Still open</h2>
     <ul class="plain">
       <li>An sIMD vault on Robinhood Chain, for PondPad and other projects there.</li>
-      <li>Cashback on buys only, or on sells too.</li>
-      <li>Deposit on every trade, or save up and deposit in batches.</li>
-      <li>Building the shared Stacker as an IMD contracts-only job once PLEA ships.</li>
+      <li>Cashback on buys only, or on sells too. PLEA's test run pays it on both.</li>
+      <li>Anyone can stack their own IMD for someone. If points ever back a token, count only known projects' credits.</li>
     </ul>
   </section>
 

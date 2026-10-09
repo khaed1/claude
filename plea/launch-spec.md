@@ -311,7 +311,7 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 
 ## v2 design: smart-contracts launch (decided 2026-10-09)
 
-- **Launch type:** `evm_contracts` (smart contracts). **Sepolia first**, then mainnet. Prompt: `plea/job-sepolia.md`, about 4,650 characters.
+- **Launch type:** `evm_contracts` (smart contracts). **Sepolia first**, then mainnet. Prompt: `plea/job-sepolia.md`, about 5,000 characters. **imd/acc ships first** (`imd-acc/job-sepolia.md`); PLEA reuses its TestIMD, TestSIMD and Stacker, and the hook pays cashback with `stacker.credit` in try/catch, falling back to plain IMD so a trade never reverts.
 - **Supply:** 90% into the hook-owned pool, **10% to a Merkle distributor** for the swarm, mirroring IMD launches (for example 2% to wallets with accepted work on the job and 8% to active IMD seats). The owner sets the root once.
 - **One hook:** a fork of POOL4's `CappedBurnHook`, converted to the IMD side.
   - It is the only liquidity provider, and the liquidity is locked forever (no `closeMarket` or withdraw).
@@ -319,7 +319,7 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 - **Fees** (IMD side, on the actual fill): 0.5% cashback to the trader as sIMD (imd/acc), 0.5% to the owner, 0.25% to pool liquidity, plus 0.25% of the PLEA burned.
 - **Appeals, the 7-minute execution window and the LAPSED rule** are included, as decided above.
 - **Sepolia substitutes:**
-  - TestIMD (with a faucet) and TestSIMD (an ERC-4626 vault, forked from StakedIMD).
+  - TestIMD (with a faucet), TestSIMD (an ERC-4626 vault, forked from StakedIMD) and the Stacker, all from the imd/acc Sepolia job.
   - Oracle requests are paid on mainnet by a relayer script, addressed to the Sepolia gate, and delivered through `deliverVerdict`.
 - **Changes for mainnet:**
   - Use real IMD and sIMD (`0x9efa…7247`).
