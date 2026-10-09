@@ -2,9 +2,9 @@ Build PLEA on Sepolia (test run; contracts only): a sell-gated meme token, one U
 
 REUSE (from the imd/acc job, don't redeploy): TestIMD <TEST_IMD>, TestSIMD <TEST_SIMD>, Stacker <STACKER>.
 
-DEPLOY (Sepolia, in order, one transaction, nothing called after): PLEA($owner); PleaHook($contract:PLEA, address mined for its flags); CabalGate($contract:PLEA, $contract:PleaHook); MerkleDistributor($contract:PLEA, $contract:PleaHook, $contract:CabalGate, $owner). Other args are static: the Sepolia PoolManager and the REUSE addresses.
+DEPLOY (Sepolia, in order, one transaction, nothing called after): PLEA($owner); PleaHook($contract:PLEA, address mined for its flags); CabalGate($contract:PLEA, $contract:PleaHook); PleaDistributor($contract:PLEA, $contract:PleaHook, $contract:CabalGate, $owner). Other args are static: the Sepolia PoolManager and the REUSE addresses.
 
-WIRING: PLEA's constructor sets a transient-storage flag (EIP-1153), so init() works only inside the deploy transaction. MerkleDistributor's constructor calls PLEA.init(hook, gate, this) once: it records them, mints 90% to the hook and 10% to the distributor, and calls hook.seed(). Any failure reverts the launch.
+WIRING: PLEA's constructor sets a transient-storage flag (EIP-1153), so init() works only inside the deploy transaction. PleaDistributor's constructor calls PLEA.init(hook, gate, this) once: it records them, mints 90% to the hook and 10% to the distributor, and calls hook.seed(). Any failure reverts the launch.
 
 TOKEN PLEA: 1e9 supply, 18 dec, minted only in init. Owner sets the distributor's Merkle root once. While the Cabal lives, a transfer needs `to` = Gate, or `from` = PoolManager, Hook, Gate, Distributor or an add-only allowlist (owner allow(addr)). Transfers TO the PoolManager only from the Gate or Hook. Otherwise revert CabalIsWatching(). Record firstReceivedAt. After killCabal(): no restrictions.
 
