@@ -105,6 +105,15 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
     - **Body bug (format):** `consumer` is emitted as `{chainId, address}`, but IMD requires `{chainId, verifyingContract}`. The quote rejects the as-is body, and paying it on-chain would lose the 0.5 IMD. **Workaround:** the relayer renames the key before paying. `consumer` is not part of `questionHash`, so the Gate still verifies.
     - **Verified:** with the renamed key IMD's quote is valid (0.5 IMD; mainnet blocks 26,155,079–26,155,379), and `gate.questionHash(1, those blocks)` equals IMD's `0x772ed063…cde3` **exactly**.
     - **Relayer script:** it looks up the request via `/oracle/requests?tx=`, which isn't in IMD's docs; the documented lookup is `/intake/{chainId}/{txHash}`. The Intake ABI `request(bytes32,bytes,(address,bytes4),address,uint256)` is confirmed against the verified mainnet Intake (price 0.5 IMD, max body 16,384 bytes, callback (0,0) allowed; no refund if the plane refuses).
+  - **First real oracle test (2026-10-09):**
+    - **Payment:** paid on mainnet from `0x4b91…6821` (approve `0x78d4b5cc…8bca`; `Intake.request` `0xec365869…3044`, block 26,155,393, 0.5 IMD, no callback, consumer key renamed). Intake lookup: `/intake/1/{txHash}` gives the oracle request `30bace2e-177d-4f88-891e-0a80a76550d9` (job `2de11153…`).
+    - **Hash:** IMD's questionHash for the pinned window 26,155,092–26,155,391 is `0xda82c029…7d91`, equal to `gate.questionHash(1, …)`.
+    - **Result: "disagreed".** 30/30 answered: 17 true, 13 false, quorum 20, so no attestation and the 0.5 IMD is spent. Most of the true answers used the buggy "fact + plea ≥ 33" sum (figures 60–72). Three false answers scored the plea 0, probably reading "Judge me fairly" or "prove the Cabal works" as instructions to the judge; nine gave no figure.
+    - **Plea #1** stays Pending and expires at 16:13 UTC. 0.5 IMD is left on the mainnet test wallet.
+    - **Lessons for the next version:**
+      - Fix the question ("your plea score alone ≥ need").
+      - Add rubric anchors and state that polite closings aren't manipulation.
+      - **Disagreements are common:** the seller pays and gets nothing, and the 48h dead-man still runs, because only verdicts reset it. Consider quorum 16/30 (user decision; it changes an agreed number) and/or counting a "disagreed" outcome toward the dead-man.
   - **Site job submitted:** `4da22844-c126-4afd-9767-fb76c1e4867f` (job.continue of `cbf3e59e`, 2026-10-09 13:18).
   - **Code knobs:** RESERVE 250k; the burn and fees settle as claims on the next block's first swap or `settleClaims()`.
   - **The deploy tx used 84,751,959 gas.** Sepolia accepted it, but mainnet caps a transaction at 16,777,216 (EIP-7825), so **mainnet needs a multi-transaction deploy or hook mining by IMD.**
