@@ -166,3 +166,21 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
 - **PondPad** (branch `claude/bold-gauss-qhlw86`) is **read-only**. Never commit PondPad code or internal details, only one-line public descriptions.
 - The user makes the decisions. Explain simply, recommend one option, and don't change the agreed numbers without asking.
 - Commit with clear messages and push to this branch.
+
+## Mainnet readiness (review 2026-10-09, from the Sepolia build and live tests)
+**Blockers**
+1. **Deploy gas.** The Sepolia launch tx used 84.7M gas; mainnet caps one transaction at 16,777,216 (EIP-7825). Part of that is Sepolia's expensive new storage, but the audit measured PleaLaunch at about 9.8M plus up to 13M of mining, so mainnet is tight at best and fails in the worst case. **First step:** simulate the exact build on a mainnet fork. **Fix:** ask IMD for hook-salt mining in `evm_contracts`, or split the deploy (seed and mining after launch).
+2. **Owner can change the oracle signer.** `CabalGate.setSigner` lets the owner sign their own approvals and sell freely. On mainnet the signer must be immutable, or at least behind a long timelock with an event. `withdrawImd` and `setRelayer` also need limits.
+3. **Owner key.** `0x4b91…6821`'s key was shared in chat, so it stays testnet-only. Use a fresh wallet (better, a multisig) as the mainnet owner.
+4. **Oracle path.** Use the real Intake: the Gate pays 0.5 IMD itself with the 200k-gas callback, so no relayer is trusted. In the callback, match the request id only; don't recompute questionHash, which would blow the 200k gas. Keep `deliverVerdict` only as a restricted fallback.
+
+**Must fix**
+5. **Cashback isn't automatic.** It's owed, then someone runs `settleClaims`, then the trader runs `claimCashback`. On mainnet, the gas to claim is worth more than the 0.5% on small trades, and the 0.01 IMD keeper tip won't cover `settleClaims` gas, so nobody will call it. Pay cashback at trade time out of the IMD the pool holds.
+6. **imd/acc mainnet first:** deploy the Stacker against real IMD and sIMD (`0x9efa…7247`, renounced, no pause) and update the PLEA prompt.
+
+**Should fix or decide**
+7. **Buys need hookData (recipient) and exact input,** so the Uniswap UI and aggregators can't route; only our site (or a router we publish) can buy. That's the btc/acc lesson.
+8. **Launch timing:** the 90-min, 70% window starts at seed, which happens inside IMD's deploy tx at a moment we don't control. Consider a separate `seed()` at an announced time.
+9. **The distributor's Merkle root (10%)** needs the real swarm list from IMD (2% to the job's workers, 8% to seats).
+10. **Verify the sources on Etherscan,** run the planned red-team on pleas (from `cabal-2025-pleas.json`), and close the two remaining lows. Write `allow()` usage into the README.
+11. **Known by design:** the Cabal dies after 48h with no verdict, so a quiet first two days kills it.
