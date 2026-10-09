@@ -179,4 +179,20 @@ contract DeployAirdropListTest is Test {
         vm.expectRevert(bytes("airdrop list names address 0"));
         d.airdropRootFromClaims(zero);
     }
+
+    /// @dev Audit R6-A4-7 (coverage): a claim of 0 is accepted and counts as one of the 100 wallets (its leaf is valid
+    ///      in `AirdropDistributor`, `test_airdrop_zeroAmountLeafCountsAsAnInitiator`).
+    function test_deploy_airdropListAcceptsAZeroAmountClaim() public {
+        Deploy d = new Deploy();
+        bytes32[] memory leaves = new bytes32[](100);
+        string memory claims;
+        for (uint256 i; i < 100; ++i) {
+            address w = address(uint160(0x7000 + i));
+            uint256 amount = i == 0 ? 0 : 400_000e18;
+            leaves[i] = _leaf(w, amount);
+            claims = string.concat(claims, i == 0 ? "" : ",", _claim(w, amount));
+        }
+        bytes32 root = d.standardMerkleRoot(leaves);
+        assertEq(d.airdropRootFromClaims(_json(root, 99 * 400_000e18, claims)), root);
+    }
 }

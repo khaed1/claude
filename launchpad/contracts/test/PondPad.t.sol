@@ -24,6 +24,7 @@ import {CoinFees} from "../src/FeeLib.sol";
 import {Hop} from "../src/Route.sol";
 import {PadRouter} from "../src/PadRouter.sol";
 import {PaymentSwapper} from "../src/PaymentSwapper.sol";
+import {LaunchParams} from "../src/PadFactory.sol";
 
 /// @dev Wraps a curve buy in its own PoolManager unlock (audit R1-A1-1).
 contract UnlockWrapper {
@@ -910,5 +911,202 @@ contract PondPadTest is Base {
         hook.flush(coin);
         assertEq(_hookImdClaims(), 0);
         assertEq(imd.balanceOf(address(hook)), 0);
+    }
+
+    // ------------------------------------------------------------------ Audit round 6 (D-88): coverage and documented behaviour
+
+    /// @dev Audit R6-A1-3 (coverage): a pool sell that fills no IMD reverts `ZeroFill` (ARCHITECTURE §4.2: sells that
+    ///      fill nothing are rejected), in both orderings, and leaves the price where it was.
+    function test_hook_zeroFillReverts_imdFirst() public {
+        _zeroFill(true);
+    }
+
+    function test_hook_zeroFillReverts_coinFirst() public {
+        _zeroFill(false);
+    }
+
+    function _zeroFill(bool imdFirst) internal {
+        address coin = _launchOrdered(_noTax(), imdFirst);
+        _fillCurve(coin);
+        PoolKey memory key = hook.poolKey(coin);
+        PoolSwapTest swapper = new PoolSwapTest(IPoolManager(address(pm)));
+        uint256 got = _buy(alice, coin, 10e18);
+        vm.prank(alice);
+        ERC20(coin).transfer(address(this), got);
+        ERC20(coin).approve(address(swapper), type(uint256).max);
+        (uint160 before,,,) = IPoolManager(address(pm)).getSlot0(key.toId());
+        bool zeroForOne = !imdFirst; // coin in: one wei of it buys no IMD
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CustomRevert.WrappedError.selector,
+                address(hook),
+                IHooks.afterSwap.selector,
+                abi.encodeWithSelector(PadHook.ZeroFill.selector),
+                abi.encodeWithSelector(Hooks.HookCallFailed.selector)
+            )
+        );
+        swapper.swap(
+            key,
+            SwapParams({
+                zeroForOne: zeroForOne,
+                amountSpecified: -1,
+                sqrtPriceLimitX96: zeroForOne ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
+            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            ""
+        );
+        (uint160 afterSwap,,,) = IPoolManager(address(pm)).getSlot0(key.toId());
+        assertEq(afterSwap, before, "price unchanged");
+    }
+
+    /// @dev Audit R6-A1-2 (documented, THREAT-MODEL invariant 4): fees round down, so a trade whose IMD side is below
+    ///      10,000 / fee bps wei pays none: 66 wei on a 1.5% coin, in the pool (any router) and on the curve; 67 wei
+    ///      pays 1 wei. One whole token this way would take ~1e16 swaps.
+    function test_fees_roundDownSoDustPaysNone() public {
+        address coin = _launchOrdered(_noTax(), true);
+        _fillCurve(coin);
+        hook.flush(coin);
+        PoolKey memory key = hook.poolKey(coin);
+        PoolSwapTest swapper = new PoolSwapTest(IPoolManager(address(pm)));
+        imd.mint(address(this), 1e18);
+        imd.approve(address(swapper), type(uint256).max);
+        PoolSwapTest.TestSettings memory s = PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false});
+        uint256 before = ERC20(coin).balanceOf(address(this));
+        swapper.swap(key, SwapParams(true, -66, TickMath.MIN_SQRT_PRICE + 1), s, "");
+        assertGt(ERC20(coin).balanceOf(address(this)), before, "the dust swap filled");
+        (uint128 p, uint128 c, uint128 h, uint128 w) = hook.pending(coin);
+        assertEq(uint256(p) + c + h + w, 0, "66 wei pays no fee");
+        swapper.swap(key, SwapParams(true, -67, TickMath.MIN_SQRT_PRICE + 1), s, "");
+        (p, c, h, w) = hook.pending(coin);
+        assertEq(uint256(p) + c + h + w, 1, "67 wei pays 1 wei");
+
+        vm.prank(creator);
+        (address coin2,) =
+            router.launchWith(_params("DUST", _noTax(), bytes32(uint256(999))), address(imd), 1e18, false, 0, 0, address(0));
+        vm.warp(10 days); // past the snipe tax and max-buy windows (an absolute time: via-IR)
+        uint256 splitterBefore = imd.balanceOf(address(splitter));
+        assertGt(_buy(alice, coin2, 66), 0, "the dust buy filled");
+        assertEq(imd.balanceOf(address(splitter)), splitterBefore, "a 66-wei curve buy pays no fee");
+    }
+
+    uint256 internal _clock; // seconds added to GRAD_T, kept in storage (via-IR)
+    uint256 internal constant GRAD_T = 1_000_000;
+
+    function _later(uint256 secs) internal {
+        _clock += secs;
+        vm.warp(GRAD_T + _clock);
+    }
+
+    function _launchOrderedAt(CoinFees memory fees, bool imdFirst, uint256 saltBase) internal returns (address coin) {
+        for (uint256 i = saltBase; i < saltBase + 64; i++) {
+            LaunchParams memory p = _params("FROG", fees, bytes32(i));
+            address predicted = factory.predictAddress(p, creator);
+            if ((address(imd) < predicted) == imdFirst) {
+                vm.prank(creator);
+                (coin,) = router.launchWith(p, address(imd), 1e18, false, 0, 0, address(0));
+                return coin;
+            }
+        }
+        revert("no salt found");
+    }
+
+    /// @dev Audit R6-A1-3 (coverage, invariant 2): graduation at both ends of `PadConfig`'s target range (1,000 and
+    ///      10,000 IMD) and graduation-fee range (0 and 2%), both orderings, on a 3%-tax coin: the pool opens at the
+    ///      curve's final price with the raise and the reserve less the graduation fee, the matching reserve tokens are
+    ///      burned, the curve and the hook keep nothing, and the pool trades both ways.
+    function test_graduation_atTargetAndFeeBounds() public {
+        _later(0);
+        uint96[2] memory targets = [config.MIN_GRADUATION_TARGET(), config.MAX_GRADUATION_TARGET()];
+        uint16[2] memory gradFees = [uint16(0), config.MAX_GRADUATION_FEE_BPS()];
+        uint256 n;
+        for (uint256 i; i < 2; i++) {
+            for (uint256 j; j < 2; j++) {
+                config.setLaunchSettings(
+                    PadConfig.LaunchSettings({
+                        launchFee: 1e18,
+                        graduationTarget: targets[i],
+                        graduationFeeBps: gradFees[j],
+                        snipeTaxStartBps: 5_000,
+                        snipeTaxDuration: 20,
+                        maxBuyWindow: 60,
+                        maxBuyBps: 200
+                    })
+                );
+                _graduateAt(targets[i], gradFees[j], (i + j) % 2 == 0, ++n);
+            }
+        }
+    }
+
+    function _graduateAt(uint256 target, uint256 gradFeeBps, bool imdFirst, uint256 n) internal {
+        address coin = _launchOrderedAt(CoinFees(300, 3_334, 3_333, 3_333), imdFirst, 1_000 * n);
+        _later(1 hours);
+        uint256 pmImdBefore = imd.balanceOf(address(pm));
+        for (uint256 k; curve.statusOf(coin) == BondingCurve.Status.Trading; k++) {
+            address buyer = address(uint160(0x20000 + n * 1_000 + k));
+            imd.mint(buyer, 2_000e18);
+            vm.startPrank(buyer);
+            imd.approve(address(router), type(uint256).max);
+            router.buyWith(coin, address(imd), 2_000e18, 0, 0, block.timestamp, address(0));
+            vm.stopPrank();
+        }
+        assertEq(uint8(curve.statusOf(coin)), uint8(BondingCurve.Status.Graduated));
+        assertEq(imd.balanceOf(address(curve)), 0, "curve keeps no IMD");
+        assertEq(PadToken(coin).balanceOf(address(curve)), 0, "curve keeps no tokens");
+        assertEq(imd.balanceOf(address(hook)), 0, "hook keeps no IMD");
+        uint256 keep = 10_000 - gradFeeBps;
+        assertApproxEqRel(imd.balanceOf(address(pm)) - pmImdBefore, (target * keep) / 10_000, 1e14, "pool IMD");
+        assertApproxEqRel(PadToken(coin).balanceOf(address(pm)), (200_000_000e18 * keep) / 10_000, 1e14, "pool tokens");
+        assertApproxEqAbs(
+            PadToken(coin).totalSupply(), 1_000_000_000e18 - (200_000_000e18 * gradFeeBps) / 10_000, 1e6, "reserve burn"
+        );
+        PoolKey memory key = hook.poolKey(coin);
+        (uint160 sqrtP,,,) = IPoolManager(address(pm)).getSlot0(key.toId());
+        uint256 p = uint256(sqrtP) * uint256(sqrtP) >> 96;
+        uint256 imdPerToken = imdFirst ? (1 << 96) * 1e18 / p : p * 1e18 / (1 << 96);
+        assertApproxEqRel(imdPerToken, target * 1e18 / 200_000_000e18, 1e15, "pool price = the curve's final price");
+
+        uint256 got = _buy(alice, coin, 10e18);
+        assertGt(got, 0);
+        assertGt(_sell(alice, coin, got / 2), 0);
+    }
+
+    /// @dev Audit R6-A1-3 (coverage): a buy that completes the curve under a snipe tax, on a 3%-tax coin, pays the fee
+    ///      and the snipe tax only on the IMD the last tokens cost (as `quoteBuy` says), gets the rest back, and
+    ///      graduates the coin; the snipe tax reaches growth and the curve keeps nothing.
+    function test_curve_completingBuyUnderSnipeTax() public {
+        vm.warp(GRAD_T);
+        config.setLaunchSettings(
+            PadConfig.LaunchSettings({
+                launchFee: 1e18,
+                graduationTarget: uint96(TARGET),
+                graduationFeeBps: 100,
+                snipeTaxStartBps: 9_000,
+                snipeTaxDuration: 120,
+                maxBuyWindow: 60,
+                maxBuyBps: 200
+            })
+        );
+        vm.prank(creator);
+        (address coin,) = router.launchWith(
+            _params("SNIP", CoinFees(300, 3_334, 3_333, 3_333), bytes32(uint256(7))), address(imd), 1e18, false, 0, 0, address(0)
+        );
+        vm.warp(GRAD_T + 61); // the max-buy window is over, the snipe tax is still ~44%
+        uint256 snipeBps = curve.snipeTaxBps(coin);
+        assertGt(snipeBps, 4_000);
+        (uint256 qOut, uint256 qFee, uint256 qSnipe) = curve.quoteBuy(coin, 20_000e18);
+        assertEq(qOut, 800_000_000e18, "the quote completes the curve");
+        uint256 growthBefore = imd.balanceOf(growth);
+        uint256 before = imd.balanceOf(alice);
+        uint256 out = _buy(alice, coin, 20_000e18);
+        uint256 spent = before - imd.balanceOf(alice);
+        assertEq(out, qOut);
+        assertLt(spent, 20_000e18, "the rest is refunded");
+        assertEq(qSnipe, (spent * snipeBps) / 10_000, "snipe tax on the IMD needed only");
+        assertEq(qFee, (spent * 450) / 10_000, "1.5% + 3% on the IMD needed only");
+        assertGe(imd.balanceOf(growth) - growthBefore, qSnipe, "snipe tax to growth");
+        assertEq(uint8(curve.statusOf(coin)), uint8(BondingCurve.Status.Graduated));
+        assertEq(imd.balanceOf(address(curve)), 0);
+        assertEq(PadToken(coin).balanceOf(address(curve)), 0);
+        assertEq(PadToken(coin).balanceOf(alice), 800_000_000e18);
     }
 }

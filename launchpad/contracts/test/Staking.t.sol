@@ -977,4 +977,113 @@ contract StakingTest is MarketBase {
         }
         assertEq(vm.indexOf(vm.readFile("src/StakedPONDPAD.sol"), "RenounceWhilePaused"), type(uint256).max);
     }
+
+    // ------------------------------------------------------------------ Audit round 6 (D-88): coverage and documented behaviour
+
+    /// @dev Audit R6-A3-6 (coverage): an approved operator exits for the owner (`by != owner`) through `redeem` and
+    ///      `withdraw`; the one-block hold applies to the owner's shares that arrived this block, whoever exits them.
+    function test_vault_operatorExitsHonourTheHold() public {
+        address op = makeAddr("operator");
+        uint256 shares = _stake(1_000e18);
+        vm.prank(staker);
+        sVault.approve(op, type(uint256).max);
+        vm.prank(op);
+        vm.expectRevert(ERC4626.RedeemMoreThanMax.selector); // held in the deposit block
+        sVault.redeem(shares, op, staker);
+        _nextBlock();
+        vm.prank(op);
+        uint256 assets = sVault.redeem(shares / 2, op, staker);
+        assertEq(pondpad.balanceOf(op), assets);
+        vm.prank(op);
+        sVault.withdraw(100e18, op, staker);
+        assertEq(pondpad.balanceOf(op), assets + 100e18);
+        uint256 fresh = _stake(10e18);
+        uint256 unheld = sVault.maxRedeem(staker);
+        assertEq(unheld, sVault.balanceOf(staker) - fresh, "the fresh shares are held");
+        vm.prank(op);
+        sVault.redeem(unheld, op, staker);
+        vm.prank(op);
+        vm.expectRevert(ERC4626.RedeemMoreThanMax.selector);
+        sVault.redeem(1, op, staker);
+        address stranger = makeAddr("stranger");
+        _nextBlock();
+        vm.prank(stranger);
+        vm.expectRevert(ERC20.InsufficientAllowance.selector);
+        sVault.redeem(1, stranger, staker);
+    }
+
+    /// @dev Audit R6-A3-6 (coverage): `rescueETH` on the vault and the dripper is their owners' only, and ends with the
+    ///      other powers at `powersExpireAt`.
+    function test_staking_rescueEthOnlyByTheOwnerUntilExpiry() public {
+        address to = makeAddr("ethTo");
+        vm.deal(address(sVault), 2 ether);
+        vm.deal(address(rewards), 2 ether);
+        vm.prank(staker);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        sVault.rescueETH(to, 1 ether);
+        vm.prank(staker);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        rewards.rescueETH(to, 1 ether);
+        vm.prank(slowTimelock);
+        sVault.rescueETH(to, 1 ether);
+        vm.prank(timelock);
+        rewards.rescueETH(to, 1 ether);
+        assertEq(to.balance, 2 ether);
+        vm.warp(expiry);
+        vm.prank(slowTimelock);
+        vm.expectRevert(StakedPONDPAD.PowersExpired.selector);
+        sVault.rescueETH(to, 1 ether);
+        vm.prank(timelock);
+        vm.expectRevert(RewardDripper.PowersExpired.selector);
+        rewards.rescueETH(to, 1 ether);
+        assertEq(to.balance, 2 ether);
+    }
+
+    /// @dev Audit R6-A3-1 (documented): sPONDPAD keeps Solady's fixed infinite allowance for the canonical Permit2, as
+    ///      $PONDPAD does (D-77) and POOL4's `StakedIMD` does; `PadToken` turns it off. Permit2 moves shares only on the
+    ///      holder's own Permit2 signature or approval; the one-block hold travels with the shares as usual.
+    function test_vault_permit2HasAFixedInfiniteAllowance() public {
+        address permit2 = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+        uint256 shares = _stake(10e18);
+        assertEq(sVault.allowance(staker, permit2), type(uint256).max);
+        assertEq(pondpad.allowance(staker, permit2), type(uint256).max);
+        vm.prank(staker);
+        vm.expectRevert(ERC20.Permit2AllowanceIsFixedAtInfinity.selector);
+        sVault.approve(permit2, 0);
+        address receiver = makeAddr("permit2Receiver");
+        vm.prank(permit2);
+        sVault.transferFrom(staker, receiver, shares); // no approval given
+        assertEq(sVault.balanceOf(receiver), shares);
+        assertEq(sVault.maxRedeem(receiver), 0, "the hold travels with the shares");
+        _nextBlock();
+        assertEq(sVault.maxRedeem(receiver), shares);
+    }
+
+    /// @dev Audit R6-A3-3 (documented): `maxDeposit` / `maxMint` don't single out address(0) and the vault, which
+    ///      `deposit` / `mint` always refuse (R4-A3-1).
+    function test_vault_maxViewsDontSingleOutRefusedReceivers() public {
+        assertEq(sVault.maxDeposit(address(0)), type(uint256).max);
+        assertEq(sVault.maxMint(address(sVault)), type(uint256).max);
+        vm.prank(staker);
+        vm.expectRevert(StakedPONDPAD.InvalidReceiver.selector);
+        sVault.deposit(1e18, address(0));
+        vm.prank(staker);
+        vm.expectRevert(StakedPONDPAD.InvalidReceiver.selector);
+        sVault.mint(1e24, address(sVault));
+    }
+
+    /// @dev Audit R6-A3-2 (keeper): a `buy()` that reverts (`NothingToBuy`, `TooSoon`) undoes its own `forward()`, so
+    ///      $PONDPAD fee shares wait in PadBuyer until someone calls `forward()`, which the keeper now does whenever
+    ///      PadBuyer holds $PONDPAD.
+    function test_buyer_aRevertedBuyLeavesTheFeeShareForForward() public {
+        pondpad.transfer(address(buyer), 50e18);
+        assertEq(imd.balanceOf(address(buyer)), 0);
+        vm.expectRevert(PadBuyer.NothingToBuy.selector);
+        buyer.buy();
+        assertEq(pondpad.balanceOf(address(buyer)), 50e18, "rolled back with the buy");
+        vm.prank(keeper);
+        assertEq(buyer.forward(), 50e18);
+        assertEq(pondpad.balanceOf(address(buyer)), 0);
+        assertEq(pondpad.balanceOf(address(rewards)), 50e18, "the dripper has it");
+    }
 }

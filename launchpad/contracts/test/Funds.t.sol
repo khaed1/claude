@@ -170,4 +170,28 @@ contract FundsTest is MarketBase {
         assertEq(other.balanceOf(workerRewards), 7e18);
         assertEq(workerFund.releaseToken(address(other)), 0);
     }
+
+    /// @dev Audits R6-A3-6 (coverage), R6-A3-4 and R6-A4-3 (accepted): a grant to address(0) is refused; a zero grant or
+    ///      job payment passes, even in a token without a cap, and moves nothing; the relay can be set to address(0)
+    ///      (the 48 h owner sets it again).
+    function test_growthFund_zeroAddressesAndZeroAmounts() public {
+        vm.prank(safe);
+        vm.expectRevert(GrowthFund.ZeroAddress.selector);
+        growthFund.grant(address(imd), address(0), 1, bytes32(0), "to nobody");
+        MockIMD uncapped = new MockIMD();
+        assertEq(growthFund.grantCap(address(uncapped)), 0);
+        vm.prank(safe);
+        growthFund.grant(address(uncapped), grantee, 0, bytes32(0), "zero");
+        vm.prank(safe);
+        vm.expectRevert(GrowthFund.AboveCap.selector);
+        growthFund.grant(address(uncapped), grantee, 1, bytes32(0), "one wei");
+        vm.prank(relay);
+        growthFund.payJob(0, bytes32(0), "zero job");
+        assertEq(uncapped.balanceOf(grantee), 0);
+        vm.prank(timelock);
+        growthFund.setRelay(address(0));
+        assertEq(growthFund.relay(), address(0));
+        vm.prank(timelock);
+        growthFund.setRelay(relay);
+    }
 }

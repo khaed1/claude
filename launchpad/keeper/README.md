@@ -24,6 +24,7 @@ Addresses come from `../contracts/deployments/4663.json`, which `script/Deploy.s
 | `MarketController.collectFees()` | daily | the market is open (also runs the splitter for both fee tokens and, since audit R4-A2-2, `PadBurner.burn()`) |
 | `FeeSplitter.distribute()` | daily | the splitter holds IMD |
 | `PadBuyer.buy()` | its own `interval()` (10 min by default) | the market is open, the buyer holds ≥ 1 IMD and its interval has passed (pays the keeper 0.5%) |
+| `PadBuyer.forward()` | hourly | the buyer holds $PONDPAD (the stakers' fee share, D-38): a `buy()` that reverts also undoes its own forward, so it is sent on its own (audit R6-A3-2) |
 | `RewardDripper.drip()` | hourly | `canDrip()` (pays the keeper 10 $PONDPAD) |
 | `PadMarketHook.rebalance()` | 5 min | `pendingRebalance()` (pays the keeper up to 1 IMD) |
 | `PadMarketHook.settleClaims()` | hourly | trims left claims to settle |

@@ -24,6 +24,8 @@ import {PadMarketHook} from "../src/PadMarketHook.sol";
 import {MarketController} from "../src/MarketController.sol";
 import {FixedOwnable} from "../src/FixedOwnable.sol";
 import {FeeSplitter} from "../src/FeeSplitter.sol";
+import {IHooks} from "v4-core/interfaces/IHooks.sol";
+import {LiquidityReserve} from "../src/LiquidityReserve.sol";
 
 /// @dev Shared setup: $PONDPAD, sale, market hook, controller and burner on a real PoolManager.
 abstract contract MarketBase is Base {
@@ -1015,5 +1017,214 @@ contract MarketTest is MarketBase {
         uint256 burnedBefore = market.totalBurned();
         _swap(false, 40_000_000e18);
         assertGt(market.totalBurned(), burnedBefore, "sells above the cap still trim");
+    }
+
+    // ------------------------------------------------------------------ Audit round 6 (D-88): coverage and documented behaviour
+
+    /// @dev Audit R6-A2-3 (coverage): the market's guards that had no test. A second pool on the hook, `fundInventory`
+    ///      with maxima below the need, the rebalance switch, the controller's setter bounds, a cleared migration
+    ///      approval, and strangers on the hook's owner-only and self-only functions.
+    function test_market_untestedGuards() public {
+        _graduate();
+        PoolKey memory second =
+            PoolKey(Currency.wrap(address(imd)), Currency.wrap(address(pondpad)), 3000, 60, IHooks(address(market)));
+        vm.expectRevert();
+        IPoolManager(address(pm)).initialize(second, TickMath.getSqrtPriceAtTick(0));
+        PoolKey memory sameButSpacing = market.poolKey();
+        sameButSpacing.tickSpacing = 60;
+        vm.expectRevert();
+        IPoolManager(address(pm)).initialize(sameButSpacing, TickMath.getSqrtPriceAtTick(0));
+
+        uint160 spot = market.currentSqrtPriceX96();
+        uint128 liq = controller.fullRangeLiquidity(spot, 1e30, 1_000_000e18, market.tickSpacing());
+        imd.mint(timelock, 1_000e18);
+        pondpad.transfer(timelock, 1_000_000e18);
+        uint256 threshold = market.rebalanceQuoteThreshold();
+        uint256 ratchet = market.ratchetBps();
+        vm.startPrank(timelock);
+        imd.approve(address(controller), type(uint256).max);
+        pondpad.approve(address(controller), type(uint256).max);
+        vm.expectRevert();
+        controller.fundInventory(liq, 1e18, 1_000e18); // $PONDPAD maximum too low
+        vm.expectRevert();
+        controller.fundInventory(liq, 1_000_000e18, 1e18); // IMD maximum too low
+        vm.expectRevert(PadMarketHook.InvalidConfiguration.selector);
+        controller.setMaxRefStep(0);
+        vm.expectRevert(PadMarketHook.InvalidConfiguration.selector);
+        controller.setMaxRefStep(2_001);
+        controller.setMaxRefStep(2_000);
+        controller.setMaxRefStep(100);
+        vm.expectRevert(PadMarketHook.InvalidConfiguration.selector);
+        controller.setFloorDecay(0);
+        vm.expectRevert(PadMarketHook.InvalidConfiguration.selector);
+        controller.setRatchetBps(10_001);
+        controller.setRatchetBps(10_000);
+        controller.setRatchetBps(ratchet);
+        vm.expectRevert(PadMarketHook.InvalidConfiguration.selector);
+        controller.setKeeperReward(threshold); // must stay below the rebalance threshold
+        vm.expectRevert(PadMarketHook.InvalidConfiguration.selector);
+        controller.setRebalance(true, 0);
+        controller.setRebalance(false, threshold);
+        vm.stopPrank();
+        assertEq(imd.balanceOf(timelock), 1_000e18, "nothing pulled");
+        assertEq(pondpad.balanceOf(timelock), 1_000_000e18, "nothing pulled");
+
+        _swap(false, 40_000_000e18); // a trim leaves retained IMD above the threshold
+        _nextBlock();
+        assertGe(market.retainedQuote(), market.rebalanceQuoteThreshold());
+        assertFalse(market.pendingRebalance(), "switched off");
+        vm.expectRevert(PadMarketHook.RebalanceDisabled.selector);
+        market.rebalance();
+
+        PadMarketHook next = _newHook(0x8888, address(controller), address(burner));
+        vm.startPrank(slowTimelock);
+        controller.approveMigration(address(next));
+        controller.approveMigration(address(0)); // cleared
+        vm.stopPrank();
+        vm.startPrank(migrator);
+        vm.expectRevert(MarketController.InvalidSetup.selector);
+        controller.migrate(address(next));
+        vm.expectRevert(MarketController.InvalidSetup.selector);
+        controller.migrate(address(0));
+        vm.stopPrank();
+
+        vm.startPrank(trader);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        market.seedRetainedQuote(1);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        market.inheritGuards(0, 0, 0);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        market.inheritFeeSchedule(1);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        market.setCapFloor(CAP_FLOOR);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        market.closeBackstop();
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        market.closeMarket(trader);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        market.withdrawRetainedQuote(trader, 1);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        market.withdrawFees(trader);
+        vm.expectRevert(PadMarketHook.NotSelf.selector);
+        market.redeemClaimsSelf();
+        vm.expectRevert(PadMarketHook.NotSelf.selector);
+        market.closeBackstopSelf();
+        vm.expectRevert(PadMarketHook.InvalidPoolManagerCaller.selector);
+        market.unlockCallback("");
+        vm.stopPrank();
+    }
+
+    /// @dev Audit R6-A2-4 (coverage, invariant 10): the 30M liquidity reserve can't move before the market opens, then
+    ///      goes whole to its fixed beneficiary (the 48 h timelock), once.
+    function test_liquidityReserve_releasesOnlyOnceTheMarketIsOpen() public {
+        LiquidityReserve reserve = new LiquidityReserve(address(pondpad), address(controller), timelock);
+        pondpad.transfer(address(reserve), 30_000_000e18);
+        vm.prank(trader);
+        vm.expectRevert(LiquidityReserve.MarketNotOpen.selector);
+        reserve.release();
+        _graduate();
+        vm.prank(trader); // anyone
+        assertEq(reserve.release(), 30_000_000e18);
+        assertEq(pondpad.balanceOf(timelock), 30_000_000e18);
+        assertEq(pondpad.balanceOf(address(reserve)), 0);
+        assertEq(reserve.release(), 0);
+    }
+
+    /// @dev The judge's setup for R6-A2-1 / A2-2: a 40M trim, its backstop deployed, a fresh hook approved.
+    function _trimmedMarketReadyToMigrate() internal returns (PadMarketHook next) {
+        _graduate();
+        _swap(false, 40_000_000e18);
+        _nextBlock();
+        market.rebalance();
+        _nextBlock();
+        next = _newHook(0x8888, address(controller), address(burner));
+        vm.prank(slowTimelock);
+        controller.approveMigration(address(next));
+    }
+
+    /// @dev Audit R6-A2-1 (documented, THREAT-MODEL §3): `migrate` reopens the market with the controller's whole
+    ///      balances. $PONDPAD someone sent to the controller before it joins the new position (the cap rises with
+    ///      it, paired with backstop IMD) instead of being burned, and stray IMD becomes untipped backstop IMD. Only the
+    ///      sender's own tokens; the controller keeps nothing and a later sell is trimmed as usual.
+    function test_market_strayBalancesJoinAMigration() public {
+        PadMarketHook next = _trimmedMarketReadyToMigrate();
+        uint256 capBefore = market.inventoryCap();
+        uint256 backstopBefore = market.retainedQuote() + market.backstopQuotePrincipal();
+        pondpad.transfer(address(controller), 1_000_000e18);
+        imd.mint(address(controller), 100e18);
+        vm.prank(migrator);
+        controller.migrate(address(next));
+        assertApproxEqRel(next.inventoryCap(), capBefore + 1_000_000e18, 0.001e18, "the cap rose with the stray tokens");
+        assertApproxEqAbs(next.tokensInPool(), next.inventoryCap(), 1, "they sit in the position");
+        assertLt(next.retainedQuote(), backstopBefore + 100e18, "some backstop IMD paired with them");
+        assertGt(next.retainedQuote(), backstopBefore, "the stray IMD joined the backstop");
+        assertEq(next.untippedQuote(), next.retainedQuote(), "none of it earns an idle tip");
+        assertEq(pondpad.balanceOf(address(controller)), 0, "the controller keeps nothing");
+        assertEq(imd.balanceOf(address(controller)), 0);
+        _nextBlock();
+        uint256 burned = next.totalBurned();
+        _swapOn(next, false, 900_000e18);
+        assertGt(next.totalBurned(), burned, "a later sell is trimmed");
+    }
+
+    function _swapOn(PadMarketHook h, bool buy, uint256 amountIn) internal {
+        PoolKey memory key = h.poolKey();
+        vm.prank(trader);
+        swapper.swap(
+            key,
+            SwapParams({
+                zeroForOne: buy,
+                amountSpecified: -int256(amountIn),
+                sqrtPriceLimitX96: buy ? TickMath.MIN_SQRT_PRICE + 1 : TickMath.MAX_SQRT_PRICE - 1
+            }),
+            PoolSwapTest.TestSettings({takeClaims: false, settleUsingBurn: false}),
+            ""
+        );
+    }
+
+    /// @dev Audit R6-A2-2 (documented, invariant 11): IMD seeded by a migration earns no tip when it is deployed
+    ///      (R2-A2-1); once a dump fills the band it funds, the next rebalance pays the ordinary fill tip, at most the
+    ///      pool fee on the IMD the dump converted (which the dump paid many times over).
+    function test_market_seededBackstopEarnsOnlyTheFillTip() public {
+        PadMarketHook next = _trimmedMarketReadyToMigrate();
+        vm.prank(migrator);
+        controller.migrate(address(next));
+        _fillTipAfterUntippedDeploy(next);
+    }
+
+    /// @dev The same for IMD an owner `closeBackstop` returned.
+    function test_market_closedBackstopEarnsOnlyTheFillTip() public {
+        _graduate();
+        _swap(false, 40_000_000e18);
+        _nextBlock();
+        market.rebalance();
+        _nextBlock();
+        vm.prank(timelock);
+        controller.closeBackstop();
+        assertApproxEqAbs(market.untippedQuote(), market.retainedQuote(), 1e9, "all of it untipped");
+        _fillTipAfterUntippedDeploy(market);
+    }
+
+    function _fillTipAfterUntippedDeploy(PadMarketHook h) internal {
+        address keeper = makeAddr("fillKeeper");
+        _nextBlock();
+        vm.prank(keeper);
+        h.rebalance();
+        assertEq(imd.balanceOf(keeper), 0, "no tip for deploying untipped IMD");
+        assertEq(h.untippedQuote(), 0);
+        _nextBlock();
+        pondpad.transfer(trader, 45_000_000e18);
+        uint256 feeTokens = h.feeTokenClaims();
+        _swapOn(h, false, 55_000_000e18); // dumps into the band
+        assertTrue(h.backstopIsFilled());
+        uint256 converted = h.backstopConvertedQuote();
+        _nextBlock();
+        uint256 feeBound = (converted * h.currentFee()) / 1_000_000;
+        uint256 expected = feeBound < h.keeperReward() ? feeBound : h.keeperReward();
+        vm.prank(keeper);
+        h.rebalance();
+        assertEq(imd.balanceOf(keeper), expected, "the ordinary fill tip");
+        assertGt(expected, 0);
+        assertGt(h.feeTokenClaims() - feeTokens, 1_000_000e18, "the dump paid far more in fees");
     }
 }

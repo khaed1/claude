@@ -41,7 +41,7 @@ const wallet = account ? createWalletClient({ account, chain, transport: http(RP
 
 const abi = {
   erc20: parseAbi(["function balanceOf(address) view returns (uint256)"]),
-  buyer: parseAbi(["function buy() returns (uint256)", "function lastBuyAt() view returns (uint256)", "function interval() view returns (uint256)"]),
+  buyer: parseAbi(["function buy() returns (uint256)", "function forward() returns (uint256)", "function lastBuyAt() view returns (uint256)", "function interval() view returns (uint256)"]),
   dripper: parseAbi(["function drip() returns (uint256, uint256)", "function canDrip() view returns (bool)"]),
   market: parseAbi([
     "function rebalance()",
@@ -135,6 +135,9 @@ async function pass() {
       const [last, every] = await Promise.all([read(a.padBuyer, "buyer", "lastBuyAt"), read(a.padBuyer, "buyer", "interval")]);
       return BigInt(Math.floor(Date.now() / 1000)) >= last + every ? send("PadBuyer.buy", a.padBuyer, "buyer", "buy") : null;
     }],
+    // A buy() that reverts (too soon, or under 1 IMD to spend) also undoes its own forward(), so the stakers' $PONDPAD
+    // fee share (D-38) is forwarded to the dripper on its own whenever PadBuyer holds some (audit R6-A3-2).
+    ["PadBuyer.forward", HOUR, async () => ((await erc20(a.pondpad, a.padBuyer)) > 0n ? send("PadBuyer.forward", a.padBuyer, "buyer", "forward") : null)],
     ["RewardDripper.drip", HOUR, async () => ((await read(a.rewardDripper, "dripper", "canDrip")) ? send("RewardDripper.drip", a.rewardDripper, "dripper", "drip") : null)],
     ["PadMarketHook.rebalance", 5 * MIN, async () => (marketOpen && (await read(a.marketHook, "market", "pendingRebalance")) ? send("PadMarketHook.rebalance", a.marketHook, "market", "rebalance") : null)],
     ["PadMarketHook.settleClaims", HOUR, async () => {

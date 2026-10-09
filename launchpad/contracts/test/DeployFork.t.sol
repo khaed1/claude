@@ -21,6 +21,7 @@ import {LiquidityReserve} from "../src/LiquidityReserve.sol";
 import {AirdropDistributor} from "../src/AirdropDistributor.sol";
 import {FixedOwnable} from "../src/FixedOwnable.sol";
 import {PondPadTimelock} from "../src/PondPadTimelock.sol";
+import {VersionRegistry} from "../src/VersionRegistry.sol";
 
 /// @notice Full deployment rehearsal on live Robinhood Chain: runs `Deploy.deploy` exactly as the broadcast does,
 ///         then checks the wiring, a timelocked change by the Safe, and a lifecycle from coin launch through the
@@ -282,5 +283,36 @@ contract DeployForkTest is Test {
         vm.warp(t + 30 days);
         assertEq(d.vesting.release(), uint256(20_000_000e18) / 6);
         assertEq(d.pondpad.balanceOf(safe), uint256(20_000_000e18) / 6);
+    }
+
+    /// @dev Audit R6-A4-7 (coverage): without `AUDIT_LINK` the deploy registers version 1 but doesn't activate it, so
+    ///      `current()` reverts until the 7-day timelock activates it by hand (no oracle signer in v1, D-86). Runs on a
+    ///      fresh fork: `setUp`'s deployment holds the CREATE2 addresses on the first one.
+    function test_deployFork_withoutAuditLinkVersionOneWaits() public {
+        if (!forked) return;
+        vm.createSelectFork(vm.envString("FORK_RPC"));
+        Deploy s = new Deploy();
+        uint256 start = block.timestamp + 3 days;
+        Deploy.Params memory p = Deploy.Params({
+            chain: s.robinhood(),
+            deployer: address(s),
+            safe: safe,
+            relay: relay,
+            xLinkKey: makeAddr("xLinkKey"),
+            tweetChecker: makeAddr("tweetChecker"),
+            workerRewards: address(0),
+            airdropRoot: keccak256("rehearsal root"),
+            saleStart: start,
+            powersExpireAt: start + 365 days,
+            auditLink: ""
+        });
+        Deploy.Deployment memory e = s.deploy(p);
+        assertEq(e.versions.currentVersion(), 0, "registered, not active");
+        vm.expectRevert(VersionRegistry.UnknownVersion.selector);
+        e.versions.current();
+        assertEq(e.verifier.signerCount(), 0, "no oracle signer (D-86)");
+        vm.prank(address(e.slowTimelock));
+        e.versions.activateManually(1, "https://github.com/khaed1/claude/blob/<commit>/launchpad/audit/FINDINGS.md");
+        assertEq(e.versions.currentVersion(), 1);
     }
 }

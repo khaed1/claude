@@ -515,4 +515,40 @@ contract DistributionTest is MarketBase {
         assertEq(pondpad.balanceOf(hot), amounts[1]);
         assertEq(pondpad.balanceOf(staker), 0);
     }
+
+    /// @dev Audits R6-A3-5 (documented sink) and R6-A3-6 (coverage): $PONDPAD that reaches `TeamVesting` after deploy
+    ///      joins the schedule and is paid to the beneficiary on the same clock; after day 180, at once.
+    function test_teamVesting_lateTransferVestsToTheBeneficiary() public {
+        _graduate();
+        vm.warp(OPEN + 90 days);
+        vm.prank(trader);
+        pondpad.transfer(address(vesting), 6e18); // half-way: half of it has vested
+        assertApproxEqAbs(vesting.vestedAmount(), (TEAM + 6e18) / 2, 1e6);
+        vm.warp(OPEN + 200 days);
+        vesting.release();
+        assertEq(pondpad.balanceOf(teamSafe), TEAM + 6e18);
+        vm.prank(trader);
+        pondpad.transfer(address(vesting), 1e18);
+        assertEq(vesting.releasable(), 1e18);
+        vesting.release();
+        assertEq(pondpad.balanceOf(teamSafe), TEAM + 7e18);
+    }
+
+    /// @dev Audit R6-A4-7 (coverage): a listed wallet with amount 0 is a valid leaf: it initiates and counts toward the
+    ///      100 (`Deploy.s.sol` accepts such a list too, `test_deploy_airdropListAcceptsAZeroAmountClaim`).
+    function test_airdrop_zeroAmountLeafCountsAsAnInitiator() public {
+        accounts.push(makeAddr("zeroLeaf"));
+        amounts.push(0);
+        delete layers;
+        _buildTree();
+        airdrop = new AirdropDistributor(
+            timelock, address(pondpad), layers[layers.length - 1][0], address(controller), dripperSink, xChecker
+        );
+        _graduate();
+        vm.warp(OPEN + 1 days);
+        _initiate(accounts.length - 1, OPEN + 1 days);
+        assertEq(airdrop.initiatorCount(), 1);
+        _initiate(4, OPEN + 1 days);
+        assertEq(airdrop.initiatorCount(), 2);
+    }
 }

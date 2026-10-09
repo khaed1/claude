@@ -27,6 +27,7 @@ import {PondPadTimelock} from "../src/PondPadTimelock.sol";
 import {PadRouter} from "../src/PadRouter.sol";
 import {LaunchParams} from "../src/PadFactory.sol";
 import {ERC20} from "solady/tokens/ERC20.sol";
+import {PadConfig} from "../src/PadConfig.sol";
 
 /// @dev Stands in for a multisig a creator hands its fees to.
 contract MockSafe {}
@@ -1423,5 +1424,218 @@ contract GovernanceTest is Base {
             assertTrue(fullSell);
             assertEq(_sell(alice, coin, out), imdOut, "sell quote after an outside sell");
         }
+    }
+
+    // ------------------------------------------------------------------ Audit round 6 (D-88): coverage and documented behaviour
+
+    /// @dev Audits R6-A1-1 / R6-A4-1 (documented, THREAT-MODEL §3): the "no other registered coin" check runs when the
+    ///      recipient is set. An address where a coin is launched later (`PadFactory.predictAddress`) has no code and
+    ///      no registration, so it passes; once that coin exists the recipient is a coin for good: `claim` pays it as a
+    ///      plain transfer, nobody can change the recipient again, and the swarm budget can't be spent or swept. Only
+    ///      the recipient can choose this, like a burn address; naming the coin directly is refused (R5-A1-1).
+    function test_vault_aFutureCoinAddressIsTheRecipientsOwnChoice() public {
+        vm.prank(creator);
+        (address coinA,) = router.launchWith(
+            _params("AAA", CoinFees(100, 0, 0, 10_000), bytes32(uint256(1))), address(imd), 1e18, false, 0, 0, address(0)
+        );
+        LaunchParams memory pb = _params("BBB", _noTax(), bytes32(uint256(2)));
+        address futureB = factory.predictAddress(pb, alice);
+        vm.prank(creator);
+        vault.setRecipient(coinA, futureB);
+        vm.prank(alice);
+        (address coinB,) = router.launchWith(pb, address(imd), 1e18, false, 0, 0, address(0));
+        assertEq(coinB, futureB);
+        assertEq(vault.recipientOf(coinA), coinB);
+        vm.prank(coinB);
+        vm.expectRevert(CreatorVault.InvalidRecipient.selector); // the same coin, named directly
+        vault.setRecipient(coinA, coinB);
+
+        vm.warp(T0 + 1 hours);
+        _buy(bob, coinA, 100e18);
+        uint256 owed = vault.balanceOf(coinA);
+        uint256 budgetA = budget.available(coinA);
+        assertGt(owed, 0);
+        assertGt(budgetA, 0);
+        uint256 before = imd.balanceOf(coinB);
+        vault.claim(coinA); // anyone
+        assertEq(imd.balanceOf(coinB) - before, owed, "paid to coin B as a plain transfer");
+        vm.prank(creator);
+        vm.expectRevert(CreatorVault.Unauthorized.selector);
+        vault.setRecipient(coinA, creator);
+        vm.prank(creator);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        budget.requestSpend(coinA, 1, bytes32(0));
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        budget.sweepToHolders(coinA);
+        assertEq(budget.available(coinA), budgetA, "A's swarm budget stays where it is");
+    }
+
+    /// @dev Audit R6-A4-6 (documented sinks): IMD sent straight to `CreatorVault`, `SwarmBudget` or `IntegratorVault`
+    ///      is never counted: each pays only what it tracks, so the sender's transfer stays there.
+    function test_vault_strayImdIsNeverCounted() public {
+        address coin = _launch(_noTax(), 0);
+        imd.mint(address(this), 30e18);
+        imd.transfer(address(vault), 10e18);
+        imd.transfer(address(budget), 10e18);
+        imd.transfer(address(integrators), 10e18);
+        assertEq(vault.balanceOf(coin), 0);
+        assertEq(vault.claim(coin), 0);
+        assertEq(budget.available(coin), 0);
+        assertEq(integrators.balanceOf(address(this)), 0);
+        assertEq(imd.balanceOf(address(vault)), 10e18);
+        assertEq(imd.balanceOf(address(budget)), 10e18);
+        assertEq(imd.balanceOf(address(integrators)), 10e18);
+    }
+
+    /// @dev Audit R6-A4-2 (documented, the owner's choice): the guardian pauses new launches instantly and may resume
+    ///      them, an owner pause included; nobody else can do either, and trading is never paused.
+    function test_config_guardianPausesAndResumesLaunches() public {
+        address guardian = makeAddr("guardian");
+        config.setGuardian(guardian); // the test contract stands in for the 48 h timelock
+        config.setLaunchesPaused(true);
+        vm.prank(guardian);
+        config.setLaunchesPaused(false);
+        assertFalse(config.launchesPaused(), "the guardian resumes an owner pause");
+        vm.prank(guardian);
+        config.setLaunchesPaused(true);
+        assertTrue(config.launchesPaused());
+        vm.prank(alice);
+        vm.expectRevert(PadConfig.NotGuardian.selector);
+        config.setLaunchesPaused(false);
+        vm.prank(alice);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        config.setGuardian(alice);
+    }
+
+    /// @dev Audit R6-A4-3 (accepted): `SwarmBudget.setRelay` and `PadConfig.setGuardian` take address(0). Nothing moves:
+    ///      the requester can still cancel, the owner can still pause, and the owner sets a relay again.
+    function test_governance_zeroRelayAndGuardianStopNothingElse() public {
+        address coin = _launch(CoinFees(100, 0, 0, 10_000), 0);
+        vm.warp(T0 + 1 hours);
+        _buy(alice, coin, 100e18);
+        uint96 amount = uint96(budget.available(coin));
+        vm.prank(creator);
+        uint256 id = budget.requestSpend(coin, amount, bytes32("spec"));
+        budget.setRelay(address(0));
+        vm.prank(relay);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        budget.release(id, "job");
+        vm.prank(creator);
+        budget.cancel(id);
+        assertEq(budget.available(coin), amount, "the reservation is freed");
+        budget.setRelay(relay);
+        config.setGuardian(address(0));
+        config.setLaunchesPaused(true);
+        assertTrue(config.launchesPaused());
+    }
+
+    /// @dev Audit R6-A4-7 (coverage, invariant 22): after its one handoff the creator (the deployer) has no power left.
+    function test_governance_creatorHasNoPowerAfterItsHandoff() public {
+        config.transferOwnership(slowTimelock);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        config.transferOwnership(address(this));
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        config.renounceOwnership();
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        config.setGuardian(address(this));
+        vm.prank(slowTimelock);
+        vm.expectRevert(FixedOwnable.OwnerIsFixed.selector);
+        config.transferOwnership(address(this));
+        assertEq(config.owner(), slowTimelock);
+    }
+
+    /// @dev Audit R6-A4-7 (coverage): `fundHolders` refuses an address that isn't a registered coin.
+    function test_vault_fundHoldersNeedsARegisteredCoin() public {
+        imd.mint(address(this), 1e18);
+        imd.approve(address(vault), 1e18);
+        uint256 before = imd.balanceOf(address(this));
+        vm.expectRevert(CreatorVault.UnknownCoin.selector);
+        vault.fundHolders(makeAddr("notACoin"), 1e18);
+        assertEq(imd.balanceOf(address(this)), before, "nothing pulled");
+    }
+
+    /// @dev Audit R6-A4-7 (coverage): question text is 1–2,000 printable ASCII characters without `"` or `\`.
+    function test_verifier_questionTextBounds() public {
+        vm.expectRevert(AttestationVerifier.BadQuestionText.selector);
+        verifier.checkQuestionText("");
+        bytes memory text = new bytes(2_000);
+        for (uint256 i; i < text.length; i++) {
+            text[i] = "a";
+        }
+        verifier.checkQuestionText(string(text));
+        vm.expectRevert(AttestationVerifier.BadQuestionText.selector);
+        verifier.checkQuestionText(string.concat(string(text), "a"));
+        bytes1[4] memory bad = [bytes1(0x80), bytes1(0x1f), bytes1('"'), bytes1("\\")];
+        for (uint256 i; i < bad.length; i++) {
+            vm.expectRevert(AttestationVerifier.BadQuestionText.selector);
+            verifier.checkQuestionText(string(abi.encodePacked("Is it ", bad[i], " ok?")));
+        }
+        verifier.checkQuestionText("Does the report at https://api.imd.fun/jobs/x/report.md list no High? (a ~ test)");
+    }
+
+    /// @dev Audit R6-A4-7 (coverage): when the verifier or the owner clears a stale link, the nonce moves (R3-A4-5), so
+    ///      a voucher signed before it is void; only a stranger's or a recipient's clear of a stale link keeps it.
+    function test_social_verifierOrOwnerClearOfAStaleLinkMovesTheNonce() public {
+        address[2] memory clearers = [linker, address(this)];
+        for (uint256 k; k < 2; k++) {
+            LaunchParams memory p = _params(k == 0 ? string("LNKA") : string("LNKB"), _noTax(), bytes32(uint256(40 + k)));
+            vm.prank(creator);
+            (address coin,) = router.launchWith(p, address(imd), 1e18, false, 0, 0, address(0));
+            uint256 deadline = T0 + 1 days;
+            bytes memory v0 = _voucher(coin, keccak256("old"), creator, 0, deadline);
+            vm.prank(creator);
+            social.link(coin, keccak256("old"), deadline, v0);
+            vm.prank(creator);
+            vault.setRecipient(coin, newOwner);
+            bytes memory v1 = _voucher(coin, keccak256("new"), newOwner, 1, deadline); // signed before the clear
+            vm.prank(clearers[k]);
+            social.unlink(coin);
+            assertEq(social.nonces(coin), 2, "the nonce moved");
+            vm.prank(newOwner);
+            vm.expectRevert();
+            social.link(coin, keccak256("new"), deadline, v1);
+        }
+    }
+
+    /// @dev Audit R6-A4-7 (coverage): `updateDelay(0)` is refused through `scheduleBatch` / `executeBatch` too.
+    function test_timelock_batchedDelayCutRefused() public {
+        address safe = makeAddr("safe");
+        address[] memory proposers = new address[](1);
+        proposers[0] = safe;
+        address[] memory executors = new address[](1);
+        TimelockController tl = new PondPadTimelock(2 days, proposers, executors, address(0));
+        address[] memory targets = new address[](1);
+        targets[0] = address(tl);
+        uint256[] memory values = new uint256[](1);
+        bytes[] memory payloads = new bytes[](1);
+        payloads[0] = abi.encodeCall(TimelockController.updateDelay, (0));
+        vm.prank(safe);
+        tl.scheduleBatch(targets, values, payloads, bytes32(0), bytes32(0), 2 days);
+        vm.warp(T0 + 2 days);
+        vm.expectRevert(abi.encodeWithSelector(PondPadTimelock.DelayBelowMinimum.selector, 0, 2 days));
+        tl.executeBatch(targets, values, payloads, bytes32(0), bytes32(0));
+        assertEq(tl.getMinDelay(), 2 days);
+    }
+
+    /// @dev Audit R6-A4-7 (coverage): after a recipient change, a request the old recipient opened is the new
+    ///      recipient's to cancel (not the old one's), and the relay can still release it.
+    function test_swarmBudget_requestsAfterARecipientChange() public {
+        address coin = _launch(CoinFees(100, 0, 0, 10_000), 0);
+        vm.warp(T0 + 1 hours);
+        _buy(alice, coin, 100e18);
+        uint96 half = uint96(budget.available(coin) / 2);
+        vm.startPrank(creator);
+        uint256 id1 = budget.requestSpend(coin, half, bytes32("one"));
+        uint256 id2 = budget.requestSpend(coin, half, bytes32("two"));
+        vault.setRecipient(coin, newOwner);
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        budget.cancel(id1);
+        vm.stopPrank();
+        vm.prank(newOwner);
+        budget.cancel(id1);
+        uint256 relayBefore = imd.balanceOf(relay);
+        vm.prank(relay);
+        budget.release(id2, "job-2");
+        assertEq(imd.balanceOf(relay) - relayBefore, half);
     }
 }
