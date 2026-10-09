@@ -79,6 +79,16 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
   - **Keeper tip drain:** `settleClaims` pays its tip from wall capital, so dust trades can drain the wall.
   - **Launch blocker:** IMD rehearses constructors on an empty chain, where calls to PoolManager, TestIMD or Stacker revert, which parks the launch.
   - **Mediums and lows:** the verdict isn't bound to plea id and trader; `appeal()` accepts a stale plea; PLEA parked at the Gate is swept to the next seller; `hookData` can write another wallet's cost basis; spot-price fact scores can be bought in the same tx; missing Bidi characters; an unfillable gated sell; only one token orientation tested.
+- **PLEA is LIVE on Sepolia** (v2 job `cbf3e59e`, launch #1148, block 11,877,100, tx `0x655579bd…9525`; code https://github.com/identity-md-launches/launch-1148-build-plea-sepolia-test, commit `33c75a5c`). All admission checks passed: 8 nodes accepted, no unresolved blocking findings, independent review, 6 contracts clean and reproducible, invariants.
+  - PLEA `0x76b4e4ead394a71668e3e97f30f9072bbaa8a861`
+  - CabalGate `0x29bfb82df72d839bed5e4f79b3528af85f1a2e2e`
+  - PleaDistributor `0x514bf74301de943d0db83e6f5bdc0aa0d0ad435e`
+  - PleaLaunch `0xc43405eb24a776669e4a78d22164d55593cd61bf`
+  - PleaHook `0x37337cd25f09a1cb77bba55d12358c9d00e2e8cc` (low 14 bits 0x28cc ✓)
+  - **Verified on-chain:** owner `0x4b91…6821` everywhere; hook wired to TestIMD and the Stacker; pool **seeded in the launch tx** at tick 120,720 (about 5.7e-6 IMD per PLEA, the 5,700 IMD cap); 100,000,000 PLEA in the distributor; 899,999,100 in the pool (about 900 PLEA of rounding dust missing from the supply); the 90-min launch window started at deploy.
+  - **Gate relayer is NOT set** (`relayer() = 0x0`). The owner must call `CabalGate.setRelayer(addr)` before any plea; until then anyone can deliver verdicts.
+  - **The deploy tx used 84,751,959 gas.** Sepolia accepted it, but mainnet caps a transaction at 16,777,216 (EIP-7825), so **mainnet needs a multi-transaction deploy or hook mining by IMD.**
+  - **v2's own choices:** keeper tip 0.01 IMD with at least 0.1 IMD of work, once per block (v3 asked for 100 IMD and once per hour); RESERVE 250k; an owner-set relayer; the site is a single `site/index.html` and not hosted.
 - **v3 job `4a9bfa82` failed (blocked at build, 3 attempts), not because of the contracts:**
   - Attempts 1 and 3: IMD's verifier ran out of memory compiling (exit 137). The builders' own builds passed; they compile v4-core's PoolManager from source with heavy optimizer settings and lint on build.
   - Attempt 2 compiled with lighter settings but had a wrong test: it called `init` in a separate transaction, so the deploy-only guard rejected it.
