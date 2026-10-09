@@ -1,6 +1,6 @@
-Build PLEA on Sepolia (test run; contracts only): a sell-gated meme token, one Uniswap v4 hook and an oracle gate. Selling needs a plea approved by the IMD oracle panel ("the Cabal"). Owner: <OWNER_WALLET>.
+Build PLEA on Sepolia (test run; contracts only): a sell-gated meme token, one Uniswap v4 hook and an oracle gate. Selling needs a plea approved by the IMD oracle panel ("the Cabal"). Owner: 0x4b91078b2374c956A65F7Af0999CaE0a935E6821.
 
-REUSE (from the imd/acc job, don't redeploy): TestIMD <TEST_IMD>, TestSIMD <TEST_SIMD>, Stacker <STACKER>.
+REUSE (from the imd/acc job, don't redeploy): TestIMD 0x2b69099e59b05901faa1dd164fabf098bf831e82, TestSIMD 0xf9e2eec3b610ec6781f7438ac5fb4bc049d81cc1, Stacker 0x293c7134ab8f6bf1d8ff44ed806575f8f1baf477.
 
 DEPLOY (Sepolia, in order, one transaction, nothing called after): PLEA($owner); PleaHook($contract:PLEA, address mined for its flags); CabalGate($contract:PLEA, $contract:PleaHook); PleaDistributor($contract:PLEA, $contract:PleaHook, $contract:CabalGate, $owner). Other args are static: the Sepolia PoolManager and the REUSE addresses.
 
