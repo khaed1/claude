@@ -291,3 +291,15 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 - **If denied:** the seller waits out the remaining cooldown, and can't appeal again.
 - **Wall:** linked cards DENIED → APPEALED → **OVERTURNED** or **UPHELD**.
 - **Dead-man timer:** an appeal verdict resets it like any other verdict.
+
+**Oracle findings (2026-10-09, verified against IMD's live API):**
+- **A Sepolia consumer is accepted.** A free quote for an `oracle.request` whose `consumer` was `{chainId: 11155111, …}` validated and was priced at 0.5 IMD; nothing was paid.
+- **`questionHash` formula** (reproduced for that quote and for live attestation f7af4af1-…):
+  `keccak256(canonicalJSON({v, question, chainId, answerType, evidence, window: {fromBlock, toBlock}, definitions?, head?}))`
+  - Canonical JSON means keys sorted and no whitespace. Strings follow JavaScript's `JSON.stringify` escaping: only `"`, `\` and control characters are escaped; `<`, `>`, `&` and non-ASCII are left raw as UTF-8.
+  - `fromBlock` and `toBlock` are the blocks pinned when the request is quoted. They're also included in the attestation, so the gate can recompute the hash at verification.
+  - Not included in the hash: `consumer`, `panelSize`, `quorum`, `validForSeconds`, `allowAmbiguous`, `guards`, and `toleranceBps` when it's 0.
+- **Consequences for the gate:**
+  - **Escaping:** escape only `"` and `\` in the plea, and drop the earlier `<`, `>`, `&` escaping, so the body matches the canonical form. The website already renders pleas as plain text.
+  - **Callback:** in the oracle callback (msg.sender is the Intake, for a pending request), the request-id match is enough.
+  - **`deliverVerdict`:** this route is open to anyone, so it must recompute `questionHash` from the stored plea and facts plus the attestation's `fromBlock`/`toBlock`, and require a match.
