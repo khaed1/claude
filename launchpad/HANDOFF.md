@@ -235,7 +235,7 @@ IMD swarm API: `https://api.imd.fun` (`/requests/capabilities`, `/openapi.json`)
     - **Keeper:** `PadBuyer.forward()` hourly whenever PadBuyer holds $PONDPAD (R6-A3-2; §6). Checked on an anvil fork of the testnet: a dry pass lists it, and a live pass with no buy due forwarded 50 $PONDPAD to the dripper.
     - **Tests:** 29 new local tests and one fork test (§2), `Invariant.t.sol` extended; no code changed, so they pass on `baf7932` too (no fails-before check applies). **Checks:** 239 local tests, 4 runs with fresh `--fuzz-seed` values (`cache/fuzz` deleted before each): 239 / 239 every time; the coin invariant 128 runs × 64 calls with fail-on-revert: no revert, no violation; 10 mainnet fork tests (the command reports 12) and 2 testnet fork tests pass, first try.
     - **Accepted:** R6-A3-4 (zero grants), R6-A4-3 (address(0) relay or guardian), R6-A4-4 (its premise doesn't hold: IMD's `maxPanelSize` is 100 today).
-    - **Next, before the mainnet deploy:** `AUDIT_LINK` = `https://github.com/khaed1/claude/blob/<ledger commit>/launchpad/audit/FINDINGS.md` (§5a: the commit after `92d2616`); the testnet redeploy with the D-78 to D-87 contracts and the site on the new ABIs (§7, the user's go-ahead); the §5a inputs; the §7 items. If any in-scope code changes before the deploy, generate another round first, with "changed since round 6" lines in `audit/jobs/`.
+    - **Next, before the mainnet deploy:** `AUDIT_LINK` = `https://github.com/khaed1/claude/blob/6a8c770a1cccb007358a1dfa19fb7a5de994e37d/launchpad/audit/FINDINGS.md` (the ledger commit `6a8c770`, §5a); the testnet redeploy with the D-78 to D-87 contracts and the site on the new ABIs (§7, the user's go-ahead); the §5a inputs; the §7 items. If any in-scope code changes before the deploy, generate another round first, with "changed since round 6" lines in `audit/jobs/`.
 
 ## 5a. Deploying
 
@@ -249,7 +249,7 @@ export X_LINK_KEY=0x…      # X link service signing key (SocialRegistry)
 export TWEET_CHECKER=0x…   # airdrop tweet checker key (AirdropDistributor)
 export AIRDROP_CLAIMS=../airdrop/<dir>/claims.json  # from airdrop/snapshot.py build: the root is read from it, its total must be ≤ 50M (D-79) and it must list ≥ 100 distinct, non-zero wallets (D-83, D-84); test chains may give AIRDROP_ROOT=0x… instead
 export SALE_START=…        # unix time the $PONDPAD sale opens
-export AUDIT_LINK=…        # optional: clean swarm audit report (audit/), activates version 1 at deploy (D-59); since D-88: audit/FINDINGS.md at the round-6 ledger commit (§5 step 29)
+export AUDIT_LINK=…        # optional: clean swarm audit report (audit/), activates version 1 at deploy (D-59); since D-88: https://github.com/khaed1/claude/blob/6a8c770a1cccb007358a1dfa19fb7a5de994e37d/launchpad/audit/FINDINGS.md
 export WORKER_REWARDS=0x…  # optional: IMD worker rewards address (else set later by the 7-day timelock)
 export POWERS_EXPIRE_AT=…  # optional: staking owner powers end (default SALE_START + 365 days, i.e. a little under 12 months after market open; set it to the expected open + 365 days for exactly 12 months, audit R1-A3-10)
 forge script script/Deploy.s.sol --rpc-url robinhood --sender <deployer>             # simulate
