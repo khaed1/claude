@@ -303,3 +303,8 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
   - **Escaping:** escape only `"` and `\` in the plea, and drop the earlier `<`, `>`, `&` escaping, so the body matches the canonical form. The website already renders pleas as plain text.
   - **Callback:** in the oracle callback (msg.sender is the Intake, for a pending request), the request-id match is enough.
   - **`deliverVerdict`:** this route is open to anyone, so it must recompute `questionHash` from the stored plea and facts plus the attestation's `fromBlock`/`toBlock`, and require a match.
+
+**IMD dev answers (2026-10-09):**
+- `custom_token` is available on the launch page (pick "token"), but the fee is fixed: any override fails the checks or is reset to 1.25%.
+- A major upgrade is coming that will make complex launch types smooth.
+- Dev's suggestion: use the **smart-contracts type (`evm_contracts`)** and pass our hook code. Our contracts are deployed as-is: token, hook, gate. There's no IMD factory pool, no 1.25% factory fee and no automatic 10% swarm share. The hook creates the pool, owns the liquidity and sets the fees.
