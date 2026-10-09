@@ -181,6 +181,10 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
 - The user makes the decisions. Explain simply, recommend one option, and don't change the agreed numbers without asking.
 - Commit with clear messages and push to this branch.
 
+## Decided after the first oracle test (2026-10-09)
+- **Quorum 16 of 30** (was 20; the user decided). Any split of at least 16 to 14 gives a signed verdict either way; only a 15/15 tie gives none. The live Sepolia Gate can't change it (`QUORUM = 20` constant, enforced in `deliverVerdict`), so it applies from the next version.
+- `plea/job-sepolia.md` now has quorum 16, `consumer:{chainId, verifyingContract}`, and the question fixed to "your plea score alone ≥ {need}", with polite closings explicitly not manipulation.
+
 ## Mainnet readiness (review 2026-10-09, from the Sepolia build and live tests)
 **Blockers**
 1. **Deploy gas.** The Sepolia launch tx used 84.7M gas; mainnet caps one transaction at 16,777,216 (EIP-7825). Part of that is Sepolia's expensive new storage, but the audit measured PleaLaunch at about 9.8M plus up to 13M of mining, so mainnet is tight at best and fails in the worst case. **First step:** simulate the exact build on a mainnet fork. **Fix:** ask IMD for hook-salt mining in `evm_contracts`, or split the deploy (seed and mining after launch).
