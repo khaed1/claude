@@ -79,6 +79,17 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
   - **Keeper tip drain:** `settleClaims` pays its tip from wall capital, so dust trades can drain the wall.
   - **Launch blocker:** IMD rehearses constructors on an empty chain, where calls to PoolManager, TestIMD or Stacker revert, which parks the launch.
   - **Mediums and lows:** the verdict isn't bound to plea id and trader; `appeal()` accepts a stale plea; PLEA parked at the Gate is swept to the next seller; `hookData` can write another wallet's cost basis; spot-price fact scores can be bought in the same tx; missing Bidi characters; an unfillable gated sell; only one token orientation tested.
+- **v3 job `4a9bfa82` failed (blocked at build, 3 attempts), not because of the contracts:**
+  - Attempts 1 and 3: IMD's verifier ran out of memory compiling (exit 137). The builders' own builds passed; they compile v4-core's PoolManager from source with heavy optimizer settings and lint on build.
+  - Attempt 2 compiled with lighter settings but had a wrong test: it called `init` in a separate transaction, so the deploy-only guard rejected it.
+  - Worth reporting the out-of-memory to the IMD dev.
+- **v2 job `cbf3e59e` is on track (2026-10-09 ~10:50):**
+  - Its audit/fix rounds fixed the ERC-6909 bypass (exact-input only, the hook delivers the PLEA), fees on the fill, verdict binding to plea id and seller, appeal cooldowns, dust tips (≥0.1 IMD, once per block), verdict shopping (an owner-set relayer), the relayer's budget and Pending check, UTF-8 edge cases, and both orientations.
+  - Empty-chain rehearsal: `seed()` defers when the PoolManager has no code, so the manifest's empty-chain CREATE2 rehearsal passed. On Sepolia the pool seeds in the launch transaction.
+  - `init` also has a deployment-block fallback, because the rehearsal deploys each contract with a separate call; the judge accepted this.
+  - Measured gas: PleaLaunch about 9.8M plus up to 13M of mining in the worst case.
+  - Now in revision 2, fixing the judge's last two mediums: a buy without 32-byte hookData leaves the PLEA stranded at the router, and `rebalance` tips for undeployable reserve.
+  - **After deploy:** the owner must call `setRelayer` before the first plea, because delivery is open until then.
 - **v3 submitted 2026-10-09:** job `4a9bfa82-cdc1-46bd-b69b-26f6b4c1783a` (evm_contracts, Sepolia, paid from `0xf8ad…cdc7`). Its text matches `plea/job-sepolia.md` exactly. Job `cbf3e59e` (v2) is running in parallel and will likely hit the empty-chain rehearsal; v3 is the one to follow.
 - **v3 prompt (7,041 characters)** fixes all of these:
   - **Deploy:** no calls to external contracts in any constructor; `hook.seed()` creates the pool once after launch, and only the hook may initialize or add liquidity.
