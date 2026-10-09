@@ -1,4 +1,4 @@
-Build PLEA on Sepolia (test run; contracts only): a sell-gated meme token, one Uniswap v4 hook and an oracle gate. Selling needs a plea approved by the IMD oracle panel ("the Cabal"). Owner: 0x4b91078b2374c956A65F7Af0999CaE0a935E6821.
+Build PLEA on Sepolia (test run; contracts only): sell-gated meme token, one Uniswap v4 hook, oracle gate. Selling needs a plea approved by the IMD oracle panel ("the Cabal"). Owner: 0x4b91078b2374c956A65F7Af0999CaE0a935E6821.
 
 REUSE (from the imd/acc job, don't redeploy): TestIMD 0x2b69099e59b05901faa1dd164fabf098bf831e82, TestSIMD 0xf9e2eec3b610ec6781f7438ac5fb4bc049d81cc1, Stacker 0x293c7134ab8f6bf1d8ff44ed806575f8f1baf477.
 
@@ -13,10 +13,10 @@ HOOK: fork of POOL4 CappedBurnHook (0xc6c965bd164c483e87d0b550671798e9a3602840, 
 - Liquidity is locked forever: no closeMarket or withdraw.
 - Keep cap/trim: PLEA inventory above the cap is removed and burned 100%; the recovered IMD forms an IMD-only buy wall below the price. Anyone calls rebalance()/settleClaims() for a keeper tip. capFloor 900,000 PLEA, capDecay 300,000 PLEA/day, ratchet as in POOL4.
 - Fees on the IMD side, on the actual fill: 0.5% cashback to the trader, 0.5% to the owner, 0.25% to pool liquidity. Plus 0.25% of the PLEA burned on every trade.
-- Cashback via imd/acc: try stacker.credit(trader, amount) (approved once; trader from hookData, else sender, never tx.origin); if it reverts, send it as plain TestIMD, so cashback never reverts a trade.
+- Cashback via imd/acc, as the hook's last step: if gasleft() > RESERVE, try stacker.credit{gas: gasleft() - RESERVE}(trader, amount) (approved once; trader from hookData, else sender, never tx.origin); on revert or low gas, send it as plain TestIMD, so cashback never reverts a trade. Size RESERVE (≥150k) in tests to cover the fallback and the rest of the swap; a trader's first credit costs ~1.2M gas on Sepolia.
 - First 90 min: extra buy fee 70%→0% (linear, to pool liquidity), max 5,000,000 PLEA per buy.
 - Sells only via the Gate while the Cabal lives.
-- Per-trader cost basis; hourly price checkpoints (25-slot ring) and price24hAgo().
+- Per-trader cost basis; hourly price checkpoints (25-slot ring), price24hAgo().
 
 GATE:
 - submitSell(amount, plea): plea 1–280 UTF-8 bytes, no control/zero-width/bidi chars, no "[PLEA"/"[/PLEA"; amount ≤ min(2,500,000 PLEA, 35% of balance); one pending per wallet; 4h after the last executed sell.
@@ -31,6 +31,6 @@ ORACLE (Sepolia has no Intake):
 - A relayer script (deliverable) pays the Intake 0x1397434cd35e8a9c8ac312a61d3a285eb31dea56 on Ethereum mainnet (no callback), polls api.imd.fun/oracle/requests/:id/attestation, then calls deliverVerdict(pleaId, att, sig).
 - The Gate verifies EIP-712 (domain "IdentityMD Oracle" v2, chainId 11155111, this); signer 0x5598aa9146215bc13eb26f2c692ad1461fd32982; bool; panel 30/quorum 20; agreed ≥ 20; not expired or replayed. It recomputes questionHash = keccak256(canonical JSON, sorted keys, no spaces, of {answerType, chainId, definitions, evidence, question, v, window:{fromBlock, toBlock}}) with the attestation's blocks.
 
-TESTS: everything above, incl. init reverting outside the deploy tx. Recover the signer from live attestation f7af4af1-b840-4649-9135-283a31158847. No sell bypass (v2 pair, hookless v4 pool, router, Permit2). Trims, buy wall, fee totals; cashback arrives as sIMD (Stacked event, project = hook), and with TestSIMD paused the trade succeeds and pays plain TestIMD; appeals; lapses; dead-man.
+TESTS: everything above, incl. init reverting outside the deploy tx. Recover the signer from live attestation f7af4af1-b840-4649-9135-283a31158847. No sell bypass (v2 pair, hookless v4 pool, router, Permit2). Trims, buy wall, fee totals; cashback arrives as sIMD (Stacked event, project = hook); with TestSIMD paused, or credit starved of gas, the trade succeeds and pays plain TestIMD; appeals; lapses; dead-man.
 
 SITE: minimal test site (Buy, Plead, Wall), IPFS label plea-test.
