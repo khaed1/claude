@@ -73,6 +73,24 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
 ## PLEA Sepolia job
 - Submitted 2026-10-09: job `384418e6-52b6-4be4-aa41-05526cc3c5a3`. **Blocked** at the manifest step (needs_input): the evm_contracts factory deploys each launch.json contract with **CREATE2 salted by the launch number**, so PleaHook can't land on its flag bits (0x28cc), and its constructor reverts `HookAddressNotValid`. The build and the permissions audit had been accepted, but a blocked job delivers no code (launch-1140 repo is empty), and a continuation can't deploy. So: **fresh launch with a rewritten DEPLOY/WIRING section.**
 - **Resubmitted 2026-10-09:** job `cbf3e59e-d5a7-4820-aabe-f6e7e2265ca9` (executing), with the PleaLaunch fix, RESERVE and the live imd/acc addresses. Its text is a 5,642-character version, between the 5,690 draft and the trimmed 5,420 file; the substance is the same. The old job `384418e6-…` stays blocked and is abandoned.
+- **The old job's audits** (before the judge): 1 critical and 6 high findings, mostly repeats, which come down to four issues:
+  - **Sell-gate bypass:** a router mints ERC-6909 PLEA claims instead of `take()`, then sells them in a hookless pool or transfers them.
+  - **Stuck pending plea:** a plea with no verdict stays pending forever, locking the wallet out of selling.
+  - **Keeper tip drain:** `settleClaims` pays its tip from wall capital, so dust trades can drain the wall.
+  - **Launch blocker:** IMD rehearses constructors on an empty chain, where calls to PoolManager, TestIMD or Stacker revert, which parks the launch.
+  - **Mediums and lows:** the verdict isn't bound to plea id and trader; `appeal()` accepts a stale plea; PLEA parked at the Gate is swept to the next seller; `hookData` can write another wallet's cost basis; spot-price fact scores can be bought in the same tx; missing Bidi characters; an unfillable gated sell; only one token orientation tested.
+- **v3 prompt (7,534 characters; the launch page takes up to 8,000 for the prompt itself)** fixes all of these:
+  - **Deploy:** no calls to external contracts in any constructor; `hook.seed()` creates the pool once after launch, and only the hook may initialize or add liquidity.
+  - **Buys:** exact-input only, and the hook delivers the bought PLEA itself, so no claims can be minted.
+  - **Pending pleas** expire after 2h.
+  - **Keeper tips:** only when a call moves at least 100 IMD, at most once per hour, and only from the 0.25% stream.
+  - **Verdict binding:** the question carries plea id, trader, gate and chain.
+  - **Appeals** only on the wallet's current denied plea; **direct sends to the Gate** revert, since the Gate pulls the PLEA itself.
+  - **Fact scores** use the latest checkpoint, not the spot price.
+  - **Sells:** `executeSell` uses a price limit and requires a full fill.
+  - **Plea text:** full Bidi, tag and variation-selector filtering.
+  - **Tests:** the launch on an empty chain, the ERC-6909 router, and both token orders.
+  - **New numbers for the user to confirm:** 2h pending expiry, the 100 IMD minimum and once-per-hour cap on tips, and exact-input-only buys.
 - **Fix (now in `plea/job-sepolia.md`):** PleaHook leaves launch.json; a last contract, `PleaLaunch`, mines the CREATE2 salt in its constructor, deploys PleaHook there, then calls `PLEA.init`. Gate and distributor read the hook from `PLEA.hook()`.
 - **Mining gas, measured locally** (forge 1.8.3, 20 runs): an assembly loop with fixed memory costs about 130 gas per try, **2.18M average, 5.5M the worst of 20 runs (37k tries)**. A naive `abi.encodePacked` loop cost 33.7M average, so the prompt asks for assembly. A cap of 100,000 tries is at most about 13.5M gas, with about a 0.2% chance of no salt (the launch then reverts and can be retried).
 
@@ -95,7 +113,7 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
 - `imd-acc/README.md` is the imd/acc spec (launch order, settings, decisions, the ProjectRegistry plan). `imd-acc/index.html` is its page, published at https://claude.ai/artifact/J6ZsSLedCQsJ88o8pnsFTw; republish the same file path to update it.
 
 ## Key facts (verified)
-- **Launch page limit:** the request, context and draft together must fit **8,000 characters**, so keep a prompt at or under about 5,000.
+- **Launch page limit:** the prompt itself can be up to **8,000 characters** (confirmed by the user, 2026-10-09).
 - **Intake** `0x1397434cd35e8a9c8ac312a61d3a285eb31dea56` (Ethereum and Robinhood Chain only). An oracle request costs 0.5 IMD. The callback selector is `0x510379c7` and gets 200k gas.
 - **Oracle signer** `0x5598aa9146215bc13eb26f2c692ad1461fd32982`. The EIP-712 domain is "IdentityMD Oracle", version "2", with the consumer's chainId and contract.
 - **`questionHash`** = `keccak256(canonical JSON {answerType, chainId, definitions, evidence, question, v, window:{fromBlock, toBlock}})`, with sorted keys, no spaces, and JavaScript `JSON.stringify` escaping.
