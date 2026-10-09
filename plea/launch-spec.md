@@ -308,3 +308,21 @@ Owner: can only add addresses (aggregators, the claim contract) to the transfer 
 - `custom_token` is available on the launch page (pick "token"), but the fee is fixed: any override fails the checks or is reset to 1.25%.
 - A major upgrade is coming that will make complex launch types smooth.
 - Dev's suggestion: use the **smart-contracts type (`evm_contracts`)** and pass our hook code. Our contracts are deployed as-is: token, hook, gate. There's no IMD factory pool, no 1.25% factory fee and no automatic 10% swarm share. The hook creates the pool, owns the liquidity and sets the fees.
+
+## v2 design: smart-contracts launch (decided 2026-10-09)
+
+- **Launch type:** `evm_contracts` (smart contracts). **Sepolia first**, then mainnet. Prompt: `plea/job-sepolia.md`, about 4,650 characters.
+- **Supply:** 90% into the hook-owned pool, **10% to a Merkle distributor** for the swarm, mirroring IMD launches (for example 2% to wallets with accepted work on the job and 8% to active IMD seats). The owner sets the root once.
+- **One hook:** a fork of POOL4's `CappedBurnHook`, converted to the IMD side.
+  - It is the only liquidity provider, and the liquidity is locked forever (no `closeMarket` or withdraw).
+  - Cap/trim is included: trimmed PLEA is burned and the recovered IMD becomes the buy wall. capFloor 900,000 PLEA and capDecay 300,000 PLEA/day are scaled from POOL4's live settings and are a starting point.
+- **Fees** (IMD side, on the actual fill): 0.5% cashback to the trader as sIMD (imd/acc), 0.5% to the owner, 0.25% to pool liquidity, plus 0.25% of the PLEA burned.
+- **Appeals, the 7-minute execution window and the LAPSED rule** are included, as decided above.
+- **Sepolia substitutes:**
+  - TestIMD (with a faucet) and TestSIMD (an ERC-4626 vault, forked from StakedIMD).
+  - Oracle requests are paid on mainnet by a relayer script, addressed to the Sepolia gate, and delivered through `deliverVerdict`.
+- **Changes for mainnet:**
+  - Use real IMD and sIMD (`0x9efa…7247`).
+  - The gate pays the Intake directly and uses the 200k-gas callback, keeping `deliverVerdict` as a fallback.
+  - Run the red-team.
+  - The full website job comes after.
