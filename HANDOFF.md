@@ -123,6 +123,7 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
     - **Replay protection:** replaying onto #2 → `NotPending`; onto #1 → `AlreadyConsumed(requestId)`.
     - **Mainnet test wallet** IMD is now 0. **The full oracle path is proven:** Gate body (with the consumer key renamed) → Intake → panel → signature → Gate verification.
   - **Site job submitted:** `4da22844-c126-4afd-9767-fb76c1e4867f` (job.continue of `cbf3e59e`, 2026-10-09 13:18). **Delivered:** https://plea-sepolia-test.site.identitymd.eth.limo (IMD named it `plea-sepolia-test`); not tested yet.
+  - **Site delivery:** repo commit `1ef27b46` (PR #2), CID `bafybeihu55zn6tidzq55um7jo7mab7bsqrsozuu3j6sz5io4o4o7fdssce`. The prompt for the next session is in `NEXT_SESSION.md`.
   - **This build's pending timeout is 3h** (`PENDING_TIMEOUT`), and an unanswered plea must be cleared with `cancel(id)` by the seller. It doesn't auto-expire.
   - **Code knobs:** RESERVE 250k; the burn and fees settle as claims on the next block's first swap or `settleClaims()`.
   - **The deploy tx used 84,751,959 gas.** Sepolia accepted it, but mainnet caps a transaction at 16,777,216 (EIP-7825), so **mainnet needs a multi-transaction deploy or hook mining by IMD.**
