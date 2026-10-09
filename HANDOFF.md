@@ -266,3 +266,11 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
   - **Window:** the question window is still pinned on mainnet (chainId 1, blocks 26,155,547–26,155,847), as the Gate expects (`QUESTION_CHAIN = 1`).
   - **Result: disagreed again,** 17 of 28 answered TRUE (2 of 30 missing), quorum 20, so nothing was signed. The causes are the same as the first test: TRUE votes used the buggy "fact + plea ≥ 33" sum, and several FALSE votes read "Judge me fairly" as manipulation. Both are fixed in `plea/job-sepolia.md`. **With quorum 16 this would have been a signed TRUE.**
   - **Still unproven on Sepolia:** a signed attestation (which signer, then `deliverVerdict` on the live Gate) and a callback. Next free test: after 17:13 UTC, `cancel(1)`, submit a clearly manipulative plea, pay through the Sepolia Intake, and deliver the signed FALSE.
+
+## IMD docs update and the v4 plan (2026-10-09)
+- **Docs now list Sepolia** under "Pay on chain": Intake `0x1397…ea56`, test IMD `0x44a1…f89a` (open mint), IntakeDelivery `0xce0e6a670aa75e161d02aca3c7f00b94ca428ccb` (same address on every chain; hands a result to a contract on another chain via a `deliver` field in the body), and an IMD NFT (test) seat stand-in `0xa0443799c320e16c80801c9c1911f3571260287f` (open mint). `/requests/capabilities` → `onchain.chains` includes 11155111 with 2 confirmations.
+- **Callback rules:** selector `0x510379c7`, args `(bytes32 intakeRequestId, Attestation, bytes sig)`, 200k gas, called **only on status 0** (an answer). A disagreement (status 2) or a refusal (1) sends no callback. The attestation's `requestId` is the oracle UUID, not the intake id.
+- **Free validation** is now `POST /requests/check`; `/requests/quote` needs a request token.
+- **Docs advise** keeping the signer, Intake, action, asset and price as owner settings, and a public `submit` fallback. For PLEA we recommend immutable settings and callback-only (see the plan).
+- **No launch-side change:** still no hook-salt mining or multi-tx deploy in `evm_contracts`.
+- **v2 review and v4 plan:** `plea/v4-plan.md` (14 problems, 6 decisions, build order).
