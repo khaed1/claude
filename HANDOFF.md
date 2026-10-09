@@ -22,7 +22,10 @@ Repo `khaed1/claude`, branch **`claude/adoring-goodall-pn3jyz`**. Develop and pu
 - The first projects are PLEA (Ethereum) and PondPad (Robinhood Chain, planned).
 
 ## Status
-Both Sepolia prompts are final and ready to paste. Nothing has been launched yet.
+- **imd/acc job done, launch parked** (job `640b4951-f512-4415-ab2e-944462a2f5ba`, launch #1129 `8e1fcd97-a3ff-4f90-adb8-3dc15b2dc2f1`). All 8 steps were accepted: build, tests, manifest, four audits and the judge, plus an independent review and reproducible bytecode. Code: https://github.com/identity-md-launches/launch-1129-build-imd-acc-sepolia-test (commit `934fb404`). Owner `0x4b91078b2374c956A65F7Af0999CaE0a935E6821`, set as TestSIMD's owner.
+- **Why it's parked:** "preflight failed: the launch needs 23701870 gas and one transaction may use at most 16777216 (EIP-7825)". This is IMD's Sepolia deploy path, not our code: the three contracts are only 13,977 bytes of creation code. Launch #1073 (Sepolia, one 10,269-byte contract) was parked for 18.6M gas, while #1076 (mainnet) went live with the **identical** bytecode, and mainnet launches with 184 KB of code (#1067, #1095) went live. Every recent Sepolia launch that reached deployment was parked the same way (#1069, #1073, #1129).
+- **Review of the delivered code:** it matches the spec. TestSIMD is the verified StakedIMD source with only the name and symbol changed. The Stacker has no owner, is immutable and uses a reentrancy guard; it adds a `ZeroShares` revert. The site (`site/`) is built but not hosted: it needs the addresses in `site/config.json` and an IPFS pin.
+- **The PLEA prompt is final but on hold:** it needs the imd/acc addresses, and the hook-address question below.
 
 ## Order (decided 2026-10-09)
 1. **imd/acc on Sepolia first** (`imd-acc/job-sepolia.md`, 2,201 characters): TestIMD (faucet: 10,000 tIMD per address per 24h), TestSIMD (StakedIMD fork; the owner keeps pause so the fallback can be tested), Stacker, and a test page (your stack, leaderboards, faucet). Its README delivers the three addresses.
@@ -46,7 +49,8 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
 - Worker operations: `imd doctor` now checks the runtime by running one shell command, `"selfTest": false` turns the self-test off, and `imd launch check` checks a repository before submitting. Update the VPS with the manual's update section (on `main`), then run `imd doctor`.
 
 ## Next steps
-1. **Decide the hook deploy.** Proposal: drop PleaHook from the launch list and add a last contract, `PleaLaunch`, whose constructor mines a CREATE2 salt for PleaHook's flag bits (about 16,000 tries on average), deploys the hook, then calls `PLEA.init`. Ask the IMD dev whether the gas ceiling allows it, or whether hook mining for `evm_contracts` is coming in the upgrade.
+0. **Unpark imd/acc.** Report the Sepolia gas preflight to the IMD dev (same bytecode passes on mainnet) and ask them to fix it and re-run launch #1129. Fallback: deploy the repo ourselves on Sepolia with `script/Deploy.s.sol` from the owner wallet, then fill in `site/config.json` and pin the site.
+1. **Decide the hook deploy.** Proposal: drop PleaHook from the launch list and add a last contract, `PleaLaunch`, whose constructor mines a CREATE2 salt for PleaHook's flag bits (about 16,000 tries on average), deploys the hook, then calls `PLEA.init`. Ask the IMD dev whether the gas ceiling allows it, or whether hook mining for `evm_contracts` is coming in the upgrade. **The 16,777,216-gas per-transaction cap (EIP-7825) makes this unlikely:** PLEA's four larger contracts plus on-chain salt mining (about 3–5M gas on average, more in the worst case) probably won't fit in one transaction. Hook mining done by IMD, or a deploy split over several transactions, is the realistic route.
 2. Launch imd/acc (submitted 2026-10-09). Copy the three addresses into the PLEA prompt and fill in `<OWNER_WALLET>` in both prompts.
 3. Launch PLEA, then add its hook to the imd/acc site's `projects.json` (with its deploy block) and re-host the site.
 
