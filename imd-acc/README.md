@@ -26,6 +26,27 @@ Every trade in a participating IMD-ecosystem project sends **0.5% of the trade b
 | Trader identity | The router passes the real trader in `hookData`. Fall back to `sender`; never use `tx.origin`. |
 | Site | "Your stack" (sIMD from cashback, per project, and its IMD value now), plus leaderboards for top stackers and top projects. |
 
+## Projects whose fees are in ETH
+
+The first projects (PLEA, PondPad) collect their fees in IMD, so they can deposit straight into the vault. Projects paired with ETH, or with fees in ETH, use a batched route instead:
+
+1. **On each trade**, the hook takes the 0.5% in ETH and calls `creditETH(trader)`. The ETH is recorded as the trader's `pendingETH`. Nothing is swapped yet, so it costs little gas.
+2. **`flush()`** can be called by anyone, for a small tip like POOL4's keepers get. It:
+   - swaps the pooled ETH to IMD in one trade through **POOL4**, IMD's main IMD/ETH pool
+   - deposits that IMD into sIMD
+   - gives each trader shares in proportion to their `pendingETH`
+3. The trader's sIMD goes up after each flush.
+
+Safety rules:
+- **Price guard:** the swap must return at least a minimum amount of IMD, measured against a recent average price (TWAP) rather than the price at that moment.
+- **Maximum batch size** per flush, so one flush can't move POOL4's price much.
+- **Pending ETH can't go anywhere else.** It can only be swapped and credited to the trader it was recorded for.
+- The order is fixed: the swap happens first, then shares are split, with rounding in the vault's favour.
+
+Why not swap on every trade: a second swap inside each trade roughly doubles gas on Ethereum, and small swaps made mid-trade are easy to sandwich. One guarded batch avoids both.
+
+Side benefit: POOL4 burns a cut of IMD on its trades, so every flush also burns some IMD.
+
 ## Facts checked
 
 - sIMD vault: `0x9efa934d9fad4ae28c998a40195646b965a97247` (Ethereum). ERC-4626, so anyone can deposit for a `receiver`.

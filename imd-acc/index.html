@@ -168,6 +168,21 @@ stacker.credit(trader, cashback);                  // → sIMD.deposit(cashback,
   </section>
 
   <section>
+    <h2>Fees in ETH</h2>
+    <p>Projects paired with ETH join through a batched route. Their cashback still ends up as sIMD, with one swap through POOL4 along the way.</p>
+    <ol class="steps">
+      <li><div><b>Each trade records the cashback in ETH</b> against the trader's address. There's no swap yet, so it costs little gas.</div></li>
+      <li><div><b>Anyone calls flush()</b>, for a small tip. The pooled ETH is swapped to IMD in one trade through POOL4, IMD's main ETH pool, which also burns a cut of IMD.</div></li>
+      <li><div><b>The IMD goes into sIMD</b> and the shares are split between traders by how much ETH each one had waiting.</div></li>
+    </ol>
+    <ul class="plain">
+      <li>Every flush has a price guard against a recent average price, and a maximum size.</li>
+      <li>Waiting ETH can only be swapped and credited to its trader. It can't go anywhere else.</li>
+      <li>Batching avoids doubling gas on every trade and stops bots from sandwiching small swaps.</li>
+    </ul>
+  </section>
+
+  <section>
     <h2>Points now, token maybe later</h2>
     <p>imd/acc has no token. The product is IMD, and all of the cashback goes to traders. Every stack still counts: each trader and each project earns points equal to the IMD stacked, recorded on-chain from the first trade.</p>
     <div class="facts">
