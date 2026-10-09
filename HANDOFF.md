@@ -79,6 +79,7 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
   - **Keeper tip drain:** `settleClaims` pays its tip from wall capital, so dust trades can drain the wall.
   - **Launch blocker:** IMD rehearses constructors on an empty chain, where calls to PoolManager, TestIMD or Stacker revert, which parks the launch.
   - **Mediums and lows:** the verdict isn't bound to plea id and trader; `appeal()` accepts a stale plea; PLEA parked at the Gate is swept to the next seller; `hookData` can write another wallet's cost basis; spot-price fact scores can be bought in the same tx; missing Bidi characters; an unfillable gated sell; only one token orientation tested.
+- **v3 submitted 2026-10-09:** job `4a9bfa82-cdc1-46bd-b69b-26f6b4c1783a` (evm_contracts, Sepolia, paid from `0xf8ad…cdc7`). Its text matches `plea/job-sepolia.md` exactly. Job `cbf3e59e` (v2) is running in parallel and will likely hit the empty-chain rehearsal; v3 is the one to follow.
 - **v3 prompt (7,041 characters)** fixes all of these:
   - **Deploy:** no calls to external contracts in any constructor; `hook.seed()` creates the pool once after launch, and only the hook may initialize or add liquidity.
   - **Buys:** exact-input only, and the hook delivers the bought PLEA itself, so no claims can be minted.
