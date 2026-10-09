@@ -79,7 +79,7 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
   - **Keeper tip drain:** `settleClaims` pays its tip from wall capital, so dust trades can drain the wall.
   - **Launch blocker:** IMD rehearses constructors on an empty chain, where calls to PoolManager, TestIMD or Stacker revert, which parks the launch.
   - **Mediums and lows:** the verdict isn't bound to plea id and trader; `appeal()` accepts a stale plea; PLEA parked at the Gate is swept to the next seller; `hookData` can write another wallet's cost basis; spot-price fact scores can be bought in the same tx; missing Bidi characters; an unfillable gated sell; only one token orientation tested.
-- **v3 prompt (7,534 characters; the launch page takes up to 8,000 for the prompt itself)** fixes all of these:
+- **v3 prompt (7,041 characters)** fixes all of these:
   - **Deploy:** no calls to external contracts in any constructor; `hook.seed()` creates the pool once after launch, and only the hook may initialize or add liquidity.
   - **Buys:** exact-input only, and the hook delivers the bought PLEA itself, so no claims can be minted.
   - **Pending pleas** expire after 2h.
@@ -113,7 +113,7 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
 - `imd-acc/README.md` is the imd/acc spec (launch order, settings, decisions, the ProjectRegistry plan). `imd-acc/index.html` is its page, published at https://claude.ai/artifact/J6ZsSLedCQsJ88o8pnsFTw; republish the same file path to update it.
 
 ## Key facts (verified)
-- **Launch page limit:** the prompt itself can be up to **8,000 characters** (confirmed by the user, 2026-10-09).
+- **Launch page limit:** IMD renders each step's assignment (prompt plus its own text) under an 8,000-character wire limit. Measured with `/requests/check` for an evm_contracts launch: the prompt can be at most about **7,280 characters** (references don't count). Error when over: `objective_too_large`.
 - **Intake** `0x1397434cd35e8a9c8ac312a61d3a285eb31dea56` (Ethereum and Robinhood Chain only). An oracle request costs 0.5 IMD. The callback selector is `0x510379c7` and gets 200k gas.
 - **Oracle signer** `0x5598aa9146215bc13eb26f2c692ad1461fd32982`. The EIP-712 domain is "IdentityMD Oracle", version "2", with the consumer's chainId and contract.
 - **`questionHash`** = `keccak256(canonical JSON {answerType, chainId, definitions, evidence, question, v, window:{fromBlock, toBlock}})`, with sorted keys, no spaces, and JavaScript `JSON.stringify` escaping.
