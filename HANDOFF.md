@@ -124,6 +124,7 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
     - **Mainnet test wallet** IMD is now 0. **The full oracle path is proven:** Gate body (with the consumer key renamed) → Intake → panel → signature → Gate verification.
   - **Site job submitted:** `4da22844-c126-4afd-9767-fb76c1e4867f` (job.continue of `cbf3e59e`, 2026-10-09 13:18). **Delivered:** https://plea-sepolia-test.site.identitymd.eth.limo (IMD named it `plea-sepolia-test`); not tested yet.
   - **Site delivery:** repo commit `1ef27b46` (PR #2), CID `bafybeihu55zn6tidzq55um7jo7mab7bsqrsozuu3j6sz5io4o4o7fdssce`. The prompt for the next session is in `NEXT_SESSION.md`.
+  - **Site test, 2026-10-09 (build `1ef27b46` `dist/`, served locally, anvil fork of Sepolia at block 11,878,178, Playwright + a scripted wallet that adds MetaMask's 50% gas buffer; nothing real spent).** Details in "PLEA site test results" at the end.
   - **This build's pending timeout is 3h** (`PENDING_TIMEOUT`), and an unanswered plea must be cleared with `cancel(id)` by the seller. It doesn't auto-expire.
   - **Code knobs:** RESERVE 250k; the burn and fees settle as claims on the next block's first swap or `settleClaims()`.
   - **The deploy tx used 84,751,959 gas.** Sepolia accepted it, but mainnet caps a transaction at 16,777,216 (EIP-7825), so **mainnet needs a multi-transaction deploy or hook mining by IMD.**
@@ -212,3 +213,42 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
 9. **The distributor's Merkle root (10%)** needs the real swarm list from IMD (2% to the job's workers, 8% to seats).
 10. **Verify the sources on Etherscan,** run the planned red-team on pleas (from `cabal-2025-pleas.json`), and close the two remaining lows. Write `allow()` usage into the README.
 11. **Known by design:** the Cabal dies after 48h with no verdict, so a quiet first two days kills it.
+
+## PLEA site test results (2026-10-09)
+**Setup:** repo build at commit `1ef27b46` (`dist/`), served locally. The site's three RPC URLs were rerouted to an anvil fork of Sepolia (Foundry 1.8.3). An injected `window.ethereum` forwarded to the fork; the tester was an anvil account, and the owner `0x4b91…6821` and wallet B `0x84Aa…A922` were impersonated on the fork only. Chain time was warped with `evm_increaseTime`, and the browser clock was kept in sync. For approvals, a throwaway key was set as the Gate's oracle signer **on the fork only** (deleted after the test).
+
+**Config check, all match:** every address in `config.ts` (PLEA, hook, Gate, distributor, PleaLaunch, TestIMD, TestSIMD, Stacker, PoolManager `0xe03a…3543`, PoolSwapTest), launch block 11,877,100, and the pool key (tIMD currency0, fee 0, spacing 60, hook). All 163 function selectors in the generated ABIs exist in the deployed bytecode (`costBasis` is `0x005dfcbf`, PUSH3), as do the three hand-written ones (faucet, stackedBy, swap). Every constant the site uses equals the on-chain value (fees, 0.5/0.85 tIMD, 2.5M and 35% caps, 7 min, 4h, 3h, 48h, 280 bytes, the 5M launch cap). The plea-text checks mirror `_validateText` exactly.
+
+**Flows that work:**
+- **Faucet:** 10,000 tIMD.
+- **Buy:** approve, then buy 50 tIMD. The preview (8,445,370 PLEA) equals the fill, the fee is 0.617 tIMD (1.25%), and the cost basis, average cost and value are correct.
+- **Cashback page:** shows owed 0.2469 (0.5% of 50), the float and the waiting claims.
+- **Settle claims** (on a retry, see bug 1): burned PLEA and supply fell.
+- **Plead:** live fact score 37/55 and need 33/45, both equal to `gate.factScore`; the byte counter works with Arabic and ✓. Approve 0.5 tIMD, submit, plea #3 PENDING.
+- **Approved sell:** a test-signed TRUE delivered with `deliverVerdict`, then the site showed APPROVED, a 7-min countdown and minOut. Approve PLEA, Execute sell: expected 5.8025 tIMD, received exactly 5.8025. The 4h cooldown is shown.
+- **Cancel:** warped past 17:13 UTC; the owner cancelled plea #1 through the site, which now shows CANCELLED. Before the timeout the button is disabled with a countdown.
+- **Appeal:** as wallet B on #2 after the 4h wait: approve 0.85, appeal, #4 "appeal of #2" PENDING, and #2 shows APPEALED → PENDING.
+- **Wall:** before any warp it showed #1 PENDING, #2 DENIED (with verdict tx) and #3 PENDING, with correct amounts, scores and text (the injection text renders as plain text). After the tests, every stamp appears correctly: CANCELLED (#1), APPEALED → OVERTURNED (#2), EXECUTED (#3, "sold for 5.8025 tIMD"), LAPSED (#4, approved but not executed in 7 min), APPEALED → UPHELD (#5), DENIED (#6, appeal). The permalink `#/wall/2` works.
+- **Status:** Cabal alive, last verdict, dead-man countdown, price, PLEA in market and cap, burned and supply, wall reserve and deployed, PLEA in wall, rebalance, and every address. All values equal the chain. After a 48h warp it says "can be pulled now"; after `killCabal()` (by script) it shows "Dead / fired".
+- **Layout:** 6 views × 360/768/1280 × light/dark: 0 page errors, 0 console errors, no horizontal page scroll, no external requests (fonts self-hosted).
+- **Impeccable:** no gradient text, blur, side borders, offset shadows, emoji (Lucide SVG icons), eyebrow labels or section numbers. Fraunces for display, Inter for body, monospace only for addresses and hashes; themed selection, caret, scrollbars and focus ring; one motion (the stamp).
+
+**Bugs found (ranked):**
+1. **Cashback never stacks through a normal wallet (contract design).** `_deliverCashback` only calls `Stacker.credit` when `gasleft() > RESERVE` (250k), otherwise it pays plain tIMD. A wallet's gas estimate picks the cheapest path that succeeds, which is the plain-tIMD path.
+   - `claimCashback` estimated 55k gas and paid plain tIMD (0.2469), with **no tsIMD**.
+   - A 2 tIMD buy with MetaMask's 1.5× buffer (581k) also paid its cashback as plain tIMD.
+   - With a hand-set 3M gas limit the same buy did call `credit` (189k) and minted tsIMD. The live test in this file stacked only because its gas was set by hand.
+   - **Site fix:** send buy and claim with an explicit gas limit (estimate + about 1.3M, since a first credit costs about 1.16M on real Sepolia).
+   - **Next version:** don't let the gas amount decide the path. Require `gasleft() >= RESERVE + CREDIT_GAS` (revert otherwise) before the try, or pay cashback through a path that doesn't depend on gas.
+2. **Settle claims reverts out of gas when clicked right after a trade.** `settleClaims()` returns early when `block.number <= lastClaimBlock`. An estimate taken in a block that holds a swap is about 25k gas; the tx lands in the next block, does the real work (about 200k) and runs out of gas. On the fork: limit 24,739, used 24,739, reverted. This is likely on real Sepolia too, because the button sits next to the buy. **Fix:** the site sets a gas floor (about 400k). In the next version, revert with an error instead of returning quietly.
+3. **Without the gas buffer, a buy reverted** out of gas at `settle()` (limit 384,708 from a raw estimate). It's the same `gasleft()` branching. MetaMask's 1.5× buffer avoided it; wallets that use the raw estimate will fail. Bug 1's explicit gas limit fixes this too.
+4. **Pleas that can't pass are accepted and paid for.** Need = 70 − fact score can exceed 45 (#2 needed 46; the appeal #4 needed 51, because an appeal reuses the original amount and the fact score fell). The site lets you pay 0.5 or 0.85 tIMD anyway, and the Gate accepts it. **Site:** warn and disable when need > 45 ("lower the amount"). **Next version:** revert in `submitSell` and `appeal` when need > 45.
+5. **No "Retire the Cabal" button** (`killCabal()`). Status says "can be pulled now" but offers no action. **After the Cabal dies the site has no sell path** (Plead still asks for a plea; Buy has no sell).
+6. **Smaller items:**
+   - The Pending text says "the oracle request expires in 2h" (the site's own `PENDING_EXPIRY_S`, from the v3 prompt) while cancel opens at 3h; that 2h has no on-chain meaning.
+   - The "imd/acc page" link is `https://imd.fun/acc`, not the live test page `imd-acc-sepolia-test-run.site.identitymd.eth.limo`.
+   - The market cap uses 1,000,000,000 rather than the current supply.
+   - At 360px the tab bar scrolls sideways with its scrollbar hidden, so "Status" is cut off at the edge.
+   - The sell's cashback (0.0294) went to "owed" because the float was short (expected in this build).
+
+**Verdict:** the site is correct against the contracts (addresses, ABIs, numbers, states, stamps) and clean on layout and design. The real problems are in the contract's cashback and settle paths, which the site shows plainly. Decide the cashback fixes before the next PLEA version: automatic cashback with no `gasleft()` fallback that estimates can pick, and a settle that doesn't return quietly. Fix bugs 1, 2, 4 and 5 in the next version's site rather than paying for a continuation of this test site.
