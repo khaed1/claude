@@ -252,3 +252,12 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
    - The sell's cashback (0.0294) went to "owed" because the float was short (expected in this build).
 
 **Verdict:** the site is correct against the contracts (addresses, ABIs, numbers, states, stamps) and clean on layout and design. The real problems are in the contract's cashback and settle paths, which the site shows plainly. Decide the cashback fixes before the next PLEA version: automatic cashback with no `gasleft()` fallback that estimates can pick, and a settle that doesn't return quietly. Fix bugs 1, 2, 4 and 5 in the next version's site rather than paying for a continuation of this test site.
+
+## Sepolia Intake (checked 2026-10-09, from the IMD dev's link)
+- **Address `0x1397434cd35e8a9c8ac312a61d3a285eb31dea56` on Sepolia, the same as mainnet** (CREATE2, same salt). The runtime code is identical to the verified mainnet `Intake` except the chain ID and the EIP-712 domain hash. Deployed at block 11,877,964 (after PLEA's launch). It has had no requests yet (nonce 0).
+- **Same settings as mainnet:** owner `0x047f…54b7`, payTo `0x4e0f…adbc`, writer `0x3d3c…25cb`, quote signer `0x169b…279f`, callback gas 200,000, max body 16,384 bytes.
+- **Price:** `oracle.request@oracle-1` costs **0.5 of `0x44a1cd38474fb1748400e7deb5f8d786cce3f89a`** ("Identity.md (test)", symbol IMD, 18 decimals). A 0.001 ETH price was set, then removed. **That token's `mint(address,uint256)` is open to anyone** (eth_call from a random address succeeds), so Sepolia oracle requests cost only Sepolia gas.
+- **Not announced yet:** `/requests/capabilities` lists only `eip155:1` for `oracle.request`, and the docs list Intake on Ethereum and Robinhood Chain only. Whether the plane serves Sepolia requests is unproven; one test request answers it.
+- **The free quote changed:** `POST /requests/quote` now returns `401 request_token_required` (any Bearer token no longer works). On-chain `Intake.request` needs no token.
+- **For the next PLEA version:** use the real Intake with the callback on Sepolia (no trusted relayer). The Gate needs a **separate oracle-fee token** address, because PLEA trades against TestIMD `0x2b69…` but the Intake takes `0x44a1…`. On mainnet both are the real IMD.
+- **Test planned:** mint 0.5 test IMD to the Sepolia test wallet, then `Intake.request` with plea #1's body (consumer key renamed to `verifyingContract`; plea #1 is still Pending on the live Gate), then `deliverVerdict` if the panel signs.
