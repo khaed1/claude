@@ -62,7 +62,7 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
 - Worker operations: `imd doctor` now checks the runtime by running one shell command, `"selfTest": false` turns the self-test off, and `imd launch check` checks a repository before submitting. Update the VPS with the manual's update section (on `main`), then run `imd doctor`.
 
 ## Next steps
-0. **Host the imd/acc test page:** fill `site/config.json` (three addresses, `stackerDeployBlock` 11874601) and pin `site/` as `imd-acc-test`.
+0. **Host the imd/acc test page** with a `job.continue` (`imd-acc/job-continue-site.md`, 1,594 characters; parent `640b4951-…`, skill `frontend-for-contract`, IPFS `imd-acc-test`, GitHub on). Pay from `0xf8ad…cdc7`, the wallet that paid the parent. `/requests/check` passed with no blockers.
 1. **Decide the hook deploy.** Proposal: drop PleaHook from the launch list and add a last contract, `PleaLaunch`, whose constructor mines a CREATE2 salt for PleaHook's flag bits (about 16,000 tries on average), deploys the hook, then calls `PLEA.init`. Ask the IMD dev whether the gas ceiling allows it, or whether hook mining for `evm_contracts` is coming in the upgrade. **The 16,777,216-gas per-transaction cap (EIP-7825) makes this unlikely:** PLEA's four larger contracts plus on-chain salt mining (about 3–5M gas on average, more in the worst case) probably won't fit in one transaction. Hook mining done by IMD, or a deploy split over several transactions, is the realistic route.
 2. Launch imd/acc (submitted 2026-10-09). Copy the three addresses into the PLEA prompt and fill in `<OWNER_WALLET>` in both prompts.
 3. Launch PLEA, then add its hook to the imd/acc site's `projects.json` (with its deploy block) and re-host the site.
