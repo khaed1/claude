@@ -9,4 +9,12 @@ Static site, public Sepolia RPCs, wallet connect + switch to 11155111, per-butto
 - Wall: every plea from PleaSubmitted/Verdict/SellExecuted/Appealed/PleaLapsed logs (chunked from block 11877100): stamp APPROVED, DENIED, PENDING, LAPSED, EXECUTED, APPEALED → OVERTURNED/UPHELD, with amount, fact score and text; a single-plea permalink.
 - Status: Cabal alive/dead, lastVerdictAt and time to dead-man, price, PLEA in market, wall IMD, pendingRebalance with a "Rebalance" button, all addresses with explorer links.
 
+DESIGN: follow Impeccable's rules (github.com/pbakaus/impeccable, Apache-2.0; not in IMD's catalog, so they are written here).
+- Mode "Operate": a working trading and plea tool first. Standard web controls (buttons, tabs, inputs, selects, sortable tables, plain navigation). The world lends only type, palette, density and one signature move: the Cabal's verdict stamp (APPROVED / DENIED / OVERTURNED) on the Wall and plea pages.
+- Commit to a palette for the shell (not grey plus one accent). State colours only where they carry meaning (approved, denied, pending, lapsed). Theme both light and dark.
+- Floor: body text contrast ≥4.5:1 (large ≥3:1); tight groups, generous separation, more space above headings than below; body measure 65–75ch; tabular numerals for amounts, prices and countdowns; one authored motion moment (exponential ease-out), not effects everywhere; every control has hover, disabled, loading, error and empty states plus visible keyboard focus; theme text selection, caret, scrollbars and focus rings from the palette.
+- Copy in the product's own words: buttons name their action ("Buy PLEA", "Submit plea", "Claim cashback"); errors name the problem and the fix.
+- Refuse: same-size icon-plus-heading cards as page structure, nested cards, the big-number hero-metric template, eyebrow/kicker labels above headings, section numbers, gradient text, decorative glass or blur, coloured side borders over 1px, hard offset shadows, monospace as a costume (only for addresses, hashes and numbers), system fonts as the display face (self-host a real face), emoji or unicode as icons (one SVG icon set), modals where a page or inline step works.
+- Process: build fully, inspect once in one batch, fix everything found, at most one more round.
+
 Check it in a real browser against the live contracts at 360/768/1280 px, light and dark: faucet, buy, settle, claim cashback, and a submitSell up to Pending. Host on IPFS with the label plea-test.
