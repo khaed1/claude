@@ -1,0 +1,58 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PondPad</title>
+<style>
+  html, body { margin:0; height:100%; }
+  body { background:var(--pond-deep); color:var(--ink); font-family:var(--font-sans); overflow:hidden; }
+  .cover { position:relative; height:288px; overflow:hidden; }
+  .art { position:absolute; top:0; left:480px; width:480px; height:288px; overflow:hidden; }
+  .art svg { display:block; width:480px; height:288px; }
+  .water { fill:var(--pond-raised); }
+  .ripple { fill:var(--ripple); }
+  .lily { fill:var(--lily); }
+  .gold { fill:var(--firefly); }
+  .lotus { fill:var(--lotus); }
+  .cut { fill:var(--pond-deep); }
+  .ring { fill:none; stroke:var(--ripple); stroke-width:2; }
+  .words { position:absolute; left:32px; bottom:32px; max-width:440px; }
+  .name { margin:0; font-family:var(--font-display); font-weight:400; font-size:104px; line-height:.95; letter-spacing:.5px; color:var(--ink); }
+  .tag { margin:8px 0 0 4px; font-size:14px; line-height:20px; color:var(--ink-muted); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 288" width="480" height="288">
+<!--
+  blocks      pond-raised slab 448×272 bled off the top-right (the water, the brand's ground) · ripple band 448×48 across its foot · lily disc r=72 · firefly disc r=16 · lotus disc r=24 · ≈40% of 960×288
+  arrangement one tall water slab with lily pads floating on it, the big pad crossing the ripple band, fireflies above
+  pattern     a literal motif (lily pad, from "Lily-pad round" and the lily mark): discs with the notch cut in pond-deep, plus three ripple rings at space-6 pitch around the big pad
+  scales      slab corners radius-lg (22); band radius-pill; ring pitch space-6 (32); pad gaps space-5 (24)
+-->
+<rect class="water" x="32" y="-22" width="470" height="294" rx="22"/>
+<rect class="ripple" x="32" y="216" width="470" height="56" rx="28"/>
+<circle class="ring" cx="232" cy="176" r="104"/>
+<circle class="ring" cx="232" cy="176" r="136"/>
+<circle class="ring" cx="232" cy="176" r="168"/>
+<circle class="lily" cx="232" cy="176" r="72"/>
+<path class="cut" d="M236 168L282 110L262 106Z"/>
+<circle class="lily" cx="392" cy="96" r="36"/>
+<path class="cut" d="M394 92L416 64L405 62Z"/>
+<circle class="lotus" cx="104" cy="88" r="24"/>
+<circle class="lily" cx="96" cy="200" r="24"/>
+<path class="cut" d="M97 198L112 180L105 179Z"/>
+<circle class="gold" cx="320" cy="40" r="10"/>
+<circle class="gold" cx="168" cy="48" r="6"/>
+<circle class="gold" cx="440" cy="176" r="8"/>
+</svg>
+</div>
+<div class="words">
+<h1 class="name">PondPad</h1>
+<p class="tag">Every frog starts as a tadpole.</p>
+</div>
+</div>
+</body>
+</html>

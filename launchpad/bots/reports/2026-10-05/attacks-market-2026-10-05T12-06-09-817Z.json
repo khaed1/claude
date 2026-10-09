@@ -1,0 +1,42 @@
+{
+  "at": "2026-10-05T12:08:26.660Z",
+  "group": "market",
+  "attacker": "0x5020afB3BAE3FD8137D53E9dee191D76c322228b",
+  "results": [
+    {
+      "id": "M5",
+      "group": "M",
+      "name": "Market fee through an outside router (D-34)",
+      "ok": true,
+      "detail": "fee ledger +2.9956 IMD on 100 IMD at 2.9957% (expected 2.9957; 0 means collectFees ran in between)"
+    },
+    {
+      "id": "M1",
+      "group": "M",
+      "name": "Sandwich PadBuyer after a pump (price guard, D-43)",
+      "ok": true,
+      "detail": "refused: PriceOutOfRange"
+    },
+    {
+      "id": "M2",
+      "group": "M",
+      "name": "Backstop placement can't be dragged below its floor",
+      "ok": true,
+      "detail": "spot dragged to tick 105635; band placed at 111400 ≥ floor 111246"
+    },
+    {
+      "id": "M3",
+      "group": "M",
+      "name": "Keeper-tip farming doesn't pay (tip ≤ 1 IMD, below fees paid)",
+      "ok": true,
+      "detail": "tip 1 IMD; attacker paid 48.5871 IMD + 906,776.1602 $PONDPAD in fees (at 2.9956%) to create the work"
+    },
+    {
+      "id": "M4",
+      "group": "M",
+      "name": "Dust sells can't build up untrimmed inventory",
+      "ok": true,
+      "detail": "10 sells of 900 at the cap: largest untrimmed excess 0 (< min trim 1,000); inventory 295,256,898.4376, cap 299,991,424.537"
+    }
+  ]
+}

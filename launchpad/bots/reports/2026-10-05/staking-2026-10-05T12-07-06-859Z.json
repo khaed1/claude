@@ -1,0 +1,49 @@
+{
+  "at": "2026-10-05T12:08:37.237Z",
+  "group": "staking",
+  "attacker": "0x218Eac2196Ceb90799293422e9a16EdC89D0F023",
+  "results": [
+    {
+      "id": "ST1",
+      "name": "Flash stake: redeem in the deposit's block",
+      "ok": true,
+      "detail": "refused: RedeemMoreThanMax (deposit at block.number 11848716, the Ethereum block; Robinhood block 129262729) \u2014 maxRedeem is 0 during the hold block, so the ERC-4626 check refuses before SameBlockRedeem (same protection)"
+    },
+    {
+      "id": "ST2",
+      "name": "The one-block hold travels with transferred shares",
+      "ok": true,
+      "detail": "fresh wallet's redeem refused: RedeemMoreThanMax \u2014 maxRedeem is 0 during the hold block, so the ERC-4626 check refuses before SameBlockRedeem (same protection)"
+    },
+    {
+      "id": "ST3",
+      "name": "Stake / redeem round trip loses nothing but rounding",
+      "ok": true,
+      "detail": "deposited 500,000 (kept half the shares), got back 500,000"
+    },
+    {
+      "id": "ST4",
+      "name": "Drip sniping is bounded to the stake's share of one drip (smoothed over 7 days, D-44)",
+      "ok": true,
+      "detail": "staked 35,638,139.6825 next to 28,156,614.7797; one drip added 52,738.929; profit 29,461.9414 vs fair share 29,461.9414 (0.0827% of the stake)"
+    },
+    {
+      "id": "ST5",
+      "name": "Donation is a gift to all stakers (donor gets back only its own share)",
+      "ok": true,
+      "detail": "donated 1,000,000; donor's value +4,341.6409 (its 0.43% share of the gift), the rest went to other stakers"
+    },
+    {
+      "id": "ST6",
+      "name": "Owner-only staking calls refused for strangers",
+      "ok": true,
+      "detail": "pause the vault: Unauthorized; rescue staked $PONDPAD: Unauthorized; shorten the drip smoothing: Unauthorized; rescue the dripper's rewards: Unauthorized; raise the keeper reward: Unauthorized"
+    },
+    {
+      "id": "ST7",
+      "name": "Rewards reached stakers: value per share rose",
+      "ok": true,
+      "detail": "value per share \u00d71.044711 (\u00d71 at open; \u00d71.000414 when this test started)"
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+# LeapMeter
+
+Progress of a tadpole's curve toward the Leap (graduation at the target, 4,000 IMD by default on mainnet, D-76). Markup: `pp-leap` > `pp-leap-track` (with `pp-leap-pads`, `pp-leap-fill` and `pp-leap-head`, the last two at the same %) + `pp-leap-row` ("1,297 / 2,060 IMD" and "63% to the Leap"). Add `is-near` from 90% (turns gold) and `is-done` at 100% (head becomes a round frog, label "Leapt"). Set `role=progressbar` with `aria-valuenow`. The % is net IMD raised / the coin's own saved target (read from `PadLens`), never a market cap guess. On the $PONDPAD sale page the same meter uses the sale target (~8,460 IMD). Animate width changes over 300ms ease-out, none with reduced motion.

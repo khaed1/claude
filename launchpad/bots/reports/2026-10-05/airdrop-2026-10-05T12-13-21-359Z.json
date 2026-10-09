@@ -1,0 +1,103 @@
+{
+  "at": "2026-10-05T12:19:08.704Z",
+  "group": "airdrop",
+  "distributor": "0xD184E3185B6Cc95D3204368fF73B1dFc82cE48Bb",
+  "results": [
+    {
+      "id": "AD1",
+      "name": "Claim before activation",
+      "ok": true,
+      "detail": "refused: NotActive"
+    },
+    {
+      "id": "AD2",
+      "name": "Initiation by a wallet not on the list",
+      "ok": true,
+      "detail": "refused: InvalidProof"
+    },
+    {
+      "id": "AD3",
+      "name": "Voucher signed by someone else",
+      "ok": true,
+      "detail": "refused: BadVoucher"
+    },
+    {
+      "id": "AD4",
+      "name": "A stranger initiates for a listed wallet",
+      "ok": true,
+      "detail": "refused: NotAuthorized"
+    },
+    {
+      "id": "AD5",
+      "name": "Leaked checker key initiates by itself",
+      "ok": true,
+      "detail": "refused: NotAuthorized"
+    },
+    {
+      "id": "AD7a",
+      "name": "Expired voucher",
+      "ok": true,
+      "detail": "refused: Expired"
+    },
+    {
+      "id": "AD6",
+      "name": "Each X account, tweet and wallet counts once",
+      "ok": true,
+      "detail": "reused X account: HandleUsed; reused tweet: TweetUsed; same wallet again: AlreadyInitiated"
+    },
+    {
+      "id": "AD7b",
+      "name": "99 initiations activate nothing (no fallback, D-55)",
+      "ok": true,
+      "detail": "count 99, activatedAt 0"
+    },
+    {
+      "id": "AD7c",
+      "name": "Still no claims at 99",
+      "ok": true,
+      "detail": "refused: NotActive"
+    },
+    {
+      "id": "AD8",
+      "name": "The 100th initiation activates the airdrop; later ones are refused",
+      "ok": true,
+      "detail": "activatedAt 1791202720 (the 100th's block); 101st: AlreadyActive"
+    },
+    {
+      "id": "AD9",
+      "name": "A non-initiator claims exactly amount × elapsed / 30 days",
+      "ok": true,
+      "detail": "allocation 61,000; 23 s after activation got 0.5413 (expected 0.5413)"
+    },
+    {
+      "id": "AD10",
+      "name": "Claim with an inflated amount",
+      "ok": true,
+      "detail": "refused: InvalidProof"
+    },
+    {
+      "id": "AD11",
+      "name": "A stranger claims for someone else",
+      "ok": true,
+      "detail": "refused: NotAuthorized"
+    },
+    {
+      "id": "AD12",
+      "name": "Gasless claim wallet works; its signature can't be replayed",
+      "ok": true,
+      "detail": "claim wallet received 0.6406, the listed wallet never sent a transaction; replay: BadSignature"
+    },
+    {
+      "id": "AD13",
+      "name": "Sweep before the 180-day claim window ends",
+      "ok": true,
+      "detail": "refused: ClaimWindowNotOver"
+    },
+    {
+      "id": "AD14",
+      "name": "Stranger can't replace the checker key; claims ≤ funding",
+      "ok": true,
+      "detail": "setVerifier: Unauthorized; claimed 1.1819 of 3,718,000 funded"
+    }
+  ]
+}

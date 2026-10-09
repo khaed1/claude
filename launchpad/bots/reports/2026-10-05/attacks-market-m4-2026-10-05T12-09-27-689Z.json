@@ -1,0 +1,14 @@
+{
+  "at": "2026-10-05T12:10:47.988Z",
+  "group": "market-m4",
+  "attacker": "0x5020afB3BAE3FD8137D53E9dee191D76c322228b",
+  "results": [
+    {
+      "id": "M4",
+      "group": "M",
+      "name": "Dust sells can't build up untrimmed inventory",
+      "ok": true,
+      "detail": "10 sells of 900 at the cap: largest untrimmed excess 606.3033 (< min trim 1,000); inventory 299,992,001.9028, cap 299,991,395.6019"
+    }
+  ]
+}

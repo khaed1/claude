@@ -1,0 +1,3 @@
+# CoinCard
+
+One coin in a list: Explore, the Profile tabs, search results. Grid of 1 (phone), 2 (tablet) or 3 columns (desktop), `space-5` gap. Contents, in order: image (64px, `radius-md`), name (one line, ellipsis), ticker (mono), stage chip; two-line description; market cap in IMD, 24h change with ▲▼, the total fee (1.5% + the coin tax), age; Leap meter for tadpoles only; at most two badges (X verified, Site by the Chorus). The tax split and everything else lives on the coin page: a card that shows every fact becomes chip soup. `is-spotlight` (gold border and wash) only in the "About to Leap" row. The whole card is one link to the coin page. Data: `PadLens` (coin state, curve progress) and the indexer (change, age, volume).

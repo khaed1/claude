@@ -1,0 +1,14 @@
+{
+  "name": "pondpad-keeper",
+  "private": true,
+  "type": "module",
+  "description": "Calls PondPad's permissionless upkeep functions on a timer (HANDOFF §6).",
+  "scripts": {
+    "once": "node keeper.mjs --once",
+    "start": "node keeper.mjs"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "viem": "2.57.3"
+  }
+}
