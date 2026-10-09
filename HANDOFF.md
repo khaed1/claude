@@ -86,7 +86,14 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
   - PleaLaunch `0xc43405eb24a776669e4a78d22164d55593cd61bf`
   - PleaHook `0x37337cd25f09a1cb77bba55d12358c9d00e2e8cc` (low 14 bits 0x28cc ✓)
   - **Verified on-chain:** owner `0x4b91…6821` everywhere; hook wired to TestIMD and the Stacker; pool **seeded in the launch tx** at tick 120,720 (about 5.7e-6 IMD per PLEA, the 5,700 IMD cap); 100,000,000 PLEA in the distributor; 899,999,100 in the pool (about 900 PLEA of rounding dust missing from the supply); the 90-min launch window started at deploy.
-  - **Gate relayer is NOT set** (`relayer() = 0x0`). The owner must call `CabalGate.setRelayer(addr)` before any plea; until then anyone can deliver verdicts.
+  - **Relayer set** to the owner wallet `0x4b91…6821` (tx `0x800fc18b…e484`), so only that address can deliver verdicts.
+  - **Live test, 2026-10-09, owner wallet:** buys go through Uniswap's Sepolia `PoolSwapTest` `0x9b6b46e2c869aa39918db7f52f5557fe577b6eee` with `hookData = abi.encode(buyer)`, exact-input, zeroForOne=true (IMD is currency0).
+    - **Buy 1, 20 tIMD** (tx `0x6088fb91…6225`): 2,371,340 PLEA delivered as ERC-20 straight to the buyer, with the swapper's PLEA delta 0, so the bypass fix works. The launch fee was about 46%; the fill was 13.64 tIMD; cost basis recorded.
+    - **Fees and cashback became claims, not transfers:** `CashbackOwed` 0.0682 tIMD (0.5% of the fill), PLEA burn claim 5,943, IMD fee claims.
+    - **`settleClaims()`** (tx `0x2426f6fa…7b8f`): burned 5,943.2 PLEA (supply fell), paid the owner 0.0682 and a 0.01 tip, and funded the cashback float.
+    - **`claimCashback()`** (tx `0xed339cc5…9eea`): `Stacked(project = hook, trader = buyer, 0.0682)`, so the buyer's tsIMD went up. Two more 5 tIMD buys gave the same result (owed, then settle, then claim); 0.1026 tIMD stacked in total through the hook.
+  - **Gap vs the imd/acc design:** cashback is **never deposited at trade time.** It's always `CashbackOwed`, and the trader must call `claimCashback()` after anyone runs `settleClaims()`; the float only fills from settled claims. **Fix for the next version:** in afterSwap, `take()` the cashback IMD from the PoolManager, which holds the pool's IMD, and `credit` it right away, falling back to owed only when that's short. The test site also needs Settle and Claim cashback buttons.
+  - **Code knobs:** RESERVE 250k; the burn and fees settle as claims on the next block's first swap or `settleClaims()`.
   - **The deploy tx used 84,751,959 gas.** Sepolia accepted it, but mainnet caps a transaction at 16,777,216 (EIP-7825), so **mainnet needs a multi-transaction deploy or hook mining by IMD.**
   - **v2's own choices:** keeper tip 0.01 IMD with at least 0.1 IMD of work, once per block (v3 asked for 100 IMD and once per hour); RESERVE 250k; an owner-set relayer; the site is a single `site/index.html` and not hosted.
 - **v3 job `4a9bfa82` failed (blocked at build, 3 attempts), not because of the contracts:**
