@@ -24,7 +24,7 @@ The game happens once per token: `killCabal()` can't be undone. The Cabal dies o
 
 ## Favourite: 3 + 4 with tradable NFTs (user idea, 2026-10-10)
 - **Season end:** the Cabal dies, and the season's best pleas are minted as **tradable ERC-721 "Laureates"** (the plea text, its verdict stamp and the season, rendered on-chain).
-- **Revival:** ransom contributors get a tradable **"Ransom"** NFT for that season ("I revived the Cabal").
+- ~~**Revival:** ransom contributors get a tradable **"Ransom"** NFT for that season.~~ Dropped: contributors get the soulbound relic instead.
 - **Small perks only:**
   - a Laureate gives one free plea next season, or a badge on the Wall
   - perks stay cosmetic or small, so farming pleas from many wallets doesn't pay
@@ -75,4 +75,5 @@ User's picks: season leaderboard (1), ransom revival (3), badges (4). Open propo
 | Laureates | 5 tradable ERC-721s per season (top 5 pleas), small cosmetic perks |
 | Revival | Cabal dies → 24h free-trading break → ransom opens (target 500 IMD, pot → next season's prizes) → 24h warning → Cabal returns |
 | Outside pools | Permissionless `registerExit` for genuine Uniswap v2/v3 pools: they can send PLEA out, not receive it |
-| Open | Legal check before mainnet; Ransom NFT for contributors (tradable) vs. the soulbound relic: keep one or both |
+| Contributor reward | Soulbound relic only; the tradable "Ransom" NFT is dropped (2026-10-10) |
+| Open | Legal check before mainnet |
