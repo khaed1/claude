@@ -91,16 +91,21 @@ User's picks: season leaderboard (1), ransom revival (3), badges (4). Open propo
 
 ### The Rekt Cabal (user idea; draft)
 Pleas from people who lost money to scams and rugs. The plea links the wallet that got rekt and the transactions.
-- **Proof the wallet is yours:** the rekt wallet signs a short message ("I link this wallet to PLEA plea N"); the Gate checks it on chain (ecrecover, cheap). Without this, anyone could cite a famous victim's wallet. The pleading wallet itself also counts.
+- **Decided: the rekt wallet is the pleading wallet.** Only the connected wallet that submits the plea can claim its own losses; no linking of other wallets, no signatures needed.
 - **Evidence in the plea:** chain, token address, the buy tx(s) and, if known, the rug tx (LP pulled, dev dump, honeypot, mint).
 - **What the judges score (Rekt mood):**
   - Proof: the buy txs exist and belong to the linked wallet, and the token really rugged (LP removed, price ~0, sells blocked).
   - Severity: kind of rug (honeypot or LP pull > slow dev dump > ordinary loss), how fast, how much of the liquidity went.
-  - Loss: the amount lost (in USD or ETH at the time), with diminishing credit so whales don't dominate.
+  - Loss (decided): the bigger the loss, the more points, from the highest down; still capped by this category's share of the 0–45 plea score.
   - Story: honesty and what they learned (craft and respect as in Classic).
 - **Abuse guards:**
-  - Self-rugs: someone launches a token, buys and rugs it to fake a loss. Require the rug to be ≥30 days before the plea, the token to have had ≥50 independent holders, and the buyer not to be the deployer or an LP remover.
-  - Reuse: each rug tx counts once across all pleas (the Gate stores its hash); one rekt wallet per pleader per era.
+  - Self-rugs: someone launches a token, buys and rugs it to fake a loss. Require the rug to be ≥30 days before the plea, the token to have had **≥200** other holders (decided), and the buyer not to be the deployer or an LP remover.
+  - Reuse: each rug tx counts once across all pleas (the Gate stores its hash); each wallet's losses can be claimed in one approved Rekt plea per era.
   - Lies the judges can't check fail: a plea that can't be proven scores no Rekt credit.
-- **Must check with IMD first:** can the judges read chain data (txs, logs, LP events) on Ethereum and other chains, or only the plea text (`evidence: "panel"` today)? If only text, Rekt pleas can't be verified, and this mood needs a chain-evidence feature from IMD.
-- **Privacy:** linking a wallet makes its history public on the Wall. Warn before submitting.
+- **Test first (user expects yes):** can the judges read chain data (txs, logs, LP events) on Ethereum and other chains, or only the plea text (`evidence: "panel"` today)? If only text, Rekt pleas can't be verified, and this mood needs a chain-evidence feature from IMD.
+- **Privacy:** the wallet's history is the evidence, so it's public anyway. Warn before submitting.
+
+### Usernames (user idea)
+- **Display only.** The plea tx comes from the wallet, so anyone can still find it on a block explorer; a username just keeps the address off the card.
+- **Proposed:** an on-chain `setName(name)` (in the Gate or a small names contract), so the IPFS site needs no backend. Unique, 3–20 characters, lowercase letters, digits and `_`; reserved words (cabal, admin, imd, plea, owner) refused. ENS names are shown if a wallet has one and no username.
+- **Cards** show the username; the address appears only in the plea's detail view.
