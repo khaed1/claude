@@ -315,3 +315,8 @@ Twelve self-written pleas went through the Sepolia Intake (15 judges each, numer
 - Job `d1ff706d` still executing: `build_contract_project` on attempt 3 (working since 05:31 UTC); audits, tests, manifest and judge are waiting.
 - The hourly check-in routine now fires into the new session: **`trig_017xZjHXdR24qGEezWuyUoyn`** (at :39). The old one, `trig_0133Hp825v6D4v6vMkR8ApFY`, is deleted.
 - Foundry 1.8.3 is installed in `~/.foundry/bin`; Sepolia RPC `https://ethereum-sepolia-rpc.publicnode.com`; the test wallet holds 0.083 Sepolia ETH.
+
+## v4 job blocked (2026-10-10 06:20 UTC)
+- Job `d1ff706d` is **blocked**: `build_contract_project` failed on attempt 3 of 3 (`local_build_failed`). The last verifier report is the same as attempt 2: 4 test suites fail in `setUp()` with `vm.getCode: no matching artifact found` (PoolManager); oracle conformance passes 3/3. Nothing was deployed.
+- **Fix:** resubmit as a fresh `launch.open` with `plea/job-sepolia.md` (BUILD line already corrected: via_ir, 200 runs, `new PoolManager`) and a later START. Proposed START: 1791775740 = 2026-10-12 03:29 UTC (+24h).
+- Check-in routine `trig_017xZjHXdR24qGEezWuyUoyn` is **paused** until the new job id exists; then point it at the new id and re-enable.
