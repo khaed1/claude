@@ -1,42 +1,40 @@
-Repos: `khaed1/claude` (notes, prompts, HANDOFF; work and push only on branch **`claude/adoring-goodall-pn3jyz`**) and `khaed1/plea` (public, PLEA v10 code; branch `main`). If `khaed1/plea` isn't in your session, attach it with `add_repo` (push access).
+Repos: `khaed1/claude` (notes, prompts, HANDOFF; work and push only on branch **`claude/adoring-goodall-pn3jyz`**) and `khaed1/plea` (public, the PLEA code; branch `main`). If `khaed1/plea` isn't in your session, attach it with `add_repo` (push access).
 
-You're picking up two projects I'm building on the IMD swarm (imd.fun). The previous session ran out of context. **HANDOFF.md is the source of truth** (addresses, tx hashes, decisions, bugs, test results); read it first, newest sections at the end, then the files below as needed.
+You're picking up two projects I'm building on the IMD swarm (imd.fun). The previous session ran out of context. **HANDOFF.md is the source of truth**; read the last sections first ("Simplified: one Cabal + seasons", "v4 delivered but launch PARKED", "v10 ready to submit"). Sections about moods, eras, ransom and relics are **superseded**.
 
 ## The two projects in brief
-- **imd/acc:** 0.5% trading cashback, paid to traders as staked IMD (sIMD) out of a project's existing fees. A shared, ownerless `Stacker.credit(trader, imdAmount)` deposits into the sIMD vault in the trader's name. Points count only for listed projects (`projects.json`). **Live on Sepolia** (TestIMD, TestSIMD, Stacker, test site) and tested end to end.
-- **PLEA:** a sell-gated meme token, a relaunch of TokenWorks' CabalCoin. Buying is open; **selling needs a plea approved by "the Cabal"**, an IMD oracle panel of 30 judges (quorum 17). One Uniswap v4 hook (POOL4 CappedBurnHook fork, IMD side). Fees: 0.5% sIMD cashback, 0.5% owner, 0.25% liquidity, plus a 0.25% PLEA burn.
-  - **v2** is live on Sepolia (launch #1148), tested.
-  - **v4** (fixes for v2's 14 problems) is being built by IMD now: job **`8686f9e4-7725-4043-b465-67908c5c4b46`** (START 1791775740 = 2026-10-12 03:29 UTC). Prompt: `plea/job-sepolia.md`.
-  - **v10 = Seasons** (decided 2026-10-10): 15-day seasons with a top-10 leaderboard (new 0.25% prize fee, total 1.75%), 30-day eras (2 seasons) each with a Cabal mood (Classic, Rekt, Jester's, Loyal), then 72h free trading, a 500 IMD ransom to revive the next Cabal (72h refund), 24h warning; Laureate NFTs for the top 5 pleas; soulbound relics (≥6 IMD) worth +10% next season; `registerExit` for outside Uniswap v2/v3 pools; usernames. **We write the code ourselves in `khaed1/plea`** and launch it through IMD with `launch.open` + `repoUrl`/`baseCommit`. It's built in parallel with v4; if it works, PLEA launches with v10. Later versions are v11, v12, …
+- **imd/acc:** 0.5% trading cashback, paid to traders as staked IMD (sIMD) from a project's existing fees, through a shared ownerless `Stacker.credit(trader, imdAmount)`. **Live on Sepolia** (TestIMD `0x2b69…1e82`, TestSIMD `0xf9e2…1cc1`, Stacker `0x293c…f477`) and tested end to end. Spec: `imd-acc/README.md`.
+- **PLEA:** a sell-gated meme token, inspired by TokenWorks' CabalCoin. Buying is open; **selling needs a plea scored by "the Cabal"** (IMD oracle panel, 30 judges, quorum 17, numeric score 0–45; pass if score ≥ need = 70 − on-chain fact score). One Uniswap v4 hook (POOL4 CappedBurnHook fork, IMD side). Fees 1.75%: 0.5% sIMD cashback, 0.5% owner, 0.25% prize pot, 0.25% liquidity, 0.25% PLEA burn.
+  - **The version we launch now ("v10", decided 2026-10-10):** v4's rules (one Cabal; it dies after 33h with no signed verdict and then trading is free forever, no comeback) **plus seasons**: 15-day seasons back to back from launch (last one ends at the death), each wallet's best 3 scores count, top 10 paid 25/18/14/11/9/7/6/4/3/3 % (60-point minimum, roll-over), top 5 pleas become Laureate NFTs, usernames. After death the prize fee goes to liquidity and leftovers flush to the buy wall. No moods, eras, ransom, relics or exit pools.
+  - v2 is live on Sepolia (launch #1148). v4 (job `8686f9e4`, launch #1226) delivered but was **parked** by IMD's `protected_invariants` check (its `setLauncher` lacks the deploy-block fallback). The user chose to **skip v4 and launch v10**.
+
+## Where we stopped (2026-10-10 ~13:10 UTC)
+- **Code:** `khaed1/plea` `main` commit **`e08cd34`**: PLEA, CabalGate, Seasons, Laureates, PleaDistributor, PleaLaunch (launch.json, 6 contracts), PleaHook (deployed after launch via `deployHook`), scripts `Deploy.s.sol` and `MineSalt.s.sol`, 105 Foundry tests. README credits TokenWorks.
+- **Sepolia settings (agreed):** season 5h (18000 s), **real 33h dead-man** (118800 s), plea timings real, **START = 1791817200 (Mon 2026-10-12 15:00 UTC)**, credit gas 1.3M, owner `0x4b91078b2374c956a65f7af0999cae0a935e6821`.
+- **Verified last session:** all tests pass (also `forge test --isolate` for the launch tests); clean build fits in memory only with `[lint] lint_on_build = false` (forge's linter used 13.6 GB on the hook; keep that line); Sepolia fork run: deploy 10.73M gas, 8/8 buys with plain gas estimates stacking sIMD through the live Stacker, a plea paid through the real Intake approved via the callback, sell and leaderboard record OK; real Sepolia oracle panels signed numeric scores (35 and 21) for our exact body format; Slither has no `arbitrary-send-erc20`.
+- **Free IMD checks:** `POST /requests/import` resolves `e08cd34`; `POST /requests/check` with `plea/job-v10-launch.json` → **no blockers**.
+- The hourly v4 routine `trig_01HpY7DMNkPaKhaFgLeW43MG` is paused; delete it.
+
+## Your tasks, in order
+1. **Re-verify `khaed1/plea` at `e08cd34`:** install Foundry, clean `forge build` and `forge test` (and `forge test --isolate --match-path test/Launch.t.sol`), read the contracts for errors, run Slither if you can. Fix anything real, commit, and if the commit changes, re-run import + check and update `baseCommit` in `plea/job-v10-launch.json`. Don't change agreed numbers without asking me.
+2. **Give me the job to submit** on the IMD launch form (it has "Start from: My GitHub repository"): the plain-English description for the text box, the repository URL to paste (commit URL `https://github.com/khaed1/plea/commit/<sha>`, then READ), "With a token" off, Owner, **Chain = Sepolia** (the form defaults to mainnet). Tell me what plan to expect before paying (starts "Audit your contracts as they are", ends "Deploy on Sepolia").
+3. **After I submit and give you the job id:** create an hourly check-in routine for it. On go-live: ping me, record addresses in HANDOFF, mine the salt (`script/MineSalt.s.sol`, env LAUNCH, POOL_MANAGER, IMD, STACKER, SEASONS, CREDIT_GAS), `deployHook` from the test wallet, verify (flag bits, 90/10 mint), ping again. If it parks or blocks: explain plainly, propose a fix, ping me.
+4. Then: seed (owner any time, anyone from START), live test, site job, hackathon entry (`plea/hackathon-submission.md`).
 
 ## Files to read
-- `HANDOFF.md`: everything; start with the last sections ("Numeric plea score can be signed", "PLEA v10 (Seasons): where we stopped").
-- `plea/v10-build-plan.md`: route, contracts, steps, risks.
-- `plea/brainstorm-seasons.md`: every Seasons decision (summary table, rounds 2–7, the Rekt Cabal wording v2 = final, calibration results, fast-clock testing).
-- `plea/seasons-ux.md`: the user experience, phase by phase.
-- `plea/v4-plan.md`, `plea/job-sepolia.md`: v4's problems, decisions and prompt.
-- `plea/job-v4-site.md`: the v4 site prompt (submit as `job.continue` once v4 is live).
-- `plea/hackathon-submission.md`: draft entry for the proposed IMD hackathon (PLEA + imd/acc; `{…}` placeholders for v4/v10 links).
-- `plea/dev-feedback.md`: our message to the IMD dev (items 1–7; item 7 = chain mode can't sign transaction-level checks).
-- `imd-acc/README.md`: the imd/acc spec.
-- **Code:** `khaed1/plea` (v10 base = v2 code, commit `a40a756`); PLEA v2 https://github.com/identity-md-launches/launch-1148-build-plea-sepolia-test ; imd/acc https://github.com/identity-md-launches/launch-1129-build-imd-acc-sepolia-test ; v4's repo appears when job `8686f9e4` delivers.
-- **IMD:** docs https://imd.fun/docs/ ("Pay on chain", "Ask the oracle", "From your repository") · API https://api.imd.fun
-
-## Where we stopped (2026-10-10 ~09:30 UTC)
-1. **Take over the hourly v4 check-in:** routine `trig_017xZjHXdR24qGEezWuyUoyn` fires into the old session. Create the same routine for your session (prompt is in the routine; read it with `get_trigger`), then delete the old one. On go-live: ping me, record addresses, mine the salt, `deployHook` from the test wallet, verify, ping again.
-2. **v4 status:** build attempt 1 was rejected by Slither (`arbitrary-send-erc20` in `CabalGate.unlockCallback`); the build was re-queued. If it blocks, propose the one-line fix in HANDOFF and a resubmit (I submit; move START if needed).
-3. **Write v10 in `khaed1/plea`.** Nothing is written yet beyond the v2 base. Follow the design notes in HANDOFF (oracle callback 200k gas → store only the score; lazy "alive"; MoodBook; Laureates via text hash; registerExit; deploy-time timings with the mainnet guard). The oracle can sign a numeric score: use `answerType: "uint256"`, `toleranceBps: 1500`. Merge v4's fixes once its repo delivers. Then: Foundry tests incl. full cycles with `vm.warp`, a Sepolia fork test, `POST /requests/import`, launch, `deployHook`, a live fast-clock run (1 day = 20 min), the site, the hackathon entry.
-4. **Waiting on the IMD dev:** reply to `plea/dev-feedback.md`, and the hackathon's dates/network.
+- `HANDOFF.md` (last sections first), `plea/job-v10-launch.json` (the launch request), `plea/dev-feedback.md` (items 1–10 for the IMD dev), `plea/v4-plan.md` (v4's 14 fixes, mostly in v10), `imd-acc/README.md`, `plea/hackathon-submission.md`.
+- Code: `khaed1/plea` (README explains the contracts); v4 for reference https://github.com/identity-md-launches/launch-1226-build-plea-v4-sepolia ; v2 https://github.com/identity-md-launches/launch-1148-build-plea-sepolia-test .
+- IMD: docs https://imd.fun/docs/llms.txt · API https://api.imd.fun
 
 ## Useful facts
-- **Sepolia oracle tests are free:** Intake `0x1397434cd35e8a9c8ac312a61d3a285eb31dea56`; test IMD `0x44a1cd38474fb1748400e7deb5f8d786cce3f89a` (anyone can `mint`). Body must name a testnet `consumer` `{chainId: 11155111, verifyingContract}`. Results: `GET /intake/11155111/{tx}` → `admission.result.requestId` → `GET /oracle/requests/{id}`. Each definition ≤ 512 chars, question ≤ 2,000.
-- **Ethereum data:** `https://eth.drpc.org` for logs (≤100 blocks per call, archive ok); publicnode refuses old logs.
-- **Foundry:** `foundryup` is blocked; download `foundry_v1.8.3_linux_amd64.tar.gz` from the GitHub release into `~/.foundry/bin`.
-- **Prompt size** (prompt-based jobs only): about 7,280 characters, check with `POST /requests/check`.
+- Sepolia Intake `0x1397434cd35e8a9c8ac312a61d3a285eb31dea56` (gives callbacks 1M gas; mainnet 200k); test IMD for the oracle fee `0x44a1cd38474fb1748400e7deb5f8d786cce3f89a` (anyone can `mint`). Results: `GET /intake/11155111/{tx}` → oracle request → `GET /oracle/requests/{id}`.
+- Sepolia RPC `https://ethereum-sepolia-rpc.publicnode.com`; Ethereum logs `https://eth.drpc.org`.
+- Foundry: `foundryup` is blocked; download `foundry_v1.8.3_linux_amd64.tar.gz` from the GitHub release into `~/.foundry/bin`. In forge tests use `vm.getBlockTimestamp()`, not `block.timestamp` (via_ir caches it).
+- The anvil test key `0x7099…79C8` has an EIP-7702 delegation on Sepolia (our signature check handles it).
 
 ## Rules
 - **Explain simply.** When I need to choose, recommend one option.
-- **Don't change agreed numbers** (fees, caps, timings, supply split, quorum 17, dead-man 33h, expiry 20 min, and the Seasons numbers in `plea/brainstorm-seasons.md`) without asking me.
-- **Keys:** the Sepolia test wallet `0x4b91…6821` (testnet only) has its key in env `TESTNET_KEY`. Never print or commit it, and never ask me to paste a mainnet key.
-- **`khaed1/plea` is public:** only code, tests and a README there; no notes, keys or HANDOFF.
+- **Don't change agreed numbers** (fees, caps, timings, quorum 17, dead-man 33h, expiry 20 min, season numbers) without asking me.
+- **Keys:** the Sepolia test wallet `0x4b91…6821` has its key in env `TESTNET_KEY`. Never print or commit it; never ask me for a mainnet key.
+- **`khaed1/plea` is public:** only code, tests and the README there; no notes, keys or HANDOFF.
 - **PondPad** (branch `claude/bold-gauss-qhlw86`) is read-only. Never commit its code.
