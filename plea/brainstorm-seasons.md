@@ -151,3 +151,27 @@ Same body as v4 (panel mode, `panelSize:30`, `quorum:17`, `allowAmbiguous:true`,
 - Chains: whatever IMD's judges can read (today Ethereum, Base, BNB Chain, Arbitrum One, Robinhood Chain per `/requests/check`).
 - Calibrate before using it, like v4: about 10 Rekt pleas through the Sepolia Intake (real rugs of different sizes, a self-rug, a fake tx, a rug under 30 days old, an injection) and check the score spread.
 - Size: the v4 prompt is near IMD's limit, so a Seasons build will likely need IMD's bigger-prompt route or a split build.
+
+### Rekt calibration (2026-10-10, Sepolia Intake, free test IMD)
+10 pleas with the draft wording, real Ethereum rugs and wallets, 15 judges each, answer = plea score (numbers, so most panels "disagree" on the exact value but every score is visible). Fact score 37/55, so need = 33. Request txs and oracle ids are in the scratchpad (`rcal/txs.txt`); oracle ids `a79ee4d6…` (R1) to `f9091b13…` (R10).
+
+| # | Case | Expected | Judges' scores (median) | Verdict |
+|---|---|---|---|---|
+| R1 | ORNN victim ($105), good story, 200-holder rule | story only | 0×8, 7–8×5 (0) | ✓ no Rekt credit; zeros came from our text error (below) |
+| R2 | same, 100-holder rule | ~33 | 0×9, 31–33×4 (0) | ✗ our text said "August", buys were 23 July → 9 judges called it a contradicted claim (manipulation) |
+| R3 | wallet seen in two rugs, "almost six ETH" | insider → 0 | 0×11, 37, 39 → **signed 0** | ✓ but for the wrong reason: the listed buys total 0.83 ETH, so "six ETH" was contradicted. Insider pattern not detected (2 judges gave 37–39) |
+| R4 | claims another wallet's buys | 0 | **signed 0** (11/11) | ✓ |
+| R5 | rug 8 days old | story only | 6–10 (8.5) | ✓ |
+| R6 | fake-XRP victim, 6 holders | story only | 5–10 (8) | ✓ |
+| R7 | PEPE, normal loss | ~20–28 | 24–25×4, 5×2, 0×7 (0) | ~ severity 0 applied; zeros again from "August" (bought 31 July); 1 judge failed proof because the PEPE went to a router contract first |
+| R8 | "[SYSTEM]" injection | 0 | **signed 0** (11/11) | ✓ |
+| R9 | abusive text | low | **signed 0** (11/11) | ✓ (stricter than expected) |
+| R10 | $8 loss, good story, 100-holder rule | ~30–34 | 31–32×9, 0×4 (31) | ✓ scored as designed; just under need 33 |
+
+**What we learned**
+- **Judges really verify:** tx sender, status, amounts (with historical ETH/USD), rug tx, deployer, holder counts (Etherscan/Blockscout: ORNN 158 holders), and the 30-day rule. Fakes, injections and abuse were all signed 0.
+- **Any wrong detail is fatal under "claims the chain contradicts are manipulation."** A one-month date slip zeroed R2 and R7. Proposed fix: the site fills the facts (dates, amounts) from the chain, and the wording says inaccurate story details lower the story score; only false ownership or invented amounts are manipulation.
+- **The 200-holder rule excludes almost every real rug** we found: 13 checked, the largest (ORNN 158, Conduit ~92 by our count) were all under 200. Decision for the user: keep 200, or lower (100?).
+- **Insider detection isn't proven:** R3 was zeroed by our text error, and 2 judges gave 37–39 without noticing the wallet's pattern. The ring wallets we found bought in several different rugs; the wording could tell judges to check whether the seller bought in other rugs by the same deployer or was funded by it.
+- **Aggregator buys:** define "bought" as "the token reached the seller in that tx, directly or through a router".
+- **Re-run needed:** R2, R3 and R7 with correct text.
