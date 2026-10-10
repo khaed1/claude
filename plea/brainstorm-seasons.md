@@ -46,3 +46,7 @@ User's picks: season leaderboard (1), ransom revival (3), badges (4). Open propo
 - **Ransom pot → next season's prize pot** (recommended over buy-and-burn): contributors fund prizes they can win back, and a buy during the holiday would pump the price just before limits return.
 - **24h warning** is fine if: the countdown starts only when the target is hit, the pot's progress is shown live the whole time, and the ransom opens only after a minimum free-trading holiday.
 - **Prize funding:** fees today total 1.5% (IMD side 1.25%: cashback 0.5, owner 0.5, liquidity 0.25; plus a 0.25% PLEA burn). Adding 0.25% for prizes makes **1.75%**. Recommended instead: take the 0.25% from the owner's 0.5%, so the total stays 1.5%. The ransom pot tops prizes up each season.
+
+## Round 3 (2026-10-10): prize funding and points
+- **The user keeps the full 0.5% owner share.** Options for prizes: (A) add 0.25%, total 1.75% (1.25% net after cashback); (B) send the 0.25% PLEA burn to prizes instead, total stays 1.5%; (C) liquidity share, not recommended (thins the pool and the buy wall). Recommended: **A**. Every pool needs our hook and hookData, so no cheaper PLEA pool competes, and the cashback offsets part of the fee.
+- **Points draft:** only approved pleas score. Points = the judges' plea score (0–45), counting each wallet's **best 3** per season, so grinding many pleas doesn't pay. A ransom relic adds a **flat +10%** to the season total, the same for any contribution above the minimum. Ties go to the earlier plea.
