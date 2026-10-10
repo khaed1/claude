@@ -504,3 +504,13 @@ Test wallet A = `0x4b91…6821`; throwaway wallet B = `0x0C855176F4829A5814A285d
 - **Gas notes (new Sepolia schedule):** approvals to a new spender ~100–130k (a 100k limit failed once); wallets should use estimates ×1.3. Every flow fits the hook's reserve; observed totals: buy 1.5–2.6M, plea 2.2–2.5M, appeal 2.86M, sell 0.75M, record 0.64M, rebalance 0.81M.
 - ETH left: A ~0.055, B ~0.010.
 - **Site job `11d73554` BLOCKED (19:02 UTC):** `build_website` built the site, but publishing failed with `503 member_sites_closed` (IMD's docs say member sites are closed on api.imd.fun today); the node asks for the hosting operator to enable member-site publication. design_critic never ran; no source delivered. Not our code. Fix: ask the IMD dev (dev-feedback item 11) to publish the existing export or reopen hosting, then continue the job (a `job.continue` costs 0.5 IMD). Site check-in routine `trig_01EVEm5SZrjHiDyHCb5E1gii` disabled.
+
+## Seasons check (2026-10-10 ~22:20 UTC)
+- **Fork test of the full lifecycle against the live launch #1242** (`plea/tests/ForkSeasons.t.sol`; runs inside the delivered repo `launch-1242…` at `7d247e8a`, fork block 11,887,460; oracle signer slot 2 swapped to a test key, verdicts delivered by impersonating the Intake): **PASS**. 12 wallets, ~60 pleas:
+  - The real season 0 closed with 1 Laureate (plea #4, wallet B) and no payout (38 < 60); its fees rolled over.
+  - Season 1: one approved plea per wallet (max 45 < 60), so everything rolled over; 5 Laureates to the top 5 pleas; `record` refuses a denied plea and a double record; `closeSeason` refuses inside the 1h grace.
+  - Season 2 (two approvals 4h apart): 10 wallets with 81–90 points paid exactly 25/18/14/11/9/7/6/4/3/3 % of (season fees + rollover) = 10.31 tIMD; 2 wallets evicted from the top 10; 4 wei rollover.
+  - `setName` works; duplicate and reserved names are refused; `tokenURI` renders.
+  - After 33h silence the Cabal dies, restrictions end, the remaining 7 seasons close (empty), `finished()` is true, `flushToWall` sends the pot to the hook's wall reserve, and a plain router sell works.
+- **Sepolia limit worth knowing:** with 5-hour seasons and the 4h cooldown, a wallet gets at most 2 approved pleas per season, so the 60-point minimum needs two pleas averaging 30+ in the same season, both started early in it. On mainnet (15-day seasons) best-3 works as designed.
+- Live: the real season 0 close is scheduled for 23:04 UTC (send_later).
