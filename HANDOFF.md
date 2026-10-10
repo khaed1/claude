@@ -473,3 +473,13 @@ A clean `forge build` of v10 was **killed at 13.6 GB**. It wasn't solc (≤ 2.4 
   - `wallGuardTick`: moves at once toward a lower PLEA price, rises ≤ 400 ticks/day toward `refTick`; `rebalance` never places the wall above it. Updated in `afterSwap` and `rebalance`.
   - 5 new tests (both orientations): 115/115 pass, isolated launch tests pass, fmt clean. PleaHook runtime 22.5 KB (limit 24.6 KB).
 - Note: refTick moves ≤ 200 ticks per traded block, so with sparse trading the guard rises slower than 400/day (safe direction).
+
+## PLEA v10 LIVE on Sepolia (2026-10-10 16:21 UTC)
+- Job `3593725e` completed; **launch #1242** `9dac26b9-ae28-48e0-9348-015c0c182a6e` **live**. All admission checks passed (provenance, findings, independent review, bytecode 8 contracts reproducible, manifest, **protected_invariants passed**, economics).
+- Code: https://github.com/identity-md-launches/launch-1242-launch-plea-sepolia-foundry (commit `7d247e8a`, PR #1). Deploy tx `0x9de8d4a7b24b04f2ee52fea389572341844d1a27d5a131f50194af83db833be8`, block 11,885,684.
+- Addresses: PLEA `0x9b8d9aae44e81b1205e227911db279bde6edead9` · CabalGate `0x758b8300c62563591950f32717be44a5140a20f9` · Seasons `0x178481ac37e68a5c6ef95336db4616ba0169a17a` · Laureates `0xd2311b6d4c42a6dc3900a0a74a364b2775dd61c1` · PleaDistributor `0xabaecde2b71f0e3fa5d1b70f9a2bb9c24d6f3a7f` · PleaLaunch `0x29aa568f93d7d4d8255ba54b6201bbe1abd01ab4` (START 1791817200, owner `0x4b91…6821`).
+- **What the adapter changed vs e08cd34** (the delivered code is the truth now; mine/deploy from it):
+  - Gate: a **lapsed approval now starts the 4h cooldown** (the issue flagged earlier); hold-time and P&L fact points count only if the hook-tracked holding covers the amount sold; an expired appeal may be retried within the 4h window; oracle request ids are consumed once (`_consume`).
+  - Hook: **every buy needs a recipient in hookData, even after death** (plain routers without hookData can't buy); after the first buy, payout shortages pay ERC-6909 IMD claims to owner/Seasons/trader instead of liquidity; cap-decay remainder fix; prize fees call `Seasons.checkpoint()`.
+  - Seasons: each season pays **its own fees + rollover** (fees earned in later seasons no longer go to an earlier close); redeems IMD claims; tie-breaks by older plea; `checkpoint()`.
+  - The `mainnet` branch in khaed1/plea predates these; rebase it on the delivered code before mainnet.
