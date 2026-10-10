@@ -65,4 +65,11 @@ Examples from today:
 
 **6. Small one:** let the payer buy a higher callback gas limit than 200k, for consumers that need to do real work in the callback.
 
+**7. Chain mode can't sign transaction-level checks (tested 2026-10-10 on Sepolia).** We asked, in chain mode, "did wallet W buy token T from pair P, and was the pair's liquidity pulled afterwards?" about a real Ethereum rug. All 13 answering members said **true**, with correct notes (tx.from, Swap amounts, Burn vs prior Sync reserve), but nothing was signed: each member had to pick a stand-in recipe from the catalogue (8 used `balanceOf`, 4 `getReserves`, 1 `token0`, with different thresholds), so only 2 matched. The same facts asked in **panel mode** were signed 12/12 with the right answer. Requests: oracle `aebb2ae2-1250-4cb4-8451-0049491ec872` (chain, disagreed) and `e8e13011-0901-430d-8f4b-4467e48a4897` (panel, attested). Suggestions, most useful first:
+- **A transaction recipe:** given a tx hash, check `from`, `status`, `blockNumber` and decoded logs (e.g. "emitted Transfer of T from P to W"). One receipt read, fully deterministic.
+- **Historical calls and comparisons:** a call at a given block (not only the closing block), and comparing two reads (reserve after Burn ≤ 1% of reserve before).
+- **AND of recipes:** let one bool answer be the conjunction of several recipes, so multi-step checks can be rerun.
+- **Agree on the answer when recipes differ:** if every member gives the same answer but no single recipe reaches quorum, fall back to a panel-style signature (marked as such) instead of "disagreed", or let the requester opt in with something like `evidence: "chain-or-panel"`.
+- **Publish the recipe catalogue** (in the docs or `/requests/capabilities`), so requesters can word chain questions to fit an existing recipe.
+
 Happy to test any of this on Sepolia; it's free there now, which is great.
