@@ -274,3 +274,8 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
 - **Docs advise** keeping the signer, Intake, action, asset and price as owner settings, and a public `submit` fallback. For PLEA we recommend immutable settings and callback-only (see the plan).
 - **No launch-side change:** still no hook-salt mining or multi-tx deploy in `evm_contracts`.
 - **v2 review and v4 plan:** `plea/v4-plan.md` (14 problems, 6 decisions, build order).
+
+## Calibration run (2026-10-10)
+Twelve self-written pleas went through the Sepolia Intake (15 judges each, numeric plea score, new wording). Results are in `plea/v4-plan.md` → "Calibration results": strong ≈ 35–40, plain ≈ 25–30, weak or abusive < 15, the polite closing was scored on merit, and both injections got a signed 0.
+- **Rule learned:** a request paid on Sepolia must name a **testnet `consumer`** (or a callback). Otherwise it's refused `testnet_only` after payment; 12 test requests were lost this way (test IMD only).
+- **The IMD dev asked for feedback.** Our message is in `plea/dev-feedback.md`: the `onFailure` hook with an `OracleFailure` struct, a free full-body check, linking the attestation to the intake id, median answers, the launch issues and callback gas.
