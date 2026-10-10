@@ -69,6 +69,7 @@ User's picks: season leaderboard (1), ransom revival (3), badges (4). Open propo
 | Combination | Leaderboard (1) + ransom revival (3) + NFTs (4) |
 | Prize funding | New 0.25% fee → total 1.75% (owner keeps 0.5%) + the ransom pot |
 | Season length | 15 days max; ends early if the Cabal dies |
+| Era | Each Cabal lives 2 seasons (30 days) with a mood fixed at launch, then retires on schedule; the 33h dead-man can end it early |
 | Points | Judges' plea score (0–45) on approved pleas; each wallet's best 3 count; ties to the earlier plea |
 | Ransom relic | Soulbound, one per wallet per season, minimum 6 IMD, flat +10% to next season's points (never the sell verdict) |
 | Payout | Top 10: 25/18/14/11/9/7/6/4/3/3 %, minimum 60 points, unpaid shares roll over |
@@ -82,5 +83,5 @@ User's picks: season leaderboard (1), ransom revival (3), badges (4). Open propo
 - **Decided: 72h free-trading break** (was 24h), so a new mood has time to draw people in. The 24h warning before limits return is unchanged.
 - **The gap:** with only the 33h dead-man, a busy Cabal may never die, so the ransom and a new mood would never happen.
 - **Options to end a Cabal:** (A) time only, as now; (B) **planned retirement**: each Cabal (an "era") retires on schedule after a fixed number of seasons, with its mood fixed at launch; (C) a holder vote (whales can capture it, more code); (D) an activity threshold (like A, more complex); (E) a price or approval-rate trigger (can be manipulated).
-- **Recommended: A + B.** Keep the 33h dead-man as the early exit, and add a planned retirement after 4 seasons (60 days). Each era has its own Cabal mood from a schedule fixed at launch; the ransom starts the next era with the next mood. Every era ends with a known free-trading window, which also gives long-locked holders a fair exit. Pending the user's choice of era length.
-- **Era length (user, 2026-10-10): 2–3 seasons.** Recommended: **2 seasons (30 days)**, "a new Cabal every month". One cycle ≈ 30 days of Cabal + 72h break + up to 72h ransom + 24h warning ≈ 34–37 days, so PLEA trades free about 10–19% of the time (3 seasons: about 7–13%). Pending the user's pick.
+- **Recommended: A + B.** Keep the 33h dead-man as the early exit, and add a planned retirement after 4 seasons (60 days). Each era has its own Cabal mood from a schedule fixed at launch; the ransom starts the next era with the next mood. Every era ends with a known free-trading window, which also gives long-locked holders a fair exit. **Decided** (era = 2 seasons, see below).
+- **Era length (user, 2026-10-10): 2–3 seasons.** **Decided: 2 seasons (30 days)**, "a new Cabal every month". One cycle ≈ 30 days of Cabal + 72h break + up to 72h ransom + 24h warning ≈ 34–37 days, so PLEA trades free about 10–19% of the time (3 seasons: about 7–13%).
