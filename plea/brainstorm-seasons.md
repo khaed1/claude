@@ -109,3 +109,14 @@ Pleas from people who lost money to scams and rugs. The plea links the wallet th
 - **Display only.** The plea tx comes from the wallet, so anyone can still find it on a block explorer; a username just keeps the address off the card.
 - **Proposed:** an on-chain `setName(name)` (in the Gate or a small names contract), so the IPFS site needs no backend. Unique, 3–20 characters, lowercase letters, digits and `_`; reserved words (cabal, admin, imd, plea, owner) refused. ENS names are shown if a wallet has one and no username.
 - **Cards** show the username; the address appears only in the plea's detail view.
+
+### Chain-reading test (2026-10-10, Sepolia Intake, free test IMD)
+Real Ethereum rug as evidence: fake "XRP" token `0xcb2e…89ba`, Uniswap V2 pair `0xd855…3707`. Victim `0xf9be…3e73` bought for 0.10945 ETH (tx `0x9117cdda…1c5d`, block 25,910,794, 2026-09-05 11:21 UTC); 15 min later tx `0xc7124258…e3d1` (block 25,910,868) pulled 36.31 ETH, 99.99% of the WETH. Request txs on Sepolia: `0x4c5564f5…898e`, `0x5e766561…36ad`, `0x4a2efbb0…f95a`.
+
+| Test | Mode | Expected | Result |
+|---|---|---|---|
+| 1. Did the victim buy, then was it rugged? | chain, bool | true | **13/13 answered true, but no signature** ("disagreed"): chain mode signs only when judges agree on the same reproducible recipe, and there's no recipe for "tx sender + several logs + past reserves", so each picked a different approximation |
+| 2. Same, for a wallet that never bought | chain, bool | false | **Signed false** (11/14 agreed), but via a stand-in recipe (balance = 0), not the real check |
+| 3. How many of 4 claims are true (3 real, 1 false block number)? | panel, uint256 | 3 | **Signed 3, 12/12 agreed.** Judges queried Ethereum RPCs themselves (tx sender, Swap amount 0.10945 ETH, symbol "XRP", Sync reserves before/after, block number) |
+
+**Conclusion:** yes, IMD's judges read chain data, and in **panel mode** (the mode PLEA already uses) they verify tx-level claims accurately and agree. Chain mode can't sign multi-step rug checks today. So the Rekt Cabal works with panel mode: the plea lists the txs, and the definitions tell judges to verify each claim on chain and give no Rekt credit for anything unconfirmed.

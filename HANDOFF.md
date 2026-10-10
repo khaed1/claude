@@ -325,3 +325,7 @@ Twelve self-written pleas went through the Sepolia Intake (15 judges each, numer
 - **New job `8686f9e4-7725-4043-b465-67908c5c4b46`** (`evm_contracts`, Sepolia, paid by `0xf8ad…cdc7`), executing. Its text equals `plea/job-sepolia.md` (START 1791775740, fixed BUILD line); the submit path only stripped markdown dashes and backticks. The old job `d1ff706d` stays blocked.
 - Check-in routine `trig_017xZjHXdR24qGEezWuyUoyn` re-enabled and pointed at the new job (at :39 hourly, pings on live or blocked).
 - The site job (`plea/job-v4-site.md`) must use the new job as its parent.
+
+## Seasons brainstorm and the chain-reading test (2026-10-10)
+- Seasons design (leaderboard + ransom revival + NFTs, eras of 2 seasons, moods Classic/Rekt/Jester's/Loyal, usernames) is in `plea/brainstorm-seasons.md`; the user experience is in `plea/seasons-ux.md`. Not in v4.
+- **Chain-reading test:** 3 free Sepolia oracle requests about a real Ethereum rug. Panel mode verified tx-level claims by itself and signed the right count (12/12). Chain mode got the right answer but can't sign multi-step checks (no shared recipe). Details in `plea/brainstorm-seasons.md`.
