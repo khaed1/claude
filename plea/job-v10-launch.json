@@ -1,7 +1,7 @@
 {
   "action": "launch.open",
   "input": {
-    "objective": "Launch PLEA on Sepolia from this Foundry repository exactly as launch.json lists it: six contracts (PLEA, CabalGate, Seasons, Laureates, PleaDistributor, PleaLaunch), deployed in order in one transaction. Audit the imported code and deploy it unchanged. PleaHook is deployed after launch by PleaLaunch.deployHook with a salt mined off chain; it is not a launch.json entry.",
+    "objective": "Launch PLEA on Sepolia from this Foundry repository exactly as launch.json lists it: six contracts (PLEA, CabalGate, Seasons, Laureates, PleaDistributor, PleaLaunch), deployed in order in one transaction with the constructor arguments in launch.json. Audit the imported code and deploy it unchanged; fix only what the audit proves is a real bug, and keep every number as it is (fees, timings, panel 30, quorum 17, START 1791817200, credit gas 1300000). PleaHook is not a launch.json entry: PleaLaunch.deployHook deploys it after launch with a salt mined off chain. Keep PLEA.setLauncher accepting either the deploy-transaction flag or PLEA's deployment block (the launch rehearsal deploys each constructor in its own call). Keep foundry.toml as it is, including [lint] lint_on_build = false (forge's linter runs out of memory on PleaHook).",
     "repoUrl": "https://github.com/khaed1/plea.git",
     "baseCommit": "e08cd34349a2100e596d2a8bf86229947baa9b09",
     "onchain": "evm_contracts",

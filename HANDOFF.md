@@ -443,3 +443,11 @@ A clean `forge build` of v10 was **killed at 13.6 GB**. It wasn't solc (≤ 2.4 
 - **START = 1791817200 = Mon 2026-10-12 15:00 UTC** (user agreed). If the submit slips past Mon morning, move START (new commit, re-import, re-check).
 - **`khaed1/plea` `e08cd34`** = baseCommit in `plea/job-v10-launch.json`; import + `/requests/check`: no blockers, 10-step plan. The user submits that file's `input` as `launch.open` (paid, from `0xf8ad…cdc7`).
 - After launch: MineSalt → `deployHook` from the test wallet, verify, then seed (owner any time, anyone from START), live test, site job, hackathon entry.
+
+## Re-verified before submit (2026-10-10 ~14:00 UTC, new session)
+- **`khaed1/plea` `e08cd34` unchanged** (no real bugs found). Forge 1.8.3 clean build + `forge test`: **105/105 pass**; `forge test --isolate --match-path test/Launch.t.sol`: 5/5. Runtime sizes: Hook 21.7 KB, Gate 19.4 KB (limit 24.6 KB).
+- **Slither 0.11.6** (medium+high): only the known false positives (ring `% 25` "weak PRNG", mappings "never initialized", strict equalities, tick-align divide-before-multiply, reentrancy into PoolManager). No `arbitrary-send-erc20`.
+- **Import** needs the full 40-char SHA in the commit URL (the short one gives `not_github`). Import + `/requests/check`: no blockers, same 10-step plan.
+- **Objective text** in `plea/job-v10-launch.json` tightened: keep numbers, keep the setLauncher deploy-block fallback, keep `lint_on_build = false`.
+- **Design note for mainnet (no change on Sepolia):** an approved plea that lapses (not sold within 7 min) still earns season points and starts no cooldown, so a holder can retry tiny-amount pleas every few minutes at 0.5 IMD each; only denials and executed sells start the 4h cooldown. Decide before mainnet whether a lapse should also start the cooldown.
+- Old v4 routine `trig_01HpY7DMNkPaKhaFgLeW43MG` deleted.
