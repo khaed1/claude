@@ -3,7 +3,7 @@
   "input": {
     "objective": "Launch PLEA on Sepolia from this Foundry repository exactly as launch.json lists it: six contracts (PLEA, CabalGate, Seasons, Laureates, PleaDistributor, PleaLaunch), deployed in order in one transaction. Audit the imported code and deploy it unchanged. PleaHook is deployed after launch by PleaLaunch.deployHook with a salt mined off chain; it is not a launch.json entry.",
     "repoUrl": "https://github.com/khaed1/plea.git",
-    "baseCommit": "76c358deb246e9d93ced2dea3bc504098fcfa6a7",
+    "baseCommit": "8b63571c59b3be987268cf6d957c680ec1e8a3ac",
     "onchain": "evm_contracts",
     "chainId": 11155111,
     "owner": "0x4b91078b2374c956a65f7af0999cae0a935e6821",

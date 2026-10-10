@@ -428,3 +428,4 @@ A clean `forge build` of v10 was **killed at 13.6 GB**. It wasn't solc (≤ 2.4 
 - **README** credits TokenWorks (CabalCoin) at the bottom.
 - **Tests:** 105, all pass (incl. fast clock, both pool orders, oracle conformance). **Sepolia fork re-run:** deploy 10.73M gas (was 13.79M), 8/8 buys with plain estimates, plea through the real Intake approved, sell 1.88 IMD, recorded on the leaderboard.
 - The sections above about moods, eras, ransom and relics are superseded. `plea/brainstorm-seasons.md` and `plea/seasons-ux.md` describe the old design.
+- **User agreed (2026-10-10):** all four items: (1) leftovers flush to the buy wall, (2) the prize fee goes to pool liquidity after death, (3) **Sepolia uses the real 33h dead-man** (118,800 s) with 5-hour seasons, (4) START stays a placeholder until the user picks it. **`khaed1/plea` `8b63571`** = current baseCommit (import + check: no blockers).
