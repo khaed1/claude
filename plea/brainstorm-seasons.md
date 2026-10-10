@@ -175,3 +175,14 @@ Same body as v4 (panel mode, `panelSize:30`, `quorum:17`, `allowAmbiguous:true`,
 - **Insider detection isn't proven:** R3 was zeroed by our text error, and 2 judges gave 37–39 without noticing the wallet's pattern. The ring wallets we found bought in several different rugs; the wording could tell judges to check whether the seller bought in other rugs by the same deployer or was funded by it.
 - **Aggregator buys:** define "bought" as "the token reached the seller in that tx, directly or through a router".
 - **Re-run needed:** R2, R3 and R7 with correct text.
+
+### Rekt Cabal: looser rules (2026-10-10)
+- **Decided: holder minimum 100** (was 200).
+- **User's direction:** don't be strict; many people lost money where nothing can be verified on chain (FTX, Celsius, exchanges, off-chain scams), so lean more on the story.
+- **Proposed rubric (an evidence ladder), still 0–45:**
+  - **Story 0–18** (was 12): honesty, specifics, what they learned, wit and respect.
+  - **Proof 0–12:** 12 = fully on chain (the seller's buys of a rugged token); 6 = partly (the seller's deposits to a platform that later collapsed, e.g. FTX or Celsius hot wallets, or funds sent to a known scam address); 0 = story only.
+  - **Harm 0–15** (severity + loss together): judged from the evidence and the story; **counts half when proof is 0** (max 7).
+  - So a story-only plea can reach about 25 (7 + 18), a partly proven one about 37, a fully proven one 45. With need = 70 − fact score (15–45), story-only pleas pass when the fact score is strong; proven ones pass more easily.
+- **Lies still fail, slips don't:** only false ownership or invented amounts that the chain contradicts are manipulation. Wrong dates or rounded amounts in the story lower the story score only. Claims nobody can check are fine; they just earn less.
+- The 30-day, deployer and holder rules apply only to on-chain proof (proof 12); story-only and partial claims skip them.
