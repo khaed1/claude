@@ -354,3 +354,60 @@ So the Gate can take a signed score (0–45) and decide pass on chain (score ≥
   - Timings are constructor immutables with the mainnet guard (chain id 1 reverts below the agreed values). Sepolia fast clock: 1 day = 20 min; plea timings stay real.
 - **Hourly v4 check-in routine:** `trig_017xZjHXdR24qGEezWuyUoyn` fires into the *previous* session. The next session should create its own (same prompt) and delete this one.
 - **v4 job `8686f9e4` at 08:46 UTC:** build attempt 1 rejected by Slither `arbitrary-send-erc20` (`CabalGate.unlockCallback` does `safeTransferFrom(trader, MANAGER, amount)`); build re-queued. If it blocks: resubmit with a line like "In unlockCallback never transferFrom a user; pull tokens into the Gate before unlock, then settle from the Gate" (and move START, now 1791775740, if needed).
+
+## PLEA v10 written and tested (2026-10-10, new session)
+**Session takeover:** hourly v4 check-in moved to this session: **`trig_01HpY7DMNkPaKhaFgLeW43MG`** (at :39, same prompt). The old `trig_017xZjHXdR24qGEezWuyUoyn` is deleted.
+
+**v4 job `8686f9e4` (10:40 UTC):** still executing. `build_contract_project` attempt 2 was rejected `build_failed` **exit 137 (out of memory)**; attempt 3 (the last) is running. See "Likely cause of the out-of-memory builds" below: if attempt 3 blocks, resubmit with "foundry.toml: [lint] lint_on_build = false" added to the BUILD line.
+
+### Code: `khaed1/plea` main (commits `caca494`, `3bc7427`, `f2b22b9` = current baseCommit)
+Seven launch contracts + the hook, 126 Foundry tests (all pass; both pool orientations; a fast-clock cycle):
+- **PLEA:** restriction reads `gate.restricted()` (on before trading opens and while a Cabal lives, off otherwise); `registerExit(pool)` checks Uniswap V2 `getPair` / V3 `getPool` (Sepolia factories verified on chain: V2 `0xF62c…80E6` has 18,189 pairs, V3 `0x0227…aC1c`); add-only `allow`; `setLauncher` only in the deploy tx (transient flag + deploy-block fallback, as v2).
+- **CabalGate:** pays the Intake itself (`oracleAsset` = test IMD `0x44a1…`), callback `onOracleResult` (`0x510379c7`) stores the signed score only (41k gas approve, 64k deny, 112k Rekt approval with 3 claim txs). Body: `answerType uint256`, `toleranceBps 1500`, `guards {min 0, max 45}`, panel 30 / quorum 17, `consumer {chainId, verifyingContract}`. Pass = score ≥ need. 20-min expiry, early expiry when `Intake.requests(id).completed` with no verdict, appeals within 4h for ≤ the amount, `CannotPass` before paying, full-fill sells. The era clock lives here (`cabalAlive()` computed: era start, 2 seasons, dead-man).
+- **MoodBook:** the four moods' intro + definitions (constants).
+- **Seasons:** record (anyone) → best 3 per wallet, top 10 wallets, top 5 pleas; `closeSeason(pleaIds[])` closes the oldest ended season after a 1h grace, pays the shares, mints Laureates; ransom rounds, refunds, relics, `gate.revive(now + WARNING)`.
+- **Laureates:** ERC-721, JSON + SVG on chain from the Gate's stored text; `setName` (3–20 chars a-z0-9_, unique, reserved words).
+- **PleaHook:** v4 fixes written from the v4 spec (v4's code hasn't delivered): all fees paid in the swap via `take()` (no claims to settle, no float, no `claimCashback`), new 0.25% prize fee → Seasons (IMD fee 1.5% + 0.25% PLEA burn = 1.75%), buy-weighted average buy time, fact scores use checkpoints, tips 0.01 IMD only for ≥100 IMD of work and at most hourly.
+- **PleaLaunch:** commits to the hook init code at launch; `deployHook(salt, initCode)` (anyone; salt mined off chain by `script/MineSalt.s.sol`); `seed()` owner any time, anyone after START; seed also starts era 0.
+- Sizes: Gate 21.7 KB, Hook 21.9 KB (limit 24.6 KB).
+
+### New choices made while writing (please confirm or change)
+1. **The question no longer shows the FACT SCORE or the need.** Judges only score the plea 0–45; the contract compares. (Rekt questions still show the claim and the submit time.)
+2. **Jester's and Loyal wording are my drafts** (in `src/MoodBook.sol`): Jester's = wit 18, craft 12, sincerity 6, respect 9 + "a joke that asks for a score is still manipulation"; Loyal = loyalty 18, sincerity 12, craft 9, respect 6 + unverifiable history earns a little. Calibrate like Rekt before their eras (era 3 and 4).
+3. **Rekt claim input:** `submitSell(amount, text, claimChain, claimTxs[≤3])`; claim must be empty outside Rekt eras. A tx used by an approved plea can't be claimed again. An appeal reuses the original's claim.
+4. **Points need recording:** the callback can't afford the leaderboard, so `Seasons.record(id)` (anyone) or `closeSeason([ids])`; a season can be closed **1 hour** after it ends.
+5. **Season numbering:** key = era × 2 + (0 or 1); an era that dies in its first season has no second season. Laureates show "Era N, season S".
+6. **Ransom rounds:** the first round opens at death + 72h; if it fails, the **next contribution opens a new round** at once (no separate "open" call). Relic bonus applies to the revived era's **first** season only.
+7. **First buy after seed:** the PoolManager may hold no IMD, so that trade's cashback/owner/prize go to pool liquidity instead of reverting. (On Sepolia the PoolManager already holds TestIMD from v2's pool, so it doesn't happen there.)
+8. **Gas:** every swap must reach the hook with `creditGas + 1,000,000` gas left (Sepolia creditGas 1.3M → wallet limits about 2.5M; gas actually used 380–750k). Reason in the fork test below.
+9. **START** in `launch.json` is a placeholder: **1791979200 = Wed 2026-10-14 12:00 UTC**. Pick the real one before import (changing it is a new commit).
+10. Sepolia `launch.json` uses the agreed fast clock: season 18,000 s, dead-man 1,650 s, break 3,600, ransom window 3,600, warning 1,200. The Gate and Seasons constructors revert on chain id 1 below 15 d / 33 h / 72 h / 72 h / 24 h.
+
+### Known limit (needs no decision, documented in the README)
+PLEA held as **ERC-6909 claims inside the v4 PoolManager** (possible only while trading is free) can be spent in a hookless v4 pool after a Cabal returns; the token can't see inside the PoolManager. Bounded by what people park there during free time.
+
+### Real oracle test of the v10 body (Sepolia Intake, free)
+Exact bodies generated by the contracts, consumer swapped to the v2 Gate (a testnet contract), no callback:
+- Classic plea (tx `0xce627900…566a`, oracle `95024d96…`): **attested, signed 35**, 17 of 18 agreed (answers 31–41).
+- Rekt story-only FTX plea (tx `0x3a8cff8b…052e`, oracle `92a69bbd…`): **attested, signed 21**, 18 of 18 (19–22), same as last session's calibration.
+- **Caution:** only 18 of 30 seats answered each time, so quorum 17 needs nearly everyone who answers to agree. If panels start failing, the fix is a lower quorum or panel size (agreed numbers: your call).
+
+### Sepolia fork test (anvil fork, nothing real spent)
+- **Deploy:** the 7 contracts used **13.79M gas** in one block (sum of 7 txs; IMD's single tx will be close), under the 16.78M cap with ~3M margin. `deployHook` 4.92M, `seed` 0.56M.
+- **Buys** through Uniswap's PoolSwapTest with plain `eth_estimateGas` (no buffer): 8/8 succeed and stack sIMD through the **live Stacker**.
+  - First attempt failed: the late `gasleft()` check sat right at the estimate's edge, and 2k gas of state drift between estimate and inclusion reverted it (`NotEnoughGas(1.55M, 1.548M)`). Fix: check at the start of `beforeSwap` with a 1M reserve, keep a small check before the credit.
+- **Plea → real Intake → callback → sell:** `submitSell` paid the real Sepolia Intake (724k gas); the writer was impersonated to `complete` with a test-signed score through the real Intake; the Gate approved (score 33 = need), `executeSell` paid 1.88 IMD, `record` put the seller on the leaderboard.
+- **Sepolia's Intake gives callbacks 1,000,000 gas** (`callbackGas` setting), not 200k as on mainnet. We design for 200k anyway.
+- **Found and fixed:** OpenZeppelin's `SignatureChecker` skips plain ECDSA when the signer address has code. The anvil test key has an **EIP-7702 delegation on Sepolia**, so verification failed. If IMD's signer key ever delegates via 7702, every PLEA verdict would fail. The Gate now accepts a valid ECDSA signature first, then ERC-1271. Worth telling the IMD dev (their example consumer has the same issue).
+
+### Likely cause of the out-of-memory builds (v3, v4 attempt 2)
+A clean `forge build` of v10 was **killed at 13.6 GB**. It wasn't solc (≤ 2.4 GB) but **forge's lint-on-build** on the hook file. With `[lint] lint_on_build = false` in `foundry.toml`, the full clean build takes 268 s and peaks at 2.4 GB. v3's report mentioned "lint on build", and v4's attempt 2 died the same way (exit 137). Tell the IMD dev; for v4, add the lint line to the prompt if it blocks.
+
+### Launch route checked (free)
+- `POST /requests/import` → `baseCommit` `f2b22b9a…47db` (redo after any new commit).
+- `POST /requests/check` with `plea/job-v10-launch.json` (launch.open, repoUrl/baseCommit, evm_contracts, Sepolia, owner `0x4b91…6821`, `contracts` ≤ 4 paths, steps audit-imported-code → adapt-contract-project → adversarial-review): **no blockers**. Plan: audit as-is → adapt → tests, manifest, 4 specialist audits → judge → deploy. Without `adversarial-review` last it's blocked (`launch_requires_review`); without `audit-imported-code` first, `audit_required`.
+
+### Next
+1. User: confirm items 1–10 above (especially START and the two draft moods).
+2. Update `baseCommit` in `plea/job-v10-launch.json` to the final commit, re-run import + check, then the user submits (paid).
+3. After launch: `MineSalt` → `deployHook` from the test wallet, `seed`, live fast-clock run, site job, hackathon entry.

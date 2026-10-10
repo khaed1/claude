@@ -1,0 +1,30 @@
+{
+  "action": "launch.open",
+  "input": {
+    "objective": "Launch PLEA v10 (Seasons) on Sepolia from this Foundry repository exactly as launch.json lists it: seven contracts (PLEA, MoodBook, CabalGate, Seasons, Laureates, PleaDistributor, PleaLaunch), deployed in order in one transaction. Audit the imported code and deploy it unchanged. PleaHook is deployed after launch by PleaLaunch.deployHook with a salt mined off chain; it is not a launch.json entry.",
+    "repoUrl": "https://github.com/khaed1/plea.git",
+    "baseCommit": "f2b22b9afcc01665b09483d7bca00ea61b1c47db",
+    "onchain": "evm_contracts",
+    "chainId": 11155111,
+    "owner": "0x4b91078b2374c956a65f7af0999cae0a935e6821",
+    "github": true,
+    "contracts": [
+      "src/CabalGate.sol",
+      "src/Seasons.sol",
+      "src/PleaHook.sol",
+      "src/PLEA.sol"
+    ],
+    "shape": "chain",
+    "steps": [
+      {
+        "skill": "audit-imported-code"
+      },
+      {
+        "skill": "adapt-contract-project"
+      },
+      {
+        "skill": "adversarial-review"
+      }
+    ]
+  }
+}
