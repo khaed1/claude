@@ -298,3 +298,12 @@ Twelve self-written pleas went through the Sepolia Intake (15 judges each, numer
   3. Run the site job (`job.continue`, reuse v2's `web/` plus the site list in `plea/v4-plan.md`).
   4. Test on a fork and live.
   5. List the hook on imd/acc.
+
+## PLEA v4 site prompt (ready; submit after the v4 contracts are live)
+- **`plea/job-v4-site.md`** (6,049 characters): a `job.continue` on the v4 job `d1ff706d` (or that project's newest job), skill `frontend-for-contract`, references `better-interface` and `eth-frontend-ux`, IPFS `plea-test`. `/requests/check` passes with no blockers (size checked against v2's parent).
+- **The user's asks are in it:**
+  - a PLEA wordmark logo and a professional look (Impeccable rules written in; Inter is now banned by Impeccable, which v2 used)
+  - Wall cards with borders in a 1/2/3-column grid
+  - one polished icon set (Phosphor), no generated SVGs
+  - a single Connect button in the header
+- **Every fix from the v2 site test is in it,** plus `npx impeccable detect` as QA.
