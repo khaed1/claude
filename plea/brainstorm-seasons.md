@@ -211,3 +211,16 @@ Replaces the draft wording above. Same body as v4 (panel mode, 30 judges, quorum
 - **Mainnet guard:** on chain id 1 the constructor reverts if any duration is below the agreed value (season 15 days, era 2 seasons, dead-man 33h, break 72h, ransom refund 72h, warning 24h). Before launch, read the deployed values and confirm them.
 - **Three test layers:** (1) Foundry tests with `vm.warp` through full cycles and edge cases; (2) a Sepolia fork with time jumps and the site in Playwright (oracle replies faked on the fork); (3) live Sepolia with a fast clock, **1 day = 20 minutes** (season 5h, era 10h, dead-man 27.5 min, break 1h, ransom refund 1h, warning 20 min). Plea timings stay real (7-min sell window, 20-min expiry), since verdicts take about 5 minutes.
 - v4 is unaffected (fixed constants).
+
+### Rekt re-test with wording v2 (2026-10-10, 4 pleas, 13–15 judges each)
+| # | Case | Expected | Scores (median) |
+|---|---|---|---|
+| S1 | ORNN victim, fully proven, correct story | 33–40 | 35–43 (**39**), tight |
+| S2 | bot-ring wallet (bought in two rugs), correct amounts | 5–12 (insider) | split: 6 judges 18–21 (flagged insider), 7 judges 33–41 (**33**) |
+| S3 | FTX, story only | 18–25 | 18–22 (**21**), very tight |
+| S4 | FTX deposit 1,200 USDC on 7 Nov 2022 (partial proof) | 27–35 | 28–34 (**31**), tight |
+
+- **The ladder works:** fully proven 39 > partly proven 31 > story only 21, each in its expected band and with narrow spreads. With need = 70 − fact score: S1 passes at a fact score of 31+, S4 at 39+, S3 at 49+.
+- **No more false "manipulation" zeros:** correct stories weren't punished, and judges read the FTX collapse from public sources (Wikipedia, the CFTC complaint) as context.
+- **Insider detection is half-reliable:** about half the judges traced the ring wallet's funding and other rugs. In a real bool vote (quorum 17/30) this would likely split with no verdict, so the plea expires and can be retried. Options: make the check concrete in the wording (e.g. "look at the seller's other token buys in the 7 days around the rug; buying several tokens that were rugged by the same pattern means insider"), or accept it, since a ring wallet still needs a strong story and fact score.
+- Oracle ids: S1 `1e9a8ffe…`, S2 `b6ef0bc7…`, S3 `e3742d25…`, S4 `2cfe4d26…`.
