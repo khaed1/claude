@@ -320,3 +320,8 @@ Twelve self-written pleas went through the Sepolia Intake (15 judges each, numer
 - Job `d1ff706d` is **blocked**: `build_contract_project` failed on attempt 3 of 3 (`local_build_failed`). The last verifier report is the same as attempt 2: 4 test suites fail in `setUp()` with `vm.getCode: no matching artifact found` (PoolManager); oracle conformance passes 3/3. Nothing was deployed.
 - **Fix:** resubmit as a fresh `launch.open` with `plea/job-sepolia.md` (BUILD line already corrected: via_ir, 200 runs, `new PoolManager`). **START moved to 1791775740 = 2026-10-12 03:29 UTC (+24h, user decided);** the prompt is updated (7,251 characters, unchanged). The user is resubmitting.
 - Check-in routine `trig_017xZjHXdR24qGEezWuyUoyn` is **paused** until the new job id exists; then point it at the new id and re-enable.
+
+## PLEA v4 resubmitted (2026-10-10 06:45 UTC)
+- **New job `8686f9e4-7725-4043-b465-67908c5c4b46`** (`evm_contracts`, Sepolia, paid by `0xf8ad…cdc7`), executing. Its text equals `plea/job-sepolia.md` (START 1791775740, fixed BUILD line); the submit path only stripped markdown dashes and backticks. The old job `d1ff706d` stays blocked.
+- Check-in routine `trig_017xZjHXdR24qGEezWuyUoyn` re-enabled and pointed at the new job (at :39 hourly, pings on live or blocked).
+- The site job (`plea/job-v4-site.md`) must use the new job as its parent.
