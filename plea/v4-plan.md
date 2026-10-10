@@ -113,5 +113,6 @@ Every step above passes on Sepolia with a normal wallet and no hand-set gas. Mai
 
 ## Changes after review (2026-10-10)
 - Pending expiry: **20 min** (user), was 2h. The oracle answered in 3-6 min in all 14 Sepolia requests, even 12 at once. A callback after expiry is ignored.
-- Quorum: recommend keeping **16/30** (pending user confirmation).
+- Quorum: **17/30** (user, 2026-10-10; was 20, then 16).
 - START: the time buying opens (pool seeded, the 90-min anti-sniper window starts). Recommend about 24h after submission (pending user choice).
+- Dead-man: **33h** without a verdict (user, 2026-10-10; was 48h).
