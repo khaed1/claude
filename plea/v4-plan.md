@@ -117,3 +117,4 @@ Every step above passes on Sepolia with a normal wallet and no hand-set gas. Mai
 - START: the time buying opens (pool seeded, the 90-min anti-sniper window starts). Recommend about 24h after submission (pending user choice).
 - Dead-man: **33h** without a verdict (user, 2026-10-10; was 48h).
 - Opening trading: **the owner may call seed() any time; anyone may once START passes** (user, option 1). START is the latest opening time; recommended about 24h after submission.
+- **No-verdict detection without IMD changes:** `Intake.requests(intakeId).completed` is public and set by the writer on every completion, including status 1 and 2 (checked: plea #1's request `0xcc4e…` reads completed = true with no callback). The Gate treats completed-without-verdict as "no verdict" right away, with the 20-min expiry as backup. A status-0 answer whose callback reverted looks the same, so it's handled the same way.
