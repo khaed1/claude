@@ -85,3 +85,22 @@ User's picks: season leaderboard (1), ransom revival (3), badges (4). Open propo
 - **Options to end a Cabal:** (A) time only, as now; (B) **planned retirement**: each Cabal (an "era") retires on schedule after a fixed number of seasons, with its mood fixed at launch; (C) a holder vote (whales can capture it, more code); (D) an activity threshold (like A, more complex); (E) a price or approval-rate trigger (can be manipulated).
 - **Recommended: A + B.** Keep the 33h dead-man as the early exit, and add a planned retirement after 4 seasons (60 days). Each era has its own Cabal mood from a schedule fixed at launch; the ransom starts the next era with the next mood. Every era ends with a known free-trading window, which also gives long-locked holders a fair exit. **Decided** (era = 2 seasons, see below).
 - **Era length (user, 2026-10-10): 2–3 seasons.** **Decided: 2 seasons (30 days)**, "a new Cabal every month". One cycle ≈ 30 days of Cabal + 72h break + up to 72h ransom + 24h warning ≈ 34–37 days, so PLEA trades free about 10–19% of the time (3 seasons: about 7–13%).
+
+## Round 7 (2026-10-10): the moods
+**Decided cycle (repeats; one mood per era, fixed at launch):** 1 The Classic Cabal · 2 The Rekt Cabal · 3 The Jester's Cabal · 4 The Loyal Cabal. At 30 days per era, the cycle is about 4–5 months.
+
+### The Rekt Cabal (user idea; draft)
+Pleas from people who lost money to scams and rugs. The plea links the wallet that got rekt and the transactions.
+- **Proof the wallet is yours:** the rekt wallet signs a short message ("I link this wallet to PLEA plea N"); the Gate checks it on chain (ecrecover, cheap). Without this, anyone could cite a famous victim's wallet. The pleading wallet itself also counts.
+- **Evidence in the plea:** chain, token address, the buy tx(s) and, if known, the rug tx (LP pulled, dev dump, honeypot, mint).
+- **What the judges score (Rekt mood):**
+  - Proof: the buy txs exist and belong to the linked wallet, and the token really rugged (LP removed, price ~0, sells blocked).
+  - Severity: kind of rug (honeypot or LP pull > slow dev dump > ordinary loss), how fast, how much of the liquidity went.
+  - Loss: the amount lost (in USD or ETH at the time), with diminishing credit so whales don't dominate.
+  - Story: honesty and what they learned (craft and respect as in Classic).
+- **Abuse guards:**
+  - Self-rugs: someone launches a token, buys and rugs it to fake a loss. Require the rug to be ≥30 days before the plea, the token to have had ≥50 independent holders, and the buyer not to be the deployer or an LP remover.
+  - Reuse: each rug tx counts once across all pleas (the Gate stores its hash); one rekt wallet per pleader per era.
+  - Lies the judges can't check fail: a plea that can't be proven scores no Rekt credit.
+- **Must check with IMD first:** can the judges read chain data (txs, logs, LP events) on Ethereum and other chains, or only the plea text (`evidence: "panel"` today)? If only text, Rekt pleas can't be verified, and this mood needs a chain-evidence feature from IMD.
+- **Privacy:** linking a wallet makes its history public on the Wall. Warn before submitting.
