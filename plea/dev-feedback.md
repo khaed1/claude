@@ -79,3 +79,5 @@ Examples from today:
 **10. Sepolia callback gas:** the Sepolia Intake gives callbacks 1,000,000 gas, mainnet 200,000. A consumer tested only on Sepolia can pass there and fail on mainnet; matching mainnet's value would make Sepolia tests faithful.
 
 Happy to test any of this on Sepolia; it's free there now, which is great.
+
+11. **Site job blocked by member-site hosting (2026-10-10).** Job `11d73554-601d-40cd-b72f-f0adbea42095` (`job.continue` of `3593725e`, `ipfs: "plea-test"`): `build_website` built and exported the site (334,696 bytes), then tried `imd site publish dist --name plea-test`, which returned `503 member_sites_closed`. The node is now `needs_input`: "Can the hosting-plane operator enable member-site publication…". A job that asks for `ipfs` hosting shouldn't go through the closed member-site path, or `/requests/check` should refuse it before payment. Please publish the existing export, or tell us how to retry without paying again. No site source was delivered (`delivery.commit` is null).
