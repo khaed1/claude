@@ -110,3 +110,8 @@ Every step above passes on Sepolia with a normal wallet and no hand-set gas. Mai
   - A plain plea passes only with strong facts (fact ≥ 42, so need ≤ 28).
   - A plea right at the line splits the panel; quorum 16 still gives a verdict unless it's 15/15.
   - That matches the intent ("earn your sell"), so **no number changes are needed.**
+
+## Changes after review (2026-10-10)
+- Pending expiry: **20 min** (user), was 2h. The oracle answered in 3-6 min in all 14 Sepolia requests, even 12 at once. A callback after expiry is ignored.
+- Quorum: recommend keeping **16/30** (pending user confirmation).
+- START: the time buying opens (pool seeded, the 90-min anti-sniper window starts). Recommend about 24h after submission (pending user choice).

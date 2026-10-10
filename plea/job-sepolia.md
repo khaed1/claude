@@ -25,7 +25,7 @@ GATE:
 - submitSell(amount, text): text 1–280 UTF-8 bytes; reject control, zero-width, Bidi_Control (incl. U+061C), tags (U+E0000–E007F), variation selectors, "[PLEA"/"[/PLEA". amount ≤ min(2,500,000 PLEA, 35% of balance); one open plea per wallet; 4h after the last executed sell. factScore 0–55: share sold ≤15/25/35% → 18/11/5; average hold ≥7/3/1 days → 14/9/5; P/L loss 14, ≤+50% 9, ≤+200% 5, else 0; 24h price up >2% 9, ±2% 5, down 0. need = 70 − factScore; revert CannotPass if need > 45.
 - Pulls 0.5 ORACLE_ASSET from the seller and pays the oracle: intake.request(bytes32("oracle.request@oracle-1"), body, (this, onOracleResult.selector), ORACLE_ASSET, 0.5e18); maps the returned intake id → plea.
 - onOracleResult(bytes32 intakeId, Attestation a, bytes sig) (0x510379c7, 200k gas): require msg.sender == Intake and a pending plea for intakeId; verify EIP-712 (domain "IdentityMD Oracle" v2, chainId 11155111, this), bool, panelSize ≥30, quorum ≥16, agreed ≥16, not expired, requestId not consumed. Do not recompute questionHash. Approved → 7-min window; denied → 4h wait. Verdicts reset lastVerdictAt. No deliverVerdict, relayer or public submit.
-- No answer in 2h → the plea expires by itself; the wallet may plead again.
+- No answer in 20 min → the plea expires by itself (a later callback is ignored); the wallet may plead again.
 - executeSell(minOut) within 7 min: pulls the PLEA, one swap with a price limit, reverts unless the whole amount fills at ≥ minOut.
 - appeal(originalId, amount ≤ original, text) only within the 4h after a denial, once per plea: 0.5 ORACLE_ASSET (oracle) + 0.35 TestIMD (pool liquidity); its question includes the original plea and the DENIED verdict.
 - Dead-man: 48h without a verdict → anyone may killCabal().
@@ -38,6 +38,6 @@ facts: "FACT SCORE is final; do not rescore it."
 
 BUILD: optimizer 200 runs, no via_ir for v4-core (verifier memory).
 
-TESTS: all above, incl. full launch on an empty chain; setLauncher outside the deploy tx, wrong initcode/salt, seed before START revert. No sell bypass (v2 pair, hookless pool, routers, Permit2, ERC-6909 mint). Every user action with plain eth_estimateGas gas succeeds; a buy stacks sIMD (Stacked, project = hook); plain TestIMD only when credit reverts (TestSIMD paused). Callback: approve, deny, wrong sender, unknown id, replay, ≤200k gas. Expiry, appeal window and amount, CannotPass. Mainnet-fork test: launch tx, deployHook and seed each <16.7M gas; report gas.
+TESTS: all above, incl. full launch on an empty chain; setLauncher outside the deploy tx, wrong initcode/salt, seed before START revert. No sell bypass (v2 pair, hookless pool, routers, Permit2, ERC-6909 mint). Every user action with plain eth_estimateGas gas succeeds; a buy stacks sIMD (Stacked, project = hook); plain TestIMD only when credit reverts (TestSIMD paused). Callback: approve, deny, wrong sender, unknown id, replay, ≤200k gas. 20-min expiry, late callback, appeal window and amount, CannotPass. Mainnet-fork test: launch tx, deployHook and seed each <16.7M gas; report gas.
 
 No site.
