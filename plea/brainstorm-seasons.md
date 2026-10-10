@@ -57,3 +57,8 @@ User's picks: season leaderboard (1), ransom revival (3), badges (4). Open propo
 - **Outside pools.** While the Cabal lives, nobody can fund another pool (PLEA can't be sent to it). During the holiday, anyone can create PLEA pools (Uniswap v2/v3/v4, other DEXes) with lower fees; arbitrage keeps prices in line and our hook's share of volume (and fees) falls. That's fine for a holiday.
 - **The revival problem:** when limits return, LPs in v2/v3 pools can't withdraw (the pair sending PLEA is blocked), so they'd be trapped. Uniswap v4 pools are already fine, since transfers from the PoolManager are allowed: LPs can withdraw and people can buy, but nobody can sell into them.
 - **Decided fix:** a permissionless `registerExit(pair)` that accepts only real Uniswap v2/v3 pools (checked against the factory). A registered pool may send PLEA (LP withdrawals and buys work) but can't receive it from wallets (no selling), so it just drains. Don't exempt any contract with code: a Safe or 7702 wallet could then skip the Cabal.
+
+## Round 5 (2026-10-10): timing
+- **Decided: 24h free-trading break** after the Cabal dies, then the ransom opens; on target, the **24h warning**, then the Cabal returns. Sellers get at least 48h of free trading.
+- **Decided: seasons are capped at 15 days.** On day 15 the top 10 are paid, the leaderboard resets and a new season starts at once with the Cabal still alive. A season also ends early if the Cabal dies (then break → ransom → revival).
+- **Proposed, not yet confirmed:** ransom target 500 IMD; relic minimum 10 IMD; minimum 60 points to win a prize; 3 Laureate NFTs per season (top 3).
