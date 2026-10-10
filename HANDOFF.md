@@ -288,3 +288,13 @@ Twelve self-written pleas went through the Sepolia Intake (15 judges each, numer
   - Replace `<START>` with the announced unix time.
   - Same settings as before: `evm_contracts`, Sepolia, owner `0x4b91…6821`, GitHub on, IPFS `plea-test`.
   - The `bad_path_count` blocker in the check came from our minimal draft input; the launch page fills that in.
+
+## PLEA v4 submitted (2026-10-10 03:34 UTC)
+- **Job `d1ff706d-208e-4e98-98ca-b229bc7cd0e6`** (`evm_contracts`, Sepolia), executing. Text = `plea/job-sepolia.md` (START 1791689340 = 2026-10-11 03:29 UTC). Status: `GET https://api.imd.fun/jobs/d1ff706d-208e-4e98-98ca-b229bc7cd0e6`.
+- **Decisions in it:** quorum 17/30, dead-man 33h, pending expiry 20 min (also cleared early when `Intake.requests(id).completed` shows no verdict), owner may `seed()` early and anyone may after START, the six plan decisions, and the calibrated wording.
+- **After it's live:**
+  1. Mine the hook salt off-chain and call `deployHook`.
+  2. `seed()`.
+  3. Run the site job (`job.continue`, reuse v2's `web/` plus the site list in `plea/v4-plan.md`).
+  4. Test on a fork and live.
+  5. List the hook on imd/acc.
