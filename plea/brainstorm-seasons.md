@@ -61,4 +61,18 @@ User's picks: season leaderboard (1), ransom revival (3), badges (4). Open propo
 ## Round 5 (2026-10-10): timing
 - **Decided: 24h free-trading break** after the Cabal dies, then the ransom opens; on target, the **24h warning**, then the Cabal returns. Sellers get at least 48h of free trading.
 - **Decided: seasons are capped at 15 days.** On day 15 the top 10 are paid, the leaderboard resets and a new season starts at once with the Cabal still alive. A season also ends early if the Cabal dies (then break → ransom → revival).
-- **Proposed, not yet confirmed:** ransom target 500 IMD; relic minimum 10 IMD; minimum 60 points to win a prize; 3 Laureate NFTs per season (top 3).
+- **Decided:** ransom target 500 IMD; relic minimum **6 IMD**; minimum 60 points to win a prize; **5 Laureate NFTs per season** (the top 5 pleas).
+
+## Seasons: decided so far (summary)
+| Item | Value |
+|---|---|
+| Combination | Leaderboard (1) + ransom revival (3) + NFTs (4) |
+| Prize funding | New 0.25% fee → total 1.75% (owner keeps 0.5%) + the ransom pot |
+| Season length | 15 days max; ends early if the Cabal dies |
+| Points | Judges' plea score (0–45) on approved pleas; each wallet's best 3 count; ties to the earlier plea |
+| Ransom relic | Soulbound, one per wallet per season, minimum 6 IMD, flat +10% to next season's points (never the sell verdict) |
+| Payout | Top 10: 25/18/14/11/9/7/6/4/3/3 %, minimum 60 points, unpaid shares roll over |
+| Laureates | 5 tradable ERC-721s per season (top 5 pleas), small cosmetic perks |
+| Revival | Cabal dies → 24h free-trading break → ransom opens (target 500 IMD, pot → next season's prizes) → 24h warning → Cabal returns |
+| Outside pools | Permissionless `registerExit` for genuine Uniswap v2/v3 pools: they can send PLEA out, not receive it |
+| Open | Legal check before mainnet; Ransom NFT for contributors (tradable) vs. the soulbound relic: keep one or both |
