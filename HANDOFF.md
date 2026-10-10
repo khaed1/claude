@@ -451,3 +451,8 @@ A clean `forge build` of v10 was **killed at 13.6 GB**. It wasn't solc (≤ 2.4 
 - **Objective text** in `plea/job-v10-launch.json` tightened: keep numbers, keep the setLauncher deploy-block fallback, keep `lint_on_build = false`.
 - **Design note for mainnet (no change on Sepolia):** an approved plea that lapses (not sold within 7 min) still earns season points and starts no cooldown, so a holder can retry tiny-amount pleas every few minutes at 0.5 IMD each; only denials and executed sells start the 4h cooldown. Decide before mainnet whether a lapse should also start the cooldown.
 - Old v4 routine `trig_01HpY7DMNkPaKhaFgLeW43MG` deleted.
+
+## PLEA v10 submitted (2026-10-10 13:32 UTC)
+- **Job `3593725e-d086-4a90-881e-41e3f41ab02b`** (order `d11cfabc`, paid from `0xf8ad…cdc7`), launch requested on chain 11155111. At 14:27 UTC: audit_imported_code, adapt_contract_project and manifest accepted; tests and the 4 specialist audits working; judge waiting.
+- Hourly check-in routine **`trig_01JZ9YE2W8L1NQGNodvmRY8y`** (at :27, fires into this session). On go-live it mines the salt and calls `deployHook` from the test wallet; on a block or park it pings and pauses itself.
+- Find a job id from the payer: `GET /requests/paid-by/0xf8ad3f88b0e0d177aa8c5e6be1e13410fd41cdc7`.
