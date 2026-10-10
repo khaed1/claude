@@ -456,3 +456,7 @@ A clean `forge build` of v10 was **killed at 13.6 GB**. It wasn't solc (≤ 2.4 
 - **Job `3593725e-d086-4a90-881e-41e3f41ab02b`** (order `d11cfabc`, paid from `0xf8ad…cdc7`), launch requested on chain 11155111. At 14:27 UTC: audit_imported_code, adapt_contract_project and manifest accepted; tests and the 4 specialist audits working; judge waiting.
 - Hourly check-in routine **`trig_01JZ9YE2W8L1NQGNodvmRY8y`** (at :27, fires into this session). On go-live it mines the salt and calls `deployHook` from the test wallet; on a block or park it pings and pauses itself.
 - Find a job id from the payer: `GET /requests/paid-by/0xf8ad3f88b0e0d177aa8c5e6be1e13410fd41cdc7`.
+
+## PLEA v10 site prompt (draft, 2026-10-10)
+- **`plea/job-v10-site.md`** (7,848 chars; the limit is 8,000). Submit as `job.continue` with parentJobId = the v10 job `3593725e` (or the project's newest job), skill `frontend-for-contract`, references `better-interface` and `eth-frontend-ux`, `ipfs: "plea-test"`. `/requests/check` now returns only "this job is still running"; re-check after the launch job completes.
+- It is based on the v4 site prompt (same look, Impeccable rules, single Connect, Wall grid, the fixes from the v2 site test). New in v10: a header with Cabal state and a season pill; Seasons page (top 10 with shares at the current pot, top 5 pleas, my rank, Close season, flushToWall, Hall of Fame with on-chain Laureates); "Record my points" (Seasons.record); Profile (setName); Sell form after death; swap gas floor 2.6M (hook needs creditGas + 1M); no killCabal, ransom or moods.
