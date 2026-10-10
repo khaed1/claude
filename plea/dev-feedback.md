@@ -72,4 +72,10 @@ Examples from today:
 - **Agree on the answer when recipes differ:** if every member gives the same answer but no single recipe reaches quorum, fall back to a panel-style signature (marked as such) instead of "disagreed", or let the requester opt in with something like `evidence: "chain-or-panel"`.
 - **Publish the recipe catalogue** (in the docs or `/requests/capabilities`), so requesters can word chain questions to fit an existing recipe.
 
+**8. The verifier's out-of-memory is probably forge's linter, not solc (found 2026-10-10).** A clean `forge build` of our PLEA repo was killed at 13.6 GB. solc itself peaked at 2.4 GB; the process that grew was forge's lint-on-build, on our Uniswap v4 hook file. With `[lint] lint_on_build = false` in `foundry.toml` the same clean build and all tests finish in about 5 minutes. Our two failed builds (exit 137) were likely this. Suggest the verifier builds with lint off, or runs lint as a separate step with a memory cap.
+
+**9. `SignatureChecker` and EIP-7702.** The consumer example verifies with OpenZeppelin's `SignatureChecker.isValidSignatureNow`, which uses ERC-1271 whenever the signer address has code and never tries the plain ECDSA signature. An EOA with an EIP-7702 delegation has code, so if the oracle signer key ever delegates, every consumer built from the example rejects every attestation. We hit this on Sepolia with a test key that has a 7702 delegation. Our fix: try `ECDSA.tryRecover` first, then ERC-1271. Worth changing `OracleAttestation.sol`, or keeping the signer key free of delegations.
+
+**10. Sepolia callback gas:** the Sepolia Intake gives callbacks 1,000,000 gas, mainnet 200,000. A consumer tested only on Sepolia can pass there and fail on mainnet; matching mainnet's value would make Sepolia tests faithful.
+
 Happy to test any of this on Sepolia; it's free there now, which is great.
