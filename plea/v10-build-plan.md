@@ -1,4 +1,6 @@
-# PLEA Seasons: testnet build plan (2026-10-10)
+# PLEA v10 (Seasons): testnet build plan (2026-10-10)
+
+Naming (user, 2026-10-10): the Seasons version is **v10**; later iterations or jobs are v11, v12, … v4 keeps its name.
 
 Goal: PLEA with Seasons live on Sepolia and tested before the hackathon deadline (19 Oct), in parallel with v4. If it works, PLEA launches with Seasons.
 

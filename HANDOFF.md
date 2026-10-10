@@ -329,3 +329,6 @@ Twelve self-written pleas went through the Sepolia Intake (15 judges each, numer
 ## Seasons brainstorm and the chain-reading test (2026-10-10)
 - Seasons design (leaderboard + ransom revival + NFTs, eras of 2 seasons, moods Classic/Rekt/Jester's/Loyal, usernames) is in `plea/brainstorm-seasons.md`; the user experience is in `plea/seasons-ux.md`. Not in v4.
 - **Chain-reading test:** 3 free Sepolia oracle requests about a real Ethereum rug. Panel mode verified tx-level claims by itself and signed the right count (12/12). Chain mode got the right answer but can't sign multi-step checks (no shared recipe). Details in `plea/brainstorm-seasons.md`.
+
+## Naming (2026-10-10)
+- The Seasons version of PLEA is **v10** (plan: `plea/v10-build-plan.md`); later iterations or jobs are v11, v12, … v4 (job `8686f9e4`) keeps its name and runs in parallel.
