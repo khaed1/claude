@@ -332,3 +332,25 @@ Twelve self-written pleas went through the Sepolia Intake (15 judges each, numer
 
 ## Naming (2026-10-10)
 - The Seasons version of PLEA is **v10** (plan: `plea/v10-build-plan.md`); later iterations or jobs are v11, v12, … v4 (job `8686f9e4`) keeps its name and runs in parallel.
+
+## Numeric plea score can be signed (2026-10-10)
+The v10 leaderboard needs the judges' plea *score*, not just true/false. Three Sepolia requests used `answerType: "uint256"` with `toleranceBps` and the Rekt v2 wording:
+- N1 (fully proven rug, toleranceBps 1500): **signed 37**, 11 agreed (scores 35–41, two outliers 0 and 15). Oracle `5ac76cd5…`.
+- N2 (FTX story only, 1500): **signed 22**, 11 agreed (19–23). Oracle `a75458a0…`.
+- N3 (same as N1, 3000): **signed 39**, 11 agreed. Oracle `70687222…`.
+So the Gate can take a signed score (0–45) and decide pass on chain (score ≥ need), and Seasons can rank by it. Use toleranceBps 1500 unless the 30-judge panel needs more.
+
+## PLEA v10 (Seasons): where we stopped (2026-10-10 ~09:30 UTC)
+- **Decided by the user:** build Seasons now as **v10** on Sepolia, in parallel with v4, and pivot to it if it works; enter the IMD hackathon (proposed build period 5–19 Oct; rules in `plea/hackathon-submission.md` notes). All Seasons decisions are in `plea/brainstorm-seasons.md` (summary table + rounds 2–7, Rekt wording v2 final) and `plea/seasons-ux.md`; the plan is `plea/v10-build-plan.md`.
+- **Route:** we write the code ourselves in the public repo **`khaed1/plea`** (created by the user; Claude GitHub app has access) and launch it with `launch.open` + `repoUrl`/`baseCommit` (IMD docs, "From your repository": a public Foundry repo with `bytecode_hash = "none"`; IMD runs audit-imported-code, adapt-contract-project and the audit panel, then deploys). Resolve the commit with `POST /requests/import` first. No prompt-size limit this way.
+- **khaed1/plea now holds only the base:** PLEA v2's code (launch #1148 repo, commit `1ef27b4`) + Foundry config, commit `a40a756` on `main`. It builds with forge 1.8.3. **No v10 code is written yet.** When v4 delivers its repo, merge v4's fixes (same-swap fees, Intake callback, 20-min expiry, appeals window, deployHook/seed, CannotPass, etc.) before or while adding Seasons.
+- **Design notes from the previous session (proposals; confirm anything new with the user):**
+  - Contracts (evm_contracts allows ≤ 8): PLEA, CabalGate, PleaDistributor, Seasons, Laureates (ERC-721, maybe with usernames), MoodBook (the 4 moods' wording; keeps the Gate under 24 KB), PleaLaunch; PleaHook deployed after launch via `deployHook` as in v4.
+  - **The oracle callback has only 200k gas:** store the signed score and nothing else there. Points, top-10 and top-5 updates happen in a separate permissionless call (e.g. `recordPoints(pleaId)`, which the seller has every reason to call). Laureate text: the Gate keeps `keccak256(text)`; `mintLaureate` takes the text as calldata and checks the hash.
+  - **Cabal alive is computed lazily:** alive = in an era, before `eraStart + ERA` and before `lastVerdict + DEADMAN`. No keeper needed to end an era. PLEA's restriction reads it (switches on and off, unlike v4's one-way kill).
+  - Break 72h → ransom opens (target 500 IMD, relic ≥ 6 IMD as a soulbound mapping, +10% to next season's points) → on target, 24h warning → new era with `moods[era % 4]` (Classic, Rekt, Jester's, Loyal). If the ransom misses within 72h, refunds open; proposal: anyone may open a new ransom round afterwards.
+  - Seasons: 15 days, 2 per era (an era ending early ends its season), best 3 approved scores per wallet, 60-point minimum, top 10 paid 25/18/14/11/9/7/6/4/3/3 % in IMD from the 0.25% prize fee + the ransom pot, unpaid shares roll over; top 5 pleas mint Laureates.
+  - `registerExit(pool)`: only genuine Uniswap v2/v3 pools (checked against the factories, immutable constructor args; Sepolia V2 factory `0xF62c03E08ada871A0bEb309762E260a7a6a880E6`, V3 factory `0x0227628f3F023bb0B980b67D528571c95c6DaC1c`, verify on chain before use). A registered pool may send PLEA, never receive it from wallets.
+  - Timings are constructor immutables with the mainnet guard (chain id 1 reverts below the agreed values). Sepolia fast clock: 1 day = 20 min; plea timings stay real.
+- **Hourly v4 check-in routine:** `trig_017xZjHXdR24qGEezWuyUoyn` fires into the *previous* session. The next session should create its own (same prompt) and delete this one.
+- **v4 job `8686f9e4` at 08:46 UTC:** build attempt 1 rejected by Slither `arbitrary-send-erc20` (`CabalGate.unlockCallback` does `safeTransferFrom(trader, MANAGER, amount)`); build re-queued. If it blocks: resubmit with a line like "In unlockCallback never transferFrom a user; pull tokens into the Gate before unlock, then settle from the Gate" (and move START, now 1791775740, if needed).
