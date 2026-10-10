@@ -465,3 +465,11 @@ A clean `forge build` of v10 was **killed at 13.6 GB**. It wasn't solc (≤ 2.4 
 - **POOL4 CappedBurnHook** `0xc6c9…2840` (ETH/IMD, owner `0x047f…54b7`): full-range two-sided position funded by the owner, 1% LP fee to the owner, cap = floor = **9,000 IMD**, decay 3,000 IMD/day, ratchet 100%, trims **85% burned** (BurnExecutor `0xe293…c750`, bridges to a Base burn receiver) / **15% to RewardDistributor** `0x9046…ca30`. Pool holds 7,286 IMD + 23.6 ETH; lifetime 33,279 IMD burned + 5,873 rewarded (~0.94% of 4.15M supply); fees 7.18 ETH + 3,743 IMD. ETH backstop live from tick 61,560 (~471 IMD/ETH) vs spot 57,314 (~308). Owner can `closeMarket` and tune parameters.
 - **Gap 1 (cap pace):** PLEA's cap starts at ~900M PLEA and can fall only 300k/day (floor 900k), so trims effectively never fire. POOL4's cap is already at its floor. To behave like POOL4, scale the decay to the starting inventory (user's call; numbers are agreed values).
 - **Gap 2 (wall placement guard):** PLEA places the wall below min(spot, refTick); refTick moves 200 ticks/block, so a pump held for a few blocks can lift the wall. POOL4 uses a placement floor that jumps the safe way at once and moves back only ~400 ticks/day. Mirror it for PLEA (a ceiling that drops at once, rises ≤ ~4%/day). Matters mostly after the Cabal dies (selling is gated before). Fix for mainnet, not the running Sepolia launch.
+
+## Mainnet fixes written (branch `mainnet` in khaed1/plea, 2026-10-10)
+- **User decided:** cap decay so the cap can reach its floor in **25 days**, and POOL4's placement guard mirrored for the wall. Mainnet only.
+- **`khaed1/plea` branch `mainnet` @ `7ab3d6c`** (main stays the Sepolia code; `/home/user/plea` is checked out on `main` so MineSalt matches the deployed init code):
+  - `capDecayPerDay = (seeded inventory − CAP_FLOOR) / 25`, set in `seed()` (replaces the fixed 300k/day).
+  - `wallGuardTick`: moves at once toward a lower PLEA price, rises ≤ 400 ticks/day toward `refTick`; `rebalance` never places the wall above it. Updated in `afterSwap` and `rebalance`.
+  - 5 new tests (both orientations): 115/115 pass, isolated launch tests pass, fmt clean. PleaHook runtime 22.5 KB (limit 24.6 KB).
+- Note: refTick moves ≤ 200 ticks per traded block, so with sparse trading the guard rises slower than 400/day (safe direction).
