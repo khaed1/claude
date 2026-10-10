@@ -39,3 +39,10 @@ The game happens once per token: `killCabal()` can't be undone. The Cabal dies o
 - **How:** a separate `Seasons` contract that the Gate reports verdicts and scores to, with season rules fixed at launch.
 - **Revival:** needs PLEA's restriction to read `gate.cabalAlive()` instead of a one-way flag.
 - **Testing:** try it on Sepolia with the IMD NFT test token, `0xa0443799c320e16c80801c9c1911f3571260287f`, the seat stand-in.
+
+## Round 2 (2026-10-10): combo 1 + 3 + 4
+User's picks: season leaderboard (1), ransom revival (3), badges (4). Open proposals, nothing decided:
+- **Ransom relics are soulbound** (non-transferable), one per wallet per season, with a minimum contribution. Recommended use: **leaderboard points next season only, never the sell verdict**. If a relic lowered `need`, the ransom would buy easier sells (pay-to-win) and make it worth splitting deposits across wallets.
+- **Ransom pot → next season's prize pot** (recommended over buy-and-burn): contributors fund prizes they can win back, and a buy during the holiday would pump the price just before limits return.
+- **24h warning** is fine if: the countdown starts only when the target is hit, the pot's progress is shown live the whole time, and the ransom opens only after a minimum free-trading holiday.
+- **Prize funding:** fees today total 1.5% (IMD side 1.25%: cashback 0.5, owner 0.5, liquidity 0.25; plus a 0.25% PLEA burn). Adding 0.25% for prizes makes **1.75%**. Recommended instead: take the 0.25% from the owner's 0.5%, so the total stays 1.5%. The ransom pot tops prizes up each season.
