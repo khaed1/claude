@@ -318,5 +318,5 @@ Twelve self-written pleas went through the Sepolia Intake (15 judges each, numer
 
 ## v4 job blocked (2026-10-10 06:20 UTC)
 - Job `d1ff706d` is **blocked**: `build_contract_project` failed on attempt 3 of 3 (`local_build_failed`). The last verifier report is the same as attempt 2: 4 test suites fail in `setUp()` with `vm.getCode: no matching artifact found` (PoolManager); oracle conformance passes 3/3. Nothing was deployed.
-- **Fix:** resubmit as a fresh `launch.open` with `plea/job-sepolia.md` (BUILD line already corrected: via_ir, 200 runs, `new PoolManager`) and a later START. Proposed START: 1791775740 = 2026-10-12 03:29 UTC (+24h).
+- **Fix:** resubmit as a fresh `launch.open` with `plea/job-sepolia.md` (BUILD line already corrected: via_ir, 200 runs, `new PoolManager`). **START moved to 1791775740 = 2026-10-12 03:29 UTC (+24h, user decided);** the prompt is updated (7,251 characters, unchanged). The user is resubmitting.
 - Check-in routine `trig_017xZjHXdR24qGEezWuyUoyn` is **paused** until the new job id exists; then point it at the new id and re-enable.

@@ -4,7 +4,7 @@ ADDRESSES (immutable, no setters): PoolManager 0xE03A1074c86CFeDd5C142C4F04F1a15
 
 Constructors are rehearsed on an empty chain: call only contracts deployed earlier here.
 
-DEPLOY (in order): PLEA($owner); CabalGate($contract:PLEA); PleaDistributor($contract:PLEA, $owner); PleaLaunch($contract:PLEA, $contract:CabalGate, $contract:PleaDistributor, START). START = 1791689340 (latest opening, unix). PleaHook is not in launch.json. PLEA's constructor sets an EIP-1153 transient flag; while it is set, PleaLaunch's constructor calls PLEA.setLauncher(this) once and stores keccak256 of PleaHook's initcode (creationCode + args).
+DEPLOY (in order): PLEA($owner); CabalGate($contract:PLEA); PleaDistributor($contract:PLEA, $owner); PleaLaunch($contract:PLEA, $contract:CabalGate, $contract:PleaDistributor, START). START = 1791775740 (latest opening, unix). PleaHook is not in launch.json. PLEA's constructor sets an EIP-1153 transient flag; while it is set, PleaLaunch's constructor calls PLEA.setLauncher(this) once and stores keccak256 of PleaHook's initcode (creationCode + args).
 
 AFTER LAUNCH (anyone, once each):
 - deployHook(salt, initcode): require the stored hash and exact hook flag bits; CREATE2; PLEA.init(hook) records hook, gate, distributor and mints 90% to the hook, 10% to the distributor. Salt mined off-chain (deliver script/MineSalt.s.sol).
