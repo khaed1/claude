@@ -307,3 +307,5 @@ Twelve self-written pleas went through the Sepolia Intake (15 judges each, numer
   - one polished icon set (Phosphor), no generated SVGs
   - a single Connect button in the header
 - **Every fix from the v2 site test is in it,** plus `npx impeccable detect` as QA.
+- **05:38 UTC status:** `build_contract_project` is on attempt 3. Attempt 2 was rejected `tests_failed`: 4 test suites call `vm.getCode` for an artifact (likely v4-core's PoolManager) that the verifier never compiled ("no matching artifact found"). The oracle conformance tests pass 3/3. Audits and the judge are waiting. If this happens again, the fix is to compile v4-core normally (lower optimizer runs) or deploy PoolManager from `new`, not `vm.getCode`.
+- **Hourly check-in routine** `trig_0133Hp825v6D4v6vMkR8ApFY` (every hour at :39, into this session). On go-live it deploys the hook and reports, then deletes itself.
