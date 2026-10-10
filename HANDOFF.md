@@ -279,3 +279,12 @@ Type: smart contracts (`evm_contracts`). Chain: Sepolia `11155111`. Owner: the u
 Twelve self-written pleas went through the Sepolia Intake (15 judges each, numeric plea score, new wording). Results are in `plea/v4-plan.md` → "Calibration results": strong ≈ 35–40, plain ≈ 25–30, weak or abusive < 15, the polite closing was scored on merit, and both injections got a signed 0.
 - **Rule learned:** a request paid on Sepolia must name a **testnet `consumer`** (or a callback). Otherwise it's refused `testnet_only` after payment; 12 test requests were lost this way (test IMD only).
 - **The IMD dev asked for feedback.** Our message is in `plea/dev-feedback.md`: the `onFailure` hook with an `OracleFailure` struct, a free full-body check, linking the attestation to the intake id, median answers, the launch issues and callback gas.
+
+## v4 prompt written (2026-10-10)
+- **`plea/job-sepolia.md` is now the v4 prompt** (7,203 characters; 7,206 with START filled in). The v3 text it replaces is in git history.
+- **It covers:** the 14 fixes from `plea/v4-plan.md`, all six decisions, the calibrated wording and the buy-weighted hold time. Every agreed number is unchanged.
+- **Size check:** `POST /requests/check` (action `launch.open`, input `objective`) shows no `objective_too_large`. A copy padded by 600 characters does trip it, so the margin is under 600.
+- **Before submitting:**
+  - Replace `<START>` with the announced unix time.
+  - Same settings as before: `evm_contracts`, Sepolia, owner `0x4b91…6821`, GitHub on, IPFS `plea-test`.
+  - The `bad_path_count` blocker in the check came from our minimal draft input; the launch page fills that in.
