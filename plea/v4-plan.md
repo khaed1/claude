@@ -116,3 +116,4 @@ Every step above passes on Sepolia with a normal wallet and no hand-set gas. Mai
 - Quorum: **17/30** (user, 2026-10-10; was 20, then 16).
 - START: the time buying opens (pool seeded, the 90-min anti-sniper window starts). Recommend about 24h after submission (pending user choice).
 - Dead-man: **33h** without a verdict (user, 2026-10-10; was 48h).
+- Opening trading: **the owner may call seed() any time; anyone may once START passes** (user, option 1). START is the latest opening time; recommended about 24h after submission.
