@@ -73,7 +73,13 @@ User's picks: season leaderboard (1), ransom revival (3), badges (4). Open propo
 | Ransom relic | Soulbound, one per wallet per season, minimum 6 IMD, flat +10% to next season's points (never the sell verdict) |
 | Payout | Top 10: 25/18/14/11/9/7/6/4/3/3 %, minimum 60 points, unpaid shares roll over |
 | Laureates | 5 tradable ERC-721s per season (top 5 pleas), small cosmetic perks |
-| Revival | Cabal dies → 24h free-trading break → ransom opens (target 500 IMD, pot → next season's prizes) → 24h warning → Cabal returns |
+| Revival | Cabal dies → **72h** free-trading break (changed from 24h on 2026-10-10) → ransom opens (target 500 IMD, pot → next season's prizes) → 24h warning → Cabal returns |
 | Outside pools | Permissionless `registerExit` for genuine Uniswap v2/v3 pools: they can send PLEA out, not receive it |
 | Contributor reward | Soulbound relic only; the tradable "Ransom" NFT is dropped (2026-10-10) |
 | Open | Legal check before mainnet |
+
+## Round 6 (2026-10-10): how the Cabal ends, and moods
+- **Decided: 72h free-trading break** (was 24h), so a new mood has time to draw people in. The 24h warning before limits return is unchanged.
+- **The gap:** with only the 33h dead-man, a busy Cabal may never die, so the ransom and a new mood would never happen.
+- **Options to end a Cabal:** (A) time only, as now; (B) **planned retirement**: each Cabal (an "era") retires on schedule after a fixed number of seasons, with its mood fixed at launch; (C) a holder vote (whales can capture it, more code); (D) an activity threshold (like A, more complex); (E) a price or approval-rate trigger (can be manipulated).
+- **Recommended: A + B.** Keep the 33h dead-man as the early exit, and add a planned retirement after 4 seasons (60 days). Each era has its own Cabal mood from a schedule fixed at launch; the ransom starts the next era with the next mood. Every era ends with a known free-trading window, which also gives long-locked holders a fair exit. Pending the user's choice of era length.
