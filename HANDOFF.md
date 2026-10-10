@@ -412,3 +412,19 @@ A clean `forge build` of v10 was **killed at 13.6 GB**. It wasn't solc (≤ 2.4 
 2. Update `baseCommit` in `plea/job-v10-launch.json` to the final commit, re-run import + check, then the user submits (paid).
 3. After launch: `MineSalt` → `deployHook` from the test wallet, `seed`, live fast-clock run, site job, hackathon entry.
 - **Slither (local, 0.11.6, medium+high):** no `arbitrary-send-erc20` (v4's blocker). Fixed `unchecked-transfer` (3 raw transfers in the hook → SafeERC20). Remaining items are known false positives (`ring[hour % 25]` "weak PRNG", mappings "never initialized", strict equalities, reentrancy into trusted PoolManager/Intake/Stacker).
+
+## Simplified: one Cabal + seasons, no moods (user decision, 2026-10-10)
+**User:** "Back to v4, add leaderboards and seasons, no moods. When the Cabal dies it's over and trading opens forever, no comebacks." Moods add nothing: people can make rekt or funny pleas to the Classic Cabal anyway.
+
+**`khaed1/plea` main `76c358d`** (current baseCommit; import + `/requests/check` pass, no blockers, `plea/job-v10-launch.json` updated):
+- **Kept:** v4 fixes (Intake callback, numeric score, 20-min expiry, appeals within 4h, CannotPass, same-swap fees, gas-safe cashback, deployHook/seed at START); 15-day seasons back to back from seed; best 3 per wallet; top 10 paid 25/18/14/11/9/7/6/4/3/3 % with the 60-point minimum; roll-over; 5 Laureates per season; usernames; 0.25% prize fee (fees 1.75% total).
+- **Removed:** MoodBook and the four moods, eras (2-season retirement), break/ransom/warning/revival, relics, Rekt claims, `registerExit`.
+- **Death is one-way:** `cabalAlive() = started && now < lastVerdict + 33h`; a late callback can't reset it.
+- **Two new rules for after death (please confirm):**
+  1. The last season ends at the death; once it is closed, `flushToWall()` (anyone) sends the unpaid leftovers to the buy wall.
+  2. The 0.25% prize fee goes to pool liquidity after death (fees stay 1.75%).
+- **Wording:** the Classic Cabal's (v4 wording, numeric answer) is now inline in the Gate. The question shows only the plea and the amount, not the fact score or need.
+- **launch.json:** 6 contracts (PLEA(owner), CabalGate(plea, Intake, test IMD, TestIMD, signer, 18000, 1650), Seasons(plea, gate, TestIMD), Laureates, PleaDistributor, PleaLaunch). Fast clock: season 5h, dead-man 27.5 min. **Note:** with a one-way death, a 27.5-minute dead-man on Sepolia means the test Cabal dies for good after 27.5 quiet minutes, so the live test needs a plea at least every ~25 minutes for as long as we want it alive.
+- **README** credits TokenWorks (CabalCoin) at the bottom.
+- **Tests:** 105, all pass (incl. fast clock, both pool orders, oracle conformance). **Sepolia fork re-run:** deploy 10.73M gas (was 13.79M), 8/8 buys with plain estimates, plea through the real Intake approved, sell 1.88 IMD, recorded on the leaderboard.
+- The sections above about moods, eras, ransom and relics are superseded. `plea/brainstorm-seasons.md` and `plea/seasons-ux.md` describe the old design.
