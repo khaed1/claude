@@ -14,7 +14,7 @@ Season (≤15 days, Cabal alive) → payout → next season … until the Cabal 
 - **Wall:** each approved plea shows its points; Laureates from past seasons carry a badge.
 
 ## 2. Season ends (day 15)
-- Anyone can call `closeSeason()` (small tip); the site shows the button once the timer hits 0.
+- Anyone can call `closeSeason()` (no tip; the owner's agent calls it too); the site shows the button once the timer hits 0.
 - **Payout is pushed** to the top 10 in the same tx (no claim needed). Below 60 points: no prize, the share rolls over.
 - The top 5 pleas are minted as **Laureate NFTs** to their authors (plea text, stamp, season, rendered on chain).
 - **Hall of Fame** page: every season's top 10 and Laureates.
@@ -49,6 +49,13 @@ Season (≤15 days, Cabal alive) → payout → next season … until the Cabal 
 | Outside LP | Gets a 24h warning and a one-click exit registration |
 
 ## Open UX questions
-1. **Ransom never reaches 500 IMD:** contributions would be stuck. Recommended: refundable if the target isn't hit within 7 days of the ransom opening, and the token stays free.
+1. **Decided: ransom refund after 72h.** If the pot doesn't reach 500 IMD within 72h of opening, contributors can take their IMD back, no relics are minted, and PLEA stays free.
 2. **Notifications:** verdicts, rank changes and countdowns appear on the site only. Optional later: an RSS feed or a Telegram bot.
-3. **Who calls `closeSeason()` and `killCabal()`:** a small tip from the prize stream so a keeper always does.
+3. **Decided: no keeper tip.** `closeSeason()` and `killCabal()` are open to anyone with no reward; the owner runs an agent that calls them, and anyone else can too.
+
+## Why does the Cabal die, and what does that mean? (2026-10-10)
+- **New seasons don't need a death.** With the 15-day cap, an active Cabal rolls into the next season by itself. Death and the ransom are only the comeback path after a quiet spell.
+- **Death = 33h with no signed verdict**, approved or denied. So it means nobody pleaded (or every plea failed to get a verdict) for 33 hours: interest has dropped.
+- **It's a tug of war.** Holders who want the Cabal alive can keep it alive by pleading (each plea costs the 0.5 IMD oracle fee, and a denial still counts as a verdict). Holders who want to sell freely want it dead. The Cabal lives as long as someone cares enough to plead every 33h.
+- **The ransom is a test:** if people still care, they fund 500 IMD and the game restarts with a ready prize pot. If not, refunds after 72h and PLEA ends as a normal token.
+- **Caution:** the owner (or their agent) pleading only to keep the Cabal alive would keep sellers locked artificially. If that's ever done, announce it; better not to do it.
