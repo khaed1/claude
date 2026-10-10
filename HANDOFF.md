@@ -429,3 +429,11 @@ A clean `forge build` of v10 was **killed at 13.6 GB**. It wasn't solc (≤ 2.4 
 - **Tests:** 105, all pass (incl. fast clock, both pool orders, oracle conformance). **Sepolia fork re-run:** deploy 10.73M gas (was 13.79M), 8/8 buys with plain estimates, plea through the real Intake approved, sell 1.88 IMD, recorded on the leaderboard.
 - The sections above about moods, eras, ransom and relics are superseded. `plea/brainstorm-seasons.md` and `plea/seasons-ux.md` describe the old design.
 - **User agreed (2026-10-10):** all four items: (1) leftovers flush to the buy wall, (2) the prize fee goes to pool liquidity after death, (3) **Sepolia uses the real 33h dead-man** (118,800 s) with 5-hour seasons, (4) START stays a placeholder until the user picks it. **`khaed1/plea` `8b63571`** = current baseCommit (import + check: no blockers).
+
+## v4 delivered but launch PARKED (2026-10-10 12:40 UTC)
+- Job `8686f9e4` **completed** (all 8 nodes accepted; build passed on attempt 3). Code: https://github.com/identity-md-launches/launch-1226-build-plea-v4-sepolia (commit `8498b988`, PR #1). Launch **#1226** `e97e5b6d-849e-4299-9104-f6c76f7a286a` is **parked**.
+- Admission checks: provenance, findings, independent review, bytecode (9 contracts reproducible), manifest, economics all passed; **`protected_invariants` failed**: "application constructor failed" in `setUp()`.
+- **Cause:** v4's `PLEA.setLauncher` accepts only the transient flag set in PLEA's constructor. IMD's invariant harness deploys each constructor as its own call, which clears transient storage, so `PleaLaunch`'s constructor reverts. v2 passed because it also accepted PLEA's deployment block. Same trap as v2's empty-chain rehearsal.
+- **v10 (`khaed1/plea`) is not affected:** its `setLauncher` has the deploy-block fallback, and its launch tests pass under `forge test --isolate` (every call its own transaction).
+- **Options (user's call):** (A, recommended) skip v4 and launch v10, which is v4 + seasons with this fix; (B) resubmit v4 with one line: "setLauncher also accepts block.number == PLEA's deployment block, because the launch rehearsal clears transient storage between constructors" (paid, START must move).
+- Check-in routine `trig_01HpY7DMNkPaKhaFgLeW43MG` is **paused**.
