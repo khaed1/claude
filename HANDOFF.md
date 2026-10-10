@@ -437,3 +437,9 @@ A clean `forge build` of v10 was **killed at 13.6 GB**. It wasn't solc (≤ 2.4 
 - **v10 (`khaed1/plea`) is not affected:** its `setLauncher` has the deploy-block fallback, and its launch tests pass under `forge test --isolate` (every call its own transaction).
 - **Options (user's call):** (A, recommended) skip v4 and launch v10, which is v4 + seasons with this fix; (B) resubmit v4 with one line: "setLauncher also accepts block.number == PLEA's deployment block, because the launch rehearsal clears transient storage between constructors" (paid, START must move).
 - Check-in routine `trig_01HpY7DMNkPaKhaFgLeW43MG` is **paused**.
+
+## v10 ready to submit (2026-10-10 13:05 UTC)
+- **User chose option A:** skip v4 (launch #1226 stays parked), launch v10.
+- **START = 1791817200 = Mon 2026-10-12 15:00 UTC** (user agreed). If the submit slips past Mon morning, move START (new commit, re-import, re-check).
+- **`khaed1/plea` `e08cd34`** = baseCommit in `plea/job-v10-launch.json`; import + `/requests/check`: no blockers, 10-step plan. The user submits that file's `input` as `launch.open` (paid, from `0xf8ad…cdc7`).
+- After launch: MineSalt → `deployHook` from the test wallet, verify, then seed (owner any time, anyone from START), live test, site job, hackathon entry.
