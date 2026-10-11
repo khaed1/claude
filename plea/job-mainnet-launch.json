@@ -1,30 +1,30 @@
 {
-    "action": "launch.open",
-    "input": {
-        "objective": "Launch PLEA on Ethereum mainnet from this Foundry repository exactly as launch.json lists it: six contracts (PLEA, CabalGate, Seasons, Laureates, PleaDistributor, PleaLaunch), deployed in order in one transaction with the constructor arguments in launch.json. This is the code of Sepolia launch #1242 plus three changes: the cap decays to its floor in 25 days, a POOL4-style wall placement guard, and Intake v2 (requestWithFailure; onPleaFailure only clears our own pending plea and never moves value). Audit the imported code and deploy it unchanged; fix only what the audit proves is a real bug, and keep every number as it is (fees, timings, panel 30, quorum 17, 15-day seasons, 33-hour dead-man, credit gas 1300000). PleaHook is not a launch.json entry: PleaLaunch.deployHook deploys it after launch with a salt mined off chain. Keep foundry.toml as it is, including [lint] lint_on_build = false.",
-        "repoUrl": "https://github.com/khaed1/plea.git",
-        "baseCommit": "6458abd28e6e4a55f364390c8f194473b15afc8e",
-        "onchain": "evm_contracts",
-        "chainId": 1,
-        "owner": "0x4b91078b2374c956a65f7af0999cae0a935e6821",
-        "github": true,
-        "contracts": [
-            "src/CabalGate.sol",
-            "src/Seasons.sol",
-            "src/PleaHook.sol",
-            "src/PLEA.sol"
-        ],
-        "shape": "chain",
-        "steps": [
-            {
-                "skill": "audit-imported-code"
-            },
-            {
-                "skill": "adapt-contract-project"
-            },
-            {
-                "skill": "adversarial-review"
-            }
-        ]
-    }
+  "action": "launch.open",
+  "input": {
+    "objective": "Launch PLEA on Ethereum mainnet from this Foundry repository exactly as launch.json lists it: six contracts (PLEA, CabalGate, Seasons, Laureates, PleaDistributor, PleaLaunch), deployed in order in one transaction with the constructor arguments in launch.json. This is the code of Sepolia launch #1242 plus three changes: the cap decays to its floor in 25 days, a POOL4-style wall placement guard, and Intake v2 (requestWithFailure; onPleaFailure only clears our own pending plea and never moves value). Audit the imported code and deploy it unchanged; fix only what the audit proves is a real bug, and keep every number as it is (fees, timings, panel 30, quorum 17, 15-day seasons, 33-hour dead-man, credit gas 400000). PleaHook is not a launch.json entry: PleaLaunch.deployHook deploys it after launch with a salt mined off chain. Keep foundry.toml as it is, including [lint] lint_on_build = false.",
+    "repoUrl": "https://github.com/khaed1/plea.git",
+    "baseCommit": "7ea2b893eb3f42c53d7c09bd79e4e3128232f763",
+    "onchain": "evm_contracts",
+    "chainId": 1,
+    "owner": "0x4b91078b2374c956a65f7af0999cae0a935e6821",
+    "github": true,
+    "contracts": [
+      "src/CabalGate.sol",
+      "src/Seasons.sol",
+      "src/PleaHook.sol",
+      "src/PLEA.sol"
+    ],
+    "shape": "chain",
+    "steps": [
+      {
+        "skill": "audit-imported-code"
+      },
+      {
+        "skill": "adapt-contract-project"
+      },
+      {
+        "skill": "adversarial-review"
+      }
+    ]
+  }
 }
