@@ -21,3 +21,5 @@ Collected 2026-10-11 from the live IMD site https://plea-make-your-case.sites.im
 - Season PLEA bonus: show "+ 5,000,000 PLEA bonus" per season for the first 4 seasons (shares per rank in PLEA next to the IMD prize), `Seasons.bonusBurned()`, `BonusPaid` / `BonusBurned` events on the Seasons page.
 - Intake v2: a plea with no verdict is cleared automatically (`PleaFailed(id, status, reason, agreed, answered)`); show the reason and keep "Clear" (`expire`) only as the fallback after 20 min.
 - New addresses from the run-2 launch; supply split 88 / 2 / 10.
+- imd/acc #1294 Stacker has no per-trader `stackedBy`: show "Cashback earned" from `Stacked(project=hook, trader)` events (sum `imd`), or the sIMD balance.
+- Stacker for run 2: `0x0457276d7b036818b3eddc1a4a3fceda61e9314d`.
