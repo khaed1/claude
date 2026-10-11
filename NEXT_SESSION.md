@@ -1,9 +1,9 @@
 Repos: `khaed1/claude` (notes, prompts, HANDOFF; work and push only on branch **`claude/adoring-goodall-pn3jyz`**), `khaed1/plea` (public, PLEA code; `main` = the code submitted for Sepolia, branch `mainnet` = next-version work) and `khaed1/plea-site` (public, empty; for GitHub Pages hosting of the PLEA site). If a repo isn't in your session, attach it with `add_repo` (push access). The IMD-delivered code of the live launch is public at https://github.com/identity-md-launches/launch-1242-launch-plea-sepolia-foundry (commit `7d247e8a`).
 
-You're picking up two projects I'm building on the IMD swarm (imd.fun). **HANDOFF.md is the source of truth**: read its last sections first, from "PLEA v10 LIVE on Sepolia" down to "Intake v2". Sections about moods, eras, ransom and relics are superseded.
+You're picking up **PLEA** on the IMD swarm (imd.fun). **imd/acc** (below) is now handled by a separate session on my other account (its prompt is `imd-acc/NEXT_SESSION.md`): use its live contracts, but don't change imd/acc files or jobs. **HANDOFF.md is the source of truth**: read its last sections first, from "PLEA v10 LIVE on Sepolia" down to "Intake v2". Sections about moods, eras, ransom and relics are superseded.
 
 ## The two projects in brief
-- **imd/acc:** trading cashback in staked IMD. A shared, ownerless `Stacker.credit(trader, imdAmount)` deposits IMD into the sIMD staking vault in the trader's name; projects fund the 0.5% from fees they already charge, so traders pay nothing extra. **Live on Sepolia** (launch #1129: TestIMD `0x2b69099e59b05901faa1dd164fabf098bf831e82` with `faucet()`, TestSIMD `0xf9e2eec3b610ec6781f7438ac5fb4bc049d81cc1`, Stacker `0x293c7134ab8f6bf1d8ff44ed806575f8f1baf477`). PLEA is its first integration and stacks cashback in every swap. Planned v2: ETH-fee projects batched through POOL4 (`flush()`). Spec: `imd-acc/README.md`.
+- **imd/acc (other session):** trading cashback in staked IMD. A shared, ownerless `Stacker.credit(trader, imdAmount)` deposits IMD into the sIMD staking vault in the trader's name; projects fund the 0.5% from fees they already charge, so traders pay nothing extra. **Live on Sepolia** (launch #1129: TestIMD `0x2b69099e59b05901faa1dd164fabf098bf831e82` with `faucet()`, TestSIMD `0xf9e2eec3b610ec6781f7438ac5fb4bc049d81cc1`, Stacker `0x293c7134ab8f6bf1d8ff44ed806575f8f1baf477`). PLEA is its first integration and stacks cashback in every swap. Planned v2: ETH-fee projects batched through POOL4 (`flush()`). Spec: `imd-acc/README.md`.
 - **PLEA (v10):** a sell-gated meme token on Uniswap v4, inspired by TokenWorks' CabalCoin. Buying is open; **selling needs a plea scored 0–45 by "the Cabal"** (IMD oracle panel, 30 judges, quorum 17); pass if score ≥ need = 70 − on-chain fact score (0–55). One hook, a fork of POOL4's CappedBurnHook (IMD side, only LP, liquidity locked forever, trims burn, IMD buy wall). Fees 1.75%: 0.5% sIMD cashback, 0.5% owner, 0.25% season prize pot, 0.25% liquidity, 0.25% PLEA burn. The Cabal dies for good after 33h without a signed verdict, then trading is free forever. **Seasons:** back to back from launch (5h on Sepolia, 15 days on mainnet), each wallet's best 3 scores count, top 10 with ≥60 points paid 25/18/14/11/9/7/6/4/3/3 %, unpaid shares roll over, top 5 pleas become on-chain Laureate NFTs, display names.
 
 ## Where we stopped (2026-10-11 ~04:15 UTC)
@@ -14,10 +14,27 @@ You're picking up two projects I'm building on the IMD swarm (imd.fun). **HANDOF
 - **Site:** job `d456a90e-3839-4e7d-9942-4b2b25409ec7` (continuation of blocked `11d73554`) is building; no IMD hosting on this one. When it delivers: review the code against the live contracts, make it work under `/plea-site/`, push the static build to `khaed1/plea-site` main (+ `.nojekyll`), and ask me to enable GitHub Pages (Settings → Pages → main / root → https://khaed1.github.io/plea-site/). For the official IMD link afterwards: a small `job.continue` with `ipfs: "plea-test"` and **no hosting words in the text** (our earlier block came from the prompt asking the agent to host). Prompt: `plea/job-v10-site.md`.
 - **Gas on Sepolia is much higher now** (deployHook 35.3M, buy 1.5–2.6M, plea ~2.5M, sell 0.75–1.25M, approvals 100–130k): always use estimate ×1.3.
 - **Next version** (branch `mainnet` in khaed1/plea, decided): 25-day cap decay + POOL4-style wall placement guard (written, 115 tests pass), then rebase onto the delivered code, switch to **Intake v2 `0xa43e6f75ee006411f79ac1c84120606c2330de82`** with `requestWithFailure` + an `onPleaFailure` that clears our own pending plea (never moves value), mainnet addresses, then import + `/requests/check`.
-- **Routines:** the hourly site check-in `trig_01UuuHnB3PzF7vgo1rsEoQ3b` belongs to the old account/session; ignore it here and create your own check-in for job `d456a90e` if you want one.
+- **Routines:** the hourly site check-in `trig_01UuuHnB3PzF7vgo1rsEoQ3b` fires into the previous session. Delete it (`delete_trigger`) and create your own hourly check-in for job `d456a90e` (same steps as in "Your tasks" 1).
+
+## Your tasks, in order
+1. **Site job `d456a90e`** (at 04:20 UTC `build_website` was still working, `design_critic` waiting). Check `GET https://api.imd.fun/jobs/d456a90e-3839-4e7d-9942-4b2b25409ec7`. When it delivers:
+   - clone the delivered repo at the delivery commit;
+   - review the site against the live contracts: addresses, pool key, buys always pass hookData, swap gas estimate ×1.3 (floor 2.6M), Seasons `record`/`closeSeason`/`flushToWall`, `setName`, no killCabal/claim buttons;
+   - make it work under `/plea-site/` (relative base or `/plea-site/`, hash routing or a 404.html), rebuild if needed;
+   - push the static build to `khaed1/plea-site` main with `.nojekyll`;
+   - test it in Chromium (Playwright, `/opt/pw-browsers`) at 360 and 1280 px against the live contracts;
+   - tell me to enable Pages and give me a short ranked list of issues.
+   If it blocks, explain plainly and propose a fix (pay nothing).
+2. **Start the next version on branch `mainnet`** in `khaed1/plea` (already has the 25-day cap decay + wall guard, commit `7ab3d6c`, 115 tests pass):
+   - bring in the delivered launch-1242 code (`7d247e8a`) so the adapter's changes are kept, then re-apply the decay and the guard; all tests must pass;
+   - switch to **Intake v2** `0xa43e6f75ee006411f79ac1c84120606c2330de82` with `requestWithFailure` and an `onPleaFailure(bytes32 requestId, uint8 status, bytes32 reason, uint16 agreed, uint16 answered, bytes signature)` that only clears our own still-pending plea when `msg.sender == intake` (never moves value; keep the 20-minute `_stale` fallback); add tests;
+   - mainnet values for `launch.json`: real IMD `0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7`, the oracle fee in IMD, the mainnet Stacker (to come from the imd/acc session, leave a clear placeholder), 15-day seasons, 33h dead-man; ask me before choosing START or the owner;
+   - then Slither, `POST /requests/import` + `/requests/check`, and show me the plan before anything is paid.
+3. **Keep the Cabal alive** if the live test should continue: a plea from the test wallet before the death time (any verdict resets the clock; never write lines that tell the judges how to score).
+4. Fill `plea/hackathon-submission.md` (`{…}` placeholders) once the site is up.
 
 ## Files to read
-- `HANDOFF.md` (last sections first), `plea/job-v10-launch.json`, `plea/job-v10-site.md`, `plea/dev-feedback.md` (items for the IMD dev; 11 is resolved), `plea/hackathon-submission.md` (v10 draft, `{…}` to fill), `plea/tests/ForkSeasons.t.sol`, `imd-acc/README.md`.
+- `HANDOFF.md` (last sections first), `plea/job-v10-launch.json`, `plea/job-v10-site.md`, `plea/dev-feedback.md` (items for the IMD dev; 11 is resolved), `plea/hackathon-submission.md` (v10 draft, `{…}` to fill), `plea/tests/ForkSeasons.t.sol` (runs inside the delivered launch repo), `imd-acc/README.md` (for context only).
 - Code: `khaed1/plea` README (contracts, fees, fact score, seasons), `src/` and `test/`; the delivered launch repo above for what is actually deployed.
 - IMD: docs https://imd.fun/docs/llms.txt (contracts, Intake v2, "When no answer comes") · API https://api.imd.fun · results `GET /intake/11155111/{tx}` → `GET /oracle/requests/{id}` · my orders `GET /requests/paid-by/0xf8ad3f88b0e0d177aa8c5e6be1e13410fd41cdc7`.
 
@@ -31,4 +48,5 @@ You're picking up two projects I'm building on the IMD swarm (imd.fun). **HANDOF
 - **Don't change agreed numbers** (fees, caps, timings, quorum 17, dead-man 33h, expiry 20 min, season numbers, 25-day decay) without asking me.
 - **Keys:** never print or commit `TESTNET_KEY`; never ask me for a mainnet key.
 - **`khaed1/plea` is public:** only code, tests and the README there; no notes, keys or HANDOFF.
+- **imd/acc** files and jobs belong to the other session; read only.
 - **PondPad** (branch `claude/bold-gauss-qhlw86`) is read-only. Never commit its code.
