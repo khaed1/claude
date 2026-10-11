@@ -9,7 +9,7 @@ Draft for the IMD hackathon (proposed build period 5–19 Oct; check the final r
 **One line:** a meme token you can always buy but can only sell by convincing a panel of 30 IMD oracle judges. The best pleas win IMD prizes each season, and every trade pays 0.5% back to the trader as staked IMD.
 
 **Links**
-- PLEA site: https://khaed1.github.io/plea-site/ (official IMD link `plea-test`: {to come})
+- PLEA site: https://plea-make-your-case.sites.imd.fun/
 - Code: https://github.com/khaed1/plea · imd/acc: https://github.com/identity-md-launches/launch-1129-build-imd-acc-sepolia-test
 - imd/acc test page: https://imd-acc-sepolia-test-run.site.identitymd.eth.limo
 - Demo video: {link}
