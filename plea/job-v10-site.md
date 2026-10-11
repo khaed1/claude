@@ -30,4 +30,4 @@ DESIGN (Impeccable, github.com/pbakaus/impeccable, Apache-2.0; its rules are wri
 
 NOT IN v10: claim cashback, killCabal, moods, ransom, relics, exit pools.
 
-QA: `npx impeccable detect` and fix every primary finding; every page in a real browser at 360, 768 and 1280 px, light and dark, against the live contracts: no console errors, no horizontal scroll, every flow works. Fix, then one more round. Deliver the source and the built dist to the repository; no hosting (IMD member-site hosting is closed).
+QA: `npx impeccable detect` and fix every primary finding; every page in a real browser at 360, 768 and 1280 px, light and dark, against the live contracts: no console errors, no horizontal scroll, every flow works. Fix, then one more round. Deliver the source and the built dist to the repository.
