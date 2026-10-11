@@ -9,7 +9,7 @@ Draft for the IMD hackathon (proposed build period 5–19 Oct; check the final r
 **One line:** a meme token you can always buy but can only sell by convincing a panel of 30 IMD oracle judges. The best pleas win IMD prizes each season, and every trade pays 0.5% back to the trader as staked IMD.
 
 **Links**
-- PLEA site: {PLEA v10 site URL (IPFS label plea-test)}
+- PLEA site: https://khaed1.github.io/plea-site/ (official IMD link `plea-test`: {to come})
 - Code: https://github.com/khaed1/plea · imd/acc: https://github.com/identity-md-launches/launch-1129-build-imd-acc-sepolia-test
 - imd/acc test page: https://imd-acc-sepolia-test-run.site.identitymd.eth.limo
 - Demo video: {link}
@@ -40,7 +40,13 @@ Meme tokens are a race to dump. Holders sell at the first green candle, nothing 
 ### Evidence (Sepolia)
 - **imd/acc live** (launch #1129, tx `0x9512b5df…c0f0`): Stacker `0x293c7134ab8f6bf1d8ff44ed806575f8f1baf477`, TestIMD `0x2b69099e59b05901faa1dd164fabf098bf831e82`, TestSIMD `0xf9e2eec3b610ec6781f7438ac5fb4bc049d81cc1`. Credit tx `0xaabe6a70…3252` minted sIMD to the trader with the correct `Stacked` event.
 - **PLEA v2 live** (launch #1148, tx `0x655579bd…9525`): buys, cashback stacked through the hook, every transfer restriction tested (direct sells, other pools, routers and claims all blocked), and a signed oracle verdict delivered end to end.
-- **PLEA v10 live:** {launch #, tx; PLEA / CabalGate / Seasons / Laureates / PleaDistributor / PleaLaunch / PleaHook addresses} · buy with cashback stacked in the same swap {tx} · approved plea and executed sell {tx} · denied plea and appeal {tx} · points recorded {tx} · season closed, prizes paid and Laureates minted {tx}.
+- **PLEA v10 live:** launch #1242, deploy tx `0x9de8d4a7b24b04f2ee52fea389572341844d1a27d5a131f50194af83db833be8` (all IMD admission checks passed). PLEA `0x9b8d9aae44e81b1205e227911db279bde6edead9` · CabalGate `0x758b8300c62563591950f32717be44a5140a20f9` · Seasons `0x178481ac37e68a5c6ef95336db4616ba0169a17a` · Laureates `0xd2311b6d4c42a6dc3900a0a74a364b2775dd61c1` · PleaDistributor `0xabaecde2b71f0e3fa5d1b70f9a2bb9c24d6f3a7f` · PleaLaunch `0x29aa568f93d7d4d8255ba54b6201bbe1abd01ab4` · PleaHook `0x3d4CcAc329010b8beA3b14498d9a45EAB00c68Cc`.
+  - Buy with cashback stacked as sIMD in the same swap: `0xdd664ab6768fe9e0f36c291ab440b198db15325c8c5b148d3c9e909ac2df1a8f`.
+  - Denied plea (32 vs need 33) `0xae2a3742827b867f0e49fa1bebecfc7c0a888c7123f992fb7d6153e537c52335` and its appeal (31, denied) `0xa9e013c006a78a2c56b5ad22620b26b408ccd9eb177b975446500bee84736d0a`.
+  - Approved plea (38 ≥ 33) `0xb63c5036ccb56271b60a2eb6c0c1c6b8dab14f77bc813d912107611034d8649f`, verdict `0x2fba5e0783d7367cabbb6998df5d9951cd5fe191c336d93d3c181a93d0bb28e3`, executed sell `0x3ad0bafcebbba2f333c432f14735bad2eab15557cc10de7b2f349485b074fcb8`.
+  - Points recorded `0xf36682ce96343898e4104a605b5a23e58beb9b69daaba2acf282c15aa4073a59`.
+  - Season 1 closed `0x8a7d608974019fca52a4d84774aa60b5556c60dac486dabd33e6ef8cd1a48914`: Laureate #1 minted on chain (full plea text in the SVG); no prize was due (38 < the 60-point minimum), so the pot rolled over as designed.
+  - A plea that told the judges how to score got no verdict (13 of 28 judges zeroed it for manipulation): `0xfa20e8982619c87a939201bd79d360b8aaa69bd283a65f8eff14903ca0050a39`.
 - **Before launch:** 105 Foundry tests (both pool orientations, isolated launch rehearsal, oracle conformance); a Sepolia fork run (deploy 10.73M gas, 8/8 buys with plain gas estimates stacking sIMD through the live Stacker, a plea paid through the real Intake, approved via the callback, sold and recorded on the leaderboard); Slither clean of high-severity findings.
 - **Oracle calibration:** test pleas through the Sepolia Intake set the scoring wording (strong ≈ 35–40, plain ≈ 25–30, weak or abusive under 15; prompt injections signed 0). Real panels signed numeric scores for v10's exact request body (35 and 21).
 
