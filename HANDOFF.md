@@ -612,3 +612,8 @@ A separate session now runs imd/acc; the PLEA session keeps PLEA. Nothing was pa
   - Next: live test (buys after the launch window, a plea cleared by onPleaFailure if one fails, approvals, sells, two approved pleas in one season for ≥60 points → PLEA bonus, season close), then the site job with `plea/site-next-fixes.md`.
 - **Live test scheduled (user: "yes, run the plan"):** 21:21 UTC buys A+B and a B plea (`trig_01XgGvZHKa6koMhm89nKkY5S`); Mon 00:51 A plea #1 in season 1 (`trig_01GirkTjjjwjpaBvWTk47H9q`); 01:50 close season 0 (`trig_01UTgUeiTYZg7v5xTdQwcbn6`); 05:00 A plea #2 (`trig_01KNcSKh68eUS1HVTLmP7cc7`); 06:50 close season 1 → PLEA bonus (`trig_01Tb46H6JsZuFL79cQoZ3zZJ`). Monday 13:05 old-Cabal check still `trig_01JNiwLoysc284DmXBmDGojU`.
 - **Site job text for run 2:** `plea/job-testnet2-site.txt` (7.2k chars) + `plea/job-testnet2-site-form.md` (job.continue of 4aca2460, frontend-for-contract, github, ipfs `plea-test-run-2` — free). `/requests/check`: no blockers. User is submitting it.
+
+## Run 2 live test (2026-10-11 from 21:21 UTC)
+- Wallet B (new throwaway, key only in this session's scratchpad) `0xb0d57F72AC2A8E8A9A7Bb1Dc63d11E5a3F010712`, funded 0.003 ETH (tx `0xf19d33fa…7b82`); faucet 10k tIMD.
+- **Buy A** 20 tIMD → 3,422,325 PLEA, tx `0x5adba10c…a478`, 2.74M gas; cashback 0.0985 tIMD stacked (Stacked event, project = hook). **Buy B** 30 tIMD → 5,083,742 PLEA, tx `0xc53a6544…699f`, 1.23M gas; first-time cashback 0.1478 tIMD stacked (B sIMD 0.1478). Hook→Stacker IMD allowance **0** after the swaps (exact-amount approval works). Cost basis recorded for both.
+- **Plea #1 (B)**, 508,374 PLEA (10%), fact 37 → need 33, tx `0x73778fe8…c72b`, 2.61M gas. (Two first tries refused off chain with `BadPleaText`: 290 and 284 bytes > 280.)
