@@ -1,6 +1,13 @@
 # imd/acc: trading cashback in staked IMD
 
-Status: **Sepolia job ready, 2026-10-09.** imd/acc ships **first**, on Sepolia, as an IMD smart-contracts (`evm_contracts`) launch. PLEA then plugs into it as the **first integration**, so the PLEA Sepolia run doubles as imd/acc's first real test. Working name, inspired by TokenWorks' [btc/acc](https://www.token.works/archive/btcacc).
+Status: **live on Sepolia (launch #1129) with PLEA v10 as its first working integration; listing job and mainnet launch ready to pay, 2026-10-11.** imd/acc shipped **first**, on Sepolia, as an IMD smart-contracts (`evm_contracts`) launch. PLEA then plugged into it as the **first integration**. Working name, inspired by TokenWorks' [btc/acc](https://www.token.works/archive/btcacc).
+
+## Next (2026-10-11)
+
+1. **List PLEA on the test page** (`job-list-plea.md`, request `requests/list-plea.json`): `job.continue` of site job `5530dde0`, skill `build-website`, `ipfs: "imd-acc-sepolia-test-run"` (the existing name), GitHub on. A data-only change: `projects.json` gets PLEA v10's hook from block 11,885,872, and the RPC list puts an RPC that still serves old logs first. Tested locally with the delivered `dist/` against live Sepolia: PLEA listed, its 4 stacks marked listed, points for both PLEA traders, no errors, no overflow at 360 px. `/requests/check`: no blockers.
+2. **imd/acc on mainnet** (`job-mainnet.md`, request `requests/mainnet.json`): `launch.open`, `evm_contracts`, chain 1, imported from the launch-1129 repository at `934fb404`, deploying **only** `Stacker(IMD, sIMD)`. Plan from `/requests/check` (no blockers): audit as it arrived, adapt, tests, manifest, four audit specialists, judge, deploy. PLEA mainnet then points at the new address.
+3. **v2 ETH route**, only once a project with ETH fees wants in.
+4. **ProjectRegistry**, once more than one or two projects want to be listed.
 
 ## Launch order
 
@@ -65,7 +72,7 @@ Side benefit: POOL4 burns a cut of IMD on its trades, so every flush also burns 
 
 | Project | Chain | Plan | Status |
 |---|---|---|---|
-| **PLEA** | Ethereum (Sepolia first) | First integration. 0.5% of every PLEA/IMD trade goes through `stacker.credit` as sIMD for the trader, out of PLEA's own fee (its hook sets the fees under `evm_contracts`). Falls back to plain IMD if credit fails. | Sepolia, after imd/acc |
+| **PLEA** | Ethereum (Sepolia first) | First integration. 0.5% of every PLEA/IMD trade goes through `stacker.credit` as sIMD for the trader, out of PLEA's own fee (its hook sets the fees under `evm_contracts`). Falls back to plain IMD if credit fails. | **Live on Sepolia** (v10 hook `0x3d4C…68Cc`, credits inside each swap); listing on the test page ready to pay |
 | **PondPad** | Robinhood Chain | IMD-paired launchpad; cashback as its trading-rewards feature, funded from existing fees. The sIMD vault is on Ethereum only, so this needs an sIMD vault on Robinhood Chain, a bridge, or plain-IMD cashback there. | Planned |
 
 ## Points now, token maybe later
@@ -93,6 +100,28 @@ This history already drives the leaderboards. If imd/acc takes off, it's the bas
 | `github` | `true` |
 | `references` | `evm-contracts-launch`, `defi-native`, `eth-security`, `eth-testing`, `eth-frontend-ux`, `better-interface`, `pashov-skill`, `solidity-security-review` |
 
+## Mainnet launch settings
+
+| Field | Value |
+|---|---|
+| Action | `launch.open` |
+| Launch type | Smart contracts (`evm_contracts`) |
+| `chainId` | `1` (Ethereum mainnet) |
+| Source | `repoUrl` launch-1129 repository, `baseCommit` `934fb40488bd8567ffee4f0b1f802bf078d081d9` (checked with `POST /requests/import`) |
+| Steps | `chain`: `audit-imported-code`, `adapt-contract-project`, `adversarial-review` (IMD adds tests, the manifest, four specialists and the judge) |
+| Contracts | `Stacker` only, `(0xd34a99bc0f67ae1bbd63c660e6d0b0dd03e263b7, 0x9efa934d9fad4ae28c998a40195646b965a97247)` |
+| `owner` | none needed (the Stacker has no owner) |
+| `ipfs` | none (a mainnet page comes later, as a `job.continue`) |
+| `github` | `true` |
+| `references` | `evm-contracts-launch`, `defi-native`, `eth-security`, `eth-testing`, `pashov-skill`, `solidity-security-review` |
+
+Facts behind it (read on chain 2026-10-11, Ethereum block 26,166,812):
+- **IMD** is a LayerZero OFT (`BridgedFP`): a standard 18-decimal ERC-20, no transfer fee, no pause. Its owner can only rename it and manage bridge peers.
+- **sIMD**: `asset()` = IMD, decimals 24, `owner()` = 0x0, `paused()` = false, about 1.82M IMD staked.
+- **Mainnet fork test** with the exact Stacker build: deploy 528,591 gas. `credit` to a new trader 197k–249k gas (the first credit of a new project also creates its totals), a repeat credit 112k (whole transactions, 21k base included). The trader got the right shares (1.5 IMD credited = 1.5 IMD of sIMD value), and the Stacker held 0 IMD and 0 sIMD after each call.
+- The runtime code is **identical** to the live Sepolia Stacker apart from the two immutable addresses.
+- **Mainnet gas is far lower than Sepolia's** (about 0.2M against 0.7–1.2M for a first credit), so PLEA mainnet's `creditGas` can be much smaller than Sepolia's 1.3M; 300k leaves a margin.
+
 ## Decided
 
 - **Owner:** the Stacker has none, and its IMD and sIMD addresses are immutable. TestSIMD keeps an owner on Sepolia only, so integrators can pause it and test their fallback; mainnet uses the real, renounced sIMD.
@@ -102,8 +131,10 @@ This history already drives the leaderboards. If imd/acc takes off, it's the bas
 
 ## Open questions
 
-1. Is an sIMD vault planned on Robinhood Chain?
-2. Should sells get cashback too, or buys only? (PLEA's Sepolia job pays it on every trade.)
+1. Is an sIMD vault planned on Robinhood Chain? IMD exists there (`0x5f7bb59365ce557c26dbcaa4ee9d39a4b95b7127`, the same OFT), but no vault does. **Recommendation:** ask the IMD team whether they will deploy StakedIMD there; until then PondPad pays its cashback as plain IMD. A Stacker on Robinhood Chain is a one-contract launch once a vault exists.
+2. Should sells get cashback too, or buys only? (PLEA pays it on every trade.) **Recommendation:** both. Every trade pays a fee, so every trade funds its 0.5%; wash trading for points still loses money, because the fees on a round trip are larger than the cashback.
+
+Known and harmless: a credit mints sIMD to the trader, and the vault's one-block hold then stops that trader from redeeming in the same block. Anyone can already do this by depositing into the vault for someone, so the Stacker adds nothing new.
 
 ## Which projects earn points
 
