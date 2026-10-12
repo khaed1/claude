@@ -136,7 +136,7 @@ The site's "Send letter" button suggested on 2026-10-12 is dropped: letters need
 ## Edge cases
 
 - **Cabal dead:** letters revert ("The Cabal is dead. PLEA trades freely."), and `settle` still returns any open escrow.
-- **Writer's balance too small:** if 10% of the balance is under a minimum (e.g. 1,000 PLEA), or the fee would take more than 10% of the balance, the letter reverts.
+- **Writer's balance too small:** if 20% of the balance is under a minimum (e.g. 1,000 PLEA), or the fee would take more than 10% of the balance, the letter reverts.
 - **Price moves:** a fee swap over its cap reverts the letter; a sale under 95% makes `deliver` revert, and the plea lapses and is settled with a refund.
 - **Two letters at once:** the second one reverts (`PendingExists`), as on the site.
 - **Season end:** points are recorded at `deliver` and `SELL`. A lapsed approval is recorded by `settle`, because it still counts for the season, as today.
@@ -153,7 +153,7 @@ The site's "Send letter" button suggested on 2026-10-12 is dropped: letters need
 
 - **Non-ASCII ID rule:** every public selector of the Letterbox has a non-printable byte.
 - **Parsing:** plain text, `APPEAL`, `SELL`, `NAME`; the command word must be followed by a space or newline; lower-case `sell` is plain text.
-- **Fixed amount:** 10% respects the 2.5M and 35% caps; an appeal reuses the original amount.
+- **Fixed amount:** 20% respects the 2.5M and 50% caps; an appeal reuses the original amount, clamped to 50% of the current balance.
 - **Fees paid in PLEA:**
   - exact IMD amounts reach the Intake, the tip and the wall;
   - the fee swap respects the +10% cap;
