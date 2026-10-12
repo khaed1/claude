@@ -26,9 +26,14 @@ sell_record(){ local id=$1 vat=$2 out
   send $S 'record(uint256)' $id
   log "season $(( (vat - $(cast call $G 'startedAt()(uint64)' --rpc-url $R | num)) / 18000 )) bestOf(3,A) $(cast call $S 'bestOf(uint256,address)(uint8[3])' 3 $A --rpc-url $R)"
   log "DONE approved plea $id; cooldown ends $(date -u -d @$(( $(cast call $G 'lastExecutedAt(address)(uint256)' $A --rpc-url $R | num) + 14400 )) +%H:%M:%S)"; }
+# each plea or appeal pays 0.5 test oracle IMD (open mint): top up when short
+OF=0x44a1Cd38474FB1748400E7DEb5F8D786ccE3F89A
+fee_ok(){ local b; b=$(cast call $OF 'balanceOf(address)(uint256)' $A --rpc-url $R | num)
+  python3 -c "import sys;sys.exit(0 if $b>=5*10**17 else 1)" && return 0
+  log "oracle IMD $b < 0.5: minting 1"; send $OF 'mint(address,uint256)' $A 1000000000000000000; }
 # plead (or appeal) and handle a cleared-without-verdict request by re-sending once
 ask(){ local kind=$1 tries=0 id r sc s v
-  while [ $tries -lt 2 ]; do tries=$((tries+1))
+  while [ $tries -lt 2 ]; do tries=$((tries+1)); fee_ok
     if [ $kind = plea ]; then send $G 'submitSell(uint256,string)' $AMT "$PT" || return 1
     else send $G 'appeal(uint256,uint256,string)' $ORIG $AMT "$AT" || return 1; fi
     id=$(cast call $G 'pendingOf(address)(uint256)' $A --rpc-url $R | num); read f n _ _ _ <<<"$(st $id)"; log "$kind id $id fact $f need $n"
