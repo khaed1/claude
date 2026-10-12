@@ -1,0 +1,522 @@
+[
+ {
+  "i": 0,
+  "role": "distributor",
+  "address": "0x6dD7450F03B5ECa11f74F812b8f0EF0894706965"
+ },
+ {
+  "i": 1,
+  "role": "whale",
+  "address": "0xBfC3b5804809CDB88340d771Ab2cc7618377F50B"
+ },
+ {
+  "i": 2,
+  "role": "whale",
+  "address": "0x270e724f758Af711937A4dDBB5Bf368738aec170"
+ },
+ {
+  "i": 3,
+  "role": "whale",
+  "address": "0x0c3763C8e6aC40c7537aDC23852eC4112E156e23"
+ },
+ {
+  "i": 4,
+  "role": "trader",
+  "address": "0x411F5d9341cb8a2bE7d725Ba36FEe8170aBfb1eA"
+ },
+ {
+  "i": 5,
+  "role": "trader",
+  "address": "0x3b479319323094A7C8f4f50CE1FA6a31A5F30CE6"
+ },
+ {
+  "i": 6,
+  "role": "trader",
+  "address": "0x220d002CbD94B0C31908e9Eb6a2Ad7746d3f9EEB"
+ },
+ {
+  "i": 7,
+  "role": "trader",
+  "address": "0xD7aA194858fd0a5cF47c46Ea374dFc5480D6ae8E"
+ },
+ {
+  "i": 8,
+  "role": "trader",
+  "address": "0x87F747Be8E09D8661a7b14F63deB82Ea815B65bD"
+ },
+ {
+  "i": 9,
+  "role": "trader",
+  "address": "0x8e4e1ff37f06f32eCD9fEC2C9BA19CeeBf7cE6B1"
+ },
+ {
+  "i": 10,
+  "role": "trader",
+  "address": "0x4f36bAd4f0eE4B615548c0553c27bFD189aB7103"
+ },
+ {
+  "i": 11,
+  "role": "trader",
+  "address": "0xB0e56DDbf6fA752C8D9A5590FD99cc06677eB617"
+ },
+ {
+  "i": 12,
+  "role": "trader",
+  "address": "0x4bFb68f2E84baeFfB7E34e53E09489D6ed19b74F"
+ },
+ {
+  "i": 13,
+  "role": "trader",
+  "address": "0x79f7AC0Ee84faB072b93758292d1f85Fc50B5385"
+ },
+ {
+  "i": 14,
+  "role": "trader",
+  "address": "0xd5ec792fF54B8548c23e1f54d5d96DFB4924dD6F"
+ },
+ {
+  "i": 15,
+  "role": "trader",
+  "address": "0xA38ae8EC93B511621fD29759f20927f1205Fc915"
+ },
+ {
+  "i": 16,
+  "role": "trader",
+  "address": "0xafB87775fe2a848bb6b446bf155C48fceDe358b0"
+ },
+ {
+  "i": 17,
+  "role": "trader",
+  "address": "0x6Fb22Fb6df2a2810B83453F585f9e1B79B77594C"
+ },
+ {
+  "i": 18,
+  "role": "trader",
+  "address": "0xE75809BF13D0dB5b753Fc4Ef321b38aCfF54EC13"
+ },
+ {
+  "i": 19,
+  "role": "trader",
+  "address": "0x314fab49a445384D029A7A97ff9e738f513ee491"
+ },
+ {
+  "i": 20,
+  "role": "trader",
+  "address": "0x11aAee3247b006E923Bf5C67A656679eb66772e3"
+ },
+ {
+  "i": 21,
+  "role": "trader",
+  "address": "0xf28Ec1ccd462FAB7a59D49bA6633278b7581Cf60"
+ },
+ {
+  "i": 22,
+  "role": "trader",
+  "address": "0xaa6d66e6CF388a55c8F0A011E61088ea1987C4Af"
+ },
+ {
+  "i": 23,
+  "role": "trader",
+  "address": "0x76aB8ad3de9269a058354aeC3d949b527d714B4A"
+ },
+ {
+  "i": 24,
+  "role": "trader",
+  "address": "0xaB1A8df34eB6fDB0dc5700e4A260cf817Ae5BE36"
+ },
+ {
+  "i": 25,
+  "role": "trader",
+  "address": "0x4717b9bF4292024E53e9AB1170523Af8CDdA372B"
+ },
+ {
+  "i": 26,
+  "role": "trader",
+  "address": "0xDdb2451f2311C682886aEB6f098f8f86CBD456E6"
+ },
+ {
+  "i": 27,
+  "role": "trader",
+  "address": "0xB6D408c0CFcA855e5E2550154590C2dD5c2a0619"
+ },
+ {
+  "i": 28,
+  "role": "trader",
+  "address": "0xFfCF519c58FB897c190aA9F1370C7A367786FF6E"
+ },
+ {
+  "i": 29,
+  "role": "trader",
+  "address": "0x2b9a46d4FB1023327fc1f9B6E5C859E895AAf3a3"
+ },
+ {
+  "i": 30,
+  "role": "trader",
+  "address": "0xFC3f06750449Be8AC548cBA9C022228B074c5600"
+ },
+ {
+  "i": 31,
+  "role": "trader",
+  "address": "0x96e3762aEABFd787741952b0A8571c99ab445E8E"
+ },
+ {
+  "i": 32,
+  "role": "trader",
+  "address": "0x4bF48a3E7f534Fd3Af0475A28Da8c0f1a9cF96B8"
+ },
+ {
+  "i": 33,
+  "role": "trader",
+  "address": "0x0a3CAc4805d196667d17CFb6055aB01a10E713c8"
+ },
+ {
+  "i": 34,
+  "role": "trader",
+  "address": "0x9Fd205bBb6AB3E0aeEC8E995CC90e486B96aad54"
+ },
+ {
+  "i": 35,
+  "role": "trader",
+  "address": "0x911f15f07Bffe487a0F672234A0349ee0551065e"
+ },
+ {
+  "i": 36,
+  "role": "trader",
+  "address": "0x21a6AcB7d5c50207e75aD858290F5e7faE4294Ad"
+ },
+ {
+  "i": 37,
+  "role": "trader",
+  "address": "0xf6eFfB3151856e4d918BBd7845A0AD21B59bc190"
+ },
+ {
+  "i": 38,
+  "role": "trader",
+  "address": "0x8f21e14704CB98CDAf7328692162E2Ce524586C1"
+ },
+ {
+  "i": 39,
+  "role": "trader",
+  "address": "0xE19d687E369bfCD2A6d0C194717D80A70c298084"
+ },
+ {
+  "i": 40,
+  "role": "trader",
+  "address": "0x8fa15BD97475d36cb86A26C27b2Ca817601eC8BC"
+ },
+ {
+  "i": 41,
+  "role": "trader",
+  "address": "0x5440959edAF157f2633408B81EF5ff38ccFEc944"
+ },
+ {
+  "i": 42,
+  "role": "trader",
+  "address": "0x64B0f2fC458030C3Fb783f0B6270c331e15979C3"
+ },
+ {
+  "i": 43,
+  "role": "trader",
+  "address": "0x6AC100eC5b1878E7d146934F55BdDAfC4256BB90"
+ },
+ {
+  "i": 44,
+  "role": "trader",
+  "address": "0x4EB65C3A5305110295f2E900eA6f1cB72E8C493c"
+ },
+ {
+  "i": 45,
+  "role": "trader",
+  "address": "0x8EB539e747cDd0F258CAbBBc7067aC9905A24Ae5"
+ },
+ {
+  "i": 46,
+  "role": "trader",
+  "address": "0xEF044E2bb5BaBB67f4c1e7989148938926143bCC"
+ },
+ {
+  "i": 47,
+  "role": "trader",
+  "address": "0x651926158433a5B2E5DaCBBfb77Ee445306eb86A"
+ },
+ {
+  "i": 48,
+  "role": "trader",
+  "address": "0x3d334CF7C0042141c12C6FdD35efcae9713A9eB1"
+ },
+ {
+  "i": 49,
+  "role": "trader",
+  "address": "0x0D261573Adf4238b5543dEF1E725CD76eD6EE033"
+ },
+ {
+  "i": 50,
+  "role": "trader",
+  "address": "0x7583B9063DD793a004761C529e405B9FaD691b64"
+ },
+ {
+  "i": 51,
+  "role": "trader",
+  "address": "0xb36Cc394c5FF1DCF432F9Fb58a1c679a21c9447C"
+ },
+ {
+  "i": 52,
+  "role": "trader",
+  "address": "0x83f2083C830c03aD7b03bc42a3510A6FBDe0dBB8"
+ },
+ {
+  "i": 53,
+  "role": "trader",
+  "address": "0xb4d2C79C5E93E878fB2E74a0d8e7796deF43e4d2"
+ },
+ {
+  "i": 54,
+  "role": "trader",
+  "address": "0x132B40f3726cB818B47C1657ec26D8Db54E0abDB"
+ },
+ {
+  "i": 55,
+  "role": "trader",
+  "address": "0xF42d5a68B75A46DeaD2963eaA05c0b2779D542Cc"
+ },
+ {
+  "i": 56,
+  "role": "trader",
+  "address": "0xB183A2532D8CfF972088FD7C71405d24dAbf9fc4"
+ },
+ {
+  "i": 57,
+  "role": "trader",
+  "address": "0x0302b37f069FC4405Cda8e26BEA3E418451a37Cb"
+ },
+ {
+  "i": 58,
+  "role": "trader",
+  "address": "0x4783bCAc169566d04bDF015536cB546A035D8cca"
+ },
+ {
+  "i": 59,
+  "role": "trader",
+  "address": "0x8Ec4D02B91373aA5534085FdFF44Bdd70265ae05"
+ },
+ {
+  "i": 60,
+  "role": "trader",
+  "address": "0xc39CE8fb8E55cAA7523a824f378300Bc9d16a4C4"
+ },
+ {
+  "i": 61,
+  "role": "trader",
+  "address": "0xFAEcaFD5df9f04963D75a541263ae9a619FEE306"
+ },
+ {
+  "i": 62,
+  "role": "trader",
+  "address": "0xD497E687c26619267098465c2FC0Bd8a1b0384EF"
+ },
+ {
+  "i": 63,
+  "role": "trader",
+  "address": "0xf624862B8D21D860cceC6798eEd34d668723D043"
+ },
+ {
+  "i": 64,
+  "role": "trader",
+  "address": "0xd22C66dF536222A4074fBBdFA9aadF4254752219"
+ },
+ {
+  "i": 65,
+  "role": "trader",
+  "address": "0x45dC9c467c5928A6C59cFd2a29b1a4A1bC4eFBED"
+ },
+ {
+  "i": 66,
+  "role": "trader",
+  "address": "0x753eb3dB51d57C6858C44250039864a87cDA41b9"
+ },
+ {
+  "i": 67,
+  "role": "trader",
+  "address": "0xB42c349E8Bc6AC10F623910f87800f26755ee9Cd"
+ },
+ {
+  "i": 68,
+  "role": "trader",
+  "address": "0x1E9e2dCdEC8f85b27b09Ff2786D09B8266926151"
+ },
+ {
+  "i": 69,
+  "role": "trader",
+  "address": "0xeC3719cceD8b024BD012FAA0148eEDe420ac6E4c"
+ },
+ {
+  "i": 70,
+  "role": "trader",
+  "address": "0x6b67Dd994aF5b72920AD474D6cc2b95a272aAd26"
+ },
+ {
+  "i": 71,
+  "role": "trader",
+  "address": "0xf18447ff5Db68C1fDBb8059CEAfb4daf9632a476"
+ },
+ {
+  "i": 72,
+  "role": "trader",
+  "address": "0xcd5f6889E5e3657538Fb95D9A67dAd8aFF0c05dc"
+ },
+ {
+  "i": 73,
+  "role": "trader",
+  "address": "0xa64C7F83D48A5b51C39704d4c7D0C78d83864DA0"
+ },
+ {
+  "i": 74,
+  "role": "trader",
+  "address": "0x302122672C7fe7060E001b3DC36ac782819EB15C"
+ },
+ {
+  "i": 75,
+  "role": "trader",
+  "address": "0x615666376Bee82B0422593D44ba868D156c063d4"
+ },
+ {
+  "i": 76,
+  "role": "trader",
+  "address": "0x572E38cb18a27A1D276bBf304d119CefF5D58c6d"
+ },
+ {
+  "i": 77,
+  "role": "trader",
+  "address": "0x1819aF8977af6363A828f0e45685c3D1C4Da195B"
+ },
+ {
+  "i": 78,
+  "role": "trader",
+  "address": "0xB3eD89eFDc70e97190cC1fb4F556C9C8714DFB4f"
+ },
+ {
+  "i": 79,
+  "role": "trader",
+  "address": "0x9a2f17cB29e358C9FBf30B92C4E3b7E7051b7272"
+ },
+ {
+  "i": 80,
+  "role": "trader",
+  "address": "0x4A28ad32032FBdF6C41578DF27c8FB50F69B5327"
+ },
+ {
+  "i": 81,
+  "role": "trader",
+  "address": "0x0A92f42bc28eEc7AaF296d2Cf51F72559FfCd20C"
+ },
+ {
+  "i": 82,
+  "role": "trader",
+  "address": "0x031794233E6a547De247FD39e6aAc8eadA6b9168"
+ },
+ {
+  "i": 83,
+  "role": "trader",
+  "address": "0x01fD80cE01529c8E3586540b7345563459b7a888"
+ },
+ {
+  "i": 84,
+  "role": "trader",
+  "address": "0x727Ac570925C9CfAd657B0CE3911ED80e4E6be49"
+ },
+ {
+  "i": 85,
+  "role": "trader",
+  "address": "0x3D249Abc97300d8c1c06964B88160BC1249041c8"
+ },
+ {
+  "i": 86,
+  "role": "trader",
+  "address": "0x921931361e23CB5d5BE4D6ba4A0E60B8AE383556"
+ },
+ {
+  "i": 87,
+  "role": "trader",
+  "address": "0x5e1e8356A423F87A031420edB0aE56C6Ac25B0b0"
+ },
+ {
+  "i": 88,
+  "role": "trader",
+  "address": "0xD1cf263F57a60c1b8C756e1E2C191DBfEf0a085b"
+ },
+ {
+  "i": 89,
+  "role": "trader",
+  "address": "0xe821227b26a7f260d3f3baFE689591b223CA0ED5"
+ },
+ {
+  "i": 90,
+  "role": "trader",
+  "address": "0xd0E44CDc5563374a58B5aa31f052C7fDCD70092a"
+ },
+ {
+  "i": 91,
+  "role": "trader",
+  "address": "0xB6D55E6c98d80037FE3255DA74Fd6fa952f6aF1B"
+ },
+ {
+  "i": 92,
+  "role": "trader",
+  "address": "0xDe5fd3bEBFeF05C7e8263a969b6854A3855C27A1"
+ },
+ {
+  "i": 93,
+  "role": "trader",
+  "address": "0x9a2ab133248653f784ED746d10A5E6D2e74c73Af"
+ },
+ {
+  "i": 94,
+  "role": "trader",
+  "address": "0xee0FaB9d0e0A08f86bB1af95de670A8bEb6e5937"
+ },
+ {
+  "i": 95,
+  "role": "trader",
+  "address": "0xC1edB238C654A13c98A149c906D62EEe80A586E8"
+ },
+ {
+  "i": 96,
+  "role": "trader",
+  "address": "0xAD8e39970b8b9962Fd185bACAB53B5c2f713AC09"
+ },
+ {
+  "i": 97,
+  "role": "trader",
+  "address": "0x3Ac9f1C340E152FB12D4B9E41970A64415eE763b"
+ },
+ {
+  "i": 98,
+  "role": "trader",
+  "address": "0x9f0C11d261E02Cd2429FdFFFBce9EC18E6F50604"
+ },
+ {
+  "i": 99,
+  "role": "trader",
+  "address": "0xd54f934F47953B73c858F55f3e2c134A74E1D79B"
+ },
+ {
+  "i": 100,
+  "role": "trader",
+  "address": "0x611F78d71Cf8d55Dd5b9F3d2bcf2Bb6e36CD5f42"
+ },
+ {
+  "i": 101,
+  "role": "trader",
+  "address": "0xd95fbaBCd71D402517E4d859ab87692432ADe73a"
+ },
+ {
+  "i": 102,
+  "role": "trader",
+  "address": "0x775D27caaED20C43Fc0F5506ABA981Ee5Ef98005"
+ },
+ {
+  "i": 103,
+  "role": "trader",
+  "address": "0x2A8De4B47996C52EBe0e152c0130325b13Fb3403"
+ }
+]
