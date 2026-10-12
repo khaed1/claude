@@ -23,7 +23,7 @@ The site gets the same auto-sell as an option.
 | Fee-swap cap | The court may spend at most the snapshot value of the IMD it needs **+10%** in PLEA |
 | Sale window | 7 minutes (unchanged) |
 | Score, pass mark, cooldowns, seasons | Unchanged. Letters score exactly like site pleas. |
-| Badge | "By letter" wax seal on the Wall card and the Laureate. **No extra points.** |
+| Badge | "By letter" mark on the Wall card (`PleaFlags`). **No extra points.** (Laureates were removed on 2026-10-12.) |
 
 ## Contracts
 
@@ -54,7 +54,7 @@ The site's "Send letter" button suggested on 2026-10-12 is dropped: letters need
 | any text not starting with a command | New plea, fixed amount, auto-sell on |
 | `APPEAL <text>` | Appeal the writer's latest denied plea, if inside its 4-hour window, for the original amount |
 | `SELL` | Manual sale of the writer's approved plea, if no runner has done it yet. Same 95% minimum. Records the points. |
-| `NAME <name>` | Set the writer's display name (Laureates rules: 3–20 chars, a–z, 0–9, `_`) |
+| `NAME <name>` | Set the writer's display name (3–20 chars, a–z, 0–9, `_`, unique); the names now live in the Letterbox (`setName`, `nameOf`) |
 
 - **The writer is always `msg.sender`.** Nobody can plead, appeal or sell for someone else.
 - **Text rules** are the gate's existing ones, applied to the text after the command word: 1–280 bytes of UTF-8, no control, zero-width, bidi, tag or variation-selector characters, no `[PLEA]` markers.
@@ -115,9 +115,10 @@ The site's "Send letter" button suggested on 2026-10-12 is dropped: letters need
   - The Letterbox only ever passes its own `msg.sender` as `from`, so a wallet's PLEA can only move inside that wallet's own letter or site transaction.
 - The Letterbox is an exempt sender, like the gate and Seasons, so it can return escrow and sell.
 
-### Changes to `Laureates`
+### Laureates removed, Letterbox after the launch (2026-10-12)
 
-- `tokenURI` adds a wax-seal "By letter" mark when the plea's `BY_LETTER` flag is set.
+- Laureates (the season NFTs) are removed. Display names moved into the Letterbox with the same rules.
+- The Letterbox is not part of the launch transaction: PleaLaunch commits to its creation code hash at launch and anyone deploys it once with `PleaLaunch.deployLetterbox` (it reads its settings from PleaLaunch). This keeps the five-contract launch at 11.6M gas, under mainnet's 16,777,216 per-transaction cap with IMD's gas-limit headroom.
 
 ## Site (optional; letters don't need it)
 
@@ -143,7 +144,7 @@ The site's "Send letter" button suggested on 2026-10-12 is dropped: letters need
 ## Size and gas
 
 - **Letterbox:** a new contract, outside the six-contract launch transaction if IMD allows a second transaction, or added to it otherwise.
-- **Gate, PLEA and Laureates:** small additions, a few hundred bytes. They still count against the 16,777,216 mainnet deploy-gas cap, which the full code already exceeds, so the user's question to the IMD dev about that cap decides how this ships.
+- **Gate and PLEA:** small additions, a few hundred bytes. They still count against the 16,777,216 mainnet deploy-gas cap, which the full code already exceeds, so the user's question to the IMD dev about that cap decides how this ships.
 - **Gas per transaction, estimated on mainnet:** a letter plea is a normal plea (~2.6M on Sepolia's schedule, much less on mainnet) plus the fee swap (~0.8M). `deliver` is about a normal sale (~1M) plus `record` (~0.6M).
 
 ## Tests to write
