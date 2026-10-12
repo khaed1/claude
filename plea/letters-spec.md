@@ -37,7 +37,7 @@ A small contract with no owner. It holds plea escrows and tips while they are op
 
 | Way | How |
 |---|---|
-| Etherscan's IDM page (https://etherscan.io/idm, **mainnet only**: sepolia.etherscan.io/idm says "This feature is not available") | "Send To" = the Letterbox, type the message: it is sent as the input data, i.e. a raw letter. To confirm on mainnet that it sends plain UTF-8 to a contract address. |
+| Etherscan's IDM page (https://etherscan.io/idm, **mainnet only**: sepolia.etherscan.io/idm says "This feature is not available") | "Send To" = the Letterbox, type the message: it is sent as the input data, i.e. a raw letter. **Confirmed on mainnet 2026-10-12** (probe test: plain UTF-8 byte for byte, contract recipient accepted, 0 ETH, the wallet estimates the gas). |
 | Etherscan Write Contract (mainnet and Sepolia) | Letterbox → Write Contract → connect wallet → `letter(text)` → type the letter in plain words → Write |
 | A wallet's data field | 0 ETH to the Letterbox, the letter's UTF-8 bytes as hex data (MetaMask extension: Show hex data; not on mobile) |
 
