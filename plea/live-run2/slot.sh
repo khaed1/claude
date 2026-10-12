@@ -12,7 +12,7 @@ log(){ echo "$(date -u +%H:%M:%S) $*"; }
 num(){ awk '{print $1}'; }
 send(){ local est; est=$(cast estimate --from $A "$@" --rpc-url $R 2>&1) || { log "estimate fails for $2: ${est:0:200}"; return 1; }
   log "send $2 est $est"
-  cast send --private-key "$PONDPAD_TESTNET_KEY" --gas-limit $((est*13/10)) --priority-gas-price 0.01gwei "$@" --rpc-url $R --json \
+  cast send --private-key "$PONDPAD_TESTNET_KEY" --gas-limit $((est*13/10)) --gas-price 0.02gwei --priority-gas-price 0.01gwei "$@" --rpc-url $R --json \
     | jq -c '{tx:.transactionHash,status:.status,gas:.gasUsed,block:.blockNumber}'; }
 st(){ cast call $G 'getPlea(uint256)((address,uint8,uint8,uint8,uint8,bool,bool,uint128,uint64,uint64,uint64,bytes32,string))' $1 --rpc-url $R \
   | python3 -c "import sys;f=[x.split(' [')[0].strip() for x in sys.stdin.read().strip('()\n').split(', ')];print(f[1],f[2],f[3],f[4],f[9])"; }

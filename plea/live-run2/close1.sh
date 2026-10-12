@@ -21,7 +21,7 @@ done
 if [ "$(c $S 'closed(uint256)(bool)' $SEASON)" = "false " ]; then
   arg="[$(IFS=,; echo "${ids[*]:-}")]"; log "closeSeason($arg)"
   est=$(cast estimate --from $A $S 'closeSeason(uint256[])' "$arg" --rpc-url $R 2>&1) || { log "estimate fails: ${est:0:160}"; exit 1; }
-  cast send --private-key "$PONDPAD_TESTNET_KEY" --gas-limit $((est*13/10)) --priority-gas-price 0.01gwei $S 'closeSeason(uint256[])' "$arg" --rpc-url $R --json | jq -c '{tx:.transactionHash,status:.status,gas:.gasUsed,block:.blockNumber}'
+  cast send --private-key "$PONDPAD_TESTNET_KEY" --gas-limit $((est*13/10)) --gas-price 0.02gwei --priority-gas-price 0.01gwei $S 'closeSeason(uint256[])' "$arg" --rpc-url $R --json | jq -c '{tx:.transactionHash,status:.status,gas:.gasUsed,block:.blockNumber}'
 fi
 log "after: closed=$(c $S 'closed(uint256)(bool)' $SEASON) rollover=$(c $S 'rollover()(uint256)') bonusBurned=$(c $S 'bonusBurned()(uint256)') seasonsPLEA=$(c $P 'balanceOf(address)(uint256)' $S) A_PLEA=$(c $P 'balanceOf(address)(uint256)' $A)"
 cast call $S 'topOf(uint256)((address,uint16,uint64)[10])' $SEASON --rpc-url $R | cut -c1-400
