@@ -1,6 +1,6 @@
 # PLEA letters and auto-sell: spec (next version)
 
-Status: agreed with the user on 2026-10-12, not implemented. Target: the PLEA version after the current mainnet draft. It does not fit the draft, which is already over the mainnet deploy-gas limit; see Size.
+Status: agreed with the user on 2026-10-12; **implemented on `khaed1/plea` branch `testnet3`** (Sepolia test run 3), see HANDOFF. Target: the PLEA version after the current mainnet draft. It does not fit the draft, which is already over the mainnet deploy-gas limit; see Size.
 
 ## Goal
 
@@ -34,7 +34,7 @@ A small contract with no owner. It holds plea escrows and tips while they are op
 **Receiving letters.** `fallback()` takes `msg.data` as the letter text. A `receive()` function is not used: letters must carry text, and ETH sent to the Letterbox is refused.
 
 **Function IDs must not be typeable.** A contract runs a function when the first 4 bytes of the input match that function's ID. So:
-- Every public function of the Letterbox must have an ID that contains at least one byte that is not printable ASCII.
+- No public function of the Letterbox may have an ID whose 4 bytes could be the start of a valid letter, i.e. of control-free UTF-8 text (implemented rule; "contains a non-ASCII byte" was not enough, since UTF-8 text uses bytes 0x80-0xF4). All readable names passed: `plead`, `appealAuto`, `deliver`, `settle`, `feesFor`, `escrowOf`, `openOf`, `status`, `leaderboard`.
 - A test enumerates the ABI and asserts this, so no letter can trigger a function by accident.
 
 **Commands.** The first word of the letter decides what it does. Commands are upper case, followed by a space or a newline.
