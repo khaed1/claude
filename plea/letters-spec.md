@@ -33,6 +33,16 @@ A small contract with no owner. It holds plea escrows and tips while they are op
 
 **Receiving letters.** `fallback()` takes `msg.data` as the letter text. A `receive()` function is not used: letters must carry text, and ETH sent to the Letterbox is refused.
 
+**Etherscan only, no site (user decision 2026-10-12).** Letters must work from Etherscan alone. Etherscan's Write Contract tab can't send raw input data, so the Letterbox also has **`letter(string text)`** (ID `0xc95c7f37`, passes the ID rule): it reads `text` exactly like raw input data (plea, `APPEAL`, `SELL`, `NAME`), same 10%, fees in PLEA, escrow and auto-sell. Three ways to send the same letter:
+
+| Way | How |
+|---|---|
+| Etherscan's IDM page (https://etherscan.io/idm, **mainnet only**: sepolia.etherscan.io/idm says "This feature is not available") | "Send To" = the Letterbox, type the message: it is sent as the input data, i.e. a raw letter. To confirm on mainnet that it sends plain UTF-8 to a contract address. |
+| Etherscan Write Contract (mainnet and Sepolia) | Letterbox → Write Contract → connect wallet → `letter(text)` → type the letter in plain words → Write |
+| A wallet's data field | 0 ETH to the Letterbox, the letter's UTF-8 bytes as hex data (MetaMask extension: Show hex data; not on mobile) |
+
+The site's "Send letter" button suggested on 2026-10-12 is dropped: letters need no site.
+
 **Function IDs must not be typeable.** A contract runs a function when the first 4 bytes of the input match that function's ID. So:
 - No public function of the Letterbox may have an ID whose 4 bytes could be the start of a valid letter, i.e. of control-free UTF-8 text (implemented rule; "contains a non-ASCII byte" was not enough, since UTF-8 text uses bytes 0x80-0xF4). All readable names passed: `plead`, `appealAuto`, `deliver`, `settle`, `feesFor`, `escrowOf`, `openOf`, `status`, `leaderboard`.
 - A test enumerates the ABI and asserts this, so no letter can trigger a function by accident.
@@ -109,7 +119,7 @@ A small contract with no owner. It holds plea escrows and tips while they are op
 
 - `tokenURI` adds a wax-seal "By letter" mark when the plea's `BY_LETTER` flag is set.
 
-## Site
+## Site (optional; letters don't need it)
 
 - **Wall:** letter pleas show the "By letter" seal and a link to the letter transaction, so the original message is visible on Etherscan. Appeals by letter link to their original plea, as now.
 - **Plead page:**
