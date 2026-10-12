@@ -14,10 +14,11 @@ The site gets the same auto-sell as an option.
 
 | Item | Value |
 |---|---|
-| Plea amount (letters) | Fixed: **10% of the writer's PLEA balance**, within the existing caps (≤ 2.5M PLEA, ≤ 35% of balance) |
+| Plea amount (letters) | Fixed: **20% of the writer's PLEA balance** (run 3; was 10%), within the existing caps (≤ 2.5M PLEA, ≤ 50% of balance). Gate limits for run 3: a plea is at most **50%** of the balance (was 35%) and the fact score's share bands are **≤ 20%: 18 · ≤ 35%: 11 · more: 5** (were 15 / 25), so a 20% letter keeps the top band |
 | Appeal amount (letters) | The original plea's amount |
 | Oracle fee | 0.5 IMD (unchanged), paid by selling the writer's PLEA |
 | Runner tip | **0.25 IMD** per auto-sell, paid in PLEA up front; refunded if no sale happens |
+| Auto-sell fee (added 2026-10-12, run 3) | **0.35 IMD of every delivered or `SELL` sale, all to the season's prize pot** (Seasons, accounted to the running season). Taken only from a sale: a denial, failure, expiry or lapse pays nothing. Selling by hand on the site inside the 7 minutes costs nothing extra. A plea worth less than 0.70 IMD at the snapshot is refused (`TooSmallForTheFee`), so the fee never exceeds half a sale |
 | Appeal wall fee | 0.35 IMD (unchanged), paid in PLEA |
 | Sale minimum (auto-sell) | **95%** of the PLEA's value at the hook's hourly price snapshot (5% margin) |
 | Fee-swap cap | The court may spend at most the snapshot value of the IMD it needs **+10%** in PLEA |
@@ -51,18 +52,19 @@ The site's "Send letter" button suggested on 2026-10-12 is dropped: letters need
 
 | Letter | Effect |
 |---|---|
-| any text not starting with a command | New plea, fixed amount, auto-sell on |
-| `APPEAL <text>` | Appeal the writer's latest denied plea, if inside its 4-hour window, for the original amount |
+| any text not starting with a command | New plea, fixed amount (20%), auto-sell on |
+| `APPEAL <text>` | Appeal the writer's latest denied plea, if inside its 4-hour window, for the original amount. An appeal the oracle never answered (failure or 20-minute expiry) may be sent again: the letter then appeals the denied plea, not the expired appeal (pre-audit F1) |
 | `SELL` | Manual sale of the writer's approved plea, if no runner has done it yet. Same 95% minimum. Records the points. |
 | `NAME <name>` | Set the writer's display name (3–20 chars, a–z, 0–9, `_`, unique); the names now live in the Letterbox (`setName`, `nameOf`) |
 
 - **The writer is always `msg.sender`.** Nobody can plead, appeal or sell for someone else.
+- **A command word alone is the command** (pre-audit F3): `NAME` clears the name like `NAME `, `APPEAL` alone is refused (`NothingToAppeal` or `BadPleaText`), never read as a plea.
 - **Text rules** are the gate's existing ones, applied to the text after the command word: 1–280 bytes of UTF-8, no control, zero-width, bidi, tag or variation-selector characters, no `[PLEA]` markers.
 - **Any failure reverts** with a custom error, so the wallet shows the reason before signing. Failures include: Cabal dead, cooldown (with its end time), pending plea, bad text, amount too small, fee cap exceeded.
 
 **Paying in PLEA, in the letter's own transaction:**
 1. Compute the fact score and the amount first, from the balance before anything moves. This is the same score the site would show.
-2. Take the plea amount from the writer into escrow, using PLEA's new court entry point (see Changes to PLEA).
+2. Take the plea amount (20% of the balance) from the writer into escrow, using PLEA's new court entry point (see Changes to PLEA).
 3. Take enough extra PLEA to buy the fees, and swap it through the PLEA hook **exact-output** for the IMD needed:
    - plea: 0.5 + 0.25 = 0.75 IMD;
    - appeal: 0.5 + 0.35 + 0.25 = 1.10 IMD.
@@ -75,8 +77,8 @@ The site's "Send letter" button suggested on 2026-10-12 is dropped: letters need
 
 **Auto-sell:**
 - `deliver(uint256 id)`: anyone may call it while the plea is Approved and inside its 7-minute window. In one transaction it:
-  1. sells the escrowed PLEA through the gate, with `minOut` = 95% of the snapshot value;
-  2. sends the IMD to the seller;
+  1. sells the escrowed PLEA through the gate, with `minOut` = 95% of the snapshot value (the IMD comes to the Letterbox);
+  2. sends 0.35 IMD to Seasons (the auto-sell fee, `checkpoint()`ed into the running season) and the rest to the seller;
   3. calls `Seasons.record(id)`;
   4. pays the 0.25 IMD tip to the caller.
 - The caller must send enough gas: the hook's existing gas check applies.

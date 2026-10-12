@@ -580,3 +580,14 @@ contract FakeLaunch {
     }
 }
 ```
+
+## 5. Addendum (2026-10-12, after the report): what shipped on `testnet3`
+
+`khaed1/plea` `testnet3` is now **`f57da56f6c6f76e64902b3363edb3dd2a372b75f`** (run 3 re-pinned to it: `plea/job-testnet3-launch.json`, `plea/job-testnet3-form.md`; `/requests/import` ok, `/requests/check` no blockers, no suggestions). It contains, on top of `0325c53`:
+
+- **F1, F2, F3 fixed** exactly as in section 2.4 (the other session committed the same diff as `158949f`, with `test/AuditRun3.t.sol` and a LaunchManifest that adds IMD's real factory overhead, measured at 994,547 gas on a mainnet fork: launch 12.68M, 15.47M with 22% headroom, 1.30M under the cap). The F2 clamp now follows the new 50% cap.
+- **Auto-sell fee (user decision):** 0.35 IMD of every delivered or `SELL` sale goes to the season's prize pot (Seasons, `checkpoint()`ed into the running season); the gate pays the sale's IMD to the Letterbox, which forwards the rest to the writer. Taken only from a sale; selling by hand through the gate costs nothing extra. A plea worth less than 0.70 IMD at the snapshot is refused (`TooSmallForTheFee`) so the fee never exceeds half a sale. `deliver` returns the writer's IMD; `Delivered` carries the fee. CabalGate change: `_sell(id, p, from, to, minOut)`.
+- **Letters plead 20%** (was 10%); **a plea may be at most 50% of the balance** (was 35%); **fact-score share bands 18 / 11 / 5 at ≤ 20% / ≤ 35% / above** (were 15% / 25%). A 20% letter keeps the top band.
+- **Test note:** the new Letterbox constants steered the trading fuzzer onto a pre-existing hook edge: once the Cabal is dead and a free sell drains the pool to a tick extreme, `pendingRebalance()` is true (a reserve waits) but `rebalance()` has nothing it can do and reverts `RebalanceNotNeeded`, as the hook's own comment says. Harmless (a keeper wastes one call); the handler now accepts exactly that revert in exactly that state. Hook unchanged.
+- Sizes: CabalGate 24,315 B (261 under EIP-170), Letterbox 20,636 B; launch.json commits to Letterbox code hash `0xfb89d7f486e287c0d82f138ba8e7ef05f3f151676bf5e2e60dadab2fd61bca9a`. Unit 354/354 (2 fork suites skipped without RPC), Sepolia fork 21/21, mainnet fork 5/5.
+- Not yet ported to the `mainnet` branch.
