@@ -1,6 +1,6 @@
 # PLEA testnet run 3: what to type in the imd.fun form
 
-Same request as `job-testnet3-launch.json`, field by field. `/requests/check` (2026-10-12 07:20 UTC, commit 3176eb8): **no blockers, no suggestions**, plan audit → adapt → tests + manifest + 4 specialist audits → judge → deploy on Sepolia. Not paid.
+Same request as `job-testnet3-launch.json`, field by field. `/requests/check` (2026-10-12, commit a054bef): **no blockers, no suggestions**, plan audit → adapt → tests + manifest + 4 specialist audits → judge → deploy on Sepolia. Not paid.
 
 ## Description (box at the top)
 
@@ -11,7 +11,7 @@ Launch PLEA test run 3 on Sepolia from this Foundry repository exactly as launch
 ## Other fields
 - Start from: **My GitHub repository**
   - Repository: `https://github.com/khaed1/plea`
-  - Branch / commit: `3176eb8fd55dcdb1b748300fc5172ee6d956e7a9` (branch `testnet3`)
+  - Branch / commit: `a054bef69ee53979deeda556f7c57536b601eab8` (branch `testnet3`)
   - Contracts to focus on, if asked (at most 4): `src/CabalGate.sol`, `src/Letterbox.sol`, `src/PLEA.sol`, `src/Seasons.sol`
 - Deploy onchain: **on**
 - With a token: **off** (PLEA is our own contract; its pool opens later with `seed()`)
