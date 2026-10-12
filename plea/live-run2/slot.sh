@@ -10,7 +10,9 @@ A=0x4b91078b2374c956a65f7af0999cae0a935e6821
 START=$1; PT=$(cat "$2"); AT=$(cat "$3")
 log(){ echo "$(date -u +%H:%M:%S) $*"; }
 num(){ awk '{print $1}'; }
-send(){ local est; est=$(cast estimate --from $A "$@" --rpc-url $R 2>&1) || { log "estimate fails for $2: ${est:0:200}"; return 1; }
+# wallet A is shared with the imd/acc session: wait until nothing of A's is pending before sending
+nonce_ok(){ for i in $(seq 1 30); do [ "$(cast nonce $A --block latest --rpc-url $R)" = "$(cast nonce $A --block pending --rpc-url $R)" ] && return 0; log "nonce: a tx from A is pending, waiting"; sleep 4; done; log "nonce: still pending after 2 min, sending at the pending nonce"; }
+send(){ local est; nonce_ok; est=$(cast estimate --from $A "$@" --rpc-url $R 2>&1) || { log "estimate fails for $2: ${est:0:200}"; return 1; }
   log "send $2 est $est"
   cast send --private-key "$PONDPAD_TESTNET_KEY" --gas-limit $((est*13/10)) --gas-price 0.02gwei --priority-gas-price 0.01gwei "$@" --rpc-url $R --json \
     | jq -c '{tx:.transactionHash,status:.status,gas:.gasUsed,block:.blockNumber}'; }

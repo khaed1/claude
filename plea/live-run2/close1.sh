@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Close run-2 season 1 if nobody has yet (lists unrecorded approved season-1 pleas), then report.
+# Close run-2 season $1 (default 1) if nobody has yet (lists its unrecorded approved pleas), then report.
 set -uo pipefail
 export PATH=$HOME/.foundry/bin:$PATH
 R=https://ethereum-sepolia-rpc.publicnode.com
@@ -20,6 +20,7 @@ for ((i=1;i<${n// /};i++)); do
 done
 if [ "$(c $S 'closed(uint256)(bool)' $SEASON)" = "false " ]; then
   arg="[$(IFS=,; echo "${ids[*]:-}")]"; log "closeSeason($arg)"
+  for i in $(seq 1 30); do [ "$(cast nonce $A --block latest --rpc-url $R)" = "$(cast nonce $A --block pending --rpc-url $R)" ] && break; log "nonce: a tx from A is pending, waiting"; sleep 4; done
   est=$(cast estimate --from $A $S 'closeSeason(uint256[])' "$arg" --rpc-url $R 2>&1) || { log "estimate fails: ${est:0:160}"; exit 1; }
   cast send --private-key "$PONDPAD_TESTNET_KEY" --gas-limit $((est*13/10)) --gas-price 0.02gwei --priority-gas-price 0.01gwei $S 'closeSeason(uint256[])' "$arg" --rpc-url $R --json | jq -c '{tx:.transactionHash,status:.status,gas:.gasUsed,block:.blockNumber}'
 fi

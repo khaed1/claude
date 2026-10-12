@@ -687,3 +687,9 @@ Spec: `plea/letters-spec.md`. Plead by sending a text message (IDM) to a new **L
 ## Handover to a new session (2026-10-12 ~07:45 UTC)
 - `NEXT_SESSION.md` rewritten (both projects, versions, where we stopped, today's live steps, run 3, mainnet, files, facts, agreed numbers, rules). `plea/live-run2/slot.sh` and `close1.sh` now pass an explicit max fee (`--gas-price 0.02gwei`).
 - This session's scheduled checks (`trig_015SKFfvrjoo4eHQip5UtTMp` 10:45, `trig_01XFyXmJ8V8YY6jLLuqwtVzN` 11:52, `trig_01VZ2KeWJi85CQm2yiaBUYUe` 13:05, `trig_01NrgV9nVcJmh2gTjjTXvNzM` 16:52) are **deleted**; the new session schedules its own.
+
+## New PLEA session (2026-10-12 ~07:45 UTC)
+- Repos attached: `khaed1/plea` (clone `/home/user/plea`, branches `testnet3` @ `a054bef`, `mainnet` @ `11b1cd3`), `khaed1/plea-site`; `khaed1/imd-acc` read only (public clone). Foundry 1.8.3 in `~/.foundry/bin`. Key `PONDPAD_TESTNET_KEY` set (wallet A).
+- Chain at 07:43 UTC (block 11,897,466): run 2 matches the notes: `nextId` 7, A has no pending plea, seasons 2 and 3 open (`nextToClose` 2), `bonusBurned` 10M, Seasons holds 10M PLEA, A holds 3,080,092 PLEA, `bestOf(2|3, A)` empty; run-2 Cabal `lastVerdictAt` 1791781680 (dies Tue 14:08 UTC). Old v10 Cabal still alive (`lastVerdictAt` 1791690864, dies 12:54:24 UTC today). Wallet A: nonce 164 latest = pending, 0.0453 ETH.
+- `plea/live-run2/slot.sh` and `close1.sh` now wait until wallet A has nothing pending (latest = pending nonce, up to 2 min) before each send, because the imd/acc session uses the same wallet.
+- Scheduled into this session (send_later): **10:45** slot 1 (`trig_01NJcBHNpC9dkne9VnR2jE4z`), **11:52** close season 2 (`trig_01LWhRSJVZwnXeesFf5j3rjT`), **13:05** old v10 Cabal death check, read only (`trig_01UBg8pWpwUk4QxtJXC6nQLN`), **16:52** close season 3 (`trig_01Q9givZUUm4RvFVhJ4HgGxB`). Slot 2 is scheduled only after slot 1 is approved.
