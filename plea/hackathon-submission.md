@@ -1,4 +1,4 @@
-# IMD hackathon submission: PLEA (draft, updated 2026-10-13)
+# IMD hackathon submission: PLEA (draft, updated 2026-10-13 19:30 UTC)
 
 Draft for the IMD hackathon (proposed build period 5–19 Oct; check the final rules, form fields and length limits before submitting). `{…}` marks what is still open: demo video, X accounts, run 2's season-3 result, and the fix-round launch (run 5 or mainnet).
 
@@ -62,7 +62,7 @@ Meme tokens are a race to dump. Holders sell at the first green candle, nothing 
   - Points recorded `0xf36682ce96343898e4104a605b5a23e58beb9b69daaba2acf282c15aa4073a59`.
   - Season 1 closed `0x8a7d608974019fca52a4d84774aa60b5556c60dac486dabd33e6ef8cd1a48914`: Laureate #1 minted on chain (full plea text in the SVG); no prize was due (38 < the 60-point minimum), so the pot rolled over as designed.
   - A plea that told the judges how to score got no verdict (13 of 28 judges zeroed it for manipulation): `0xfa20e8982619c87a939201bd79d360b8aaa69bd283a65f8eff14903ca0050a39`.
-- **Tests:** 416 Foundry tests on the run-4 code (unit, fuzz, the trading and Letterbox invariant suites, gas-pass equivalence, the launch manifest measured through IMD's real factory on a fork: 12.65M gas, 15.44M with IMD's headroom, under the 16.78M cap), a 21-test Sepolia fork rehearsal through the live Intake v2 and a mainnet fork rehearsal against the real IMD, sIMD, PoolManager, Intake v2 and imd/acc's Stacker. IMD's swarm added 4 test files of its own in run 4 (441 tests on the delivered tree). An independent pre-audit before run 3 found no critical, high or medium issue.
+- **Tests:** 472 Foundry tests on the fix-round code (unit, fuzz, the trading and Letterbox invariant suites, gas-pass equivalence, the launch manifest measured through IMD's real factory on a fork: 12.65M gas, 15.44M with IMD's headroom, under the 16.78M cap), a 21-test Sepolia fork rehearsal through the live Intake v2 and a mainnet fork rehearsal against the real IMD, sIMD, PoolManager, Intake v2 and imd/acc's Stacker. IMD's swarm added 4 test files of its own in run 4 (441 tests on the delivered tree). An independent pre-audit before run 3 found no critical, high or medium issue.
 - **Oracle calibration:** test pleas through the Sepolia Intake set the scoring wording (strong ≈ 35–40, plain ≈ 25–30, weak or abusive under 15; prompt injections signed 0). Real panels signed numeric scores for v10's exact request body (35 and 21).
 
 ### Reproduce
@@ -73,7 +73,7 @@ Meme tokens are a race to dump. Holders sell at the first green candle, nothing 
 - **Selling may be refused.** That's the game; the dead-man guarantees an exit if the Cabal goes quiet for 33 hours.
 - **Judges are AI agents.** Scores are subjective. A split panel gives no verdict: the plea is cleared at once by the Intake's failure callback (a letter's escrow and tip come back; a hand plea's fee is spent) and the wallet can try again. Appeals that name their previous score split the panel in run 4; rules v3 addresses it.
 - **Points must be recorded.** The oracle callback only stores the score (it has 200k gas on mainnet), so points are recorded by a separate call that anyone can make (`record`, or `closeSeason` with a list of pleas); a letter's `deliver` records them in the same transaction.
-- **Owner powers:** an add-only transfer allowlist (empty today), a one-time Merkle root for the 10% distributor, and opening trading early with `seed()` (anyone can once START passes). The owner can't change the oracle signer, the Intake, fees, timings or prizes, and can't win anything; the fix round extends the exclusion to the launch owner and the pending owner after a two-step handover.
+- **Owner powers:** an add-only transfer allowlist (empty today), a one-time Merkle root for the 10% distributor, and opening trading early with `seed()` (anyone can once START passes). The owner can't change the oracle signer, the Intake, fees, timings or prizes, and can't win anything; the fix round also excludes the launch owner (the hook's fee beneficiary) after a two-step handover, while a merely nominated owner keeps their prize.
 - **The 10% swarm share** is minted to our own Merkle distributor: IMD builds no reward tree for a contracts-only launch, so the list of seats and accepted work comes from IMD's records and the owner sets the root once.
 - **Testnet only:** seasons last 5 hours on Sepolia so a full cycle can be shown (15 days on mainnet; the contracts refuse shorter timings on chain id 1). TestSIMD's owner can pause it to test the cashback fallback. The test owner wallet is testnet-only; mainnet will use a fresh wallet.
 - IMD's audit reports are in the launch repositories; agent reviews are not a full security audit.
@@ -84,7 +84,7 @@ Meme tokens are a race to dump. Holders sell at the first green candle, nothing 
 - **New during the event:** the oracle gate (Intake payment, callback verification, numeric score, fact score, appeals, expiry, dead-man), the Letterbox (letters, auto-sell, escrow, fees in PLEA, text views), seasons, prizes and the PLEA bonus, same-swap fees and gas-safe cashback with imd/acc's trader rule, the imd/acc Stacker and its points, the sites, and the calibration runs.
 
 ### What's next
-- **Fix round (`testnet5`):** the judge's two lows (an appeal of a floor-sized letter is raised back to the 0.70 IMD floor instead of refused; the launch owner and the pending owner stay excluded after a handover), the appeal question states the real previous score and need, and rules v3. {Run 5 or straight to mainnet.}
+- **Fix round (`testnet5`, 472 tests, both forks green):** the judge's two lows (an appeal of a floor-sized letter is raised back to the 0.70 IMD floor instead of refused; the launch owner stays excluded after a handover), the appeal question states the real previous score and need, and rules v3. Run 5 on Sepolia is prepared (`plea/job-testnet5-form.md`) to confirm live that an appeal naming its score gets a verdict under rules v3. {Run 5 result, or straight to mainnet.}
 - **Mainnet:** PLEA pointing at imd/acc's mainnet Stacker `0x0690…f4f0`; START and a fresh owner wallet still to choose; the swarm's 10% paid from our distributor once IMD gives the seat list (or a policy option lets a contracts launch use IMD's distributor).
 - **imd/acc listing:** PLEA's hook applied to imd/acc's oracle-run ProjectRegistry; the panel split on version 1 of its rules and said yes 11/13 in a version-2 rehearsal.
 - **imd/acc v2:** cashback for ETH-fee projects, batched through POOL4 (`flush()`), so any IMD project can add it.
