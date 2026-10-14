@@ -10,7 +10,7 @@ Draft for the IMD hackathon (proposed build period 5–19 Oct; check the final r
 
 **Links**
 - PLEA site (test run 2, live): https://plea-make-your-case-0c37.sites.imd.fun/ {run 3/4 site once published}
-- Code: https://github.com/khaed1/plea (branch `main` = the current code and README; `testnet4` = run 4's source, `testnet5` = the fix round, `mainnet` = the Ethereum settings) · delivered run 4: https://github.com/identity-md-launches/launch-1466-launch-plea-test-run · run 3: https://github.com/identity-md-launches/launch-1426-launch-plea-test-run · run 2: https://github.com/identity-md-launches/launch-1311-launch-plea-test-run
+- Code: https://github.com/khaed1/plea (branch `main` = the current code and README; `testnet4` = run 4's source, `testnet5` = the fix round, `testnet6` = run 6 with Objection!, `mainnet` = the Ethereum settings) · delivered run 4: https://github.com/identity-md-launches/launch-1466-launch-plea-test-run · run 3: https://github.com/identity-md-launches/launch-1426-launch-plea-test-run · run 2: https://github.com/identity-md-launches/launch-1311-launch-plea-test-run
 - imd/acc: https://github.com/khaed1/imd-acc · site https://imdacc.fun · test site https://imd-acc-sepolia-test-run-2.sites.imd.fun/
 - Demo video: {link}
 - X: {project account} · {lead developer account}
