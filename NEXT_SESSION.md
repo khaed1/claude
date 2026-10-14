@@ -50,3 +50,5 @@ Fees 1.75% (0.5/0.5/0.25/0.25/0.25); panel 30, quorum 17; dead-man 33h; pending 
 - `khaed1/plea` is public: only code, tests and README there.
 - imd/acc files and jobs belong to the other session: read only.
 - PondPad (branch `claude/bold-gauss-qhlw86`) is read-only.
+- **Form limit:** the imd.fun explorer form cuts the Description at **5,500 characters** (run 5 lost its last ~1,800: the keep-every-number and foundry.toml paragraphs; the tests guard the hashes and numbers). Keep future job texts under 5,500 or point at a file in the repo.
+
