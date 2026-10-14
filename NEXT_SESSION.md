@@ -51,4 +51,5 @@ Fees 1.75% (0.5/0.5/0.25/0.25/0.25); panel 30, quorum 17; dead-man 33h; pending 
 - imd/acc files and jobs belong to the other session: read only.
 - PondPad (branch `claude/bold-gauss-qhlw86`) is read-only.
 - **Form limit:** the imd.fun explorer form cuts the Description at **5,500 characters** (run 5 lost its last ~1,800: the keep-every-number and foundry.toml paragraphs; the tests guard the hashes and numbers). Keep future job texts under 5,500 or point at a file in the repo.
+- **Check-up after the run-5 live test is clean (user, 2026-10-14):** measure the size cost of adding the `[OBJECTION` / `[/OBJECTION` word check to `CabalGate._checkMarker` (the gate is 24,376 B, 200 under the EIP-170 limit; source-only build is fast); add it for mainnet if it fits, so a seller cannot plant objection markers inside a plea (run-5 import audit low 1, our audit I1). The other two lows stay as designed: the two-ruling cap (watch for seller shields in the live test) and the overruled stake booked to the season running at `settle`.
 
