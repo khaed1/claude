@@ -23,3 +23,8 @@ Collected 2026-10-11 from the live IMD site https://plea-make-your-case.sites.im
 - New addresses from the run-2 launch; supply split 88 / 2 / 10.
 - imd/acc #1294 Stacker has no per-trader `stackedBy`: show "Cashback earned" from `Stacked(project=hook, trader)` events (sum `imd`), or the sIMD balance.
 - Stacker for run 2: `0x0457276d7b036818b3eddc1a4a3fceda61e9314d`.
+
+## Claim page for the 12% (swarm 10% + airdrop 2%) — user, 2026-10-14
+- `PleaDistributor.claim(index, account, amount, proof)` is permissionless and pays `account`: **anyone may claim for any address**, so a holder never has to connect or sign with the wallet that receives the PLEA. That is the "delegate" flow people ask for: paste the address, send the claim from any wallet (a burner that only pays gas), or let us push it.
+- Page: an address box (any address; pre-filled from the connected wallet if one is connected) → "X PLEA claimable" / "claimed on <date>" / "not on the list", from a published `claims.json` (index, account, amount, proof per leaf; built by `plea/tools/distributor_root.py`, the same tree the owner set as the root) and `isClaimed(index)`; a **Claim** button that sends `claim(...)` from whatever wallet is connected (gas only, the PLEA goes to the typed address); a note that the root is set once and the list is final; the `Claimed(index, account, amount)` event as a receipt link.
+- Fallback without the site: the runner pushes every claim from wallet A (482 claims on run 5/6's list at ~70k gas each); on mainnet a `claimMany` helper (loop over `claim`) saves the per-tx overhead if we do it ourselves. No contract change is needed for either.
