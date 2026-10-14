@@ -16,7 +16,7 @@ You're picking up **PLEA** on the IMD swarm (imd.fun). **imd/acc** belongs to a 
 - **Old v10 (#1242):** CabalGate `0x758b8300c62563591950f32717be44a5140a20f9`, PLEA `0x9b8d9aae44e81b1205e227911db279bde6edead9`, hook `0x3d4CcAc329010b8beA3b14498d9a45EAB00c68Cc`; the user wants it dead: **dies Mon 2026-10-12 12:54:24 UTC**. Don't plead on it.
 
 ## Where we stopped (2026-10-13 ~22:05 UTC)
-- Run 4 on Sepolia: seasons 1 and 2 closed (5M bonus burned each, rollover 0.90 tIMD); season 3 ends 20:57 UTC, closable after 21:57 (`closeSeason([])` from wallet A, user's go-ahead needed: the session classifier blocks sends); the Cabal dies ~Wed 2026-10-14 15:14 UTC unless someone pleads. No live trim has ever happened (the cap decays only when a trade updates it).
+- Run 4 on Sepolia is **finished** (2026-10-14): all seven seasons closed (30M bonus burned, nobody reached 60 points), the Cabal died 15:14 UTC, `flushToWall` moved the 0.90 tIMD pot to the wall (1.60 tIMD retained); trading is free forever. No live trim ever happened on it. Wallet A nonce 232.
 - The user's decisions today (HANDOFF, last section): Objection! rules (min score, margin 2, two rulings per plea, void stake back, letters included, objection text shown with a stricter `objection` definition), split 82/6/12 with a 2% airdrop (wallets from the dev, equal shares) and the swarm's 10% equal per seat with any submitted work (`plea/tools/distributor_root.py`, dry run: 1,063 seats / 481 wallets), 6 × 10M bonus, top 25; run 5 carries everything (no run 6).
 - Dev: no token launch (`token-probe` is dead: a push-delete through the proxy did not take, delete it on GitHub), seat wallets via the API, the 10% root on run 5 too; the 2% list is still to come.
 - Nothing paid or submitted.
