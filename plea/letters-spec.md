@@ -14,7 +14,7 @@ The site gets the same auto-sell as an option.
 
 | Item | Value |
 |---|---|
-| Plea amount (letters) | Fixed: **20% of the writer's PLEA balance** (run 3; was 10%), within the existing caps (≤ 2.5M PLEA, ≤ 50% of balance). Gate limits for run 3: a plea is at most **50%** of the balance (was 35%) and the fact score's share bands are **≤ 20%: 18 · ≤ 35%: 11 · more: 5** (were 15 / 25), so a 20% letter keeps the top band |
+| Plea amount (letters) | Fixed: **15% of the writer's PLEA balance** (run 7; 20% on runs 3–6, 10% before), within the existing caps (≤ 2.5M PLEA, ≤ 50% of balance). Gate limits for run 3: a plea is at most **50%** of the balance (was 35%) and the fact score's share bands are **≤ 20%: 18 · ≤ 35%: 11 · more: 5** (were 15 / 25), so a 20% letter keeps the top band |
 | Appeal amount (letters) | The original plea's amount |
 | Oracle fee | 0.5 IMD (unchanged), paid by selling the writer's PLEA |
 | Runner tip | **0.25 IMD** per auto-sell, paid in PLEA up front; refunded if no sale happens |
@@ -52,7 +52,7 @@ The site's "Send letter" button suggested on 2026-10-12 is dropped: letters need
 
 | Letter | Effect |
 |---|---|
-| any text not starting with a command | New plea, fixed amount (20%), auto-sell on |
+| any text not starting with a command | New plea, fixed amount (15%), auto-sell on |
 | `APPEAL <text>` | Appeal the writer's latest denied plea, if inside its 4-hour window, for the original amount. An appeal the oracle never answered (failure or 20-minute expiry) may be sent again: the letter then appeals the denied plea, not the expired appeal (pre-audit F1) |
 | `SELL` | Manual sale of the writer's approved plea, if no runner has done it yet. Same 95% minimum. Records the points. |
 | `NAME <name>` | Set the writer's display name (3–20 chars, a–z, 0–9, `_`, unique); the names now live in the Letterbox (`setName`, `nameOf`) |
@@ -64,7 +64,7 @@ The site's "Send letter" button suggested on 2026-10-12 is dropped: letters need
 
 **Paying in PLEA, in the letter's own transaction:**
 1. Compute the fact score and the amount first, from the balance before anything moves. This is the same score the site would show.
-2. Take the plea amount (20% of the balance) from the writer into escrow, using PLEA's new court entry point (see Changes to PLEA).
+2. Take the plea amount (15% of the balance) from the writer into escrow, using PLEA's new court entry point (see Changes to PLEA).
 3. Take enough extra PLEA to buy the fees, and swap it through the PLEA hook **exact-output** for the IMD needed:
    - plea: 0.5 + 0.25 = 0.75 IMD;
    - appeal: 0.5 + 0.35 + 0.25 = 1.10 IMD.
@@ -136,7 +136,7 @@ The site's "Send letter" button suggested on 2026-10-12 is dropped: letters need
 ## Edge cases
 
 - **Cabal dead:** letters revert ("The Cabal is dead. PLEA trades freely."), and `settle` still returns any open escrow.
-- **Writer's balance too small:** if 20% of the balance is under a minimum (e.g. 1,000 PLEA), or the fee would take more than 10% of the balance, the letter reverts.
+- **Writer's balance too small:** if 15% of the balance is under a minimum (e.g. 1,000 PLEA), or the fee would take more than 10% of the balance, the letter reverts.
 - **Price moves:** a fee swap over its cap reverts the letter; a sale under 95% makes `deliver` revert, and the plea lapses and is settled with a refund.
 - **Two letters at once:** the second one reverts (`PendingExists`), as on the site.
 - **Season end:** points are recorded at `deliver` and `SELL`. A lapsed approval is recorded by `settle`, because it still counts for the season, as today.
@@ -153,7 +153,7 @@ The site's "Send letter" button suggested on 2026-10-12 is dropped: letters need
 
 - **Non-ASCII ID rule:** every public selector of the Letterbox has a non-printable byte.
 - **Parsing:** plain text, `APPEAL`, `SELL`, `NAME`; the command word must be followed by a space or newline; lower-case `sell` is plain text.
-- **Fixed amount:** 20% respects the 2.5M and 50% caps; an appeal reuses the original amount, clamped to 50% of the current balance.
+- **Fixed amount:** 15% respects the 2.5M and 50% caps; an appeal reuses the original amount, clamped to 50% of the current balance.
 - **Fees paid in PLEA:**
   - exact IMD amounts reach the Intake, the tip and the wall;
   - the fee swap respects the +10% cap;
