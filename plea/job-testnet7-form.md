@@ -1,6 +1,6 @@
 # PLEA testnet run 7: what to type in the imd.fun form
 
-Same request as `job-testnet7-launch.json`, field by field. **Run 7 = the final code, rehearsed once on Sepolia: `testnet7` @ `1c1d99e`** = `testnet6` @ `6ef22d1` + the run-7 batch + the swarm audit's round-1 and round-2 fixes (the recalibrated need: fact score 0–45, need 71 − fact, letters 15%; letters without the 0.35 auto-sell fee, `LetterTooLong`, the 1.2× seat multiplier, owner fee 0.75%, cap ratchet 15 days, `PleaDistributor` Ownable2Step). Suite 627/627 in 78 suites with both forks. **Submit only after the swarm audit loop is clean** (`audit/` in the repo, `plea/audit/` here) and this file is re-pinned to the clean commit. This text is 5397 characters, under the 5,500-character form cap. Not paid.
+Same request as `job-testnet7-launch.json`, field by field. **Run 7 = the final code, rehearsed once on Sepolia: `testnet7` @ `3766112`** = `testnet6` @ `6ef22d1` + the run-7 batch + the swarm audit's round-1 and round-2 fixes (the recalibrated need: fact score 0–45, need 71 − fact, letters 15%; letters without the 0.35 auto-sell fee, `LetterTooLong`, the 1.2× seat multiplier, owner fee 0.75%, cap ratchet 15 days, `PleaDistributor` Ownable2Step). Suite 627/627 in 78 suites with both forks. **Submit only after the swarm audit loop is clean** (`audit/` in the repo, `plea/audit/` here) and this file is re-pinned to the clean commit. This text is 5397 characters, under the 5,500-character form cap. Not paid.
 
 ## Description (box at the top)
 
@@ -13,7 +13,7 @@ Launch PLEA test run 7 on Sepolia from this Foundry repository exactly as launch
 ## Other fields
 - Start from: **My GitHub repository**
   - Repository: `https://github.com/khaed1/plea`
-  - Branch / commit: `1c1d99e1ad24220cb1069ea8ba54c6fa4b23a1b2` (branch `testnet7`)
+  - Branch / commit: `376611264014a4852bd0f46c0011fe44efa3cc71` (branch `testnet7`)
   - Contracts to focus on, if asked (at most 4): `src/Letterbox.sol`, `src/Seasons.sol`, `src/PleaHook.sol`, `src/PleaLaunch.sol`
 - Deploy onchain: **on**
 - With a token: **off**

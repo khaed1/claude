@@ -6,7 +6,7 @@ This folder mirrors each round's pasteable texts for the user: `rounds/<n>/A1.ob
 
 ## Submitting a round (the user, 1.5 IMD)
 1. <https://explorer.imd.fun/launch> → **Hire the swarm** → **Audit**.
-2. Repository `https://github.com/khaed1/plea` at the full commit printed by `make_jobs.py` (round 1: `cd88136e61abb84e9ee0e42a8c30f4dd38d8d5b5`; round 2: `4b14d13a635afab87e4e0f6830721594ab275028`; round 3: `1c1d99e1ad24220cb1069ea8ba54c6fa4b23a1b2`), press read.
+2. Repository `https://github.com/khaed1/plea` at the full commit printed by `make_jobs.py` (round 1: `cd88136e61abb84e9ee0e42a8c30f4dd38d8d5b5`; round 2: `4b14d13a635afab87e4e0f6830721594ab275028`; round 3: `376611264014a4852bd0f46c0011fe44efa3cc71`), press read.
 3. Description = the whole of `rounds/<n>/A1.objective.txt`; **Check** (free: four "Audit the …, as a specialist agent" steps and one "Judge the audit"; no blockers); **Pay** 0.5 IMD; note the job id. Repeat for A2 and A3.
 4. Reports: `https://api.imd.fun/jobs/<id>/report.md` once the judge is accepted; `GET /jobs/<id>` and `/jobs/<id>/submissions` on the way. `python3 plea/audit/watch.py <id> <id> <id>` polls every 60 s and exits on any change.
 5. The session records every finding in `khaed1/plea` `audit/FINDINGS.md` (and the rounds' reports under `audit/rounds/<n>/`), fixes, pushes a new commit, builds round n+1 with `python3 audit/make_jobs.py round <n+1> --check`, and copies the texts here. Clean = no critical or high in any area and no open medium.
