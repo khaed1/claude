@@ -1,0 +1,214 @@
+
+##### A3 audit_economics [medium] A 1-wei first buy consumes the first-buy exception, so the next real buy pays cashback, owner fee and prize as ERC-6909 claims instead of sIMD and IMD
+  path: src/PleaHook.sol
+  line: 560
+  description: THREAT-MODEL invariant 19 says the 0.5% cashback is paid as sIMD through the Stacker (plain IMD only if the credit reverts), 0.75% IMD to the owner and 0.25% IMD to the season pot, and section 3 accepts only that *the first buy into an empty PoolManager* routes its payouts to pool liquidity. `_payFees` decides `asClaims = imd.balanceOf(poolManager) < out` and treats the shortage as the accepted first-buy case only while `hasBought` is false. `hasBought` is set by *any* buy, including a buy whose IMD fee rounds to zero, so a 1-wei exact-input buy (fee = 1 * 7175 / 17175 = 0, the swap goes through: see test_zeroBuyRevertsAndOneWeiBuyConservesSupply) leaves the PoolManager holding 1 wei of IMD and `hasBought = true`. Every later buy whose `out` (1.5% of the fill) exceeds the PoolManager's IMD balance is then paid as ERC-6909 IMD claims: the trader gets claims minted to its address and the Stacker is never called (no sIMD, `CashbackPaidClaims`), the launch owner gets claims instead of IMD, and Seasons gets claims (it can redeem them itself at a close, so the pot is not lost). The trigger is cheap and permissionless: anyone front-running the opening with a 1-wei buy (or simply a small natural first buy under 1.5% of the following one) makes the next buyer's cashback land as ERC-6909 claims on the PoolManager, which a plain wallet cannot redeem without a helper contract that unlocks, burns and takes; the owner likewise needs tooling. The condition repeats for every buy larger than ~66x the IMD the PoolManager holds, so it affects the first few sizeable buys after the open. This is griefing that costs the attacker 1 wei plus gas, bounded in value (the 0.5% of the affected buys), and the claims remain redeemable with tooling, hence Medium.
+  reproduction: Fixture (test/utils/Fixture.sol, after the launch window): PoolManager IMD balance is 0. (1) carol buys with 1 wei IMD exact-in (hookData = carol): fee 0, hasBought becomes true, PoolManager holds 1 wei IMD. (2) bob buys with 100e18 IMD exact-in (hookData = bob). Expected (invariant 19): bob's cashback 0.4914 IMD stacked as sIMD (simd.byProject(bob, hook) ~ 491400491400491400), OWNER's IMD balance +0.7371 IMD, Seasons' IMD balance +0.2457 IMD. Actual: simd.byProject(bob, hook) = 0; pm.balanceOf(bob, uint160(imd)) = 491400491400491400 (ERC-6909 claims); OWNER IMD gained 0 and pm.balanceOf(OWNER, id) = 737100737100737100; Seasons IMD gained 0 and pm.balanceOf(seasons, id) = 245700245700245700. Without step (1) the same 100e18 buy as the first buy emits PayoutsToPool (the accepted path) and every later buy pays sIMD/IMD. Fix: treat the shortage as the first-buy case while the hook has never paid a nonzero IMD fee (set `hasBought` only when `imdFee != 0`), or better, when `asClaims` would hit, route the cashback to the pool share / plain-IMD path only once the PoolManager is funded, e.g. mint the cashback claim to the hook itself and redeem it to IMD and the Stacker in `rebalance`, so a trader never receives raw claims.
+  snippet:         bool firstBuy = buy && !hasBought;
+        if (buy) hasBought = true;
+  citation: resolved
+  blocking: False
+
+##### A3 audit_economics [low] Exact-output swaps charge the fee on the requested amount, not on the filled amount: the pool share of every exact-output sell (every Letterbox fee sale) is 0.22% of the fill instead of 0.25%
+  path: src/PleaHook.sol
+  line: 455
+  description: Invariant 19: every trade pays exactly 2.0% on the filled amount, 0.25% of the IMD leg to pool liquidity. For exact input the hook takes rate/(BPS+rate) of the gross so the fee equals rate/BPS of what the pool fills. For exact output it takes rate/BPS of the *requested* amount; the pool then fills amount + fee, and `afterSwap` recomputes specDue = fill * rate / BPS, which is larger than the reserved fee, so line 503 caps it back to the smaller value. The IMD fee on an exact-output sell is therefore 1.75% of amount = 1.72% of the fill. The cashback, owner and prize shares are still computed on the full fill (imdBasis = specAmt), so the whole shortfall (0.03% of the fill) comes out of the pool-liquidity share, which gets 0.22% of the fill instead of 0.25% (0.47% instead of 0.50% once the Cabal is dead and the prize share joins it). While the Cabal lives this is the path of every Letterbox fee sale (CabalGate._swapFee is an exact-output IMD sell through the hook), and after the death any router's exact-output sell. The same applies to exact-output buys after the death on the PLEA side (burn = 0.25% of the requested PLEA = 0.249% of the fill). The amounts are small (0.0003 IMD per 1 IMD of fill) but systematic and in one direction: the agreed pool share is never reached on this path.
+  reproduction: Fixture, alice buys 100e18 IMD, skip(DEADMAN + 1) so any router may sell, a plain router does an exact-output sell of 10e18 IMD with hookData = alice (zeroForOne = pleaIsZero, amountSpecified = +10e18, limit at the extreme). Pool fill = 10e18 + 10e18 * 175 / 10000 = 10.175e18 IMD. Expected: IMD fee 1.75% of the fill = 0.17806e18, pool share (pool + prize after death) 0.5% of the fill = 50_875_000_000_000_000. Actual: owner 76_312_500_000_000_000 (0.75% of the fill, correct), totalPoolFees/retainClaims delta 47_812_500_000_000_000 (0.47% of the fill), total IMD fee 0.175e18 = 1.72% of the fill. Fix: for exact output reserve fee = amount * rate / (BPS - rate) in beforeSwap so that fee = rate/BPS of (amount + fee); the afterSwap cap then only trims rounding and partial fills.
+  snippet:         uint256 fee = exactIn ? amount * rate / (BPS + rate) : amount * rate / BPS;
+  citation: resolved
+  blocking: False
+
+##### A3 audit_economics [low] rebalance places the whole IMD reserve at a seller-chosen drained tick below the market band, although README says it reverts until spot returns
+  path: src/PleaHook.sol
+  line: 837
+  description: Invariant 21 / README 'Wall placement guard': a tick the pool sits at with no active liquidity is not a traded price; the guard ignores it 'so the wall is placed against the market once IMD is back, not parked at the extreme for years. Until the next buy brings spot back from a drained tick, rebalance() reverts rather than placing a wall there.' The guard indeed ignores the drained tick (`_updateWallGuard` checks getLiquidity != 0), but `_rebalance` still uses raw `spot` as one of the three candidates for the band edge, with no liquidity check. After the Cabal dies a seller can drain the market band's IMD with an exact-input sell whose price limit sits anywhere in the liquidity-free region below the band; a `rebalance` before the next buy (pendingRebalance is true as soon as 1 IMD of retained reserve or claims exists, which any 200 IMD of volume or a single `fundWall` provides) then deploys the entire reserve as a band whose upper tick is the drained tick, far below the market band, instead of reverting. The existing tests (test_wallGuardIgnoresASellerChosenLimitReachedThroughAnEmptyPool) only check the placement after a buy has already brought spot back. At the extreme limit the call does revert, but with `InvalidLiquidity` from the tiny band, not by design. Effect: the wall is parked at an arbitrary low price chosen by the seller until the next rebalance (which anyone can call once another 1 IMD of claims accrues), during which it bids far below the market; the IMD stays in the pool, so no funds are lost. Post-death only, self-healing: Low. Fix: in `_rebalance`, skip the deployment (return work, acted) when `poolManager.getLiquidity(poolId()) == 0`, i.e. when spot is a drained tick, matching the README.
+  reproduction: Fixture (PLEA is token0 here): alice buys 100e18 IMD, skip(DEADMAN + 1), the distributor transfers 50_000_000e18 PLEA to alice, alice sells 50_000_000e18 exact-in with sqrtPriceLimitX96 = getSqrtPriceAtTick(market.tickLower - 6000) = tick -126720 (market band lower is -120720), then alice calls fundWall(10e18) and the keeper calls rebalance(). State before rebalance: currentTick = -126720, getLiquidity(poolId) = 0, wallGuardTick = -120721 (unchanged by the drain, as designed). Expected (README): rebalance reverts / deploys nothing until a buy brings spot back. Actual: wall = (lower -887220, upper -126720, liquidity 6891500741742536247649), i.e. the whole 10 IMD reserve deployed 6,000 ticks (~45%) under the market band at the seller's chosen tick.
+  snippet:             int24 edge = spot < refTick ? spot : refTick;
+            if (guard < edge) edge = guard;
+            upper = _alignDown(edge);
+  citation: resolved
+  blocking: False
+
+##### A2 audit_flow [low] Early-seed power is frozen to the launch-time PLEA owner, not PLEA.owner as the threat model states
+  path: src/PleaLaunch.sol
+  line: 181
+  description: PleaLaunch stores `owner = IPLEAForLaunch(plea_).owner()` once in its constructor (lines 100-101) and `seed()` checks that immutable. THREAT-MODEL section 1 lists `PleaLaunch.seed()` before START as a power of the PLEA owner (`PLEA.owner`, Ownable2Step) and gives the launch owner (`PleaHook.owner`, immutable) no other power than the fee. In the code the early-seed right travels with the frozen launch owner: after a two-step PLEA ownership handover before trading opens, the current PLEA owner is refused `TooEarly` while the former owner, who no longer owns PLEA, can still open trading before START. The exclusion in Seasons reads `plea.owner()` live, so the two owner notions diverge. No funds at risk (seed is permissionless from START anyway, and `hook.seed()` / `gate.begin()` make it one-shot), but the trust map and the code disagree on who holds a listed power. Fix: either check `IPLEAForLaunch(plea).owner()` live in `seed()` (one external call), or amend THREAT-MODEL section 1 to say the launch owner, not the PLEA owner, may seed early.
+  reproduction: Fixture launch, hook deployed, not yet seeded, now < START (T0 + 1 day). OWNER calls plea.transferOwnership(newOwner); newOwner calls plea.acceptOwnership(); plea.owner() == newOwner, launch.owner() == OWNER. newOwner calls launch.seed() -> reverts TooEarly(START). OWNER (no longer PLEA.owner) calls launch.seed() -> succeeds, gate.cabalAlive() is true. Expected per THREAT-MODEL section 1: the PLEA owner may seed early; actual: only the launch-time owner may. Scratch test: test/scratch/A2Probes.t.sol SeedPowerProbe.test_newPleaOwnerCannotSeedEarlyButTheOldOneStillCan (passes on this code, i.e. confirms the behaviour).
+  snippet:         if (msg.sender != owner && block.timestamp < START) revert TooEarly(START);
+  citation: resolved
+  blocking: False
+
+##### A2 audit_flow [low] status() gives a lapsed approval no escrow note, and the hinted 'send a letter' path reverts Cooldown for 4 hours
+  path: src/Letterbox.sol
+  line: 564
+  description: A letter plea that was approved and not delivered inside the 7-minute window leaves its PLEA and tip in the Letterbox until someone calls `settle` (or the writer's next letter settles it). The LAPSED branch of `status()` prints points and the cooldown but never `_escrowNote(id)`, so the writer reading the explorer sees no sign that their 15% is still escrowed, unlike the DENIED and NO VERDICT branches (lines 557, 561, 566) which do. The note those branches print, 'call settle or send a letter to get your PLEA back', is also only half right during the 4-hour cooldown that a lapse or a denial starts: a plain letter runs `_settleOpen` (which would return the escrow) and then `gate.submitFor` reverts `Cooldown`, so the whole transaction reverts and the escrow stays open; only `settle` or an APPEAL letter (denied case) returns it before the cooldown ends. Display text only (THREAT-MODEL section 4: Low); custody is unaffected, `settle` by anyone always works. Fix: append `_escrowNote(id)` in the LAPSED branch and word the note as 'call settle (a new plea is refused for 4 hours)'.
+  reproduction: alice buys 50 IMD of PLEA, waits 1 day, sends the letter 'Fifteen percent for a vet bill; the rest stays with me this season.' (id 1), the oracle answers 40 (need 35 -> Approved), 7 minutes + 1 second pass, nobody delivers. letterbox.escrowOf(1).open == true. letterbox.status(alice) returns 'Plea #1 · LAPSED (40 vs 35) · +40 points once recorded · Cooldown until 13:31 UTC' with no escrow note. alice then sends a second plain letter: the call reverts with CabalGate.Cooldown and the escrow is still open; letterbox.settle(1) by anyone then returns the PLEA and the tip. Scratch test: test/scratch/A2Probes.t.sol LapsedEscrowProbe.test_lapsedOpenEscrowHasNoHintAndAPlainLetterRevertsCooldown.
+  snippet:             return string.concat(head, "LAPSED", vs, unicode" · ", _points(w, id, p), unicode" · ", _next(w, id));
+  citation: resolved
+  blocking: False
+
+##### A2 audit_permissions [low] PleaLaunch.seed grants the early-seed power to the launch-time owner snapshot, not to PLEA's current owner
+  path: src/PleaLaunch.sol
+  line: 181
+  description: THREAT-MODEL section 1 lists `PleaLaunch.seed()` before START as a power of "the PLEA owner (PLEA.owner, Ownable2Step)", and README step 4 says "the owner may call it any time". PleaLaunch reads PLEA's owner once in its constructor (`owner = IPLEAForLaunch(plea_).owner()`, an immutable) and `seed` compares against that snapshot. After a two-step handover of PLEA before START, the wallet that actually owns PLEA is refused with TooEarly while the former owner, who no longer holds any PLEA role, keeps the power to open trading early. The trust map and the code disagree: a role listed as belonging to the PLEA owner stays with whoever owned PLEA at launch. Impact is bounded (the window is launch to START, both parties are the team, anyone may seed from START), hence Low. Fix: have `seed` read `IPLEAForLaunch(plea).owner()` at call time instead of the immutable, or document the snapshot in THREAT-MODEL section 1 as the launch-time owner.
+  reproduction: Deploy the five launch contracts with PLEA owner A, deploy the hook. Before START: A calls plea.transferOwnership(B); B calls plea.acceptOwnership(); plea.owner() == B. B calls launch.seed() -> reverts TooEarly(START) (expected: B, the PLEA owner, may seed early). A calls launch.seed() -> succeeds and the Cabal begins (expected: A, no longer the PLEA owner, is refused before START). test/scratch/SeedOwnerSnapshot.t.sol fails on this code with 'next call did not revert as expected' on A's seed.
+  proof: // SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+import {Test} from "forge-std/Test.sol";
+import {PoolManager} from "v4-core/PoolManager.sol";
+import {PLEA} from "src/PLEA.sol";
+import {CabalGate} from "src/CabalGate.sol";
+import {Seasons} from "src/Seasons.sol";
+import {PleaDistributor} from "src/PleaDistributor.sol";
+import {Letterbox} from "src/Letterbox.sol";
+import {PleaLaunch} from "src/PleaLaunch.sol";
+import {PleaHook} from "src/PleaHook.sol";
+
+contract FeeToken {
+    string public name = "IMD";
+    string public symbol = "IMD";
+    uint8 public decimals = 18;
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
+
+    function approve(address s, uint256 a) external returns (bool) {
+        allowance[msg.sender][s] = a;
+        return true;
+    }
+
+    function transfer(address to, uint256 a) external returns (bool) {
+        balanceOf[msg.sender] -= a;
+        balanceOf[to] += a;
+        return true;
+    }
+
+    function transferFrom(address f, address to, uint256 a) external returns (bool) {
+        allowance[f][msg.sender] -= a;
+        balanceOf[f] -= a;
+        balanceOf[to] += a;
+        return true;
+    }
+}
+
+/// THREAT-MODEL section 1 gives the early `seed` to "the PLEA owner (PLEA.owner, Ownable2Step)".
+/// PleaLaunch snapshots that owner in its constructor, so after a two-step handover of PLEA before
+/// START the current PLEA owner is refused (TooEarly) and the former owner keeps the power.
+/// Fails on the current code; passes once `seed` reads PLEA's current owner.
+contract SeedOwnerSnapshotTest is Test {
+    address constant OWNER = 0x4b91078b2374c956A65F7Af0999CaE0a935E6821;
+    address constant NEW_OWNER = address(0xB0B);
+    address constant SIGNER = 0x5598Aa9146215Bc13eb26f2c
+  snippet:         if (msg.sender != owner && block.timestamp < START) revert TooEarly(START);
+  citation: resolved
+  blocking: False
+
+##### A2 audit_math [low] appealAuto has no 0.70 IMD floor: an appeal of a sub-floor gate plea is delivered with the whole sale eaten by the auto-sell fee
+  path: src/Letterbox.sol
+  line: 328
+  description: THREAT-MODEL invariant 15 says every plea through the Letterbox must be worth at least 0.70 IMD at the snapshot so the 0.35 IMD auto-sell fee can never eat a sale, and the contract header repeats it ('A plea worth less than 0.70 IMD at the snapshot is refused, letters included, so a fee can never eat a sale'). `_plead` enforces it with `_requireWorthTheFee`, but `_appeal` does not: the floor raise is capped at `originalAmount`, and the original may have been made directly at `CabalGate.submitSell`, which has no value floor (its minimum is 1% of the balance). The site's `appealAuto(originalId, text)` therefore opens an AUTO_SELL escrow worth less than 0.35 IMD; when it is approved, `_deliver` computes `fee = sold < AUTO_SELL_FEE ? sold : AUTO_SELL_FEE` and pays `out = 0` to the writer: the fee eats the entire sale. The writer also paid 0.85 IMD in fees for the appeal. Bounded to the writer's own choice and a sub-0.35 IMD sale, so Low, but it contradicts the stated floor and the `status()` view then shows 'SOLD' with no amount. A fix is either `_requireWorthTheFee(amount)` in `_appeal` when the raise could not reach the floor (refusing like `_plead`), or waiving the fee when `sold <= AUTO_SELL_FEE` so the writer always receives something.
+  reproduction: Fixture (Sepolia path): alice buys 20 IMD of PLEA, waits a day. 1) alice calls gate.submitSell(bal/100, text) directly: the 1% plea is worth 0.195 IMD at the snapshot (no floor at the gate). The panel answers 0: Denied. 2) alice calls letterbox.appealAuto(id, text) inside the 4-hour cooldown: amount stays 1% (floorAmount > originalAmount so the raise is capped at the original), the fee check passes (0.66 IMD worth of PLEA < 10% of the 20 IMD balance), escrow opens with flags 2, need 35. 3) The panel answers 45: Approved. 4) bob calls letterbox.deliver(appealId). Expected (README / invariant 15): a Letterbox plea is worth at least 0.70 IMD and the fee never eats a sale. Actual: sold = 0.1974 IMD, fee = 0.1974 IMD to Seasons, out = 0 IMD to alice; escrowOf(appealId).soldFor = 0. Verified with test/scratch/Probe.t.sol (test_appealAutoOfASubFloorGatePleaDeliversNothingToTheWriter): out == 0, alice's IMD balance unchanged.
+  snippet:             amount = floorAmount < originalAmount ? floorAmount : originalAmount;
+  citation: resolved
+  blocking: False
+
+##### A2 audit_math [low] PleaLaunch freezes the PLEA owner at launch: a two-step PLEA ownership handover before seed leaves the early-seed right with the former owner
+  path: src/PleaLaunch.sol
+  line: 100
+  description: THREAT-MODEL section 1 lists `PleaLaunch.seed()` before START as a power of 'The PLEA owner (PLEA.owner, Ownable2Step)'. PleaLaunch reads PLEA's owner once in its constructor into an immutable and `seed()` compares `msg.sender` with that immutable (line 181). If PLEA's ownership is handed over (transferOwnership + acceptOwnership) between the launch transaction and seed, the new PLEA owner cannot seed before START (TooEarly) while the wallet that gave ownership away still can. The same immutable is the hook's fee owner, which is documented as immutable, but the seed right is documented as the PLEA owner's. No funds at risk; the mismatch only matters in the pre-seed window. Fix: in `seed()` compare against `IPLEAForLaunch(plea).owner()` (or document that early seed belongs to the launch owner, not the PLEA owner).
+  reproduction: After the five-contract launch and deployHook, before START: OWNER calls plea.transferOwnership(B); B calls plea.acceptOwnership() so plea.owner() == B. B calls launch.seed() at a timestamp < START. Expected (THREAT-MODEL 1: the PLEA owner may seed before START): trading opens. Actual: revert TooEarly(START) because launch.owner is still OWNER; OWNER (no longer PLEA's owner) can still call seed() early.
+  snippet:         address owner_ = IPLEAForLaunch(plea_).owner();
+        owner = owner_;
+  citation: resolved
+  blocking: False
+
+##### A2 audit_math [low] Mainnet fee path: a writer who can plead by letter cannot always appeal by letter (FeeTooHigh for balances worth about 8.25-8.6 IMD)
+  path: src/Letterbox.sol
+  line: 335
+  description: The comment above this line states the rule the exception is meant to guarantee: 'whoever could plead by letter (a plea worth at least 0.70 IMD) can always appeal by letter'. On Sepolia (the oracle fee is minted) the appeal's fee sale buys 0.60 IMD (+10% = 0.66), below the 0.70 IMD floor the raise restores, so the guarantee holds. On mainnet the appeal buys 0.5 oracle + 0.35 wall + 0.25 tip = 1.10 IMD, 1.21 IMD worth of PLEA with the +10% cap. A letter is accepted when the letter fee (0.825 IMD worth) is at most 10% of the balance, i.e. from about 8.25 IMD worth of PLEA, pleading 15% (about 1.24 IMD). After the letter's fee sale the balance is about 7.5 IMD worth; the appeal's same-share clamp makes the appeal about 1.12 IMD worth, below the 1.21 IMD fee cap, and 10% of the balance (0.75) is below it too, so the APPEAL letter reverts FeeTooHigh. The band closes only once the balance is worth about 8.6 IMD at the snapshot (appeal amount just above the fee cap, see the 9.0 IMD buy in the probe), and it widens again whenever the price falls between the letter and the appeal (the same-share clamp shrinks the appeal while the fee in PLEA grows). Impact: no loss of funds; the writer must appeal at the gate with IMD, or cannot appeal by letter at all if they hold none. Low: a stated guarantee that does not hold on the mainnet code. Fix options: compute the appeal exception against the original's amount or the 0.70 IMD floor rather than the clamped appeal amount, or raise the appeal to the fee's worth when the balance allows it (the gate caps the appeal at the original amount, so this is only possible when the original was large enough), or document the mainnet minimum for an appeal by letter.
+  reproduction: Fixture with the mainnet fee path (oracleFeeToken() == pool IMD, as in LetterboxMainnetPathTest): bob buys 50 IMD of PLEA; alice buys 8.7 IMD of PLEA (worth 8.338 IMD at the next day's snapshot); skip 1 day. 1) alice sends a letter: accepted (fee cap 989 bps of the balance), plea for 15% = 218,623 PLEA. 2) The panel answers 0: Denied. 3) alice sends 'APPEAL The phone is how I work; I keep the rest.' inside the 4-hour cooldown. Expected (comment at Letterbox.sol:333-334): the appeal letter is accepted. Actual: revert FeeTooHigh(maxFeePlea = 206,400 PLEA, bal = 1,108,345 PLEA) because 206,400 > 10% of the balance and > the clamped appeal amount (about 198,000 PLEA). Same result for buys of 8.75, 8.8 and 8.9 IMD; a 9.0 IMD buy passes with the appeal amount only 0.1% above the fee cap. Verified with test/scratch/ProbeMainnet.t.sol.
+  snippet:         if (maxFeePlea * BPS > bal * MAX_FEE_SHARE_BPS && maxFeePlea > amount) revert FeeTooHigh(maxFeePlea, bal);
+  citation: resolved
+  blocking: False
+
+##### A2 audit_economics [low] PleaLaunch freezes PLEA's owner at construction: the early-seed power stays with a former owner after a two-step handover and never reaches the new PLEA owner
+  path: src/PleaLaunch.sol
+  line: 181
+  description: THREAT-MODEL section 1 gives the early `PleaLaunch.seed()` (before START) to the PLEA owner (`PLEA.owner`, Ownable2Step), and says the launch owner (the immutable hook fee beneficiary) has no other power. PleaLaunch copies `IPLEAForLaunch(plea_).owner()` into the immutable `owner` in its constructor (lines 100-101) and `seed` checks `msg.sender != owner`. After `PLEA.transferOwnership(B)` + `B.acceptOwnership()`, the former owner A (now only the launch owner) can still open trading at any moment before START, while B, the PLEA owner, is refused `TooEarly`. A role that has handed PLEA over keeps a listed PLEA-owner power (the launch owner exceeds its 'no other power' bound) and the current owner loses it. Impact is bounded to choosing the opening time before START (the 90-minute launch window and first-buy timing). Fix: check `msg.sender != IPLEAForLaunch(plea).owner()` at call time (one external view call), keeping the immutable `owner` for the hook's init-code commitment.
+  reproduction: Deploy PLEA(A) and PleaLaunch (START = now + 1 day), deploy the hook (or set it), then A: plea.transferOwnership(B); B: plea.acceptOwnership(). B calls launch.seed() -> expected: trading opens (B is PLEA's owner); actual: reverts TooEarly(START). A calls launch.seed() -> expected: TooEarly; actual: succeeds, trading opens a day early. test/scratch/SeedOwner.t.sol (both tests fail on this code, pass once seed reads PLEA.owner() live).
+  proof: // SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+import "forge-std/Test.sol";
+import {PLEA} from "src/PLEA.sol";
+import {PleaLaunch} from "src/PleaLaunch.sol";
+
+contract MockGateSeed {
+    uint256 public constant SEASON = 5 hours;
+    uint256 public constant DEADMAN = 33 hours;
+    bool public begun;
+    function begin() external { begun = true; }
+    function restricted() external pure returns (bool) { return true; }
+}
+
+contract MockHookSeed {
+    bool public seeded;
+    function seed() external { seeded = true; }
+}
+
+/// PleaLaunch.owner is PLEA's owner frozen at construction: after a two-step PLEA handover the
+/// former owner keeps the early-seed power and the new PLEA owner does not have it.
+contract SeedOwnerTest is Test {
+    function test_earlySeedFollowsThePleaOwner() public {
+        address oldOwner = makeAddr("oldOwner");
+        address newOwner = makeAddr("newOwner");
+        PLEA plea = new PLEA(oldOwner);
+        MockGateSeed gate = new MockGateSeed();
+        PleaLaunch launch = new PleaLaunch(
+            address(plea), address(gate), makeAddr("seasons"), makeAddr("distributor"), makeAddr("pm"),
+            makeAddr("imd"), makeAddr("stacker"), 1_300_000, block.timestamp + 1 days, makeAddr("oracle"),
+            true, bytes32(uint256(1)), bytes32(0)
+        );
+        // Stand in for deployHook (slot 0 is `hook`).
+        MockHookSeed hook = new MockHookSeed();
+        vm.store(address(launch), bytes32(0), bytes32(uint256(uint160(address(hook)))));
+
+        vm.prank(oldOwner);
+        plea.transferOwnership(newOwner);
+        vm.prank(newOwner);
+        plea.acceptOwnership();
+        assertEq(plea.owner(), newOwner);
+
+        // The PLEA owner's listed power: seed before START. Expected to succeed for newOwner.
+        vm.prank(newOwner);
+     
+  snippet:         if (msg.sender != owner && block.timestamp < START) revert TooEarly(START);
+  citation: resolved
+  blocking: False
+
+##### A2 audit_economics [low] status() shows a recorded plea's points with the seat multiplier read now, not the points Seasons recorded
+  path: src/Letterbox.sol
+  line: 641
+  description: Invariant 7 and section 3 fix the seat multiplier at record time (`Seasons._record` stores `pointsFor(seller, score)` once; a seat sold after the recording keeps the points). `Letterbox._points` builds the 'SOLD / LAPSED' line for an already recorded plea (`seasons.recorded(id)` true, the branch at line 649+) from `seasons.pointsFor(w, score)`, which calls `holdsSeat(w)` at view time. So the explorer status disagrees with what the season counts whenever the seat holding changed after the recording. Display only (Seasons' ranking is right). Fix: for a recorded plea show the stored points (e.g. have Seasons keep per-plea points, or emit/read the multiplied value), and keep `pointsFor` only for the 'once recorded' estimate.
+  reproduction: Writer W holds one seat NFT; W's letter plea scores 45 and is delivered; after the objection hold `Seasons.record(id)` stores 54 points (SeatMultiplier event 45 -> 54). W transfers the seat away. Letterbox.status(W) -> expected '... SOLD for X IMD · +54 points (season 1, rank 1) ...'; actual '+45 points (season 1, rank 1)'. The reverse (seat bought after recording 45) shows +54 for 45 counted.
+  snippet:             string.concat("+", Strings.toString(seasons.pointsFor(w, lowest < p.score ? lowest : p.score)), " points");
+  citation: resolved
+  blocking: False
+
+##### A1 audit_math [low] Permissionless record lets a rival strip the seat multiplier from a seller who holds the seat only at the moment they choose
+  path: src/Seasons.sol
+  line: 260
+  description: THREAT-MODEL section 3 accepts a seat held only for the recording transaction with the words 'record is permissionless, so the seller chooses the moment'. The second half is not true: any address may call Seasons.record(pleaId) the second the hold ends (verdictAt + 20 minutes + 1 s with no objection, or when the pending objection is ruled or stale), and the multiplier is read from holdsSeat(seller) in that transaction only. A rival who watches Verdict events records every leader's plea at the first eligible second; a seller who planned to acquire or borrow a seat for their own record transaction gets the plain score and AlreadyRecorded afterwards. The 20 percent points difference (45 -> 54 per plea, up to 27 points on the best three) decides ranks and prize shares. Sellers who hold a seat continuously are unaffected, so this is points-only griefing at gas cost for the attacker: Low. Fix options that keep the design: let only the seller record inside a short grace after the hold ends (others afterwards), or read holdsSeat at the verdict (onOracleResult stores a flag) instead of at record time; either is a design decision for the owner.
+  reproduction: Fixture with the Tribunal: alice buys 10 IMD of PLEA, carol keeps the Cabal alive for a week, alice's 10% plea is approved with score 40 (need 30). At verdictAt + 20 min + 1 s bob (any address) calls seasons.record(id): bestOf(0, alice)[0] == 40 and recorded[id] == true. Alice then mints/borrows a seat: pointsFor(alice, 40) == 48, but seasons.record(id) reverts AlreadyRecorded(id). Expected per the threat model: the seller picks the recording moment and gets 48; actual: the rival picks it and alice gets 40 for good. Reproduced in test/scratch/A1Probe.t.sol test_rivalRecordsBeforeTheSellerHoldsASeat (passes on this code, i.e. the strip succeeds).
+  snippet:         uint8 pleaPoints = pointsFor(seller, score);
+  citation: resolved
+  blocking: False
+
+##### A1 audit_flow [low] A lapsed approval's cooldown is dated from the verdict, not from the lapse: it ends 3h53m after the window lapses, and the README's outcome table lists no cooldown for a lapse at all
+  path: src/CabalGate.sol
+  line: 464
+  description: THREAT-MODEL.md invariant 5 says 'a sale, a denial or a lapse starts a 4-hour cooldown'. For a sale the clock starts at the sale (`lastExecutedAt[seller] = block.timestamp` in `_sell`) and for a denial at the verdict (`lastDeniedAt[p.seller] = block.timestamp` in `onOracleResult`), but for a lapse `_clearStale` stores `p.verdictAt`, which is 7 minutes before the window actually lapsed. The seller may therefore plead again exactly 4 hours after the verdict, i.e. 3 hours 53 minutes after the lapse. README.md's outcome table (line 65, 'Approved, not sold in 7 min | Lapsed; the score still counts for the season') mentions no cooldown for a lapse, so the three documents and the code say three different things (no cooldown / 4h from the lapse / 4h from the verdict). No value is at risk: the difference is 7 minutes of a 4-hour cooldown and the lapsed approval cannot be executed. Either store `block.timestamp` of the lapse (if the agreed number is 4 hours from the lapse) or document that the lapse cooldown runs from the verdict and add it to the README table.
+  reproduction: Fixture (test/utils/Fixture.sol), alice has bought 50 IMD of PLEA. alice calls `submitSell(balance/10, text)` (need 37); the Intake delivers a signed score 45 at time V (status Approved, verdictAt = V). alice does not sell. At V + 4h - 1s `submitSell(small, text)` reverts `Cooldown(V + 4h)` (the lapse is applied inside `_clearStale` and `lastLapsedAt = V`). At V + 4h exactly the same call succeeds and the old plea reads `Lapsed`. Expected under 'a lapse starts a 4-hour cooldown': refused until V + 7min + 4h. Actual: accepted at V + 4h. Verified by test/scratch/A1Probe.t.sol `test_lapseCooldownRunsFromTheVerdict` (passes against the current code, asserting the actual behaviour).
+  snippet:             lastLapsedAt[seller] = p.verdictAt;
+  citation: resolved
+  blocking: False
