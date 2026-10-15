@@ -18,7 +18,7 @@ The site gets the same auto-sell as an option.
 | Appeal amount (letters) | The original plea's amount |
 | Oracle fee | 0.5 IMD (unchanged), paid by selling the writer's PLEA |
 | Runner tip | **0.25 IMD** per auto-sell, paid in PLEA up front; refunded if no sale happens |
-| Auto-sell fee (added 2026-10-12, run 3) | **0.35 IMD of every delivered or `SELL` sale, all to the season's prize pot** (Seasons, accounted to the running season). Taken only from a sale: a denial, failure, expiry or lapse pays nothing. Selling by hand on the site inside the 7 minutes costs nothing extra. A plea worth less than 0.70 IMD at the snapshot is refused (`TooSmallForTheFee`), so the fee never exceeds half a sale |
+| Auto-sell fee (added 2026-10-12, run 3; **run 7: the site's auto-sell box only**) | **0.35 IMD of a delivered sale of a site auto-sell plea (`plead` / `appealAuto`), all to the season's prize pot** (Seasons, accounted to the running season). **Letters (`BY_LETTER`) pay no auto-sell fee** (user, 2026-10-14 11:05 UTC): a letter costs the 0.5 IMD oracle fee + the 0.25 IMD tip, and the tip comes back on the writer's own `SELL`. Taken only from a sale: a denial, failure, expiry or lapse pays nothing. Selling by hand on the site inside the 7 minutes costs nothing extra. A plea worth less than 0.70 IMD at the snapshot is refused (`TooSmallForTheFee`), letters included, so the fee never exceeds half a sale |
 | Appeal wall fee | 0.35 IMD (unchanged), paid in PLEA |
 | Sale minimum (auto-sell) | **95%** of the PLEA's value at the hook's hourly price snapshot (5% margin) |
 | Fee-swap cap | The court may spend at most the snapshot value of the IMD it needs **+10%** in PLEA |
@@ -78,7 +78,7 @@ The site's "Send letter" button suggested on 2026-10-12 is dropped: letters need
 **Auto-sell:**
 - `deliver(uint256 id)`: anyone may call it while the plea is Approved and inside its 7-minute window. In one transaction it:
   1. sells the escrowed PLEA through the gate, with `minOut` = 95% of the snapshot value (the IMD comes to the Letterbox);
-  2. sends 0.35 IMD to Seasons (the auto-sell fee, `checkpoint()`ed into the running season) and the rest to the seller;
+  2. for a site auto-sell plea, sends 0.35 IMD to Seasons (the auto-sell fee, `checkpoint()`ed into the running season) and the rest to the seller; for a letter, the whole sale to the writer (run 7);
   3. calls `Seasons.record(id)`;
   4. pays the 0.25 IMD tip to the caller.
 - The caller must send enough gas: the hook's existing gas check applies.
