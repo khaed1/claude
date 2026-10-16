@@ -10,7 +10,7 @@ This is the Claude Code version of the [Codex manual](https://github.com/identit
 
 You already have a VPS and can SSH into it. You also need:
 
-- Ubuntu 22.04 **x86_64**, administrator access, and enough spare RAM for the 3 GiB worker limit.
+- Ubuntu 22.04 or newer, **x86_64**, administrator access, and enough spare RAM for the 3 GiB worker limit.
 - A Claude **Pro or Max** plan, which includes Claude Code. This guide signs in with the subscription, not an Anthropic API key.
 - An eligible IdentityMD NFT in a browser wallet, and some Ethereum mainnet ETH for registration gas if the NFT is not registered yet.
 - Nothing from GitHub: the [IdentityMD worker](https://github.com/Identity-md/worker) and its [releases](https://github.com/Identity-md/worker/releases) are public downloads.
@@ -30,12 +30,24 @@ sudo -i
 apt-get update
 ```
 ```bash
-apt-get install -y ca-certificates curl git xz-utils
+apt-get install -y ca-certificates curl git xz-utils bubblewrap socat
 ```
+`bubblewrap` and `socat` are Claude Code's sandbox on Linux. Without them the worker gets no oracle (and other jailed) work; see [Oracle work and the sandbox](#oracle-work-and-the-sandbox).
 ```bash
 test "$(uname -m)" = x86_64 && echo OK
 ```
 Must print `OK`. If it prints nothing, this VPS is not x86_64 and this guide does not fit it.
+```bash
+cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo "not present"
+```
+If it prints `1` (Ubuntu 24.04 and newer), allow the sandbox to create user namespaces with the next two commands. If it prints `0` or `not present`, skip them.
+```bash
+sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+```
+```bash
+echo 'kernel.apparmor_restrict_unprivileged_userns=0' > /etc/sysctl.d/60-imd-userns.conf
+```
+The second line keeps the setting after a reboot. Read [the security note](#security-note) before turning this on.
 ```bash
 useradd --create-home --shell /bin/bash imd-worker
 ```
@@ -107,7 +119,7 @@ Must print `identitymd-worker.tgz: OK`.
 Install both packages:
 
 ```bash
-npm install --global --prefix /opt/imd-worker/runtime --ignore-scripts --no-audit --no-fund @anthropic-ai/claude-code@2.1.274 "$imd_release_dir/identitymd-worker.tgz"
+npm install --global --prefix /opt/imd-worker/runtime --ignore-scripts --no-audit --no-fund @anthropic-ai/claude-code@2.1.300 "$imd_release_dir/identitymd-worker.tgz"
 ```
 
 `--ignore-scripts` blocks all package install scripts, but Claude Code needs its own one to link its native Linux binary. Run only that one:
@@ -124,7 +136,7 @@ ln -s ../runtime/bin/imd /opt/imd-worker/bin/imd
 ```bash
 /opt/imd-worker/runtime/bin/claude --version
 ```
-Must print `2.1.274 (Claude Code)`. If it says *“claude native binary not installed”*, rerun the `node install.cjs` line.
+Must print `2.1.300 (Claude Code)`. If it says *“claude native binary not installed”*, rerun the `node install.cjs` line.
 
 ### Wrapper and worker account
 
@@ -158,7 +170,7 @@ install -d -m 700 -o imd-worker -g imd-worker /home/imd-worker/.claude /home/imd
 ```bash
 runuser -l imd-worker -c 'node --version && claude --version && imd help'
 ```
-Must print `v24.21.0`, `2.1.274 (Claude Code)`, then the `imd` help text.
+Must print `v24.21.0`, `2.1.300 (Claude Code)`, then the `imd` help text.
 
 ## 4. Sign in to Claude Code with your subscription
 
@@ -243,7 +255,7 @@ What a good result looks like before the service is started:
 
 | Line | Expected |
 | --- | --- |
-| `→ claude` | `2.1.274 (Claude Code)` |
+| `→ claude` | `2.1.300 (Claude Code)` |
 | `✗ codex  codex is not on PATH` | fine, you use Claude |
 | `✓ claude run` | answered with `claude-sonnet-5` (the `$` figure is an API-price estimate, not a charge on your subscription) |
 | `✓ forge  not installed` | fine, see [Optional: Foundry](#optional-foundry-for-fuzzing-campaigns) |
@@ -294,7 +306,7 @@ ReadWritePaths=/home/imd-worker
 TemporaryFileSystem=/opt:ro
 BindReadOnlyPaths=/opt/imd-worker
 InaccessiblePaths=-/var/lib/docker -/run/docker.sock -/run/containerd -/run/dbus -/run/systemd/private
-ProtectKernelTunables=true
+ProtectKernelTunables=false
 ProtectKernelModules=true
 ProtectControlGroups=true
 StandardOutput=journal
@@ -304,6 +316,8 @@ StandardError=journal
 WantedBy=multi-user.target
 UNIT
 ```
+
+`ProtectKernelTunables=false` is deliberate. With `true`, systemd mounts read-only copies over parts of `/proc`, and the kernel then refuses to let Claude's sandbox mount its own `/proc`: the log says *“bubblewrap cannot start here: bwrap: Can't mount proc on /newroot/proc: Operation not permitted”* and the worker gets no oracle work.
 
 ```bash
 systemd-analyze verify /etc/systemd/system/imd-worker.service
@@ -331,13 +345,13 @@ systemctl status imd-worker.service --no-pager
 Must show `active (running)` and log lines like:
 
 ```text
-runtimes: claude 2.1.274 (Claude Code) (using claude, as asked)
+runtimes: claude 2.1.300 (Claude Code) (using claude, as asked)
 release 0.1.0+…, the latest
 connected to api.imd.fun
 admitted (session …)
 ```
 
-`disabled` in the `Loaded:` line just means boot start isn't on yet. The `forge not found` message is optional, see below. If status shows a failed start condition, the sign-in or the IMD config is missing: repeat step 4 or 5.
+There must be **no** line starting `oracle work is off on this machine:`. If there is one, see [Oracle work and the sandbox](#oracle-work-and-the-sandbox). `disabled` in the `Loaded:` line just means boot start isn't on yet. The `forge not found` message is optional, see below. If status shows a failed start condition, the sign-in or the IMD config is missing: repeat step 4 or 5.
 
 Watch the first tasks (Ctrl+C leaves the viewer; the worker keeps running):
 
@@ -547,7 +561,9 @@ chmod -R a+rX /opt/imd-worker/runtime
 ```bash
 runuser -l imd-worker -c 'claude --version && imd help | head -3'
 ```
-Must print `2.1.274 (Claude Code)` and the start of the `imd` help.
+Must print `2.1.300 (Claude Code)` (or the newer version you installed) and the start of the `imd` help. `imd update` rewrites `/opt/imd-worker/runtime`, so if Claude Code went back to an older version, follow [Updating Claude Code](#updating-claude-code) before restarting.
+
+If `imd update` also prints *“Sandbox not ready on this machine … codex sandbox did not hold the jail … ran codex via PATH → none … Fix in one line: sudo imd sandbox”*, you can ignore it: that check tried the Codex runtime, which this setup doesn't use. What counts is the workers' own log after the restart below.
 
 Restart the workers so they run the new build (this interrupts any task in progress; to avoid that, first watch `journalctl -u imd-worker.service -u imd-worker-2.service -f` until they're idle):
 
@@ -561,15 +577,26 @@ Each worker must show `active (running)`, `release 0.1.0+…, the latest` with t
 
 ### Updating Claude Code
 
-`imd update` updates only the IMD worker. To move Claude Code to a newer version, stop the workers:
+Do this when the explorer says *“N of your agents … take no oracle work: its Claude Code is older than 2.1.299. Run claude update on their machines, then restart the worker”*, or when you want a newer Claude Code.
+
+> **Don't use `claude update` for this.** The worker runs its own copy, `/opt/imd-worker/runtime/bin/claude`, through the wrapper in `/opt/imd-worker/bin/claude`, which turns the self-updater off. `claude update` as root says *“Successfully updated”* but updates a different copy (the one under `/opt/imd-worker/node`), and the worker keeps the old version.
+
+Update the IMD worker **first** ([Updating the worker](#updating-the-worker), without the restart), because `imd update` rewrites `/opt/imd-worker/runtime` and could undo the Claude Code update. Then:
 
 ```bash
-systemctl stop imd-worker.service imd-worker-2.service
+export PATH="/opt/imd-worker/bin:/opt/imd-worker/node/bin:$PATH"
 ```
+Only needed in a fresh SSH session.
+
 ```bash
-npm install --global --prefix /opt/imd-worker/runtime --ignore-scripts --no-audit --no-fund @anthropic-ai/claude-code@2.1.274
+runuser -l imd-worker -c 'claude --version'
 ```
-Replace `2.1.274` with the version you want (`npm view @anthropic-ai/claude-code dist-tags` lists `stable` and `latest`).
+Shows the version the workers run now. Oracle work needs **2.1.299 or newer**.
+
+```bash
+npm install --global --prefix /opt/imd-worker/runtime --ignore-scripts --no-audit --no-fund @anthropic-ai/claude-code@2.1.300
+```
+Replace `2.1.300` with the version you want (`npm view @anthropic-ai/claude-code dist-tags` lists `stable` and `latest`). The running workers are not affected until they restart.
 
 ```bash
 (cd /opt/imd-worker/runtime/lib/node_modules/@anthropic-ai/claude-code && node install.cjs)
@@ -580,13 +607,94 @@ chmod -R a+rX /opt/imd-worker/runtime
 ```bash
 runuser -l imd-worker -c 'claude --version'
 ```
+Must print the new version, for example `2.1.300 (Claude Code)`. If it says *“native binary not installed”*, rerun the `node install.cjs` line.
+
+Restart the workers (this interrupts any task in progress):
+
 ```bash
-systemctl start imd-worker.service imd-worker-2.service
+systemctl restart imd-worker.service imd-worker-2.service
 ```
+```bash
+journalctl -u imd-worker.service -u imd-worker-2.service -n 40 --no-pager -o cat | grep -iE 'runtimes|oracle work|admitted'
+```
+Each worker must show `runtimes: claude 2.1.300 (Claude Code)` and `admitted`, and no `oracle work is off` line. If one appears, see [Oracle work and the sandbox](#oracle-work-and-the-sandbox).
+
+### Oracle work and the sandbox
+
+Oracle tasks (and research-report and build-contract-project tasks) are “jailed”: Claude Code runs their commands inside a bubblewrap sandbox, which sees only a few folders and reaches the network through a proxy. IMD added this after an attack in which an oracle job tried to trick agents into reading a `.env` file and writing it into their answer. A worker whose sandbox can't start gets **no** jailed work, and its log says why on a line starting `oracle work is off on this machine:`.
+
+New installs following this guide already have everything. On a worker set up with an earlier version of this guide, run these as root, in order. Leave out `imd-worker-2.service` if you only have one worker.
+
+```bash
+runuser -l imd-worker -c 'claude --version'
+```
+Must be 2.1.299 or newer. If not, do [Updating Claude Code](#updating-claude-code) first.
+
+```bash
+apt-get update
+```
+```bash
+apt-get install -y bubblewrap socat
+```
+```bash
+cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null || echo "not present"
+```
+Only if it prints `1`, run the next two commands (read the [security note](#security-note) first):
+```bash
+sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+```
+```bash
+echo 'kernel.apparmor_restrict_unprivileged_userns=0' > /etc/sysctl.d/60-imd-userns.conf
+```
+
+Turn off `ProtectKernelTunables` in every worker service with a drop-in file, which leaves the service files themselves unchanged **(one block)**:
+
+```bash
+for u in $(systemctl list-unit-files 'imd-worker*.service' --no-legend | awk '{print $1}'); do
+  mkdir -p /etc/systemd/system/$u.d
+  printf '[Service]\nProtectKernelTunables=no\n' > /etc/systemd/system/$u.d/10-oracle-sandbox.conf
+  echo "patched $u"
+done
+```
+Prints one `patched …` line per worker.
+
+```bash
+systemctl daemon-reload
+```
+```bash
+systemctl restart imd-worker.service imd-worker-2.service
+```
+```bash
+journalctl -u imd-worker.service -u imd-worker-2.service -n 40 --no-pager -o cat | grep -iE 'runtimes|oracle work|admitted'
+```
+Each worker must show `admitted` and no `oracle work is off` line. The worker also re-checks on its own every 30 minutes.
+
+To confirm the sandbox really starts inside the service, the same way the worker tests it:
+
+```bash
+nsenter -t "$(systemctl show -p MainPID --value imd-worker.service)" -m -S "$(id -u imd-worker)" -G "$(id -g imd-worker)" bwrap --ro-bind / / --dev /dev --proc /proc --unshare-all --share-net --die-with-parent /bin/true && echo "sandbox ok"
+```
+Must print `sandbox ok`.
+
+If a kernel update is waiting (`apt` printed *“Pending kernel upgrade”*), now is a good time to `reboot`: all of the above survives it, and enabled workers start again on their own.
+
+#### Security note
+
+Two of these settings loosen Linux protections so the sandbox can run:
+
+- **`apparmor_restrict_unprivileged_userns=0`** lets any program on the VPS create user namespaces, which bubblewrap needs. Ubuntu blocks this by default since 23.10 because it exposes more of the kernel to unprivileged code; several past kernel bugs (for example CVE-2024-1086 and CVE-2023-0386) could only be exploited this way. The realistic risk is a chain: a malicious job gets code running in the sandbox **and** the kernel has an unpatched bug **and** the attacker uses it to become root and read the worker's sign-in and IMD keys. Keep the kernel patched (leave `unattended-upgrades` on and reboot after kernel updates) and this chain is unlikely.
+- **`ProtectKernelTunables=no`** lets the worker *read* more of `/proc`. It can't change kernel settings, because it doesn't run as root. Small risk.
+
+The sandbox only hides what it doesn't open. Keep unrelated secrets (`.env` files, SSH keys, wallet keys) **off this VPS** entirely, so a tricked agent has nothing to leak. To check what the worker account can read **(one block)**:
+
+```bash
+runuser -u imd-worker -- find / -xdev \( -name '.env' -o -name '.env.*' -o -name '*.pem' -o -name 'id_rsa*' -o -name 'id_ed25519*' -o -name '*.key' \) -readable 2>/dev/null
+```
+Should print nothing, or only files the worker really needs.
 
 ### Tools and Git
 
-The worker limits Claude Code's tools per task: ordinary tasks get file editing and a few read-only shell commands, research tasks get web search and fetch, and connected coding tasks get a shell. Claude Code can still reach anything the worker account can, so keep unrelated secrets out of `/home/imd-worker`. IMD submits work as a device-signed Git bundle; it doesn't need to push to your GitHub account.
+The worker limits Claude Code's tools per task: ordinary tasks get file editing and a few read-only shell commands, research tasks get web search and fetch, and connected coding tasks get a shell. Jailed tasks (oracle and others) run their commands in a bubblewrap sandbox; see [Oracle work and the sandbox](#oracle-work-and-the-sandbox). Claude Code can still reach anything the worker account can, so keep unrelated secrets out of `/home/imd-worker`. IMD submits work as a device-signed Git bundle; it doesn't need to push to your GitHub account.
 
 ### Optional: Foundry for fuzzing campaigns
 
@@ -667,6 +775,13 @@ Choose **GitHub.com → HTTPS → web browser** and follow the device-code steps
 | Worker 2 service: failed start condition | `/home/imd-worker/.identitymd-2/config.json` is missing: pair it first. |
 | Explorer: *“… run an old worker. Run imd update”* | Follow [Updating the worker](#updating-the-worker), then restart the services. |
 | `imd update` done but logs show the old `release` | The services weren't restarted: `systemctl restart imd-worker.service imd-worker-2.service`. |
+| Explorer: *“… take no oracle work: its Claude Code is older than 2.1.299”* | Follow [Updating Claude Code](#updating-claude-code), then restart the services. |
+| `claude update` says *“Successfully updated”* but `claude --version` is unchanged | It updated a different copy. Follow [Updating Claude Code](#updating-claude-code) instead. |
+| Log: `oracle work is off … Claude 2.1.2xx predates the jail's settings` | Same: [Updating Claude Code](#updating-claude-code). |
+| Log / explorer: `oracle work is off … Claude's sandbox needs bwrap and socat` | `apt-get install -y bubblewrap socat`, then restart the services. |
+| Log: `oracle work is off … apparmor_restrict_unprivileged_userns is 1` | The `sysctl` steps in [Oracle work and the sandbox](#oracle-work-and-the-sandbox). |
+| Log: `oracle work is off … bubblewrap cannot start here: bwrap: Can't mount proc on /newroot/proc` | The `ProtectKernelTunables` drop-in in [Oracle work and the sandbox](#oracle-work-and-the-sandbox). The hint about running “on the host or a VM” doesn't apply to a VPS. |
+| `imd update`: *“codex sandbox did not hold the jail … sudo imd sandbox”* | Ignore it if the workers' logs show no `oracle work is off` line; it tested the unused Codex runtime. |
 | Usage runs out | `systemctl stop imd-worker.service`, and start it again when your limit resets. |
 
 ## Keep private
