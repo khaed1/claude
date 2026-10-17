@@ -12,4 +12,6 @@ what's built:
 
 where we are: the code is ready for mainnet (14,000 IMD opening market cap). the last thing to test live is the verdict path, and that's waiting on sepolia oracle answers coming back. run 8.5 (launch #1981) has the final code deployed on sepolia, ready for it. after that, the mainnet launch job.
 
+we also applied for an audit from one dollar audit (onedollaraudit.com) on the run 8.5 code, 4 jobs covering the whole system. waiting for the results.
+
 code: github.com/khaed1/plea
