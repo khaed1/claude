@@ -5,7 +5,7 @@
 set -u
 export PATH=/root/.local/bin:$PATH
 export SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com MAINNET_RPC_URL=https://ethereum-rpc.publicnode.com
-cd "$1"; L=$2; mkdir -p "$L"
+cd "$1"; L=$2; mkdir -p "$L"; rm -f "$L/no-result.txt" "$L"/*.log
 if [ -d test/full ]; then
   plainprof=full
   files=$( (ls test/*.t.sol test/full/*.t.sol) 2>/dev/null )
@@ -19,6 +19,10 @@ run() { # name profile glob
   local n=$1 prof=$2 glob=$3
   echo "== $n ($(date -u +%H:%M:%S))"
   FOUNDRY_PROFILE=$prof forge test --match-path "$glob" > "$L/$n.log" 2>&1
+  if ! grep -qE "^Ran [0-9]+ test suites?" "$L/$n.log"; then
+    echo "NO RESULT (compile error or crash): $(grep -m1 -E '^Error' "$L/$n.log")"
+    echo "$n" >> "$L/no-result.txt"
+  fi
   grep -E "^Ran [0-9]+ test suites?" "$L/$n.log" | tail -1
   grep FAIL "$L/$n.log" | head -20
 }
@@ -37,3 +41,7 @@ run forkSepolia full "test/fork/ForkTestnet.t.sol"
 run forkMainnet full "test/fork/ForkMainnet.t.sol"
 echo "== totals"
 cat "$L"/*.log | grep -E "^Ran [0-9]+ test suites?" | awk '{s+=$2; p+=$(NF-9); f+=$(NF-6)} END {print "suites", s, "passed", p, "failed", f}'
+if [ -s "$L/no-result.txt" ]; then
+  echo "GROUPS WITHOUT A RESULT (their tests did not run): $(tr '\n' ' ' < "$L/no-result.txt")"
+  exit 1
+fi
