@@ -1,21 +1,21 @@
-# One Dollar Audit for PLEA (prepared 2026-10-17, not submitted)
+# One Dollar Audit for PLEA run 8.5 (submitted 2026-10-17 06:11 UTC)
 
 [onedollaraudit.com](https://www.onedollaraudit.com/) is an AI audit service run by LeftClaw Services. Each job costs **$1 USDC on Base** (live price confirmed from the endpoint's 402 reply: 1,000,000 USDC units, payTo `0xCfB32a7d01Ca2B4B538C83B2b38656D3502D76EA`). You send a description, either a source link or a short paste of under ~12,000 characters. It is stored **publicly on chain**. The report comes back within about 8 hours, with severity ratings and fixes.
 
-Their rule is "one contract (or one tight system) per $1 engagement", so PLEA goes in as **four jobs, $4 in all**. They follow our IMD audit areas, with the hook and the game split up:
+Their rule is "one contract (or one tight system) per $1 engagement", so PLEA went in as **four jobs, $4 in all**, on **run 8.5's code**: `khaed1/plea` `testnet8.5` @ `af57f6df709acdf7fe754a58482ee35eef9e2178`. That is byte-identical `src/` to launch #1981 live on Sepolia, and the user asked for exactly this version. The spec and the ledger links point at the latest docs, `mainnet` @ `54da76b`. Each job also tells the auditor that the two run-8.5 launch-audit findings are known and fixed after it:
 
-| File | Scope (mainnet branch @ `54da76be64c6f01764e27e6cc5b65811475d5e77`) | nSLOC | Characters |
-|---|---|---|---|
-| `job1-hook.txt` | `PleaHook.sol`: the v4 hook (fees, launch window, cap and trim, wall, claims) | 863 | 3,138 |
-| `job2-gate.txt` | `CabalGate.sol` + `OracleAttestation.sol`: pleas, the fact score, oracle answers, the text filter | 822 | 3,053 |
-| `job3-letters-launch.txt` | `Letterbox.sol` + `PLEA.sol` + `PleaLaunch.sol` + `PleaDistributor.sol` + `launch.json`: letters, the token's transfer rule, the launch, the airdrop | 861 | 3,954 |
-| `job4-tribunal-seasons.txt` | `Tribunal.sol` + `Seasons.sol`: objections, stakes, seasons, prizes, flush | 786 | 2,940 |
+| Job | File | Scope (run 8.5) | nSLOC | Characters |
+|---|---|---|---|---|
+| [1014](https://onedollaraudit.com/audit/1014) | `job1-hook.txt` | `PleaHook.sol`: the v4 hook (fees, launch window, cap and trim, wall, claims) | 863 | 4,030 |
+| [1015](https://onedollaraudit.com/audit/1015) | `job2-gate.txt` | `CabalGate.sol` + `OracleAttestation.sol`: pleas, the fact score, oracle answers, the text filter | 819 | 3,902 |
+| [1016](https://onedollaraudit.com/audit/1016) | `job3-letters-launch.txt` | `Letterbox.sol` + `PLEA.sol` + `PleaLaunch.sol` + `PleaDistributor.sol` + `launch.json` | 861 | 5,030 |
+| [1017](https://onedollaraudit.com/audit/1017) | `job4-tribunal-seasons.txt` | `Tribunal.sol` + `Seasons.sol`: objections, stakes, seasons, prizes, flush | 786 | 3,876 |
 
 Each description links the public repo at the pinned commit and its spec (`audit/THREAT-MODEL.md`), so agreed numbers are not reported as bugs. It also links the findings ledger (`audit/FINDINGS.md`), so fixed or accepted items are not re-reported. Each one names the files in scope and the areas to look at hardest. Nothing secret is in them.
 
-## How to pay
+## Payment (done)
 
-**Wallet A is funded on Base:** the user sent USDC on 2026-10-17. Wallet A `0x4b91078b2374c956A65F7Af0999CaE0a935E6821` holds 4.000270 USDC and 0.00035 ETH on Base. x402 is a gasless USDC signature, so no ETH is needed. With the owner's go-ahead the session submits the four jobs with `plea/tools/submit_onedollaraudit.mjs`, saves the job ids in `jobs.json`, follows them and reads the reports. (Alternative: paste each `jobN-*.txt` into "Subject of engagement" on the site and pay from any Base wallet.)
+The user funded wallet A on Base with 4.000270 USDC. The session paid the four jobs through x402 on 2026-10-17 between 06:11 and 06:12 UTC, $1.00 each, as gasless USDC signatures; 0.000270 USDC is left. The job ids are in `jobs.json`. Each job was "Open" right after, with an estimate of about 8 hours. Status: `node plea/tools/submit_onedollaraudit.mjs status <id>` or `https://www.onedollaraudit.com/api/jobs/<id>`.
 
 ## Script
 
