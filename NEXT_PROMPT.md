@@ -41,7 +41,7 @@ Your tasks, in order:
    - Run the full suite on each branch with `bash plea/tools/run_suite.sh <repo> <logdir>`; expect 847+ passed and 0 failed. Then merge and push.
 4. **When IMD answers Sepolia requests again, and with my go-ahead:** seed run 8.5 from wallet A (`PleaLaunch` 0x88a2d29c6ce265e1990252b33c60753d4018ad0f `seed()`), do the owner's 2 IMD opening buy, then the live test with verdicts: letters and pleas, approval → sale, denial → appeal, objection → ruling, `record`, and a season close. Follow run 7's procedure in HANDOFF; the scratchpad helpers from that session are gone, so write new ones.
 5. **Later, with me, in order:**
-   - merge light-profile into next, main and mainnet before the mainnet launch job;
+   - ~~merge light-profile into next, main and mainnet before the mainnet launch job~~ (done 2026-10-17: `next` @ `d6b97bb`, `main` @ `c7abed7`, `mainnet` @ `15061f3`; from now on edit `next`, then merge into `main` and `mainnet`);
    - the mainnet START and a fresh owner wallet (mine to choose);
    - the keeper bot;
    - the site job;
