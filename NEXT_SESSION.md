@@ -53,6 +53,13 @@ You're picking up **PLEA** on the IMD swarm (imd.fun). **imd/acc** belongs to a 
 3. **Keeper bot (user's VPS, before mainnet):** deliveries for letters **and `Seasons.record(id)` for every approved plea after its 20-minute hold** (a season closed with an empty id list drops unrecorded points — list held ids in `closeSeason` as the fallback).
 3b. **Mainnet:** `mainnet` @ `ed8f855` carries run 7 with `MARKET_CAP_IMD` 14,000 (≈ $106k at $7.60; re-check IMD's price before the job), the identity.md seat NFT, imd/acc's mainnet Stacker; still open: START (placeholder 1793016000 in `launch.json`) and a fresh owner wallet (user), then re-pin `plea/job-mainnet-launch.json` to the audited mainnet commit, free check; imd/acc wants its mainnet registry live before PLEA trades.
 4. The site job (letters page, auto-sell box, status page, Wall card redesign, an X share card per plea, a claim page for the 12%, a byte counter and the contract's text checks in every text box, the seat multiplier on the leaderboard; `plea/site-next-fixes.md`) and the hackathon draft (`plea/hackathon-submission.md`).
+5. **After the site (user, 2026-10-17: a to-do for later, not now): a promo video.** The approach discussed:
+   - Remotion (the video as React code, rendered in the session with the installed Chromium) with real data: the mainnet panel's 30 answers landing on the need, run 7's trim burn, the Cabal's death at 01:25:12.
+   - Playwright only for sharp captures of our own site.
+   - No automated Etherscan (bot checks; writing a letter there needs a connected wallet). Instead, an on-chain receipt card in our own style, or a clip the user records by hand; never a fake Etherscan-looking screen.
+   - Draft: a 60–75 s 16:9 trailer plus a 9:16 cut. Courtroom-noir style, text and music. It shows the plea and the Letterbox escrow, the verdict, the appeal, Objection!, seasons and the 33-hour dead-man, then the proof (audits, tests, Sepolia launches, real panels) and a call to action.
+   - First step then: the script and storyboard for the user's OK.
+   - Open: tone (drama with meme punchlines?), voice-over, music source, Remotion's license terms.
 
 ## Files to read
 - `HANDOFF.md` (last sections first), `plea/letters-spec.md`, `plea/cabal-rules-review.md` (+ `plea/calibration-2026-10-12/`), `plea/job-testnet3-form.md`, `plea/imd-acc-application.md`, `plea/site-next-fixes.md`, `plea/hackathon-submission.md`, `plea/dev-feedback.md`.
