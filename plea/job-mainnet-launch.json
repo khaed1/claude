@@ -1,0 +1,30 @@
+{
+  "action": "launch.open",
+  "input": {
+    "objective": "Launch PLEA on Ethereum mainnet from this Foundry repository exactly as launch.json lists it: five contracts (PLEA, CabalGate, Seasons, PleaDistributor, PleaLaunch), deployed in order in one transaction with the constructor arguments in launch.json. This is the code of PLEA's Sepolia test run 4 with mainnet settings in launch.json: your test run 3 job c20158a4 (launch #1426) accepted and deployed this code, plus three changes. (a) imd/acc's trader rule in PleaHook: the cashback and the buy record go to the address in the swap's hookData (abi.encode(trader)), else to the wallet the router acts for, read from the router's msgSender() with 30,000 gas (the Universal Router and v4 Router expose it), else to the swap sender only when it is a plain wallet; never a router, tx.origin, the Stacker, the IMD token, the sIMD vault (read once from the Stacker's SIMD() at deploy; zero if absent), the PoolManager or the hook. When nothing resolves the trade still goes through without cashback (the 0.5% stays in the pool share) and without a buy record, a fee surplus with no trader is burned (PLEA) or kept for the pool (IMD), and a buy while the Cabal lives still reverts RecipientRequired because the hook must deliver the PLEA to someone; the gate always names the seller. test/TraderResolution.t.sol covers it with a router that exposes msgSender() and one that does not. (b) The rebalance() keeper tip is removed (KEEPER_TIP, TIP_MIN_WORK, TIP_INTERVAL, lastTipAt, _payTip, KeeperTipPaid): rebalance deploys the whole retained reserve and pays nobody, so the wall's IMD never leaves the pool. (c) The three low findings your run-3 judge left in the deployed code are fixed: Letterbox.deliver caps the 0.35 IMD auto-sell fee at the sale, so a fall of more than half between the plea's and the delivery's hourly snapshots cannot underflow it; an appeal letter's fees may go up to the appeal's own amount instead of only 10% of the balance, so whoever could plead by letter can appeal by letter; PLEA ownership is two-step (OpenZeppelin Ownable2Step), so a season leader cannot be made the owner and stripped of a prize. (d) From the Sepolia run-3 live test: an APPEAL letter is clamped to the original plea's share of the balance (CabalGate.pleaBalance is public), because the first letter's fee sale shrinks the balance and the same amount fell into the next share band. test/JudgeFindings.t.sol follows the judge's 110-sale crash recipe in both pool orientations (the first buy of the next hour succeeds, so the judge's fourth, unisolated finding does not reproduce) and tests the 50% ceiling and the 20%/35% share bands. Everything else is test run 3's: the ownerless Letterbox deployed after the launch through PleaLaunch.deployLetterbox(creationCode) against the keccak256 committed in launch.json (updated here for the changed Letterbox; a test checks it), letters as raw input data or letter(text), the commands APPEAL, SELL and NAME, 20% letters in escrow, fees paid in PLEA by an exact-output swap capped at the snapshot value plus 10% (on mainnet the Letterbox buys the 0.5 IMD oracle fee too: IMD is both the oracle fee asset and the pool currency, mintOracleFee = 0), deliver by anyone for at least 95% of the snapshot value with the 0.35 IMD fee to the season pot and the 0.25 IMD runner tip, settle on every other ending, status and leaderboard text views, display names, CabalGate's Letterbox-only submitFor/appealFor/executeSellFor and plea flags, PLEA.setLetterbox and courtTake, no Laureates, a plea of 1% to 50% of the balance (or 2.5M PLEA) with share bands 18/11/5 at 20%/35%, the owner excluded from points, prizes and bonus, the six-season PLEA bonus (87/3/10 mint, 5,000,000 PLEA per season, unpaid rest burned), judging rules v2 in CabalGate.DEFINITIONS (keep the text exactly), and the behaviour-preserving gas pass (test/GasPass.t.sol). The launch transaction must fit Ethereum's 16,777,216 per-transaction gas cap with your deployer's headroom: test/LaunchManifest.t.sol measures it as the chain charges it plus your factory's overhead (12.6M, 15.4M with 22% headroom) and asserts it; keep any fix within that. Audit the imported code and deploy it unchanged; fix only what the audit proves is a real bug, and keep every number as it is (fees, timings, panel 30, quorum 17, 15-day seasons, 33-hour dead-man, START as in launch.json, credit gas 400000, imd/acc's mainnet Stacker 0x06909f672301f28a810f78cfe7a754851269f4f0, letters 20%, plea maximum 50%, share bands 20/35, tip 0.25 IMD, auto-sell fee 0.35 IMD to the season pot, 0.70 IMD minimum plea value, 95% sale minimum, fee cap +10%, 1% plea minimum, six bonus seasons of 5,000,000 PLEA, the 87/3/10 split, msgSender gas 30000, no keeper tip). If you change the Letterbox, update its code hash in launch.json. Runtime sizes: CabalGate 23,889 bytes, PleaHook 24,288 (288 under the EIP-170 limit), Letterbox 21,383: keep any fix within them. Keep PLEA.setLauncher accepting either the deploy-transaction flag or PLEA's deployment block. Keep foundry.toml as it is, including [lint] lint_on_build = false and the read-only fs_permissions for ./out and ./launch.json. test/LetterboxInvariant.t.sol checks the Letterbox's custody in both fee modes, and test/fork/ForkMainnet.t.sol (with MAINNET_RPC_URL) rehearses letters against the real IMD, sIMD, PoolManager and Intake v2 on an Ethereum fork.",
+    "repoUrl": "https://github.com/khaed1/plea.git",
+    "baseCommit": "054bcbc9e62d7d4ae0c57fbd58195cc10ee274a8",
+    "onchain": "evm_contracts",
+    "chainId": 1,
+    "owner": "0x4b91078b2374c956a65f7af0999cae0a935e6821",
+    "github": true,
+    "contracts": [
+      "src/PleaHook.sol",
+      "src/Letterbox.sol",
+      "src/CabalGate.sol",
+      "src/PleaLaunch.sol"
+    ],
+    "shape": "chain",
+    "steps": [
+      {
+        "skill": "audit-imported-code"
+      },
+      {
+        "skill": "adapt-contract-project"
+      },
+      {
+        "skill": "adversarial-review"
+      }
+    ]
+  }
+}
