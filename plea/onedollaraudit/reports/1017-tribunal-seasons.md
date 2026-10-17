@@ -261,3 +261,5 @@ The following were investigated — several independently, by 2–4 of the 22 re
 - I-4: `pointsFor` is a view; every caller stays at 45 or below.
 - I-5: standard tokens.
 - I-6: closes need a keeper; the keeper bot is a planned task.
+
+**Owner's decision (2026-10-17):** no code change (the IMD cross-check skipped: the manifest test covers it); invariant 10 reworded; the twelve findings recorded as ODA-1017-1 to -12 (the header's "3 Medium" describes only two).
