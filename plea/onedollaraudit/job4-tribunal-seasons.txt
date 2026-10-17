@@ -1,0 +1,18 @@
+Security review: Tribunal and Seasons (objections and prizes).
+
+PLEA, public repo https://github.com/khaed1/plea at commit 54da76be64c6f01764e27e6cc5b65811475d5e77 (branch mainnet). Foundry, solc 0.8.26, via_ir, cancun; deps in lib/ (Uniswap v4-core, OpenZeppelin, solmate). Target: Ethereum mainnet.
+
+What it is: a sell-gated meme token on Uniswap v4. Anyone can buy. Selling needs a plea: an oracle panel (IMD, 30 judges, quorum 17) scores the plea 0-45, and it passes when the score reaches a need of 71 minus an on-chain fact score (0-45). An approved plea is one sale, within 7 minutes, through the gate. 33 hours without a verdict kills the gate for good and PLEA then trades freely. Nine contracts in src/, 3,402 nSLOC.
+
+Spec and the agreed invariants: https://github.com/khaed1/plea/blob/54da76be64c6f01764e27e6cc5b65811475d5e77/audit/THREAT-MODEL.md (numbers in bold are design decisions, not findings). Every earlier finding and its status: https://github.com/khaed1/plea/blob/54da76be64c6f01764e27e6cc5b65811475d5e77/audit/FINDINGS.md (eight rounds of AI-swarm audits; please do not re-report fixed or accepted items unless the fix itself is wrong). Tests: 847 (forge test; FOUNDRY_PROFILE=full runs the whole suite).
+
+In scope (other src/ files are context only):
+- https://github.com/khaed1/plea/blob/54da76be64c6f01764e27e6cc5b65811475d5e77/src/Tribunal.sol (447 nSLOC)
+- https://github.com/khaed1/plea/blob/54da76be64c6f01764e27e6cc5b65811475d5e77/src/Seasons.sol (339 nSLOC)
+- https://github.com/khaed1/plea/blob/54da76be64c6f01764e27e6cc5b65811475d5e77/src/interfaces/IPleaParts.sol
+
+What it does: Objection! (Tribunal): for 20 minutes after an approval anyone but the seller and the excluded wallets may object, staking 0.35 IMD and paying the 0.5 IMD oracle fee. A fresh panel re-scores the plea: sustained when newScore + 2 < need (stake back, the plea earns no points), otherwise overruled (the stake goes to the plea's season pot); no answer in 20 minutes voids it (stake back). At most two objections per plea, from different wallets; the sale itself is never touched. Seasons: 15-day seasons; record(pleaId) stores an approved plea's score (x1.2 for holders of the IMD seat NFT); closeSeason pays the top 25 wallets with at least 60 points from that season's prize fees plus rollover, plus a 10M PLEA bonus in each of the first six seasons; after the Cabal dies, flushToWall sends what is left to the hook's buy wall.
+
+Please look hardest at: Stake custody and settlement; double or out-of-order rulings; fees credited to the wrong season, rollover and closed seasons; the fail-open external reads (the seat NFT, the Tribunal from Seasons); anything that lets someone take the pot, block a close, or earn points for a sustained or unrecorded plea.
+
+Please rate each finding by severity and give a concrete path: who calls what, in which state, and what they gain or what breaks. Gas notes are welcome but secondary.

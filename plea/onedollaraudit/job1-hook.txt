@@ -1,0 +1,18 @@
+Security review: PleaHook (the Uniswap v4 hook).
+
+PLEA, public repo https://github.com/khaed1/plea at commit 54da76be64c6f01764e27e6cc5b65811475d5e77 (branch mainnet). Foundry, solc 0.8.26, via_ir, cancun; deps in lib/ (Uniswap v4-core, OpenZeppelin, solmate). Target: Ethereum mainnet.
+
+What it is: a sell-gated meme token on Uniswap v4. Anyone can buy. Selling needs a plea: an oracle panel (IMD, 30 judges, quorum 17) scores the plea 0-45, and it passes when the score reaches a need of 71 minus an on-chain fact score (0-45). An approved plea is one sale, within 7 minutes, through the gate. 33 hours without a verdict kills the gate for good and PLEA then trades freely. Nine contracts in src/, 3,402 nSLOC.
+
+Spec and the agreed invariants: https://github.com/khaed1/plea/blob/54da76be64c6f01764e27e6cc5b65811475d5e77/audit/THREAT-MODEL.md (numbers in bold are design decisions, not findings). Every earlier finding and its status: https://github.com/khaed1/plea/blob/54da76be64c6f01764e27e6cc5b65811475d5e77/audit/FINDINGS.md (eight rounds of AI-swarm audits; please do not re-report fixed or accepted items unless the fix itself is wrong). Tests: 847 (forge test; FOUNDRY_PROFILE=full runs the whole suite).
+
+In scope (other src/ files are context only):
+- https://github.com/khaed1/plea/blob/54da76be64c6f01764e27e6cc5b65811475d5e77/src/PleaHook.sol (863 nSLOC)
+- https://github.com/khaed1/plea/blob/54da76be64c6f01764e27e6cc5b65811475d5e77/src/interfaces/IPleaParts.sol
+- https://github.com/khaed1/plea/blob/54da76be64c6f01764e27e6cc5b65811475d5e77/src/interfaces/IStacker.sol
+
+What it does: The hook owns the PLEA/IMD pool. It seeds 820M PLEA single-sided at a fixed market cap (14,000 IMD) and takes fees on every swap: 1.75% in IMD (0.5% cashback staked for the trader through an external Stacker, 0.75% to the owner, 0.25% to the season prize pot, 0.25% to a buy wall) plus 0.25% of the PLEA burned. For 90 minutes after the seed a launch window adds a falling extra fee and caps buys at 5M PLEA. While the gate's Cabal lives only the gate may sell, a buy needs a recipient (hookData or the router's msgSender) and exact-output buys are refused. An inventory cap ratchets down toward the pool's PLEA over 15 days, and PLEA a sale pushes above it is trimmed out of the liquidity and burned. A permissionless rebalance rebuilds a one-sided IMD wall just below the price. When the PoolManager cannot pay at once, value is kept as ERC-6909 claims (retainClaims, pleaClaims) and redeemed later.
+
+Please look hardest at: Delta accounting in beforeSwap/afterSwap for exact-input and exact-output swaps in both directions, including partial fills at a price limit; the claims paths and their redemption; the cap ratchet and the trim; the wall's placement and settlement; reentrancy through the PoolManager unlock and the Stacker call; rounding that leaks value or bricks swaps; griefing rebalance or the trim; any way to sell around the gate while the Cabal lives.
+
+Please rate each finding by severity and give a concrete path: who calls what, in which state, and what they gain or what breaks. Gas notes are welcome but secondary.
