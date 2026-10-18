@@ -123,7 +123,7 @@ IMD is in all of it: every plea is a paid IMD oracle question, the pool is PLEA/
 payout wallet: 0x0000000000000000000000000000000000000000
 ```
 
-X handle: PleaIMD (the user's pick); candidates plea_imd, MakeYourPlea, PleaCourt, PleaToken (availability unchecked).
+X handle: **@Pleaimd** (created by the user 2026-10-18, display name "Plea IMD"; type `Pleaimd` in the form's project X handle field). Avatar: the PLEA verdict stamp (IBM Plex Mono 600, white on black, rotated -3 degrees like the site's stamps), recommended 2026-10-18.
 Site address: the site job's `ipfs` field takes a label, so `"ipfs": "plea"` gives a free `plea.sites.imd.fun` (label free on 2026-10-18; first come). `plea.imd.fun` is IMD's own domain (not for sale). A bought domain (pleaimd.fun cheap, plea.fun ~$100) can forward to it; no website field in the hackathon form.
 
 **imd/acc as its own entry (draft, 2026-10-18; its own project, run from the user's other account; 936 characters with the payout line):** contract field = the mainnet Stacker `0x06909f672301f28a810f78cfe7a754851269f4f0` (deployed by IMD's factory, hence the payout line); X handle candidates `imdacc` (matches imdacc.fun) or `imd_acc`. Checked: Stacker #1409, ProjectRegistry #1495 and StackReceiver #1529 live on Ethereum, the site imdacc.fun; the mainnet Stacker has credited only its 0.01 IMD priming credit (`totalStacked`), so no live volume yet.
