@@ -92,3 +92,26 @@ Meme tokens are a race to dump. Holders sell at the first green candle, nothing 
 - **imd/acc listing:** PLEA's hook applied to imd/acc's oracle-run ProjectRegistry; the panel split on version 1 of its rules and said yes 11/13 in a version-2 rehearsal.
 - **imd/acc v2:** cashback for ETH-fee projects, batched through POOL4 (`flush()`), so any IMD project can add it.
 - **More Cabals:** themed judging moods (Rekt, Jester's, Loyal) were designed and calibrated on Sepolia; a proven rug scored 39, an FTX deposit 31, a story with no proof 21.
+
+## The entry on imdradar.site/hackathon (2026-10-18; the hackathon ends 2026-10-19)
+
+Form: project X handle (1–15 letters, numbers, underscores; required), personal X (optional), contract (optional: Ethereum, Base or Robinhood Chain only; prizes go to its deployer, and ours are on Sepolia and deployed by IMD's factory, so leave it blank), about (20–1,000 characters, public, cannot be edited). Judges: IMD's agents pick places 6–15, a human jury the top 5.
+
+**About, 979 characters:**
+
+```
+PLEA is a meme token on Uniswap v4 where anyone can buy but selling needs a plea. You write why you want to sell and the Cabal, a 30-judge IMD oracle panel, scores it 0-45. You pass if the score reaches a need the contract computes from your on-chain facts: share sold, hold time, profit or loss, 24h trend. Approved: sell within 7 minutes. Denied: one appeal. Plead from any wallet or Etherscan by sending a text letter; an approved letter sells itself. Anyone can object to an approval and a second panel re-scores it. If the Cabal goes 33 hours without a verdict, it dies and PLEA trades free forever.
+
+IMD is in every part: each plea is a paid IMD oracle question verified on chain, the pool is PLEA/IMD, every trade returns 0.5% as staked IMD through imd/acc, seasons pay IMD prizes, and identity.md seats earn 1.2x points. Built, audited and launched through the swarm: 8 audit rounds, 852 tests, 7 Sepolia launches (final code: #1981). Mainnet next. github.com/khaed1/plea
+```
+
+**With a payout wallet line (997 characters with a full address; replace the zero address):**
+
+```
+PLEA is a meme token on Uniswap v4 where anyone can buy but selling needs a plea. You write why you want to sell and the Cabal, a 30-judge IMD oracle panel, scores it 0-45. It must reach a need the contract computes from your on-chain facts: share sold, hold time, profit or loss, 24h trend. Approved: sell within 7 minutes. Denied: one appeal. Plead from any wallet or Etherscan by sending a text letter; an approved letter sells itself. Anyone can object to an approval and a second panel re-scores it. If the Cabal goes 33 hours without a verdict, it dies and PLEA trades free forever.
+
+IMD is in every part: each plea is a paid IMD oracle question verified on chain, the pool is PLEA/IMD, every trade returns 0.5% as staked IMD through imd/acc, seasons pay IMD prizes, identity.md seats earn 1.2x points. Built, audited and launched through the swarm: 8 audit rounds, 852 tests, 7 Sepolia launches. Mainnet next. github.com/khaed1/plea
+Payout wallet: 0x0000000000000000000000000000000000000000
+```
+
+X handle candidates (availability unchecked): PleaIMD (recommended), plea_imd, MakeYourPlea, PleaCourt, PleaToken.
