@@ -114,4 +114,14 @@ IMD is in every part: each plea is a paid IMD oracle question verified on chain,
 Payout wallet: 0x0000000000000000000000000000000000000000
 ```
 
-X handle candidates (availability unchecked): PleaIMD (recommended), plea_imd, MakeYourPlea, PleaCourt, PleaToken.
+**Final, in the user's voice, with POOL4 and the payout line (992 characters with a full address; user, 2026-10-18):**
+
+```
+PLEA is a meme token on uniswap v4 where buying is open but selling needs a plea. you write why you want to sell and the Cabal, 30 judges on an IMD oracle panel, scores it 0-45. it has to reach a need the contract works out from your on-chain facts: how much of your bag you sell, how long you held, profit or loss, the 24h trend. approved = you sell within 7 minutes. denied = one appeal. you can even plead by letter from etherscan. anyone can object and a fresh panel re-scores it. if the Cabal goes 33 hours without a verdict it dies and PLEA trades free forever.
+
+IMD is in all of it: every plea is a paid IMD oracle question, the pool is PLEA/IMD on a fork of POOL4's CappedBurnHook (it burns sells above the cap and builds a buy wall), 0.5% of every trade comes back as staked IMD via imd/acc, and seasons pay IMD prizes. built with the swarm: 8 audit rounds, 852 tests, 7 sepolia launches. mainnet next. github.com/khaed1/plea
+payout wallet: 0x0000000000000000000000000000000000000000
+```
+
+X handle: PleaIMD (the user's pick); candidates plea_imd, MakeYourPlea, PleaCourt, PleaToken (availability unchecked).
+Site address: the site job's `ipfs` field takes a label, so `"ipfs": "plea"` gives a free `plea.sites.imd.fun` (label free on 2026-10-18; first come). `plea.imd.fun` is IMD's own domain (not for sale). A bought domain (pleaimd.fun cheap, plea.fun ~$100) can forward to it; no website field in the hackathon form.
