@@ -125,3 +125,12 @@ payout wallet: 0x0000000000000000000000000000000000000000
 
 X handle: PleaIMD (the user's pick); candidates plea_imd, MakeYourPlea, PleaCourt, PleaToken (availability unchecked).
 Site address: the site job's `ipfs` field takes a label, so `"ipfs": "plea"` gives a free `plea.sites.imd.fun` (label free on 2026-10-18; first come). `plea.imd.fun` is IMD's own domain (not for sale). A bought domain (pleaimd.fun cheap, plea.fun ~$100) can forward to it; no website field in the hackathon form.
+
+**imd/acc as its own entry (draft, 2026-10-18; its own project, run from the user's other account; 936 characters with the payout line):** contract field = the mainnet Stacker `0x06909f672301f28a810f78cfe7a754851269f4f0` (deployed by IMD's factory, hence the payout line); X handle candidates `imdacc` (matches imdacc.fun) or `imd_acc`. Checked: Stacker #1409, ProjectRegistry #1495 and StackReceiver #1529 live on Ethereum, the site imdacc.fun; the mainnet Stacker has credited only its 0.01 IMD priming credit (`totalStacked`), so no live volume yet.
+
+```
+imd/acc is trading cashback paid in staked IMD, for any IMD project. a project sends 0.25-1% of each trade (its choice, out of fees it already charges) to one shared contract, the Stacker, which deposits it into the sIMD vault in the trader's name. traders pay nothing extra. no new token, no custody and no owner: no admin, no fee, no pause, no upgrade. listed projects earn points for their traders, and who gets listed is decided by an IMD oracle panel through an ownerless registry; anyone can challenge a listing with a bond. it works from other chains too: cashback waits on robinhood chain and goes to ethereum as sIMD through IMD's own bridge.
+
+live on ethereum: the Stacker (launch #1409), the ProjectRegistry (#1495) and the StackReceiver (#1529), all built, audited and deployed by the swarm. PLEA is the first integration, listed in the live trials. site: imdacc.fun
+payout wallet: 0x0000000000000000000000000000000000000000
+```
