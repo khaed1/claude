@@ -51,6 +51,16 @@ SEAT = "0xa0443799c320E16C80801c9C1911F3571260287F"  # seat NFT (test), open min
 SIMD = "0xF9e2EEc3B610ec6781f7438aC5Fb4bc049d81Cc1"
 WALLET_A = "0x4b91078b2374c956A65F7Af0999CaE0a935E6821"
 
+# Another run's addresses (run 9: imdTEST as pool currency and oracle fee): ADDRS=<json> with any of
+# PLEA GATE SEASONS DISTRIBUTOR LAUNCH LETTERBOX TRIBUNAL HOOK IMD ORACLE. ORACLE == IMD means the
+# oracle fee is paid in the pool's IMD (no minting, no faucet: wallet A hands imdTEST out with `give`).
+if os.environ.get("ADDRS"):
+    for _k, _v in json.load(open(os.environ["ADDRS"])).items():
+        if _k in ("PLEA", "GATE", "SEASONS", "DISTRIBUTOR", "LAUNCH", "LETTERBOX", "TRIBUNAL", "HOOK", "IMD", "ORACLE"):
+            globals()[_k] = _v
+ONE_TOKEN = IMD.lower() == ORACLE.lower()
+POOL_MANAGER = "0xE03A1074c86CFeDd5C142C4F04F1a1536e203543"
+
 MIN_SQRT_PRICE_PLUS_1 = "4295128740"
 MAX_SQRT_PRICE_MINUS_1 = "1461446703485210103287273052203988822378723970341"
 MAX = str(2**256 - 1)
@@ -301,15 +311,31 @@ def cmd_fund(eth, *names):
 
 
 def cmd_faucet(*names):
+    if ONE_TOKEN:
+        raise Fail("this run's IMD has no faucet: use `give`")
     for n in names:
         send(n, IMD, "faucet()")
+
+
+def cmd_give(amount, *names):
+    """Wallet A sends `amount` IMD (imdTEST on run 9) to each player."""
+    for n in names:
+        send("a", IMD, "transfer(address,uint256)", addr(n), int(float(amount) * E18))
+
+
+def cmd_claims(*names):
+    """ERC-6909 IMD claims each wallet holds on the PoolManager (the hook's IOU when it cannot pay)."""
+    for n in names or ["a"] + list(players()):
+        c = num(call(POOL_MANAGER, "balanceOf(address,uint256)(uint256)", addr(n), int(IMD, 16)))
+        print(f"  {n:4} {addr(n)} IMD claims {fmt(c)}")
 
 
 def cmd_approve(*names):
     """Every approval a player needs: tIMD to PoolSwapTest, the gate (appeal share) and the Tribunal
     (stake); oracle token and PLEA to the gate (hand pleas and sales)."""
     for n in names:
-        for token, spender in [(IMD, PST), (IMD, GATE), (IMD, TRIBUNAL), (ORACLE, GATE), (PLEA, GATE)]:
+        pairs = [(IMD, PST), (IMD, GATE), (IMD, TRIBUNAL), (PLEA, GATE)] + ([] if ONE_TOKEN else [(ORACLE, GATE)])
+        for token, spender in pairs:
             if num(call(token, "allowance(address,address)(uint256)", addr(n), spender)) < 10**30:
                 send(n, token, "approve(address,uint256)", spender, MAX)
 
@@ -368,6 +394,8 @@ def cmd_plead(name, amount, text):
 def cmd_submit(name, amount, text):
     """A hand plea: gate.submitSell(amount, text); 0.5 oracle token from the seller."""
     if bal(ORACLE, name) < E18 // 2:
+        if ONE_TOKEN:
+            raise Fail("not enough IMD for the 0.5 oracle fee")
         cmd_mint_oracle(name, "1")
     send(name, GATE, "submitSell(uint256,string)", _amount(name, amount), text)
     _after_plea(name)
@@ -376,6 +404,8 @@ def cmd_submit(name, amount, text):
 def cmd_appeal(name, orig, amount, text):
     """A hand appeal: gate.appeal(originalId, amount, text); 0.5 oracle token + 0.35 tIMD."""
     if bal(ORACLE, name) < E18 // 2:
+        if ONE_TOKEN:
+            raise Fail("not enough IMD for the 0.5 oracle fee and the 0.35 wall share")
         cmd_mint_oracle(name, "1")
     amt = num(plea_of(orig)["amount"]) if amount == "same" else _amount(name, amount)
     send(name, GATE, "appeal(uint256,uint256,string)", orig, amt, text)
