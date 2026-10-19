@@ -32,8 +32,12 @@
   --executed: #6FA8FF;       /* SOLD */
   --objection: #C8A6FF;      /* OBJECTION / SUSTAINED / OVERRULED */
   --on-state: #121212;
-  --night: #121212;          /* always dark: the urgent sell-window box */
-  --day: #FFFFFF;
+  --night: #121212;          /* always dark */
+  --day: #FFFFFF;            /* always light */
+  /* The urgent pair (the 7-minute sell window and its Sell now button): the loudest box in each theme. */
+  --urgent-bg: #121212;
+  --urgent-ink: #FFFFFF;
+  --urgent-digits: #FFD92E;
 
   /* State colours used as text on cards (points, errors) */
   --approved-text: #137A3E;
@@ -41,6 +45,7 @@
 
   /* Focus: a thick ink ring set off the element, visible on every fill (--focus-ring below) */
   --focus-offset: 3px;
+  --focus: #1F4FE0;          /* blue ring: never an outline, a shadow or a state colour (6.0:1 on paper) */
 
   /* Type */
   --font-body: "Archivo", ui-sans-serif, system-ui, sans-serif;
@@ -54,7 +59,7 @@
   --text-md: 1rem;       /* 16px body */
   --text-lg: 1.125rem;   /* 18px plea text on cards, lead */
   --text-xl: 1.375rem;   /* 22px card titles, large stamp */
-  --text-2xl: 1.75rem;   /* 28px section headings */
+  --text-2xl: clamp(1.375rem, 1.1rem + 1.2vw, 1.75rem);   /* 22-28px section headings (always under the page title) */
   --text-3xl: clamp(1.75rem, 1.25rem + 2vw, 2.25rem);  /* 28-36px page titles */
   --text-hero: clamp(2.25rem, 1.25rem + 4.2vw, 3.5rem); /* 36-56px home only */
 
@@ -114,7 +119,6 @@
   --shadow-color: var(--ink);
   --lapsed: var(--card);     /* LAPSED is a dashed outline with no fill */
   --stripes: repeating-linear-gradient(-45deg, var(--pending) 0 8px, var(--pending-2) 8px 16px);
-  --focus: var(--ink);
   --focus-ring: 3px solid var(--focus);
   --shadow-sm: 3px 3px 0 var(--shadow-color);
   --shadow-md: 4px 4px 0 var(--shadow-color);
@@ -124,6 +128,10 @@
 /* A light island inside a dark page (gallery, share cards). */
 .theme-light {
   color-scheme: light;
+  --focus: #1F4FE0;
+  --urgent-bg: #121212;
+  --urgent-ink: #FFFFFF;
+  --urgent-digits: #FFD92E;
   --paper: #FBF6EA;
   --paper-2: #F3EDDD;
   --card: #FFFFFF;
@@ -146,6 +154,11 @@
 /* Dark: warm near-black paper, cream ink. Fills keep ink text (--on-state). */
 :root[data-theme="dark"], .theme-dark {
   color-scheme: dark;
+  --focus: #FFD92E;          /* yellow ring on the dark ground (11:1) */
+  --shadow-color: #5E5644;   /* a darker block than the cream outline, so depth doesn't read as a glow */
+  --urgent-bg: #FFD92E;
+  --urgent-ink: #121212;
+  --urgent-digits: #121212;
   --paper: #17150F;
   --paper-2: #201D16;
   --card: #26221A;
