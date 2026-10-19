@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PLEA components</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="components.css">
+<script src="text-check.js"></script>
+<script src="site.js"></script>
+<script src="icons.js" defer></script>
+<style>
+  /* Gallery-only layout */
+  .g-sec { padding-block: var(--space-7) 0; }
+  .g-sec > h2 { margin-bottom: var(--space-2); }
+  .g-sec > p.g-what { color: var(--ink-2); margin-bottom: var(--space-5); max-width: var(--measure); }
+  .g-row { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center; }
+  .g-label { font-size: var(--text-xs); font-weight: var(--w-bold); color: var(--ink-2); margin-bottom: var(--space-2); }
+  .g-sw { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: var(--space-3); }
+  .g-chip { height: 56px; border: var(--bw) solid var(--line); border-radius: var(--radius-md); }
+  .g-sw p { font-size: var(--text-xs); margin-top: var(--space-1); }
+  .g-sw code { background: none; padding: 0; }
+  .g-scale { display: grid; gap: var(--space-2); }
+  .g-scale > div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: var(--space-4); align-items: baseline; }
+  .g-space { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-sm); }
+  .g-space span:first-child { display: inline-block; height: 16px; background: var(--ink); }
+  .g-toc { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .g-two { display: grid; gap: var(--space-5); grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 1100px) { .g-two { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .g-island { padding: var(--space-5); border: var(--bw) solid var(--line); border-radius: var(--radius-lg); }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="page nav">
+    <a class="logo" href="pages/index.html" aria-label="PLEA home">PLEA</a>
+    <span class="strong">Design system · components</span>
+    <div class="nav__end">
+      <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch to dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="page main">
+  <h1>Components</h1>
+  <p class="lead">Neo-brutal docket: cream paper, ink outlines, one action colour, one stamp. Every component below, in every state. Switch the theme with the moon button. Pages: <a href="pages/index.html">mockups</a>. Numbers come from <code>sample-data.json</code>.</p>
+  <nav class="g-toc" aria-label="Sections" style="margin-top: var(--space-4)">
+    <a class="chip" href="#colour">Colour</a><a class="chip" href="#type">Type</a><a class="chip" href="#space">Space, borders, shadows</a>
+    <a class="chip" href="#nav">Nav</a><a class="chip" href="#buttons">Buttons</a><a class="chip" href="#inputs">Inputs</a>
+    <a class="chip" href="#pills">Pills</a><a class="chip" href="#stamp">Stamp</a><a class="chip" href="#plea">Plea card</a>
+    <a class="chip" href="#wall">Wall card</a><a class="chip" href="#countdowns">Countdowns</a><a class="chip" href="#tables">Tables</a>
+    <a class="chip" href="#toasts">Toasts</a><a class="chip" href="#states">Empty, loading, error</a>
+  </nav>
+
+  <!-- ============================================================ colour -->
+  <section class="g-sec" id="colour" aria-labelledby="h-colour">
+    <h2 id="h-colour">Colour</h2>
+    <p class="g-what">Ink on paper, one action colour that is never a state, and one flat fill per verdict state with ink text on it in both themes. The stamp's word carries the state; pending is striped and lapsed is a dashed outline, so colour is never the only signal.</p>
+    <div class="g-two">
+      <div class="g-island theme-light">
+        <p class="g-label">Light (default)</p>
+        <div class="g-sw">
+          <div><div class="g-chip" style="background: var(--paper)"></div><p><b>--paper</b><br><code>#FBF6EA</code></p></div>
+          <div><div class="g-chip" style="background: var(--paper-2)"></div><p><b>--paper-2</b><br><code>#F3EDDD</code></p></div>
+          <div><div class="g-chip" style="background: var(--card)"></div><p><b>--card</b><br><code>#FFFFFF</code></p></div>
+          <div><div class="g-chip" style="background: var(--ink)"></div><p><b>--ink</b><br><code>#121212</code> 17.4:1</p></div>
+          <div><div class="g-chip" style="background: var(--ink-2)"></div><p><b>--ink-2</b><br><code>#4A463E</code> 8.7:1</p></div>
+          <div><div class="g-chip" style="background: var(--ink-3)"></div><p><b>--ink-3</b><br><code>#6B665B</code> 5.3:1</p></div>
+          <div><div class="g-chip" style="background: var(--action)"></div><p><b>--action</b><br><code>#FFD92E</code></p></div>
+          <div><div class="g-chip" style="background: var(--action-soft)"></div><p><b>--action-soft</b><br><code>#FFF3B0</code></p></div>
+        </div>
+      </div>
+      <div class="g-island theme-dark">
+        <p class="g-label">Dark</p>
+        <div class="g-sw">
+          <div><div class="g-chip" style="background: var(--paper)"></div><p><b>--paper</b><br><code>#17150F</code></p></div>
+          <div><div class="g-chip" style="background: var(--paper-2)"></div><p><b>--paper-2</b><br><code>#201D16</code></p></div>
+          <div><div class="g-chip" style="background: var(--card)"></div><p><b>--card</b><br><code>#26221A</code></p></div>
+          <div><div class="g-chip" style="background: var(--ink)"></div><p><b>--ink</b><br><code>#F5F0E4</code> 16.1:1</p></div>
+          <div><div class="g-chip" style="background: var(--ink-2)"></div><p><b>--ink-2</b><br><code>#C9C1AE</code> 8.8:1</p></div>
+          <div><div class="g-chip" style="background: var(--ink-3)"></div><p><b>--ink-3</b><br><code>#A89F8B</code> 6.0:1</p></div>
+          <div><div class="g-chip" style="background: var(--action)"></div><p><b>--action</b><br><code>#FFD92E</code></p></div>
+          <div><div class="g-chip" style="background: var(--action-soft)"></div><p><b>--action-soft</b><br><code>#3D3519</code></p></div>
+        </div>
+      </div>
+    </div>
+    <p class="g-label" style="margin-top: var(--space-5)">Verdict states (same fills in both themes, ink text #121212 on each: 6.1 to 11.7:1)</p>
+    <div class="g-sw">
+      <div><div class="g-chip" style="background: var(--approved)"></div><p><b>--approved</b> APPROVED, OVERTURNED<br><code>#4BE08F</code> 11.0:1</p></div>
+      <div><div class="g-chip" style="background: var(--denied)"></div><p><b>--denied</b> DENIED, UPHELD<br><code>#FF5A4E</code> 6.1:1</p></div>
+      <div><div class="g-chip" style="background: var(--stripes)"></div><p><b>--pending</b> PENDING, striped<br><code>#FFC247</code> / <code>#FFE08A</code></p></div>
+      <div><div class="g-chip" style="background: var(--noverdict)"></div><p><b>--noverdict</b> NO VERDICT<br><code>#C9C3B6</code> 10.7:1</p></div>
+      <div><div class="g-chip" style="background: var(--card); border-style: dashed"></div><p><b>--lapsed</b> LAPSED, dashed<br>no fill</p></div>
+      <div><div class="g-chip" style="background: var(--executed)"></div><p><b>--executed</b> SOLD<br><code>#6FA8FF</code> 7.8:1</p></div>
+      <div><div class="g-chip" style="background: var(--objection)"></div><p><b>--objection</b> OBJECTION, SUSTAINED, OVERRULED<br><code>#C8A6FF</code> 9.2:1</p></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ type -->
+  <section class="g-sec" id="type" aria-labelledby="h-type">
+    <h2 id="h-type">Type</h2>
+    <p class="g-what">Archivo Expanded 800 for headlines, stamps, primary buttons and big numbers; Archivo 400 to 600 for everything you read; IBM Plex Mono for countdowns, inputs, plea numbers and addresses. Amounts use tabular figures so columns line up. One scale, 4 px based.</p>
+    <div class="g-scale">
+      <div><span class="label">--text-hero 36–56</span><span class="hero-title" style="font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: var(--display-weight)">Selling needs a plea.</span></div>
+      <div><span class="label">--text-3xl 28–36</span><h1 style="font-size: var(--text-3xl)">Plea #214</h1></div>
+      <div><span class="label">--text-2xl 28</span><h2 style="font-size: var(--text-2xl)">Season 2 leaderboard</h2></div>
+      <div><span class="label">--text-xl 22</span><h3>Buy PLEA</h3></div>
+      <div><span class="label">--text-lg 18</span><p style="font-size: var(--text-lg); font-weight: var(--w-medium)">I bought at the top like a fool and held through two red weeks.</p></div>
+      <div><span class="label">--text-md 16</span><p>Body text. The Cabal, 30 judges on an IMD oracle panel, scores every plea from 0 to 45.</p></div>
+      <div><span class="label">--text-sm 14</span><p class="small">Fees 2.25%: 0.50 IMD back to you as staked IMD.</p></div>
+      <div><span class="label">--text-xs 12</span><p class="label">Share sold · Held · Profit or loss · 24h trend</p></div>
+      <div><span class="label">Mono</span><p class="mono" style="font-weight: var(--w-bold)">06:12 · 0x7a3f…c21e · Plea #214</p></div>
+      <div><span class="label">Tabular</span><p class="num" style="font-weight: var(--w-bold)">8.14 IMD<br>8.07 IMD<br>7.98 IMD</p></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ space -->
+  <section class="g-sec" id="space" aria-labelledby="h-space">
+    <h2 id="h-space">Space, borders, radii, shadows</h2>
+    <p class="g-what">One spacing scale: 4, 8, 12, 16, 24, 32, 48, 64, 96 px. Grid: 4, 8 and 12 columns at 360, 768 and 1280 px, max width 1200 px, gutters 16, 24 and 32 px. Outlines are 3 px (2 px on pills and badges). Hard shadows, never blurred, only on buttons, cards and the stamp.</p>
+    <div class="g-two">
+      <div class="stack stack--sm">
+        <div class="g-space"><span style="width: 4px"></span>--space-1 · 4</div>
+        <div class="g-space"><span style="width: 8px"></span>--space-2 · 8</div>
+        <div class="g-space"><span style="width: 12px"></span>--space-3 · 12</div>
+        <div class="g-space"><span style="width: 16px"></span>--space-4 · 16</div>
+        <div class="g-space"><span style="width: 24px"></span>--space-5 · 24</div>
+        <div class="g-space"><span style="width: 32px"></span>--space-6 · 32</div>
+        <div class="g-space"><span style="width: 48px"></span>--space-7 · 48</div>
+        <div class="g-space"><span style="width: 64px"></span>--space-8 · 64</div>
+        <div class="g-space"><span style="width: 96px"></span>--space-9 · 96</div>
+      </div>
+      <div class="g-row" style="align-items: flex-start">
+        <div class="panel" style="width: 150px"><p class="label">Panel</p><p class="small">3 px outline, radius 12, no shadow</p></div>
+        <div class="card" style="width: 150px"><p class="label">Card</p><p class="small">--shadow-lg 6 px</p></div>
+        <div class="pill">Pill · 2 px</div>
+        <span class="badge">BADGE · r4</span>
+        <button class="btn" type="button">--shadow-md</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ nav -->
+  <section class="g-sec" id="nav" aria-labelledby="h-nav">
+    <h2 id="h-nav">Nav and status strip</h2>
+    <p class="g-what">The PLEA stamp as the logo (never IMD's diamond), seven pages, the theme toggle and one wallet button. Under 1100 px the links fold into a menu panel. The status strip under the bar carries the Cabal, the season and the price on every page; under 768 px it shortens.</p>
+    <div class="stack stack--lg">
+      <div class="panel panel--flush">
+        <div class="site-header" style="border-bottom-width: var(--bw)">
+          <div class="nav" style="padding-inline: var(--space-4)">
+            <a class="logo" href="#nav">PLEA</a>
+            <ul class="nav__links" style="display: flex">
+              <li><a href="#nav" aria-current="page">Buy</a></li><li><a href="#nav">Plead</a></li><li><a href="#nav">Wall</a></li><li><a href="#nav">Seasons</a></li><li><a href="#nav">Letters</a></li><li><a href="#nav">Objections</a></li><li><a href="#nav">Claim</a></li>
+            </ul>
+            <div class="nav__end">
+              <button class="icon-btn" type="button" aria-label="Switch to dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+              <a class="wallet-btn" href="#nav"><span class="seat-dot" aria-hidden="true"></span>mira_eth</a>
+            </div>
+          </div>
+          <div class="status-strip"><div class="page" style="max-width: none; padding-inline: var(--space-4)">
+            <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b><span class="long">· dies in <span class="mono">32h 59m</span> without a verdict</span></span>
+            <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span> IMD<span class="long"> + 10,000,000 PLEA</span></span>
+            <span class="status-item long">1M PLEA = <span class="num">14.16</span> IMD</span>
+          </div></div>
+        </div>
+      </div>
+      <div class="g-two">
+        <div>
+          <p class="g-label">Phone, menu open, not connected</p>
+          <div class="panel panel--flush" style="max-width: 360px">
+            <div class="site-header">
+              <div class="nav" style="padding-inline: var(--space-4)">
+                <a class="logo" href="#nav">PLEA</a>
+                <div class="nav__end">
+                  <button class="icon-btn" type="button" aria-label="Switch to dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+                  <button class="wallet-btn wallet-btn--connect" type="button">Connect</button>
+                  <button class="icon-btn" type="button" aria-expanded="true" aria-label="Close menu"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
+                </div>
+              </div>
+              <div class="drawer" style="display: block"><div style="padding-inline: var(--space-4)"><ul>
+                <li><a href="#nav">Buy</a></li><li><a href="#nav" aria-current="page">Plead</a></li><li><a href="#nav">Wall</a></li><li><a href="#nav">Seasons</a></li><li><a href="#nav">Letters</a></li><li><a href="#nav">Objections</a></li><li><a href="#nav">Claim</a></li><li><a href="#nav">How it works</a></li>
+              </ul></div></div>
+              <div class="status-strip"><div style="display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); padding: var(--space-2) var(--space-4)">
+                <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · <span class="mono">32h 59m</span></span>
+                <span class="status-item"><b>S2</b> · <span class="num">9d 4h</span> · <span class="num">184.20</span> IMD</span>
+              </div></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <p class="g-label">After the Cabal dies (banner on every page)</p>
+          <div class="banner" style="border: var(--bw) solid var(--line); border-radius: var(--radius-md)"><div style="padding: var(--space-3) var(--space-4)" class="cluster cluster--sm"><span class="live-dot live-dot--dead" aria-hidden="true"></span><span>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever. Plead is closed; sell on the Buy page.</span></div></div>
+          <p class="g-label" style="margin-top: var(--space-4)">Wallet button states</p>
+          <div class="g-row">
+            <button class="wallet-btn wallet-btn--connect" type="button">Connect</button>
+            <a class="wallet-btn" href="#nav"><span class="seat-dot" aria-hidden="true"></span>mira_eth</a>
+            <a class="wallet-btn" href="#nav">0x51ab…7c3e</a>
+            <button class="wallet-btn wallet-btn--connect" type="button">Switch to Ethereum</button>
+          </div>
+          <p class="small text-2" style="margin-top: var(--space-2)">The lilac dot means the wallet holds an IMD seat (1.2× points).</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ buttons -->
+  <section class="g-sec" id="buttons" aria-labelledby="h-buttons">
+    <h2 id="h-buttons">Buttons</h2>
+    <p class="g-what">A button names its action. Primary (yellow, one per view), secondary (card), ink (the urgent one: sell inside the 7-minute window). Pressing sinks the button into its shadow. Busy shows the stripes and says what it waits for; disabled is dashed and says why next to it. All at least 44 px tall.</p>
+    <div class="stack stack--lg">
+      <div class="g-row">
+        <button class="btn btn--primary" type="button">Buy PLEA</button>
+        <button class="btn" type="button">Record my points</button>
+        <button class="btn btn--ink" type="button">Sell now <span class="btn__sub">06:12</span></button>
+        <button class="btn btn--sm" type="button">Clear</button>
+        <button class="btn btn--sm btn--primary" type="button">Claim</button>
+        <button class="link-btn" type="button">Show the judges' question</button>
+      </div>
+      <div class="g-row">
+        <div class="stack stack--sm"><span class="g-label">Hover</span><button class="btn btn--primary" type="button" style="background: var(--action-hover)">Submit plea</button></div>
+        <div class="stack stack--sm"><span class="g-label">Pressed</span><button class="btn btn--primary" type="button" style="transform: translate(4px, 4px); box-shadow: none">Submit plea</button></div>
+        <div class="stack stack--sm"><span class="g-label">Focus (keyboard)</span><button class="btn btn--primary" type="button" style="outline: var(--focus-ring); outline-offset: var(--focus-offset)">Submit plea</button></div>
+        <div class="stack stack--sm"><span class="g-label">Busy</span><button class="btn btn--primary" type="button" aria-busy="true">Confirm in your wallet…</button></div>
+        <div class="stack stack--sm"><span class="g-label">Disabled, with the reason</span><button class="btn btn--primary" type="button" aria-disabled="true" aria-describedby="why-1">Submit plea</button><span class="small" id="why-1">Need 50 of 45: cannot pass at this size.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ inputs -->
+  <section class="g-sec" id="inputs" aria-labelledby="h-inputs">
+    <h2 id="h-inputs">Inputs, the byte counter and the contract's text checks</h2>
+    <p class="g-what">Amounts are typed in mono with the unit inside the field. Every text box counts UTF-8 bytes (what the contract sees: 280 bytes is about 280 Latin, 140 Cyrillic or Arabic, 93 CJK characters) and runs the same checks as <code>CabalGate._validateText</code>, live, in <code>text-check.js</code>. Try typing a line break, <code>[please</code> or ❤️ below.</p>
+    <div class="g-two">
+      <div class="stack stack--lg">
+        <div class="field">
+          <div class="field__top"><label class="field__label" for="g-pay">You pay</label><span class="field__aside">Balance <span class="num">412.50</span> IMD · <button class="link-btn" type="button" style="min-height: 0">Max</button></span></div>
+          <div class="input"><input class="input__control" id="g-pay" inputmode="decimal" value="100.00" autocomplete="off"><span class="input__unit">IMD</span></div>
+        </div>
+        <div class="field">
+          <div class="field__top"><label class="field__label" for="g-get">You get (quote)</label><span class="field__aside">Updated 3 s ago</span></div>
+          <div class="input input--readonly"><input class="input__control" id="g-get" value="≈ 6,881,240" readonly><span class="input__unit">PLEA</span></div>
+        </div>
+        <div class="field">
+          <div class="field__top"><label class="field__label" for="g-bad">You pay</label><span class="field__aside">Balance <span class="num">412.50</span> IMD</span></div>
+          <div class="input is-invalid"><input class="input__control" id="g-bad" value="500.00" aria-invalid="true" aria-describedby="g-bad-msg"><span class="input__unit">IMD</span></div>
+          <p class="field__hint bad-text" id="g-bad-msg">You have 412.50 IMD. Lower the amount.</p>
+        </div>
+        <div class="field">
+          <span class="field__label" id="g-chips-l">Amount to plead</span>
+          <div class="chips" role="group" aria-labelledby="g-chips-l">
+            <button class="chip" type="button" aria-pressed="false">1%</button><button class="chip" type="button" aria-pressed="false">10%</button><button class="chip" type="button" aria-pressed="true">20%</button><button class="chip" type="button" aria-pressed="false">35%</button><button class="chip" type="button" aria-pressed="false">50%</button>
+          </div>
+        </div>
+        <label class="toggle-card">
+          <input class="box" type="checkbox" checked>
+          <span class="stack stack--sm"><span class="toggle-card__title">Sell automatically if approved</span><span class="small text-2">Fees paid in PLEA (about 54,190: 0.50 IMD oracle fee + 0.25 IMD tip). If approved it sells by itself; 0.35 IMD of the sale goes to the season pot. Any other ending returns your PLEA and the tip.</span></span>
+        </label>
+      </div>
+      <div class="stack stack--lg">
+        <div class="field">
+          <div class="field__top"><label class="field__label" for="g-plea">Your plea</label><span class="field__aside">Any language. Never tell the judges how to score.</span></div>
+          <div class="textarea">
+            <textarea id="g-plea" rows="4" data-text-check="plea" data-counter="g-plea-count" data-checks="g-plea-checks" aria-describedby="g-plea-checks">I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.</textarea>
+            <div class="textarea__bar"><span class="counter" id="g-plea-count"><span class="counter__meter" aria-hidden="true"><span></span></span><span data-count>193 / 280 bytes</span></span><span class="small">≈ 280 Latin · 140 Cyrillic · 93 CJK</span></div>
+          </div>
+          <ul class="checks" id="g-plea-checks" aria-live="polite"></ul>
+        </div>
+        <div class="field">
+          <div class="field__top"><label class="field__label" for="g-plea-bad">Refused text (live)</label></div>
+          <div class="textarea">
+            <textarea id="g-plea-bad" rows="3" data-text-check="plea" data-counter="g-plea-bad-count" data-checks="g-plea-bad-checks" aria-describedby="g-plea-bad-checks">[PLEASE] I ❤️ PLEA but rent is due</textarea>
+            <div class="textarea__bar"><span class="counter" id="g-plea-bad-count"><span class="counter__meter" aria-hidden="true"><span></span></span><span data-count>0 / 280 bytes</span></span></div>
+          </div>
+          <ul class="checks" id="g-plea-bad-checks" aria-live="polite"></ul>
+        </div>
+        <div class="field">
+          <div class="field__top"><label class="field__label" for="g-name">Display name</label><span class="field__aside">3–20 of a–z, 0–9, _</span></div>
+          <div class="input input--text"><input class="input__control" id="g-name" value="mira_eth" data-text-check="name" data-checks="g-name-checks" autocomplete="off" spellcheck="false"></div>
+          <ul class="checks" id="g-name-checks" aria-live="polite"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ pills -->
+  <section class="g-sec" id="pills" aria-labelledby="h-pills">
+    <h2 id="h-pills">Pills and badges</h2>
+    <p class="g-what">Pills hold live facts (status, season, price). Badges tag a plea or a wallet: the seat multiplier, a letter, auto-sell, you. State badges are the small stamp.</p>
+    <div class="g-row">
+      <span class="pill"><span class="live-dot" aria-hidden="true"></span>Cabal alive · <span class="mono">32h 59m</span></span>
+      <span class="pill">Season 2 · <span class="num">9d 4h</span> left</span>
+      <span class="pill">Pot <span class="num">184.20</span> IMD</span>
+      <span class="badge badge--seat"><svg class="icon" aria-hidden="true"><use href="#i-armchair"/></svg>SEAT ×1.2</span>
+      <span class="badge badge--letter"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg>BY LETTER</span>
+      <span class="badge badge--auto">AUTO-SELL</span>
+      <span class="badge badge--you">YOU</span>
+      <span class="badge">APPEAL OF #205</span>
+      <span class="stamp stamp--sm stamp--approved">Approved</span>
+      <span class="stamp stamp--sm stamp--denied">Denied</span>
+    </div>
+  </section>
+
+  <!-- ============================================================ stamp -->
+  <section class="g-sec" id="stamp" aria-labelledby="h-stamp">
+    <h2 id="h-stamp">The verdict stamp</h2>
+    <p class="g-what">The signature. One shape everywhere: an ink-outlined box tilted 3°, the state in capitals, the score against the need or the time left under it. Sizes: small (tables, lists), medium (cards), large (the status page), extra large (the share card). It lands once when a verdict arrives live; with reduced motion it simply appears.</p>
+    <div class="stack stack--lg">
+      <div class="g-row">
+        <span class="stamp stamp--approved">Approved<span class="stamp__sub">36 vs need 33</span></span>
+        <span class="stamp stamp--denied">Denied<span class="stamp__sub">31 vs need 38</span></span>
+        <span class="stamp stamp--pending">Pending<span class="stamp__sub">12:30 left</span></span>
+        <span class="stamp stamp--noverdict">No verdict<span class="stamp__sub">panel split 14/29</span></span>
+        <span class="stamp stamp--lapsed">Lapsed<span class="stamp__sub">35 vs need 33</span></span>
+        <span class="stamp stamp--sold">Sold<span class="stamp__sub">25.98 IMD</span></span>
+      </div>
+      <div class="g-row">
+        <span class="stamp stamp--approved">Overturned<span class="stamp__sub">34 vs need 33</span></span>
+        <span class="stamp stamp--denied">Upheld<span class="stamp__sub">29 vs need 33</span></span>
+        <span class="stamp stamp--objection">Objection<span class="stamp__sub">#9 pending</span></span>
+        <span class="stamp stamp--objection">Sustained<span class="stamp__sub">29 vs need 33</span></span>
+        <span class="stamp stamp--objection">Overruled<span class="stamp__sub">counts 33</span></span>
+      </div>
+      <div class="g-row" style="align-items: flex-end">
+        <span class="stamp stamp--sm stamp--approved">Approved</span>
+        <span class="stamp stamp--approved">Approved<span class="stamp__sub">36 vs need 33</span></span>
+        <span class="stamp stamp--lg stamp--approved" id="g-land">Approved<span class="stamp__sub">36 vs need 33</span></span>
+        <span class="stamp stamp--xl stamp--approved">Approved<span class="stamp__sub">36 vs need 33</span></span>
+        <button class="btn btn--sm" type="button" data-replay-stamp="g-land">Replay the landing</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ plea card -->
+  <section class="g-sec" id="plea" aria-labelledby="h-plea">
+    <h2 id="h-plea">The plea card, the fact score and the need meter</h2>
+    <p class="g-what">A plea card shows who, the stamp, the text, the four facts with their points, the score against the need on a 0–45 bar, and what happens next. On phones the stamp moves above the text and the facts go two by two.</p>
+    <article class="card plea" aria-labelledby="g-p214">
+      <div class="plea__top">
+        <div class="plea__head">
+          <h3 class="plea__id" id="g-p214" style="font-size: var(--text-md)">Plea #214</h3>
+          <span>by <span class="plea__who">mira_eth</span></span>
+          <span class="badge badge--seat"><svg class="icon" aria-hidden="true"><use href="#i-armchair"/></svg>SEAT ×1.2</span>
+          <span class="plea__time">48 s ago</span>
+        </div>
+        <span class="stamp stamp--lg stamp--approved">Approved<span class="stamp__sub">36 vs need 33</span></span>
+      </div>
+      <p class="plea__text">“I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.”</p>
+      <div class="facts">
+        <div class="fact"><span class="fact__label">Share sold</span><span class="fact__value">20%</span><span class="fact__pts">+16</span></div>
+        <div class="fact"><span class="fact__label">Held</span><span class="fact__value">3d 4h</span><span class="fact__pts">+4</span></div>
+        <div class="fact"><span class="fact__label">Profit or loss</span><span class="fact__value">−18%</span><span class="fact__pts">+13</span></div>
+        <div class="fact"><span class="fact__label">24h trend</span><span class="fact__value">flat</span><span class="fact__pts">+5</span></div>
+      </div>
+      <div class="meter" style="--score: 36; --need: 33">
+        <div class="meter__legend"><span>Judges <b class="num">36</b></span><span>Need <b class="num">33</b> = 71 − fact <b class="num">38</b></span></div>
+        <div class="meter__bar" role="img" aria-label="Score 36 of 45, need 33: passes by 3"><span class="meter__fill"></span><span class="meter__need"></span></div>
+        <div class="meter__scale" aria-hidden="true"><span>0</span><span>45</span></div>
+      </div>
+      <div class="plea__summary">
+        <span>Sells <b>1,240,000</b> PLEA ≈ <b>17.56</b> IMD</span><span aria-hidden="true">·</span><span><b>+43</b> points (36 × 1.2) held until 08:19 UTC</span>
+      </div>
+      <p class="plea__judge">Judged by 30 · 26 agreed · 4m 10s. A judge said: “Honest about the timing, and funny about it.”</p>
+      <div class="plea__actions">
+        <span class="countdown countdown--urgent" role="timer" aria-label="Sell window: 6 minutes 12 seconds left">Sell window <span class="countdown__time">06:12</span></span>
+        <span class="countdown" role="timer" aria-label="Objections close in 19 minutes 12 seconds">Objections close <span class="countdown__time">19:12</span></span>
+      </div>
+    </article>
+    <div class="g-two" style="margin-top: var(--space-5)">
+      <div class="meter meter--denied" style="--score: 31; --need: 38">
+        <div class="meter__legend"><span>Judges <b class="num">31</b></span><span>Need <b class="num">38</b></span><span class="bad-text">7 short</span></div>
+        <div class="meter__bar" role="img" aria-label="Score 31 of 45, need 38: 7 short"><span class="meter__fill"></span><span class="meter__need"></span></div>
+        <div class="meter__scale" aria-hidden="true"><span>0</span><span>45</span></div>
+      </div>
+      <div class="meter meter--none" style="--score: 0; --need: 38">
+        <div class="meter__legend"><span>Waiting for the judges</span><span>Need <b class="num">38</b></span></div>
+        <div class="meter__bar" role="img" aria-label="No score yet, need 38"><span class="meter__fill"></span><span class="meter__need"></span></div>
+        <div class="meter__scale" aria-hidden="true"><span>0</span><span>45</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ wall card -->
+  <section class="g-sec" id="wall" aria-labelledby="h-wall">
+    <h2 id="h-wall">The Wall card</h2>
+    <p class="g-what">Compact and the same height in a row: the stamp, the plea number and time, four lines of text, then the numbers (amount, score against need, points) and who. The whole card links to the plea's page.</p>
+    <div class="wall-grid">
+      <a class="wall-card" href="pages/plea.html">
+        <div class="wall-card__top"><span class="stamp stamp--approved">Approved<span class="stamp__sub">36 vs 33</span></span><span class="wall-card__id">#214 · 48 s ago</span></div>
+        <p class="wall-card__text">I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.</p>
+        <div class="wall-card__nums"><span><b>1,240,000</b> PLEA</span><span><b>+43</b> pts held</span></div>
+        <div class="wall-card__who"><span class="strong">mira_eth</span><span class="badge badge--seat">SEAT ×1.2</span></div>
+      </a>
+      <a class="wall-card" href="pages/plea.html">
+        <div class="wall-card__top"><span class="stamp stamp--denied">Denied<span class="stamp__sub">31 vs 38</span></span><span class="wall-card__id">#213 · 19 min ago</span></div>
+        <p class="wall-card__text">Dear Cabal, my cat walked across the keyboard and bought PLEA. He is up 140% and now demands tuna. I am only his accountant. Release a fifth so he can eat like a whale.</p>
+        <div class="wall-card__nums"><span><b>1,490,000</b> PLEA</span><span>appeal until <b>11:41</b> UTC</span></div>
+        <div class="wall-card__who"><span class="strong">kafka_cat</span><span class="badge badge--letter"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg>BY LETTER</span></div>
+      </a>
+      <a class="wall-card" href="pages/plea.html">
+        <div class="wall-card__top"><span class="stamp stamp--sold">Sold<span class="stamp__sub">25.98 IMD</span></span><span class="wall-card__id">#212 · 42 min ago</span></div>
+        <p class="wall-card__text">Eight days ago I promised my sister I would stop trading memes. She found out. I am keeping four fifths as proof I can hold; let one fifth go so I can buy her dinner and an apology.</p>
+        <div class="wall-card__nums"><span><b>1,880,000</b> PLEA</span><span><b>37</b> vs 30</span><span><b>+37</b> pts</span></div>
+        <div class="wall-card__who"><span class="strong">lettersonly</span><span class="badge badge--letter"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg>BY LETTER</span></div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ============================================================ countdowns -->
+  <section class="g-sec" id="countdowns" aria-labelledby="h-countdowns">
+    <h2 id="h-countdowns">Countdowns</h2>
+    <p class="g-what">Mono digits, tabular. Ink with yellow digits only for the one that costs money if missed (the 7-minute sell window). Striped while waiting on the oracle. Minutes and seconds under an hour, hours and minutes under a day, days and hours above. Screen readers get a label, not a ticking number.</p>
+    <div class="g-row">
+      <span class="countdown countdown--urgent" role="timer" aria-label="Sell window: 6 minutes 12 seconds left">Sell window <span class="countdown__time">06:12</span></span>
+      <span class="countdown countdown--wait" role="timer" aria-label="Waiting for the Cabal: expires in 12 minutes 30 seconds">Waiting for the Cabal <span class="countdown__time">12:30</span></span>
+      <span class="countdown" role="timer" aria-label="Objections close in 19 minutes 12 seconds">Objections close <span class="countdown__time">19:12</span></span>
+      <span class="countdown" role="timer" aria-label="Appeal until 11:41 UTC, 3 hours 41 minutes">Appeal until 11:41 UTC <span class="countdown__time">3h 41m</span></span>
+      <span class="countdown" role="timer" aria-label="Cooldown: next plea at 12:07 UTC">Next plea <span class="countdown__time">4h 00m</span></span>
+      <span class="countdown" role="timer" aria-label="Season 2 ends in 9 days 4 hours">Season 2 ends <span class="countdown__time">9d 4h</span></span>
+    </div>
+    <div class="g-two" style="margin-top: var(--space-5)">
+      <div class="countdown countdown--block countdown--urgent" role="timer" aria-label="Sell window: 6 minutes 12 seconds left">
+        <span>Sell within</span><span class="countdown__time">06:12</span><span class="countdown__bar" aria-hidden="true"><span style="--left: 88.6%"></span></span><span class="small">The window closes at 08:06:12 UTC. Miss it and the plea lapses (the points still count).</span>
+      </div>
+      <div class="countdown countdown--block" role="timer" aria-label="The Cabal dies in 32 hours 59 minutes without a verdict">
+        <span>The Cabal dies without a verdict in</span><span class="countdown__time">32h 59m</span><span class="countdown__bar" aria-hidden="true"><span style="--left: 99.9%"></span></span><span class="small">Every verdict (approved or denied) resets it to 33 hours.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ tables -->
+  <section class="g-sec" id="tables" aria-labelledby="h-tables">
+    <h2 id="h-tables">Tables and the leaderboard</h2>
+    <p class="g-what">Numbers right-aligned in tabular figures. Your row is highlighted and tagged YOU. Seat holders show the badge and their raw score next to the 1.2× points. A bar marks the 60-point line: below it, no prize, the share rolls over. On phones each row folds into two lines; nothing scrolls sideways.</p>
+    <div class="panel panel--flush">
+      <div class="panel__head"><h3>Season 2 leaderboard</h3><span class="meta">Pot <b class="num">184.20</b> IMD + <b class="num">10,000,000</b> PLEA · top 25 with 60+ points</span></div>
+      <ol class="lb">
+        <li class="lb__head" aria-hidden="true"><span class="lb__rank">Rank</span><span class="lb__who">Player</span><span class="lb__best">Best three</span><span class="lb__pts">Points</span><span class="lb__prize">Prize now</span></li>
+        <li class="lb__row"><span class="lb__rank">1</span><span class="lb__who">kafka_cat <span class="badge badge--seat">SEAT ×1.2</span></span><span class="lb__best">45 · 44 · 43</span><span class="lb__pts">132</span><span class="lb__prize">8.29 IMD + 450,000 PLEA</span></li>
+        <li class="lb__row"><span class="lb__rank">2</span><span class="lb__who">oath_keeper <span class="badge badge--seat">SEAT ×1.2</span></span><span class="lb__best">44 · 40 · 40</span><span class="lb__pts">124</span><span class="lb__prize">8.22 IMD + 446,000 PLEA</span></li>
+        <li class="lb__row"><span class="lb__rank">3</span><span class="lb__who">lettersonly</span><span class="lb__best">41 · 39 · 37</span><span class="lb__pts">117</span><span class="lb__prize">8.14 IMD + 442,000 PLEA</span></li>
+        <li class="lb__row lb__row--you"><span class="lb__rank">4</span><span class="lb__who">mira_eth <span class="badge badge--seat">SEAT ×1.2</span><span class="badge badge--you">YOU</span></span><span class="lb__best">40 · 39 · 37 <span class="seatx">(34 · 33 · 31 × 1.2)</span></span><span class="lb__pts">116</span><span class="lb__prize">8.07 IMD + 438,000 PLEA</span></li>
+        <li class="lb__bar">60-point line: below it no prize; the share rolls over to season 3</li>
+        <li class="lb__row lb__row--out"><span class="lb__rank">22</span><span class="lb__who">fresh_start</span><span class="lb__best">36 · 22</span><span class="lb__pts">58</span><span class="lb__prize">no prize (58 of 60)</span></li>
+      </ol>
+    </div>
+    <div class="panel panel--flush" style="margin-top: var(--space-5)">
+      <div class="table-wrap" tabindex="0" role="region" aria-label="Recent objections">
+        <table class="table">
+          <caption class="sr-only">Recent objections</caption>
+          <thead><tr><th scope="col">Objection</th><th scope="col">Plea</th><th scope="col">By</th><th scope="col" class="r">Re-score</th><th scope="col">Ruling</th><th scope="col">Stake</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">#8</td><td class="mono">#209</td><td class="mono">0x2d10…b6f2</td><td class="r">29 vs need 33</td><td><span class="stamp stamp--sm stamp--objection">Sustained</span></td><td>0.35 IMD returned</td></tr>
+            <tr><td class="mono">#7</td><td class="mono">#206</td><td class="mono">0x2d10…b6f2</td><td class="r">33 vs need 33</td><td><span class="stamp stamp--sm stamp--objection">Overruled</span></td><td>0.35 IMD to the season 2 pot</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ toasts -->
+  <section class="g-sec" id="toasts" aria-labelledby="h-toasts">
+    <h2 id="h-toasts">Toasts</h2>
+    <p class="g-what">Bottom right (full width on phones), one per transaction, in the state colours. Each says what happened in plain words, links the transaction, and errors name the problem and the fix. The jokes live here, never in the numbers.</p>
+    <div class="toasts toasts--static" style="max-width: 420px">
+      <div class="toast toast--pending" role="status"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg><div><p class="toast__title">Plea #214 sent. The Cabal is deliberating.</p><p>Usually 3 to 6 minutes. <a href="#toasts">View transaction</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+      <div class="toast toast--ok" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="toast__title">Approved, 36 vs need 33.</p><p>You have 7 minutes to sell. The landlord thanks the Cabal.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+      <div class="toast toast--sold" role="status"><svg class="icon" aria-hidden="true"><use href="#i-coins"/></svg><div><p class="toast__title">Sold 1,240,000 PLEA for 17.14 IMD.</p><p>+43 points once objections close (08:19 UTC). <a href="#toasts">View transaction</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+      <div class="toast toast--bad" role="alert"><svg class="icon" aria-hidden="true"><use href="#i-warning-circle"/></svg><div><p class="toast__title">Not sent: CannotPass.</p><p>Your need is 50 and the most a plea can score is 45. Plead a smaller share or wait for better facts. Nothing was paid.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+      <div class="toast" role="status"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><div><p class="toast__title">Address copied.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ states -->
+  <section class="g-sec" id="states" aria-labelledby="h-states">
+    <h2 id="h-states">Empty, loading and error states, notices</h2>
+    <p class="g-what">Every list and every number has all three. Loading is a still skeleton (no shimmer) with a line saying what is being read. Errors say what broke and offer the fix.</p>
+    <div class="g-two">
+      <div class="empty"><svg class="icon" style="width: 40px; height: 40px" aria-hidden="true"><use href="#i-scales"/></svg><p class="empty__title">No denied pleas yet</p><p>The Cabal is in a good mood. It will not last.</p><a class="btn btn--sm" href="#states">Show all pleas</a></div>
+      <div class="panel" aria-busy="true"><p class="loading-label"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg>Reading pleas from the chain…</p><div class="skeleton" style="margin-top: var(--space-4)"><div class="skeleton__line skeleton__line--short"></div><div class="skeleton__line"></div><div class="skeleton__line skeleton__line--mid"></div><div class="skeleton__block"></div></div></div>
+      <div class="error-box" role="alert"><p class="error-box__title"><svg class="icon" aria-hidden="true"><use href="#i-plugs"/></svg>Can't reach Ethereum</p><p class="small">The public RPC did not answer. The site tries the next one by itself; your funds are not affected.</p><div class="btn-row"><button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-clockwise"/></svg>Try again</button></div></div>
+      <div class="stack">
+        <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><div><p class="notice__title">Connect in the top bar to plead.</p><p>Everything else here reads without a wallet.</p></div></div>
+        <div class="notice notice--warn"><svg class="icon" aria-hidden="true"><use href="#i-timer"/></svg><div><p class="notice__title">Cooldown: next plea at 12:07 UTC.</p><p>4 hours after a sale, a denial or a lapse.</p></div></div>
+        <div class="notice notice--bad"><svg class="icon" aria-hidden="true"><use href="#i-prohibit"/></svg><div><p class="notice__title">This plea cannot pass.</p><p>Need 50 of 45. Sell less or wait for better facts.</p></div></div>
+        <div class="notice notice--ok"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="notice__title">48,210 PLEA claimable for 0x7a3f…c21e.</p></div></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="page">
+    <p class="fine">PLEA design system, neo-brutal docket. Archivo and IBM Plex Mono (SIL OFL 1.1), Phosphor icons (MIT). Not an official IMD page.</p>
+    <nav aria-label="Footer"><ul><li><a href="pages/index.html">Page mockups</a></li><li><a href="README.md">README</a></li></ul></nav>
+  </div>
+</footer>
+</body>
+</html>
