@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Share cards · PLEA</title>
+<meta name="description" content="Buying is open. Selling needs a plea.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../text-check.js"></script>
+<script src="../site.js"></script>
+<script src="../icons.js" defer></script>
+<style>
+  /* Share cards only (report: candidates for the kit). Tokens and the card's own unit (--u) only. */
+  .lead, .notice, .share-post p, .ref__caption { text-wrap: pretty; }
+  /* The plea text stops before the stamp (same fix as plea.html): at 820 units it ran under the
+     APPROVED stamp, which is about 390 units wide and 56 from the right edge. */
+  .share-card__text { max-width: calc(660 * var(--u)); text-wrap: pretty; }
+  /* Legible at X's preview size (600 px wide, so 1u = 0.5 px): the big numbers in ink, not the
+     label grey they inherited, and labels and badges at 22u and 20u (11 and 10 px there, were 9.5 and 9). */
+  .share-card__nums b { color: var(--ink); }
+  .share-card__nums span { font-size: calc(22 * var(--u)); }
+  .share-card__who .badge { font-size: calc(20 * var(--u)); }
+  /* The plea number sits at the right end of the top row, over the stamp. */
+  .share-card__id { margin-left: auto; font-family: var(--font-mono); }
+  /* The default link card: a display headline instead of a plea, and two stamps. */
+  .share-card__title { align-self: center; max-width: calc(640 * var(--u)); font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: var(--display-weight); font-size: calc(64 * var(--u)); line-height: 1.04; letter-spacing: -0.01em; }
+  .share-card__stamp--pair { display: grid; justify-items: end; gap: calc(28 * var(--u)); }
+  /* The post beside each card: label, text, hint, buttons. The buttons share each line they wrap
+     onto, so a narrow panel shows full-width buttons instead of a ragged column. */
+  .share-post { display: grid; gap: var(--space-3); align-content: start; }
+  .share-post .btn-row > .btn { flex: 1 1 auto; }
+  /* Card and post side by side (from 1100 px): the post panel takes the card's height and its
+     buttons sit on the bottom edge, level with the card's foot. */
+  .share-row { align-items: stretch; }
+  .share-row > .share-post { display: flex; flex-direction: column; }
+  .share-row > .share-post > .btn-row { margin-top: auto; }
+  /* No heading, meta or toast line ends on one word at 360 px. */
+  .section__head h2 { text-wrap: balance; }
+  .section__head .meta, .toast p { text-wrap: pretty; }
+  /* Reference band: the drawing skeleton has the image's shape; one item spans both columns. */
+  .share-skeleton { height: auto; aspect-ratio: 1200 / 675; }
+  .ref__item--wide { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="page nav">
+    <a class="logo" href="index.html" aria-label="PLEA home">PLEA</a>
+    <ul class="nav__links">
+      <li><a href="buy.html">Buy</a></li>
+      <li><a href="plead.html">Plead</a></li>
+      <li><a href="wall.html">Wall</a></li>
+      <li><a href="seasons.html">Seasons</a></li>
+      <li><a href="letters.html">Letters</a></li>
+      <li><a href="objections.html">Objections</a></li>
+      <li><a href="claim.html">Claim</a></li>
+    </ul>
+    <div class="nav__end">
+      <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch to dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+      <a class="wallet-btn" href="profile.html"><span class="seat-dot" aria-hidden="true"></span>mira_eth<span class="sr-only">: your profile (holds an IMD seat)</span></a>
+      <button class="icon-btn menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="drawer" aria-label="Menu"><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg></button>
+    </div>
+  </div>
+  <nav class="drawer" id="drawer" aria-label="Pages" hidden>
+    <div class="page">
+      <ul>
+        <li><a href="buy.html">Buy</a></li>
+        <li><a href="plead.html">Plead</a></li>
+        <li><a href="wall.html">Wall</a></li>
+        <li><a href="seasons.html">Seasons</a></li>
+        <li><a href="letters.html">Letters</a></li>
+        <li><a href="objections.html">Objections</a></li>
+        <li><a href="claim.html">Claim</a></li>
+        <li><a href="index.html#how">How it works</a></li>
+      </ul>
+    </div>
+  </nav>
+  <div class="status-strip">
+    <div class="page">
+      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b><span class="long"> · dies in <span class="mono">32h 59m</span> without a verdict</span><span class="short"> · <span class="mono">32h 59m</span></span></span>
+      <span class="status-item"><b><span class="long">Season 2</span><span class="short">S2</span></b> · <span class="num">9d 4h</span><span class="long"> left</span> · <span class="long">pot </span><span class="num">184.20</span> IMD<span class="long"> + 10,000,000 PLEA</span></span>
+      <span class="status-item long">1M PLEA = <span class="num">14.16</span> IMD</span>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="page main">
+  <div class="stack stack--md">
+    <div class="page-title"><h1>Share cards</h1></div>
+    <p class="lead">One image per plea, 1200 × 675, drawn in the browser. The post links back to the plea's page. IPFS pages cannot make per-plea link previews, so the site offers Download image and Copy image, and the text under the post tells people to attach it.</p>
+    <ul class="cluster cluster--sm" aria-label="Card facts">
+      <li class="pill">1200 × 675 PNG</li>
+      <li class="pill">Light; dark in the dark theme</li>
+      <li class="pill">Over 150 bytes: smaller text</li>
+    </ul>
+    <div class="notice notice--info measure"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><div><p class="notice__title">Only the seller's post says “my plea”.</p><p>For mira_eth that is #214. Anyone else's plea is named with its seller: “plea #213 by kafka_cat”.</p></div></div>
+  </div>
+
+  <!-- ============================================================ #214 approved -->
+  <section class="section" aria-labelledby="c-214">
+    <div class="section__head"><h2 id="c-214">Approved</h2><p class="meta">Plea #214 by mira_eth (you) · 193 bytes, smaller text</p></div>
+    <div class="split split--even share-row">
+      <div class="share-frame theme-light" role="img" aria-label="Share card for plea #214 by mira_eth, seat holder: “I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.” Approved, 36 vs need 33. +43 points, season 2 rank 4. plea.sites.imd.fun/#/p/214" data-share-png="214">
+        <div class="share-card">
+          <div class="share-card__top"><span class="logo">PLEA</span><span class="share-card__who">mira_eth <span class="badge badge--seat">SEAT ×1.2</span></span><span class="share-card__id">Plea #214</span></div>
+          <p class="share-card__text is-long">“I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.”</p>
+          <div class="share-card__stamp"><span class="stamp stamp--approved">Approved<span class="stamp__sub">36 vs need 33</span></span></div>
+          <div class="share-card__foot">
+            <div class="share-card__nums"><span><b>36</b>score</span><span><b>33</b>need</span><span><b>+43</b>points</span><span><b>#4</b>season 2</span></div>
+            <span class="share-card__url">plea.sites.imd.fun/#/p/214</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel share-post">
+        <p class="label">Post text (Share on X fills it in)</p>
+        <p class="chain-text">The Cabal APPROVED my plea, 36 vs need 33. “I bought at the top like a fool…” Plead your case: plea.sites.imd.fun/#/p/214</p>
+        <p class="small text-2">Attach the image: the link alone shows the default card.</p>
+        <div class="btn-row">
+          <a class="btn btn--sm" href="https://twitter.com/intent/tweet?text=The%20Cabal%20APPROVED%20my%20plea%2C%2036%20vs%20need%2033.%20%E2%80%9CI%20bought%20at%20the%20top%20like%20a%20fool%E2%80%A6%E2%80%9D%20Plead%20your%20case%3A&amp;url=https%3A%2F%2Fplea.sites.imd.fun%2F%23%2Fp%2F214"><svg class="icon" aria-hidden="true"><use href="#i-x-logo"/></svg>Share on X<span class="sr-only">: plea #214</span></a>
+          <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-down"/></svg>Download image<span class="sr-only"> of plea #214</span></button>
+          <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Copy image<span class="sr-only"> of plea #214</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ #213 denied -->
+  <section class="section" aria-labelledby="c-213">
+    <div class="section__head"><h2 id="c-213">Denied</h2><p class="meta">Plea #213 by kafka_cat, by letter · 168 bytes, smaller text</p></div>
+    <div class="split split--even share-row">
+      <div class="share-frame theme-light" role="img" aria-label="Share card for plea #213 by kafka_cat, seat holder, by letter: “Dear Cabal, my cat walked across the keyboard and bought PLEA. He is up 140% and now demands tuna. I am only his accountant. Release a fifth so he can eat like a whale.” Denied, 31 vs need 38. Appeal open until 11:41 UTC. plea.sites.imd.fun/#/p/213" data-share-png="213">
+        <div class="share-card">
+          <div class="share-card__top"><span class="logo">PLEA</span><span class="share-card__who">kafka_cat <span class="badge badge--seat">SEAT ×1.2</span><span class="badge badge--letter"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg>BY LETTER</span></span><span class="share-card__id">Plea #213</span></div>
+          <p class="share-card__text is-long">“Dear Cabal, my cat walked across the keyboard and bought PLEA. He is up 140% and now demands tuna. I am only his accountant. Release a fifth so he can eat like a whale.”</p>
+          <div class="share-card__stamp"><span class="stamp stamp--denied">Denied<span class="stamp__sub">31 vs need 38</span></span></div>
+          <div class="share-card__foot">
+            <div class="share-card__nums"><span><b>31</b>score</span><span><b>38</b>need</span><span><b>Open</b>appeal until 11:41 UTC</span></div>
+            <span class="share-card__url">plea.sites.imd.fun/#/p/213</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel share-post">
+        <p class="label">Post text (Share on X fills it in)</p>
+        <p class="chain-text">The Cabal DENIED plea #213 by kafka_cat, 31 vs need 38. “Dear Cabal, my cat walked across the keyboard…” The appeal is open until 11:41 UTC. Plead your case: plea.sites.imd.fun/#/p/213</p>
+        <p class="small text-2">Attach the image: the link alone shows the default card.</p>
+        <div class="btn-row">
+          <a class="btn btn--sm" href="https://twitter.com/intent/tweet?text=The%20Cabal%20DENIED%20plea%20%23213%20by%20kafka_cat%2C%2031%20vs%20need%2038.%20%E2%80%9CDear%20Cabal%2C%20my%20cat%20walked%20across%20the%20keyboard%E2%80%A6%E2%80%9D%20The%20appeal%20is%20open%20until%2011%3A41%20UTC.%20Plead%20your%20case%3A&amp;url=https%3A%2F%2Fplea.sites.imd.fun%2F%23%2Fp%2F213"><svg class="icon" aria-hidden="true"><use href="#i-x-logo"/></svg>Share on X<span class="sr-only">: plea #213</span></a>
+          <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-down"/></svg>Download image<span class="sr-only"> of plea #213</span></button>
+          <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Copy image<span class="sr-only"> of plea #213</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ #212 sold by letter -->
+  <section class="section" aria-labelledby="c-212">
+    <div class="section__head"><h2 id="c-212">Sold by letter</h2><p class="meta">Plea #212 by lettersonly · 181 bytes, smaller text</p></div>
+    <div class="split split--even share-row">
+      <div class="share-frame theme-light" role="img" aria-label="Share card for plea #212 by lettersonly, by letter: “Eight days ago I promised my sister I would stop trading memes. She found out. I am keeping four fifths as proof I can hold; let one fifth go so I can buy her dinner and an apology.” Sold for 25.98 IMD. 37 vs need 30, +37 points, season 2 rank 3. plea.sites.imd.fun/#/p/212" data-share-png="212">
+        <div class="share-card">
+          <div class="share-card__top"><span class="logo">PLEA</span><span class="share-card__who">lettersonly <span class="badge badge--letter"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg>BY LETTER</span></span><span class="share-card__id">Plea #212</span></div>
+          <p class="share-card__text is-long">“Eight days ago I promised my sister I would stop trading memes. She found out. I am keeping four fifths as proof I can hold; let one fifth go so I can buy her dinner and an apology.”</p>
+          <div class="share-card__stamp"><span class="stamp stamp--sold">Sold<span class="stamp__sub">25.98 IMD</span></span></div>
+          <div class="share-card__foot">
+            <div class="share-card__nums"><span><b>37</b>score</span><span><b>30</b>need</span><span><b>+37</b>points</span><span><b>#3</b>season 2</span></div>
+            <span class="share-card__url">plea.sites.imd.fun/#/p/212</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel share-post">
+        <p class="label">Post text (Share on X fills it in)</p>
+        <p class="chain-text">The Cabal APPROVED plea #212 by lettersonly, 37 vs need 30, and it SOLD by letter for 25.98 IMD. “Eight days ago I promised my sister…” Plead your case: plea.sites.imd.fun/#/p/212</p>
+        <p class="small text-2">Attach the image: the link alone shows the default card.</p>
+        <div class="btn-row">
+          <a class="btn btn--sm" href="https://twitter.com/intent/tweet?text=The%20Cabal%20APPROVED%20plea%20%23212%20by%20lettersonly%2C%2037%20vs%20need%2030%2C%20and%20it%20SOLD%20by%20letter%20for%2025.98%20IMD.%20%E2%80%9CEight%20days%20ago%20I%20promised%20my%20sister%E2%80%A6%E2%80%9D%20Plead%20your%20case%3A&amp;url=https%3A%2F%2Fplea.sites.imd.fun%2F%23%2Fp%2F212"><svg class="icon" aria-hidden="true"><use href="#i-x-logo"/></svg>Share on X<span class="sr-only">: plea #212</span></a>
+          <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-down"/></svg>Download image<span class="sr-only"> of plea #212</span></button>
+          <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Copy image<span class="sr-only"> of plea #212</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ #208 lapsed -->
+  <section class="section" aria-labelledby="c-208">
+    <div class="section__head"><h2 id="c-208">Lapsed</h2><p class="meta">Plea #208 by hodl_goblin · 134 bytes, full-size text</p></div>
+    <div class="split split--even share-row">
+      <div class="share-frame theme-light" role="img" aria-label="Share card for plea #208 by hodl_goblin: “Goblin law says never sell. Goblin landlord says pay rent. Goblin compromise: one fifth, and I keep the hoard warm for the other four.” Lapsed, 35 vs need 33. +35 points, season 2 rank 7. plea.sites.imd.fun/#/p/208" data-share-png="208">
+        <div class="share-card">
+          <div class="share-card__top"><span class="logo">PLEA</span><span class="share-card__who">hodl_goblin</span><span class="share-card__id">Plea #208</span></div>
+          <p class="share-card__text">“Goblin law says never sell. Goblin landlord says pay rent. Goblin compromise: one fifth, and I keep the hoard warm for the other four.”</p>
+          <div class="share-card__stamp"><span class="stamp stamp--lapsed">Lapsed<span class="stamp__sub">35 vs need 33</span></span></div>
+          <div class="share-card__foot">
+            <div class="share-card__nums"><span><b>35</b>score</span><span><b>33</b>need</span><span><b>+35</b>points</span><span><b>#7</b>season 2</span></div>
+            <span class="share-card__url">plea.sites.imd.fun/#/p/208</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel share-post">
+        <p class="label">Post text (Share on X fills it in)</p>
+        <p class="chain-text">The Cabal APPROVED plea #208 by hodl_goblin, 35 vs need 33. It LAPSED unsold; the 35 points still count. “Goblin law says never sell…” Plead your case: plea.sites.imd.fun/#/p/208</p>
+        <p class="small text-2">Attach the image: the link alone shows the default card.</p>
+        <div class="btn-row">
+          <a class="btn btn--sm" href="https://twitter.com/intent/tweet?text=The%20Cabal%20APPROVED%20plea%20%23208%20by%20hodl_goblin%2C%2035%20vs%20need%2033.%20It%20LAPSED%20unsold%3B%20the%2035%20points%20still%20count.%20%E2%80%9CGoblin%20law%20says%20never%20sell%E2%80%A6%E2%80%9D%20Plead%20your%20case%3A&amp;url=https%3A%2F%2Fplea.sites.imd.fun%2F%23%2Fp%2F208"><svg class="icon" aria-hidden="true"><use href="#i-x-logo"/></svg>Share on X<span class="sr-only">: plea #208</span></a>
+          <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-down"/></svg>Download image<span class="sr-only"> of plea #208</span></button>
+          <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Copy image<span class="sr-only"> of plea #208</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ #214 dark -->
+  <section class="section" aria-labelledby="c-214-dark">
+    <div class="section__head"><h2 id="c-214-dark">Dark card</h2><p class="meta">Plea #214, drawn dark when the site is in the dark theme</p></div>
+    <div class="split split--even share-row">
+      <div class="share-frame theme-dark" role="img" aria-label="Dark share card for plea #214 by mira_eth, seat holder: “I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.” Approved, 36 vs need 33. +43 points, season 2 rank 4. plea.sites.imd.fun/#/p/214" data-share-png="214-dark">
+        <div class="share-card">
+          <div class="share-card__top"><span class="logo">PLEA</span><span class="share-card__who">mira_eth <span class="badge badge--seat">SEAT ×1.2</span></span><span class="share-card__id">Plea #214</span></div>
+          <p class="share-card__text is-long">“I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.”</p>
+          <div class="share-card__stamp"><span class="stamp stamp--approved">Approved<span class="stamp__sub">36 vs need 33</span></span></div>
+          <div class="share-card__foot">
+            <div class="share-card__nums"><span><b>36</b>score</span><span><b>33</b>need</span><span><b>+43</b>points</span><span><b>#4</b>season 2</span></div>
+            <span class="share-card__url">plea.sites.imd.fun/#/p/214</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel share-post">
+        <p class="label">Post text (Share on X fills it in)</p>
+        <p class="chain-text">The Cabal APPROVED my plea, 36 vs need 33. “I bought at the top like a fool…” Plead your case: plea.sites.imd.fun/#/p/214</p>
+        <p class="small text-2">The same post as the light card. Attach the image: the link alone shows the default card.</p>
+        <div class="btn-row">
+          <a class="btn btn--sm" href="https://twitter.com/intent/tweet?text=The%20Cabal%20APPROVED%20my%20plea%2C%2036%20vs%20need%2033.%20%E2%80%9CI%20bought%20at%20the%20top%20like%20a%20fool%E2%80%A6%E2%80%9D%20Plead%20your%20case%3A&amp;url=https%3A%2F%2Fplea.sites.imd.fun%2F%23%2Fp%2F214"><svg class="icon" aria-hidden="true"><use href="#i-x-logo"/></svg>Share on X<span class="sr-only">: plea #214, dark card</span></a>
+          <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-down"/></svg>Download image<span class="sr-only"> of plea #214, dark card</span></button>
+          <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Copy image<span class="sr-only"> of plea #214, dark card</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ default link card -->
+  <section class="section" aria-labelledby="c-default">
+    <div class="section__head"><h2 id="c-default">The default link card</h2><p class="meta">og-image: what X shows for every link to the site</p></div>
+    <div class="split split--even share-row">
+      <div class="share-frame theme-light" role="img" aria-label="Default link card: PLEA. Buying is open. Selling needs a plea. An approved and a denied stamp. 30 judges, score 0 to 45, 7 minutes to sell. plea.sites.imd.fun" data-share-png="default">
+        <div class="share-card">
+          <div class="share-card__top"><span class="logo">PLEA</span><span>The Cabal is in session.</span></div>
+          <p class="share-card__title">Buying is open.<br>Selling needs<br>a plea.</p>
+          <div class="share-card__stamp share-card__stamp--pair"><span class="stamp stamp--approved">Approved</span><span class="stamp stamp--denied">Denied</span></div>
+          <div class="share-card__foot">
+            <div class="share-card__nums"><span><b>30</b>judges</span><span><b>0–45</b>score</span><span><b>7 min</b>to sell</span></div>
+            <span class="share-card__url">plea.sites.imd.fun</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel share-post">
+        <p class="label">Post text (Share on X fills it in)</p>
+        <p class="chain-text">Buying is open. Selling needs a plea. Plead your case: plea.sites.imd.fun</p>
+        <p class="small text-2">X reads this card from the page's og:image for every link, plea links too: it never sees the #/p/… part.</p>
+        <div class="btn-row">
+          <a class="btn btn--sm" href="https://twitter.com/intent/tweet?text=Buying%20is%20open.%20Selling%20needs%20a%20plea.%20Plead%20your%20case%3A&amp;url=https%3A%2F%2Fplea.sites.imd.fun"><svg class="icon" aria-hidden="true"><use href="#i-x-logo"/></svg>Share on X<span class="sr-only">: the site</span></a>
+          <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-down"/></svg>Download image<span class="sr-only"> of the default card</span></button>
+          <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Copy image<span class="sr-only"> of the default card</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Mockups only: other states of this page, clearly marked as design reference, not site content. -->
+<section class="ref" aria-labelledby="ref-title">
+  <div class="page">
+    <p class="ref__label" id="ref-title">Design reference · other states</p>
+    <div class="ref__grid">
+      <div class="ref__item">
+        <p class="ref__caption">The longest plea, 280 bytes, with the widest stamp (a fit test: #206's and #204's texts joined, on #214's card)</p>
+        <div class="share-frame theme-light" role="img" aria-label="Fit test: share card with a 280-byte plea and the approved stamp">
+          <div class="share-card">
+            <div class="share-card__top"><span class="logo">PLEA</span><span class="share-card__who">mira_eth <span class="badge badge--seat">SEAT ×1.2</span></span><span class="share-card__id">Plea #214</span></div>
+            <p class="share-card__text is-long">“Three weeks of holding taught me patience, humility and that I should not check the chart at 3 a.m. I would like to sell 15% and sleep. I am a shrimp among whales. My whole bag is two million PLEA and my whole dinner budget is zero. Twenty percent out, eighty percent swimming on.”</p>
+            <div class="share-card__stamp"><span class="stamp stamp--approved">Approved<span class="stamp__sub">36 vs need 33</span></span></div>
+            <div class="share-card__foot">
+              <div class="share-card__nums"><span><b>36</b>score</span><span><b>33</b>need</span><span><b>+43</b>points</span><span><b>#4</b>season 2</span></div>
+              <span class="share-card__url">plea.sites.imd.fun/#/p/214</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">A short plea: #205, 44 bytes, full-size text (denied, then overturned on appeal in #207)</p>
+        <div class="share-frame theme-light" role="img" aria-label="Share card for plea #205 by oath_keeper, seat holder: “Need to sell some, life costs money. Thanks.” Denied, 30 vs need 33. Appealed in plea #207, overturned. plea.sites.imd.fun/#/p/205" data-share-png="205">
+          <div class="share-card">
+            <div class="share-card__top"><span class="logo">PLEA</span><span class="share-card__who">oath_keeper <span class="badge badge--seat">SEAT ×1.2</span></span><span class="share-card__id">Plea #205</span></div>
+            <p class="share-card__text">“Need to sell some, life costs money. Thanks.”</p>
+            <div class="share-card__stamp"><span class="stamp stamp--denied">Denied<span class="stamp__sub">30 vs need 33</span></span></div>
+            <div class="share-card__foot">
+              <div class="share-card__nums"><span><b>30</b>score</span><span><b>33</b>need</span><span><b>#207</b>appeal, overturned</span></div>
+              <span class="share-card__url">plea.sites.imd.fun/#/p/205</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Drawing the image (the fonts load first, then the canvas draws)</p>
+        <div class="panel share-post" aria-busy="true">
+          <p class="loading-label"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg>Drawing the image…</p>
+          <div class="skeleton"><div class="skeleton__block share-skeleton"></div></div>
+          <div class="btn-row">
+            <a class="btn btn--sm" href="https://twitter.com/intent/tweet?text=The%20Cabal%20APPROVED%20my%20plea%2C%2036%20vs%20need%2033.%20%E2%80%9CI%20bought%20at%20the%20top%20like%20a%20fool%E2%80%A6%E2%80%9D%20Plead%20your%20case%3A&amp;url=https%3A%2F%2Fplea.sites.imd.fun%2F%23%2Fp%2F214"><svg class="icon" aria-hidden="true"><use href="#i-x-logo"/></svg>Share on X</a>
+            <button class="btn btn--sm" type="button" aria-disabled="true" aria-describedby="why-draw"><svg class="icon" aria-hidden="true"><use href="#i-arrow-down"/></svg>Download image</button>
+            <button class="btn btn--sm" type="button" aria-disabled="true" aria-describedby="why-draw"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Copy image</button>
+          </div>
+          <p class="small text-2" id="why-draw">Download and Copy wait until the image is drawn. Share on X works now.</p>
+        </div>
+      </div>
+
+      <div class="stack stack--lg">
+        <div class="ref__item">
+          <p class="ref__caption">Copying, then copied (the browser writes the PNG to the clipboard; a toast confirms)</p>
+          <div class="stack">
+            <div class="panel share-post">
+              <div class="btn-row">
+                <a class="btn btn--sm" href="https://twitter.com/intent/tweet?text=The%20Cabal%20APPROVED%20my%20plea%2C%2036%20vs%20need%2033.%20%E2%80%9CI%20bought%20at%20the%20top%20like%20a%20fool%E2%80%A6%E2%80%9D%20Plead%20your%20case%3A&amp;url=https%3A%2F%2Fplea.sites.imd.fun%2F%23%2Fp%2F214"><svg class="icon" aria-hidden="true"><use href="#i-x-logo"/></svg>Share on X</a>
+                <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-down"/></svg>Download image</button>
+                <button class="btn btn--sm" type="button" aria-busy="true">Copying image…</button>
+              </div>
+            </div>
+            <div class="toasts toasts--static">
+              <div class="toast" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="toast__title">Image copied.</p><p>Paste it into your post on X. The verdict is on your clipboard now.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref__item">
+          <p class="ref__caption">Download done (toast)</p>
+          <div class="toasts toasts--static">
+            <div class="toast" role="status"><svg class="icon" aria-hidden="true"><use href="#i-arrow-down"/></svg><div><p class="toast__title">Saved plea-214.png.</p><p>1200 × 675. Attach it to your post on&nbsp;X.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+          </div>
+        </div>
+
+        <div class="ref__item">
+          <p class="ref__caption">Copy not supported (this browser cannot put images on the clipboard)</p>
+          <div class="toasts toasts--static">
+            <div class="toast toast--bad" role="alert"><svg class="icon" aria-hidden="true"><use href="#i-warning-circle"/></svg><div><p class="toast__title">This browser can't copy images.</p><p>Use Download image, then attach the file to your post.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item ref__item--wide">
+        <p class="ref__caption">After the Cabal dies: pleading is closed, so the post's last line changes</p>
+        <div class="panel share-post">
+          <p class="label">Post text (Share on X fills it in)</p>
+          <p class="chain-text">The Cabal APPROVED my plea, 36 vs need 33. “I bought at the top like a fool…” The Cabal is dead; PLEA trades freely: plea.sites.imd.fun/#/p/214</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="page">
+    <div class="stack stack--sm">
+      <p class="fine">PLEA is a meme token on Uniswap v4. Buying is open; selling needs a plea while the Cabal lives. Not financial advice, and not an official IMD page. Any PLEA traded before launch day isn't ours. Inspired by CabalCoin by TokenWorks (2025).</p>
+    </div>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="index.html#how">How it works</a></li>
+        <li><a href="index.html#contracts">Contracts</a></li>
+        <li><a href="profile.html">Profile</a></li>
+        <li><a href="https://x.com/Pleaimd">@Pleaimd on X</a></li>
+        <li><a href="https://github.com/khaed1/plea">Code</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

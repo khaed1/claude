@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLEA photo preview</title>
+<!-- Profile photos A and B circle-cropped at 200 / 128 / 48 / 32 px on X dark (#000) and X light (#fff).
+     Each size is downscaled from the 1000 px PNG in halving steps (high-quality smoothing), drawn at
+     1 device pixel per CSS pixel, so 32 means 32 real pixels: the worst case, a non-retina screen. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;family=IBM+Plex+Mono:wght@600&amp;display=block">
+<link rel="stylesheet" href="brand.css">
+<style>
+  .sheet { width: 1520px; padding: 44px 48px 48px; background: var(--paper); }
+  .sheet__head { display: flex; align-items: center; gap: 24px; margin-bottom: 32px; }
+  .sheet__head .logo { font-size: 26px; }
+  .sheet__head h1 { margin: 0; font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: var(--display-weight); font-size: 26px; line-height: 1.1; letter-spacing: -0.01em; }
+  .sheet__head p { margin: 4px 0 0; font-size: 16px; font-weight: 500; color: var(--ink-2); }
+  .grid { display: grid; grid-template-columns: 280px 1fr 1fr; gap: 20px 24px; align-items: stretch; }
+  .col-head { font-size: 15px; font-weight: 700; color: var(--ink-2); padding-left: 4px; }
+  .row-label { align-self: center; }
+  .row-label b { display: block; font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: var(--display-weight); font-size: 22px; line-height: 1.15; }
+  .row-label span { display: block; margin-top: 6px; font-size: 15px; font-weight: 500; color: var(--ink-2); line-height: 1.35; }
+  .panel { display: flex; align-items: flex-end; gap: 30px; padding: 26px 30px 18px; border: 3px solid var(--ink); border-radius: 12px; }
+  .panel--dark { background: #000; color: #E7E9EA; }   /* X "Lights out" */
+  .panel--light { background: #fff; color: #536471; }  /* X default */
+  .size { display: grid; justify-items: center; gap: 10px; }
+  .size canvas { display: block; border-radius: 50%; }
+  .size small { white-space: nowrap; font-family: var(--font-mono); font-weight: 600; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="sheet__head">
+    <span class="logo">PLEA</span>
+    <div>
+      <h1>Profile photo v2: X circle crop</h1>
+      <p>Each photo cropped to a circle as X shows it, at 200, 128, 48 and 32 px (1 device pixel per px).</p>
+    </div>
+  </div>
+  <div class="grid">
+    <div></div><div class="col-head">X dark (Lights out, #000)</div><div class="col-head">X light (#fff)</div>
+    <div class="row-label"><b>A · Stamp on cream</b><span>pleaimd-v2-A-1000.png<br>Cream #FBF6EA, ink outline and shadow</span></div>
+    <div class="panel panel--dark" data-src="../pleaimd-v2-A-1000.png"></div>
+    <div class="panel panel--light" data-src="../pleaimd-v2-A-1000.png"></div>
+    <div class="row-label"><b>B · Stamp on ink</b><span>pleaimd-v2-B-1000.png<br>Ink #121212, cream outline and shadow (the site's dark theme)</span></div>
+    <div class="panel panel--dark" data-src="../pleaimd-v2-B-1000.png"></div>
+    <div class="panel panel--light" data-src="../pleaimd-v2-B-1000.png"></div>
+  </div>
+</div>
+<script>
+  const SIZES = [200, 128, 48, 32];
+  const load = (src) => new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error('cannot load ' + src)); i.src = src; });
+  // Downscale in halving steps, then one last high-quality step to the exact size.
+  function scaled(img, size) {
+    let c = document.createElement('canvas'); c.width = img.naturalWidth; c.height = img.naturalHeight;
+    c.getContext('2d').drawImage(img, 0, 0);
+    while (c.width / 2 >= size) {
+      const n = document.createElement('canvas'); n.width = Math.round(c.width / 2); n.height = Math.round(c.height / 2);
+      const x = n.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+      x.drawImage(c, 0, 0, n.width, n.height); c = n;
+    }
+    const f = document.createElement('canvas'); f.width = size; f.height = size;
+    const x = f.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+    x.drawImage(c, 0, 0, size, size);
+    f.style.width = size + 'px'; f.style.height = size + 'px';
+    return f;
+  }
+  window.__ready = (async () => {
+    for (const panel of document.querySelectorAll('.panel')) {
+      const img = await load(panel.dataset.src);
+      for (const s of SIZES) {
+        const cell = document.createElement('div'); cell.className = 'size';
+        cell.append(scaled(img, s));
+        const l = document.createElement('small'); l.textContent = s + ' px'; cell.append(l);
+        panel.append(cell);
+      }
+    }
+  })();
+</script>
+</body>
+</html>

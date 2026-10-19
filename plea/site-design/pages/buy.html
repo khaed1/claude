@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Buy PLEA · PLEA</title>
+<meta name="description" content="Buying is open. Selling needs a plea.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../text-check.js"></script>
+<script src="../site.js"></script>
+<script src="../icons.js" defer></script>
+<style>
+  /* Buy only (report: candidates for the kit). Tokens only. */
+  /* The base reset misses <dl>: without this every .costs keeps a 1em browser margin. */
+  .costs { margin: 0; }
+  /* The fee split sits under its total, indented one step. */
+  .costs .is-part dt { padding-left: var(--space-4); }
+  /* "Max" inside a field's aside line keeps the line's height (components.html sets this inline). */
+  .field__aside .link-btn { min-height: 0; }
+  /* A quote that is still loading: the skeleton line takes the value's place, the unit stays right. */
+  .input .skeleton__line { flex: 0 1 auto; margin-right: auto; }
+  /* A big figure with its label above (balance, cashback): the kit's stat type without the strip. */
+  .figure { display: grid; gap: var(--space-1); }
+  /* A long busy label (approve, confirm) wraps inside the button on phones instead of running out of it. */
+  .btn--wrap { flex-wrap: wrap; row-gap: 0; white-space: normal; padding-block: var(--space-2); text-wrap: balance; }
+  /* No one-word last lines. */
+  .lead, .notice, .ref__caption, .small, .toast p, .field__hint { text-wrap: pretty; }
+  .card__title { text-wrap: balance; }
+  /* A loading label (icon + text) in a field's top line sits level with the label. */
+  .field__top:has(> .loading-label) { align-items: center; }
+  /* Reference band: the panels of one row end on one line (same rule as plead.html). */
+  .ref__item:has(> .panel, > .error-box, > .notice) { grid-template-rows: auto 1fr; }
+  .ref .error-box { align-content: start; }
+  /* Two short states of the launch window stacked in one cell, beside the taller sell card. */
+  .ref__col { display: grid; gap: var(--space-5); align-content: start; min-width: 0; }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="page nav">
+    <a class="logo" href="index.html" aria-label="PLEA home">PLEA</a>
+    <ul class="nav__links">
+      <li><a href="buy.html" aria-current="page">Buy</a></li>
+      <li><a href="plead.html">Plead</a></li>
+      <li><a href="wall.html">Wall</a></li>
+      <li><a href="seasons.html">Seasons</a></li>
+      <li><a href="letters.html">Letters</a></li>
+      <li><a href="objections.html">Objections</a></li>
+      <li><a href="claim.html">Claim</a></li>
+    </ul>
+    <div class="nav__end">
+      <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch to dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+      <a class="wallet-btn" href="profile.html"><span class="seat-dot" aria-hidden="true"></span>mira_eth<span class="sr-only">: your profile (holds an IMD seat)</span></a>
+      <button class="icon-btn menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="drawer" aria-label="Menu"><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg></button>
+    </div>
+  </div>
+  <nav class="drawer" id="drawer" aria-label="Pages" hidden>
+    <div class="page">
+      <ul>
+        <li><a href="buy.html" aria-current="page">Buy</a></li>
+        <li><a href="plead.html">Plead</a></li>
+        <li><a href="wall.html">Wall</a></li>
+        <li><a href="seasons.html">Seasons</a></li>
+        <li><a href="letters.html">Letters</a></li>
+        <li><a href="objections.html">Objections</a></li>
+        <li><a href="claim.html">Claim</a></li>
+        <li><a href="index.html#how">How it works</a></li>
+      </ul>
+    </div>
+  </nav>
+  <div class="status-strip">
+    <div class="page">
+      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b><span class="long"> · dies in <span class="mono">32h 59m</span> without a verdict</span><span class="short"> · <span class="mono">32h 59m</span></span></span>
+      <span class="status-item"><b><span class="long">Season 2</span><span class="short">S2</span></b> · <span class="num">9d 4h</span><span class="long"> left</span> · <span class="long">pot </span><span class="num">184.20</span> IMD<span class="long"> + 10,000,000 PLEA</span></span>
+      <span class="status-item long">1M PLEA = <span class="num">14.16</span> IMD</span>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="page main">
+  <div class="stack stack--lg">
+    <div>
+      <div class="page-title"><h1>Buy PLEA</h1></div>
+      <p class="lead">Buying is open to anyone. Selling needs a plea while the Cabal lives.</p>
+    </div>
+
+    <div class="split">
+      <!-- ============================================================ the buy -->
+      <form class="card" aria-labelledby="buy-title">
+        <h2 class="card__title" id="buy-title">Swap IMD for PLEA</h2>
+        <div class="stack stack--lg">
+
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="pay">You pay</label><span class="field__aside">Balance <span class="num">412.50</span> IMD · <button class="link-btn" type="button">Max<span class="sr-only">: pay all 412.50 IMD</span></button></span></div>
+            <div class="input"><input class="input__control" id="pay" inputmode="decimal" value="100.00" autocomplete="off"><span class="input__unit">IMD</span></div>
+          </div>
+
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="get">You get (quote)</label><span class="field__aside">Updated 3 s ago</span></div>
+            <div class="input input--readonly"><input class="input__control" id="get" value="≈ 6,881,240" readonly><span class="input__unit">PLEA</span></div>
+          </div>
+
+          <div class="field">
+            <div class="field__top"><span class="field__label" id="slip-label">Slippage</span><span class="field__aside">If the price moves more, nothing is bought</span></div>
+            <div class="chips" role="group" aria-labelledby="slip-label">
+              <button class="chip" type="button" aria-pressed="false" data-show="slip:05">0.5%</button><button class="chip" type="button" aria-pressed="true" data-show="slip:1">1%</button><button class="chip" type="button" aria-pressed="false" data-show="slip:2">2%</button>
+            </div>
+          </div>
+
+          <dl class="costs">
+            <div><dt>Price</dt><dd>1M PLEA = <span class="num">14.16</span> IMD</dd></div>
+            <div><dt class="nowrap">Minimum, <span data-group="slip" data-name="1">1%</span><span data-group="slip" data-name="05" hidden>0.5%</span><span data-group="slip" data-name="2" hidden>2%</span> slippage</dt><dd><span data-group="slip" data-name="1">6,812,427</span><span data-group="slip" data-name="05" hidden>6,846,833</span><span data-group="slip" data-name="2" hidden>6,743,615</span> PLEA</dd></div>
+            <div class="total"><dt class="nowrap">Fees, 2.25%</dt><dd><span class="nowrap">2.00 IMD +</span> <span class="nowrap">0.25% of the PLEA</span></dd></div>
+            <div class="is-part"><dt>Back to you as staked IMD (0.50%)</dt><dd class="nowrap">0.50 IMD</dd></div>
+            <div class="is-part"><dt>Owner (1.00%)</dt><dd>1.00 IMD</dd></div>
+            <div class="is-part"><dt>Season pot (0.25%)</dt><dd>0.25 IMD</dd></div>
+            <div class="is-part"><dt>Buy wall (0.25%)</dt><dd>0.25 IMD</dd></div>
+            <div class="is-part"><dt>Burned (0.25%)</dt><dd class="nowrap">0.25% of the PLEA</dd></div>
+          </dl>
+
+          <div class="stack stack--sm">
+            <button class="btn btn--primary btn--block" type="button">Buy PLEA</button>
+            <p class="small text-2">One approval for IMD, then the buy. <span class="nowrap">0.50 IMD</span> cashback is staked for you in the same transaction.</p>
+          </div>
+        </div>
+      </form>
+
+      <!-- ============================================================ your side -->
+      <div class="stack stack--lg">
+        <section class="panel" aria-labelledby="mine-title">
+          <h2 class="card__title" id="mine-title">Your PLEA</h2>
+          <div class="stack">
+            <p class="figure"><span class="stat__label">Balance</span><span class="stat__value">6,200,000 PLEA</span></p>
+            <div class="stack stack--sm">
+              <p class="label">Your buy record</p>
+              <dl class="costs">
+                <div><dt>Cost basis</dt><dd>17.27 IMD per 1M</dd></div>
+                <div><dt>Held, buy-weighted</dt><dd>3d 4h</dd></div>
+                <div><dt>Now, at 14.16 IMD per 1M</dt><dd>−18.0%</dd></div>
+              </dl>
+            </div>
+            <div class="stack stack--sm">
+              <p class="label">What selling takes</p>
+              <p class="small">A plea. The Cabal scores why you sell. Your hold time and profit or loss above are two of the four facts that set your need (71 − fact score); a new buy updates both.</p>
+              <div><a class="btn btn--sm" href="plead.html">Plead to sell<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></a></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="cashback-title">
+          <h2 class="card__title" id="cashback-title">Cashback</h2>
+          <div class="stack stack--sm">
+            <p class="figure"><span class="stat__label">Earned so far</span><span class="stat__value">0.83 IMD</span></p>
+            <p class="small">Paid as staked IMD through imd/acc: 0.50% of every trade, in the same transaction. See it on <a href="https://imdacc.fun">imdacc.fun</a>.</p>
+          </div>
+        </section>
+
+        <div class="notice notice--warn"><svg class="icon" aria-hidden="true"><use href="#i-warning"/></svg><div><p class="notice__title">Before you buy</p><p>While the Cabal lives you can only sell with an approved plea. The Cabal dies after 33 hours without a verdict; then PLEA trades freely forever.</p></div></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Mockups only: other states of this page, clearly marked as design reference, not site content. -->
+<section class="ref" aria-labelledby="ref-title">
+  <div class="page">
+    <p class="ref__label" id="ref-title">Design reference · other states</p>
+    <div class="ref__grid">
+      <div class="ref__item">
+        <p class="ref__caption">Not connected</p>
+        <div class="panel stack">
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="nc-pay">You pay</label><span class="field__aside">Your balance shows once you connect</span></div>
+            <div class="input"><input class="input__control" id="nc-pay" inputmode="decimal" value="100.00" autocomplete="off"><span class="input__unit">IMD</span></div>
+          </div>
+          <div class="stack stack--sm">
+            <button class="btn btn--primary btn--block" type="button" aria-disabled="true" aria-describedby="nc-why">Buy PLEA</button>
+            <p class="small" id="nc-why">Connect in the top bar to buy.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Quote loading</p>
+        <div class="panel stack" aria-busy="true">
+          <div class="field">
+            <div class="field__top"><span class="field__label">You get (quote)</span><span class="field__aside loading-label"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg>Reading the pool…</span></div>
+            <div class="input input--readonly"><span class="skeleton__line skeleton__line--mid" aria-hidden="true"></span><span class="input__unit">PLEA</span></div>
+          </div>
+          <div class="stack stack--sm">
+            <button class="btn btn--primary btn--block" type="button" aria-disabled="true" aria-describedby="ql-why">Buy PLEA</button>
+            <p class="small" id="ql-why">Waiting for the quote from the pool.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Not enough IMD</p>
+        <div class="panel stack">
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="low-pay">You pay</label><span class="field__aside">Balance <span class="num">412.50</span> IMD · <button class="link-btn" type="button">Max<span class="sr-only">: pay all 412.50 IMD</span></button></span></div>
+            <div class="input is-invalid"><input class="input__control" id="low-pay" inputmode="decimal" value="500.00" autocomplete="off" aria-invalid="true" aria-describedby="low-msg"><span class="input__unit">IMD</span></div>
+            <p class="field__hint bad-text" id="low-msg">You have 412.50 IMD. Lower the amount or press Max.</p>
+          </div>
+          <button class="btn btn--primary btn--block" type="button" aria-disabled="true" aria-describedby="low-msg">Buy PLEA</button>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Error: no connection to Ethereum</p>
+        <div class="error-box" role="alert"><p class="error-box__title"><svg class="icon" aria-hidden="true"><use href="#i-plugs"/></svg>Can't read the price</p><p class="small">The public RPC did not answer, so there is no quote to buy at. The site tries the next one by itself; nothing was sent.</p><div class="btn-row"><button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-clockwise"/></svg>Try again</button></div></div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Busy: approving IMD (step 1 of 2)</p>
+        <div class="panel stack stack--sm">
+          <button class="btn btn--primary btn--block btn--wrap" type="button" aria-busy="true">Approve IMD in your wallet…</button>
+          <p class="small">Lets the buy spend your IMD. Nothing is bought yet.</p>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Busy: buying (step 2 of 2)</p>
+        <div class="panel stack stack--sm">
+          <button class="btn btn--primary btn--block btn--wrap" type="button" aria-busy="true">Confirm the buy in your wallet…</button>
+          <p class="small"><span class="num nowrap">100.00 IMD</span> for at least <span class="num nowrap">6,812,427 PLEA</span>; <span class="nowrap">0.50 IMD</span> of it comes back to you as staked IMD.</p>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Bought</p>
+        <div class="toasts toasts--static">
+          <div class="toast toast--ok" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="toast__title">Bought <span class="nowrap">6,881,240 PLEA</span>. <span class="nowrap">0.50 IMD</span> cashback staked.</p><p>Getting in was the easy part. <a class="nowrap" href="https://etherscan.io/">View transaction</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Price moved past the slippage</p>
+        <div class="toasts toasts--static">
+          <div class="toast toast--bad" role="alert"><svg class="icon" aria-hidden="true"><use href="#i-warning-circle"/></svg><div><p class="toast__title">The price moved more than 1%.</p><p>Nothing was bought; your IMD stays in your wallet. Try again, or raise the slippage to 2%.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+        </div>
+      </div>
+
+      <div class="ref__col">
+      <div class="ref__item">
+        <p class="ref__caption">The launch window: the first 90 minutes (here 12:30 UTC on opening day, 2026-10-26)</p>
+        <div class="panel stack">
+          <div class="notice notice--warn"><svg class="icon" aria-hidden="true"><use href="#i-timer"/></svg><div><p class="notice__title">Launch window: 30 of 90 minutes gone.</p><p>Until 13:30 UTC buys pay an extra launch fee; one over the cap is refused.</p></div></div>
+          <dl class="costs">
+            <div><dt class="nowrap">Launch fee now</dt><dd>46.7% of the IMD that reaches the pool</dd></div>
+            <div><dt class="nowrap">How it falls</dt><dd>in a straight line from 70% to 0% at 13:30 UTC</dd></div>
+            <div><dt class="nowrap">Most per buy</dt><dd>5,000,000 PLEA</dd></div>
+            <div><dt class="nowrap">Trading fees</dt><dd>2.25%, as always</dd></div>
+          </dl>
+          <div><span class="countdown" role="timer" aria-label="The launch fee ends at 13:30 UTC, in 1 hour 0 minutes">Launch fee ends at 13:30 UTC <span class="countdown__time">1h 00m</span></span></div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">The launch window: a buy over the cap (BuyTooLarge)</p>
+        <div class="toasts toasts--static">
+          <div class="toast toast--bad" role="alert"><svg class="icon" aria-hidden="true"><use href="#i-warning-circle"/></svg><div><p class="toast__title">Not bought: more than <span class="nowrap">5,000,000 PLEA</span> in one buy.</p><p>Until 13:30 UTC one buy can take at most <span class="nowrap">5,000,000 PLEA</span>. Pay less IMD, or split the buy in two. Nothing was bought.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+        </div>
+      </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">After the Cabal dies: selling needs no plea</p>
+        <form class="card" aria-labelledby="sell-title">
+          <h2 class="card__title" id="sell-title">Sell PLEA</h2>
+          <div class="stack stack--lg">
+            <div class="chips" role="group" aria-label="Buy or sell">
+              <button class="chip" type="button" aria-pressed="false">Buy</button><button class="chip" type="button" aria-pressed="true">Sell</button>
+            </div>
+            <div class="field">
+              <div class="field__top"><label class="field__label" for="sell-in">You sell</label><span class="field__aside">Balance <span class="num">6,200,000</span> PLEA</span></div>
+              <div class="input"><input class="input__control" id="sell-in" inputmode="numeric" value="1,240,000" autocomplete="off"><span class="input__unit">PLEA</span></div>
+            </div>
+            <div class="field">
+              <div class="field__top"><label class="field__label" for="sell-out">You get (quote)</label><span class="field__aside">Updated 3 s ago</span></div>
+              <div class="input input--readonly"><input class="input__control" id="sell-out" value="≈ 17.14" readonly><span class="input__unit">IMD</span></div>
+            </div>
+            <dl class="costs">
+              <div><dt>Minimum, 1% slippage</dt><dd>16.97 IMD</dd></div>
+              <div><dt>Fees</dt><dd>2.25%</dd></div>
+              <div><dt>Plea needed</dt><dd>none, the Cabal is dead</dd></div>
+            </dl>
+            <button class="btn btn--primary btn--block" type="button">Sell PLEA</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="page">
+    <div class="stack stack--sm">
+      <p class="fine">PLEA is a meme token on Uniswap v4. Buying is open; selling needs a plea while the Cabal lives. Not financial advice, and not an official IMD page. Any PLEA traded before launch day isn't ours. Inspired by CabalCoin by TokenWorks (2025).</p>
+    </div>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="index.html#how">How it works</a></li>
+        <li><a href="index.html#contracts">Contracts</a></li>
+        <li><a href="profile.html">Profile</a></li>
+        <li><a href="https://x.com/Pleaimd">@Pleaimd on X</a></li>
+        <li><a href="https://github.com/khaed1/plea">Code</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

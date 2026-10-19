@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Plead to sell · PLEA</title>
+<meta name="description" content="Buying is open. Selling needs a plea.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../text-check.js"></script>
+<script src="../site.js"></script>
+<script src="../icons.js" defer></script>
+<style>
+  /* Plead only (report: candidates for the kit). Tokens only. */
+  /* The submit button carries a cost line: on phones it wraps under the label instead of overflowing. */
+  .btn--wrap { flex-wrap: wrap; row-gap: 0; white-space: normal; padding-block: var(--space-2); }
+  /* The plea box grows with its text, so a prefilled plea is read whole on a phone. */
+  .textarea textarea { field-sizing: content; }
+  /* Five share chips stay on one row on a phone. */
+  @media (max-width: 767px) { .chips--fit { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); } .chips--fit .chip { justify-content: center; padding-inline: 0; } }
+  /* No one-word last lines in titles and prose (same rule as buy.html and claim.html). */
+  .card__title, .toggle-card__title { text-wrap: balance; }
+  .lead, .notice, .small, .field__hint, .checks, .toast p, .ref__caption, .empty p, .timeline__meta { text-wrap: pretty; }
+  /* The base reset misses <dl>: without this every .costs keeps a 1em browser margin. */
+  .costs { margin: 0; }
+  /* A cost's label stays on one line ("If / approved" broke at 360); its value wraps in balanced lines. */
+  .costs dt { white-space: nowrap; }
+  .costs dd { text-wrap: balance; }
+  /* Facts two by two at every width inside a narrow reference panel (four across broke "dow/n" and "+40/%" at 768). */
+  .facts--pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* The kit's `.empty p` greys the title (it is a <p>): keep it in ink, as the other titles. */
+  .empty .empty__title { color: var(--ink); }
+  /* Reference band: the panels of one row end on one line. */
+  .ref__item:has(> .panel, > .empty, > .error-box) { grid-template-rows: auto 1fr; }
+  .ref .empty { align-content: center; }
+  .ref .error-box { align-content: start; }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="page nav">
+    <a class="logo" href="index.html" aria-label="PLEA home">PLEA</a>
+    <ul class="nav__links">
+      <li><a href="buy.html">Buy</a></li>
+      <li><a href="plead.html" aria-current="page">Plead</a></li>
+      <li><a href="wall.html">Wall</a></li>
+      <li><a href="seasons.html">Seasons</a></li>
+      <li><a href="letters.html">Letters</a></li>
+      <li><a href="objections.html">Objections</a></li>
+      <li><a href="claim.html">Claim</a></li>
+    </ul>
+    <div class="nav__end">
+      <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch to dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+      <a class="wallet-btn" href="profile.html"><span class="seat-dot" aria-hidden="true"></span>mira_eth<span class="sr-only">: your profile (holds an IMD seat)</span></a>
+      <button class="icon-btn menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="drawer" aria-label="Menu"><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg></button>
+    </div>
+  </div>
+  <nav class="drawer" id="drawer" aria-label="Pages" hidden>
+    <div class="page">
+      <ul>
+        <li><a href="buy.html">Buy</a></li>
+        <li><a href="plead.html" aria-current="page">Plead</a></li>
+        <li><a href="wall.html">Wall</a></li>
+        <li><a href="seasons.html">Seasons</a></li>
+        <li><a href="letters.html">Letters</a></li>
+        <li><a href="objections.html">Objections</a></li>
+        <li><a href="claim.html">Claim</a></li>
+        <li><a href="index.html#how">How it works</a></li>
+      </ul>
+    </div>
+  </nav>
+  <div class="status-strip">
+    <div class="page">
+      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b><span class="long"> · dies in <span class="mono">32h 59m</span> without a verdict</span><span class="short"> · <span class="mono">32h 59m</span></span></span>
+      <span class="status-item"><b><span class="long">Season 2</span><span class="short">S2</span></b> · <span class="num">9d 4h</span><span class="long"> left</span> · <span class="long">pot </span><span class="num">184.20</span> IMD<span class="long"> + 10,000,000 PLEA</span></span>
+      <span class="status-item long">1M PLEA = <span class="num">14.16</span> IMD</span>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="page main">
+  <div class="stack stack--lg">
+    <div>
+      <div class="page-title"><h1>Plead to sell</h1></div>
+      <p class="lead">Write why you want to sell. The Cabal, 30 judges, scores it from 0 to 45; you pass if the score reaches your need.</p>
+    </div>
+
+    <div class="split">
+      <!-- ============================================================ the form -->
+      <form class="card" aria-labelledby="form-title">
+        <h2 class="card__title" id="form-title">New plea</h2>
+        <div class="stack stack--lg">
+
+          <!-- 1. amount -->
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="amount">Amount</label><span class="field__aside">Balance <span class="num">6,200,000</span> PLEA</span></div>
+            <div class="input"><input class="input__control" id="amount" inputmode="numeric" value="1,240,000" autocomplete="off" aria-describedby="amount-hint"><span class="input__unit">PLEA</span></div>
+            <div class="chips chips--fit" role="group" aria-label="Share of your balance">
+              <button class="chip" type="button" aria-pressed="false">1%</button><button class="chip" type="button" aria-pressed="false">10%</button><button class="chip" type="button" aria-pressed="true">20%</button><button class="chip" type="button" aria-pressed="false">35%</button><button class="chip" type="button" aria-pressed="false">50%</button>
+            </div>
+            <p class="field__hint" id="amount-hint">1% to 50% of your balance, at most 2,500,000 (now <span class="num">62,000</span> to <span class="num">2,500,000</span>).</p>
+          </div>
+
+          <!-- 2. the fact score and the need -->
+          <div class="field">
+            <div class="field__top"><span class="field__label" id="facts-label">Your fact score</span><span class="field__aside">From the chain: <b class="num">16 + 4 + 13 + 5 = 38</b></span></div>
+            <div class="facts" role="group" aria-labelledby="facts-label">
+              <div class="fact"><span class="fact__label">Share sold</span><span class="fact__value">20%</span><span class="fact__pts">+16</span></div>
+              <div class="fact"><span class="fact__label">Held</span><span class="fact__value">3d&nbsp;4h</span><span class="fact__pts">+4</span></div>
+              <div class="fact"><span class="fact__label">Profit or loss</span><span class="fact__value">−18%</span><span class="fact__pts">+13</span></div>
+              <div class="fact"><span class="fact__label">24h trend</span><span class="fact__value">flat</span><span class="fact__pts">+5</span></div>
+            </div>
+            <div class="meter meter--none" style="--score: 0; --need: 33">
+              <div class="meter__legend"><span>Your need: <b class="num">33</b> of 45 (71 − fact <b class="num">38</b>)</span><span class="text-2">No score yet</span></div>
+              <div class="meter__bar" role="img" aria-label="No score yet. Your need is 33 of 45."><span class="meter__fill"></span><span class="meter__need"></span></div>
+              <div class="meter__scale" aria-hidden="true"><span>0</span><span>45</span></div>
+            </div>
+          </div>
+
+          <!-- 3. the plea text, with the contract's checks -->
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="plea-text">Your plea</label><span class="field__aside">One line, up to 280 bytes</span></div>
+            <div class="textarea">
+              <textarea id="plea-text" rows="4" placeholder="Make your case to the Cabal." data-text-check="plea" data-counter="plea-count" data-checks="plea-checks" data-submit="submit-plea" aria-describedby="plea-hint plea-checks">I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.</textarea>
+              <div class="textarea__bar"><span class="counter" id="plea-count"><span class="counter__meter" aria-hidden="true"><span></span></span><span data-count>193 / 280 bytes</span></span><span class="small">≈ 280 Latin · 140 Cyrillic · 93 CJK</span></div>
+            </div>
+            <p class="field__hint" id="plea-hint">Any language. Be honest, be specific, be funny. Never tell the judges how to score: lines like “give me 45” count as manipulation and score&nbsp;0.</p>
+            <ul class="checks" id="plea-checks" aria-live="polite"></ul>
+          </div>
+
+          <!-- 4. the auto-sell box -->
+          <div class="stack stack--md">
+            <label class="toggle-card">
+              <input class="box" type="checkbox" checked data-autosell>
+              <span class="stack stack--sm"><span class="toggle-card__title">Sell automatically if approved</span><span class="small text-2">The fees come out of your PLEA and a runner sells for you inside the 7-minute window, so you don't need to be here when the verdict lands.</span></span>
+            </label>
+            <div data-autosell-on>
+              <dl class="costs">
+                <div><dt>Oracle fee</dt><dd>0.50&nbsp;IMD</dd></div>
+                <div><dt>Runner tip</dt><dd>0.25&nbsp;IMD</dd></div>
+                <div class="total"><dt class="nowrap">Paid in PLEA</dt><dd>≈ 54,190&nbsp;PLEA <span class="nowrap">(at most 59,604)</span></dd></div>
+                <div><dt>If approved</dt><dd>sells by itself within 7 minutes</dd></div>
+                <div><dt>Auto-sell fee</dt><dd>0.35&nbsp;IMD to the season pot</dd></div>
+                <div class="total"><dt>You get</dt><dd>about 16.79&nbsp;IMD <span class="nowrap">(at least 15.96)</span></dd></div>
+              </dl>
+              <p class="small text-2">Any other ending returns your PLEA and the tip. The oracle fee is spent either way.</p>
+            </div>
+            <div data-autosell-off hidden>
+              <dl class="costs">
+                <div><dt>Oracle fee, in IMD</dt><dd>0.50&nbsp;IMD (approve once)</dd></div>
+                <div><dt>If approved</dt><dd>you sell yourself within 7 minutes</dd></div>
+                <div class="total"><dt>You get</dt><dd>about 17.14&nbsp;IMD</dd></div>
+                <div><dt>At least, 1% slippage</dt><dd>16.97&nbsp;IMD</dd></div>
+                <div><dt>Extra fee</dt><dd>none</dd></div>
+              </dl>
+            </div>
+          </div>
+
+          <!-- 5. submit -->
+          <div class="stack stack--sm">
+            <button class="btn btn--primary btn--block btn--wrap" type="button" id="submit-plea">Submit plea <span class="btn__sub" data-autosell-on>0.75&nbsp;IMD in PLEA</span><span class="btn__sub" data-autosell-off hidden>0.50&nbsp;IMD</span></button>
+            <p class="small text-2">One plea at a time. A 4-hour cooldown follows a sale, a denial or a lapse.</p>
+          </div>
+        </div>
+      </form>
+
+      <!-- ============================================================ help -->
+      <div class="stack stack--lg">
+        <section class="panel" aria-labelledby="next-title">
+          <h2 class="card__title" id="next-title">What happens next</h2>
+          <ol class="timeline">
+            <li class="is-now"><span class="timeline__dot"><svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></span><div><p class="timeline__title">Submitted</p><p class="timeline__meta">The contract checks your text and your need before it takes the fee.</p></div></li>
+            <li class="is-later"><span class="timeline__dot"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg></span><div><p class="timeline__title">Waiting for the Cabal</p><p class="timeline__meta">Up to 20 minutes, usually 3 to 6. 30 judges score it; 17 must agree.</p></div></li>
+            <li class="is-later"><span class="timeline__dot"><svg class="icon" aria-hidden="true"><use href="#i-gavel"/></svg></span><div><p class="timeline__title">Verdict</p><p class="timeline__meta"><b>Approved:</b> sell within 7 minutes. Objections stay open for 20 minutes, then your points are recorded.</p><p class="timeline__meta"><b>Denied:</b> one appeal within 4 hours.</p><p class="timeline__meta"><b>No verdict</b> (the panel split): cleared at once, no cooldown.</p></div></li>
+            <li class="is-later"><span class="timeline__dot"><svg class="icon" aria-hidden="true"><use href="#i-timer"/></svg></span><div><p class="timeline__title">Cooldown</p><p class="timeline__meta">4 hours after a sale, a denial or a lapse.</p></div></li>
+          </ol>
+        </section>
+
+        <section class="panel" aria-labelledby="passed-title">
+          <h2 class="card__title" id="passed-title">Pleas that passed</h2>
+          <div class="stack stack--lg">
+            <div class="stack stack--sm">
+              <p class="letter-sample">“Eight days ago I promised my sister I would stop trading memes. She found out. I am keeping four fifths as proof I can hold; let one fifth go so I can buy her dinner and an apology.”</p>
+              <div class="cluster cluster--sm small"><span class="cluster cluster--sm"><span class="stamp stamp--sm stamp--sold">Sold</span><span><b class="num">37</b> vs need <b class="num">30</b></span></span><span class="cluster cluster--sm"><a href="plea.html?id=212">Plea #212</a><span class="badge badge--letter"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg>BY LETTER</span></span></div>
+            </div>
+            <div class="stack stack--sm">
+              <p class="letter-sample">“My first plea scored 30 against a need of 33, and that was fair: I wrote it in a hurry. Here is the real reason. My daughter starts school on Monday and needs shoes; I keep 80% and my word.”</p>
+              <div class="cluster cluster--sm small"><span class="cluster cluster--sm"><span class="stamp stamp--sm stamp--approved">Overturned</span><span><b class="num">34</b> vs need <b class="num">33</b></span></span><span class="cluster cluster--sm"><a href="plea.html?id=207">Plea #207</a><span class="badge">APPEAL OF #205</span></span></div>
+            </div>
+            <div class="stack stack--sm">
+              <p class="letter-sample">“I am a shrimp among whales. My whole bag is two million PLEA and my whole dinner budget is zero. Twenty percent out, eighty percent swimming on.”</p>
+              <div class="cluster cluster--sm small"><span class="cluster cluster--sm"><span class="stamp stamp--sm stamp--sold">Sold</span><span><b class="num">33</b> vs need <b class="num">30</b></span></span><span class="cluster cluster--sm"><a href="plea.html?id=204">Plea #204</a><span class="badge badge--auto">AUTO-SELL</span></span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="rules-title">
+          <h2 class="card__title" id="rules-title">Rules the contract checks</h2>
+          <ul class="checks">
+            <li class="check check--ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>1 to 280 bytes: about 280 Latin, 140 Cyrillic or Arabic, or 93 CJK characters</span></li>
+            <li class="check check--ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>One line: no line breaks or tabs</span></li>
+            <li class="check check--ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>No hidden characters: zero-width marks, direction marks, variation selectors (❤️ carries one)</span></li>
+            <li class="check check--ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>No “[plea” or “[objection” markers, in any case</span></li>
+            <li class="check check--ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Any language is judged</span></li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Mockups only: other states of this page, clearly marked as design reference, not site content. -->
+<section class="ref" aria-labelledby="ref-title">
+  <div class="page">
+    <p class="ref__label" id="ref-title">Design reference · other states</p>
+    <div class="ref__grid">
+      <div class="ref__item">
+        <p class="ref__caption">CannotPass: the need is above 45, refused before paying</p>
+        <div class="panel stack">
+          <p class="small"><b class="num">1,860,000</b> of 6,200,000&nbsp;PLEA (30%): a wallet that bought 2 hours ago, at +40%, on a falling day.</p>
+          <div class="facts facts--pair">
+            <div class="fact"><span class="fact__label">Share sold</span><span class="fact__value">30%</span><span class="fact__pts">+9</span></div>
+            <div class="fact"><span class="fact__label">Held</span><span class="fact__value">2h</span><span class="fact__pts">+0</span></div>
+            <div class="fact"><span class="fact__label">Profit or loss</span><span class="fact__value">+40%</span><span class="fact__pts">+12</span></div>
+            <div class="fact"><span class="fact__label">24h trend</span><span class="fact__value">down</span><span class="fact__pts">+0</span></div>
+          </div>
+          <p class="small">Your need: <b class="num">50</b> of 45 (71 − fact <b class="num">21</b>)</p>
+          <div class="notice notice--bad"><svg class="icon" aria-hidden="true"><use href="#i-prohibit"/></svg><div><p class="notice__title">This plea cannot pass.</p><p>Even a perfect plea (45) cannot pass at this size today. Sell less or wait for better facts.</p></div></div>
+          <button class="btn btn--primary btn--block" type="button" aria-disabled="true" aria-describedby="cp-why">Submit plea</button>
+          <p class="small" id="cp-why">Need 50 of 45: cannot pass at this size. Nothing is paid.</p>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Refused text: the live checks name the problem</p>
+        <div class="panel">
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="ref-bad-text">Your plea</label></div>
+            <div class="textarea">
+              <textarea id="ref-bad-text" rows="2" data-text-check="plea" data-counter="ref-bad-count" data-checks="ref-bad-checks" data-submit="ref-bad-submit" aria-describedby="ref-bad-checks">[PLEASE] I ❤️ PLEA</textarea>
+              <div class="textarea__bar"><span class="counter" id="ref-bad-count"><span class="counter__meter" aria-hidden="true"><span></span></span><span data-count>0 / 280 bytes</span></span></div>
+            </div>
+            <ul class="checks" id="ref-bad-checks" aria-live="polite"></ul>
+            <button class="btn btn--primary btn--block" type="button" id="ref-bad-submit" aria-describedby="ref-bad-why">Submit plea</button>
+            <p class="small" id="ref-bad-why">Fix the text above to submit. Nothing is paid until it passes.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Cooldown active</p>
+        <div class="panel stack">
+          <div class="notice notice--warn"><svg class="icon" aria-hidden="true"><use href="#i-timer"/></svg><div><p class="notice__title">Next plea possible at 12:07&nbsp;UTC.</p><p>4-hour cooldown after your sale.</p></div></div>
+          <button class="btn btn--primary btn--block" type="button" aria-disabled="true" aria-describedby="cd-why">Submit plea</button>
+          <p class="small" id="cd-why">Cooldown until 12:07&nbsp;UTC. You can write your plea now and send it then.</p>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Not connected</p>
+        <div class="panel stack">
+          <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><div><p class="notice__title">Connect in the top bar to plead.</p><p>Everything else here reads without a wallet.</p></div></div>
+          <button class="btn btn--primary btn--block" type="button" aria-disabled="true" aria-describedby="nc-why">Submit plea</button>
+          <p class="small" id="nc-why">Connect a wallet first: your balance, facts and need come from it.</p>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">The Cabal is dead: plead is closed</p>
+        <div class="empty"><svg class="icon" style="width: 40px; height: 40px" aria-hidden="true"><use href="#i-gavel"/></svg><p class="empty__title">Plead is closed</p><p>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever, so you sell on the Buy page with no plea. Court is adjourned.</p><a class="btn btn--sm" href="buy.html">Sell on the Buy page</a></div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Auto-sell off: you pay in IMD and sell yourself</p>
+        <div class="panel stack stack--md">
+          <label class="toggle-card">
+            <input class="box" type="checkbox">
+            <span class="stack stack--sm"><span class="toggle-card__title">Sell automatically if approved</span><span class="small text-2">Off: you come back and sell inside the 7-minute window.</span></span>
+          </label>
+          <dl class="costs">
+            <div><dt>Oracle fee, in IMD</dt><dd>0.50&nbsp;IMD (approve once)</dd></div>
+            <div><dt>If approved</dt><dd>you sell yourself within 7 minutes</dd></div>
+            <div class="total"><dt>You get</dt><dd>about 17.14&nbsp;IMD</dd></div>
+            <div><dt>At least, 1% slippage</dt><dd>16.97&nbsp;IMD</dd></div>
+            <div><dt>Extra fee</dt><dd>none</dd></div>
+          </dl>
+          <button class="btn btn--primary btn--block btn--wrap" type="button">Submit plea <span class="btn__sub">0.50&nbsp;IMD</span></button>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">After submit</p>
+        <div class="toasts toasts--static">
+          <div class="toast toast--pending" role="status"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg><div><p class="toast__title">Plea #214 sent. The Cabal is deliberating.</p><p>Usually 3 to 6 minutes. <a class="nowrap" href="plea.html">Open plea #214</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">A plea is already open</p>
+        <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-scales"/></svg><div><p class="notice__title">Plea #214 is still open.</p><p>One plea at a time. You can plead again once #214 is settled and any cooldown has run. <a class="nowrap" href="plea.html">Open plea #214</a></p></div></div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Loading: reading your facts</p>
+        <div class="panel stack" aria-busy="true">
+          <p class="loading-label"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg>Reading your balance and buy record from the chain…</p>
+          <div class="skeleton">
+            <div class="skeleton__line skeleton__line--short"></div>
+            <div class="skeleton__block"></div>
+            <div class="skeleton__line skeleton__line--mid"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Error: no connection to Ethereum</p>
+        <div class="error-box" role="alert"><p class="error-box__title"><svg class="icon" aria-hidden="true"><use href="#i-plugs"/></svg>Can't reach Ethereum</p><p class="small">The public RPC did not answer, so your facts and need can't be read. The site tries the next one by itself; nothing was sent.</p><div class="btn-row"><button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-clockwise"/></svg>Try again</button></div></div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Amount over the cap</p>
+        <div class="panel">
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="ref-amount">Amount</label><span class="field__aside">Balance <span class="num">6,200,000</span> PLEA</span></div>
+            <div class="input is-invalid"><input class="input__control" id="ref-amount" inputmode="numeric" value="3,100,000" autocomplete="off" aria-invalid="true" aria-describedby="ref-amount-msg"><span class="input__unit">PLEA</span></div>
+            <p class="field__hint bad-text" id="ref-amount-msg">At most 2,500,000&nbsp;PLEA in one plea. Lower the amount.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Busy: waiting for the wallet</p>
+        <div class="panel stack">
+          <button class="btn btn--primary btn--block btn--wrap" type="button" aria-busy="true">Confirm in your wallet…</button>
+          <p class="small">One transaction: the plea and its fees in PLEA.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="page">
+    <div class="stack stack--sm">
+      <p class="fine">PLEA is a meme token on Uniswap v4. Buying is open; selling needs a plea while the Cabal lives. Not financial advice, and not an official IMD page. Any PLEA traded before launch day isn't ours. Inspired by CabalCoin by TokenWorks (2025).</p>
+    </div>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="index.html#how">How it works</a></li>
+        <li><a href="index.html#contracts">Contracts</a></li>
+        <li><a href="profile.html">Profile</a></li>
+        <li><a href="https://x.com/Pleaimd">@Pleaimd on X</a></li>
+        <li><a href="https://github.com/khaed1/plea">Code</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>
