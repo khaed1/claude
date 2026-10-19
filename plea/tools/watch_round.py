@@ -11,7 +11,10 @@ while True:
     for jid in sys.argv[1:]:
         try: j = get(f"/jobs/{jid}")
         except Exception as e: print(time.strftime("%H:%M:%S"), jid[:8], "poll failed", str(e)[:80], flush=True); continue
-        s = f"{j.get('state')} {j.get('blockedReason') or ''} " + " ".join(f"{n['key']}:{n.get('state')}" for n in j.get("nodes", []))
+        nodes = j.get("nodes") or (j.get("workflow") or {}).get("nodes") or []  # IMD moved them under workflow
+        launch = j.get("launch") or {}
+        s = f"{j.get('state')} {j.get('blockedReason') or ''} " + " ".join(f"{n['key']}:{n.get('state')}" for n in nodes)
+        if launch.get("id") or launch.get("status"): s += f" launch:{launch.get('id')}:{launch.get('status')}"
         if last.get(jid) != s:
             print(time.strftime("%H:%M:%S"), jid[:8], s, flush=True); last[jid] = s
         if j.get("state") in END or j.get("blockedReason"): done += 1
