@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A · Neo-brutal docket</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#FBF6EA}
+a{color:#121212}a:hover{color:#4A463E}
+.a-board{width:1200px;height:1280px;box-sizing:border-box;padding:48px;background:#FBF6EA;color:#121212;font-family:Archivo,sans-serif;font-size:16px;line-height:1.5}
+.a-board *{box-sizing:border-box}
+.a-x{font-stretch:125%;font-weight:800;letter-spacing:-0.01em}
+.a-num{font-variant-numeric:tabular-nums;font-weight:600}
+.a-mono{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.a-intro{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:40px;align-items:start;margin-bottom:32px}
+.a-tag{display:inline-block;margin:0 0 12px;padding:2px 10px;border:2px solid #121212;border-radius:999px;background:#FFD92E;font-size:13px;font-weight:700}
+.a-intro h1{margin:0 0 8px;font-size:40px;line-height:1.05}
+.a-mood{margin:0;font-size:18px;color:#4A463E;max-width:30ch}
+.a-type{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.a-spec{border:2px solid #121212;border-radius:8px;background:#FFFFFF;padding:10px 12px}
+.a-spec b{display:block;font-size:30px;line-height:1.1}
+.a-spec span{display:block;font-size:12px;color:#4A463E;line-height:1.35}
+.a-sw{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:8px}
+.a-chip{border:2px solid #121212;border-radius:6px;height:40px}
+.a-swl{font-size:11px;line-height:1.3;color:#4A463E;margin-top:4px}
+.a-screen{border:3px solid #121212;border-radius:12px;background:#FBF6EA;overflow:hidden}
+.a-bar{display:flex;align-items:center;gap:20px;padding:14px 20px;background:#FFFFFF;border-bottom:3px solid #121212}
+.a-logo{display:inline-block;padding:4px 10px 3px;border:3px solid #121212;border-radius:6px;background:#FFD92E;font-size:20px;line-height:1;transform:rotate(-3deg);box-shadow:3px 3px 0 #121212}
+.a-nav{display:flex;gap:4px;flex:1}
+.a-nav a{padding:6px 10px;border-radius:6px;font-weight:600;font-size:15px;text-decoration:none}
+.a-nav a.on{background:#121212;color:#FFFFFF}
+.a-pill{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border:2px solid #121212;border-radius:999px;background:#FFFFFF;font-size:13px;font-weight:600;white-space:nowrap}
+.a-dot{width:10px;height:10px;border-radius:50%;background:#4BE08F;border:2px solid #121212}
+.a-main{padding:24px;display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:24px}
+.a-card{position:relative;background:#FFFFFF;border:3px solid #121212;border-radius:10px;box-shadow:6px 6px 0 #121212;padding:22px 24px}
+.a-meta{display:flex;align-items:center;gap:10px;font-size:14px;color:#4A463E;margin-bottom:14px}
+.a-meta strong{color:#121212}
+.a-seat{display:inline-block;padding:1px 8px;border-radius:999px;background:#121212;color:#FFFFFF;font-size:12px;font-weight:700}
+.a-stamp{display:inline-flex;flex-direction:column;align-items:center;padding:6px 12px 5px;border:3px solid #121212;border-radius:6px;box-shadow:3px 3px 0 #121212;transform:rotate(-3deg);font-stretch:125%;font-weight:800;font-size:15px;line-height:1.1;letter-spacing:0.02em;color:#121212}
+.a-stamp small{font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:12px;letter-spacing:0;font-stretch:100%}
+.a-big{position:absolute;top:18px;right:22px;font-size:22px;padding:8px 16px 6px}
+.a-big small{font-size:13px}
+.s-ok{background:#4BE08F}.s-no{background:#FF5A4E}.s-wait{background:repeating-linear-gradient(-45deg,#FFC247 0 8px,#FFE08A 8px 16px)}.s-nv{background:#C9C3B6}.s-lap{background:#FFFFFF;border-style:dashed;box-shadow:none}.s-sold{background:#6FA8FF}
+.a-quote{margin:0 0 18px;font-size:18px;line-height:1.5;font-weight:500;max-width:52ch}
+.a-facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:14px}
+.a-fact{border:2px solid #121212;border-radius:8px;padding:8px 10px;background:#FBF6EA}
+.a-fact span{display:block;font-size:12px;color:#4A463E}
+.a-fact b{display:block;font-size:15px}
+.a-fact i{font-style:normal;font-size:12px;font-weight:700}
+.a-foot{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:14px}
+.a-judge{margin:12px 0 0;padding-top:12px;border-top:2px dashed #C9C3B6;font-size:14px;color:#4A463E}
+.a-clock{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:6px;background:#121212;color:#FFFFFF;font-size:13px;font-weight:600}
+.a-clock .a-mono{font-size:15px;color:#FFD92E}
+.a-buy h2{margin:0 0 14px;font-size:24px;line-height:1.1}
+.a-lbl{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px}
+.a-lbl span{color:#4A463E;font-weight:500}
+.a-field{display:flex;align-items:center;height:56px;border:3px solid #121212;border-radius:8px;background:#FFFFFF;padding:0 14px;margin-bottom:12px}
+.a-field input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:"IBM Plex Mono",monospace;font-size:22px;font-weight:600;color:#121212}
+.a-field b{font-size:15px}
+.a-field.ro{background:#FBF6EA}
+.a-rows{margin:4px 0 16px;font-size:14px}
+.a-rows div{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:2px dashed #C9C3B6}
+.a-rows div:last-child{border-bottom:0}
+.a-rows dt{color:#4A463E}
+.a-rows dd{margin:0;text-align:right}
+.a-btn{display:flex;align-items:center;justify-content:center;width:100%;height:56px;border:3px solid #121212;border-radius:8px;background:#FFD92E;box-shadow:4px 4px 0 #121212;font-family:Archivo,sans-serif;font-stretch:125%;font-weight:800;font-size:18px;color:#121212;cursor:pointer}
+.a-note{margin:10px 0 0;font-size:13px;color:#4A463E;text-align:center}
+.a-strip{margin:0 24px;padding:16px 20px;display:flex;align-items:center;gap:22px;border:3px solid #121212;border-radius:10px;background:#FFFFFF}
+.a-strip p{margin:0;font-size:13px;font-weight:700;width:96px;line-height:1.3}
+.a-lb{margin:24px;border:3px solid #121212;border-radius:10px;background:#FFFFFF;overflow:hidden}
+.a-lbh{display:flex;justify-content:space-between;align-items:baseline;padding:14px 20px;border-bottom:3px solid #121212}
+.a-lbh h3{margin:0;font-size:20px}
+.a-lbh span{font-size:13px;color:#4A463E}
+.a-lb table{width:100%;border-collapse:collapse;font-size:15px}
+.a-lb th{text-align:left;font-size:12px;font-weight:600;color:#4A463E;padding:8px 20px;border-bottom:2px solid #121212}
+.a-lb td{padding:10px 20px;border-bottom:2px solid #E6E0D3}
+.a-lb tr:last-child td{border-bottom:0}
+.a-lb .r{text-align:right}
+.a-you td{background:#FFF3B0}
+.a-youtag{display:inline-block;margin-left:6px;padding:0 6px;border:2px solid #121212;border-radius:4px;font-size:11px;font-weight:800}
+</style>
+</head>
+<body>
+<div class="a-board">
+  <header class="a-intro">
+    <div>
+      <p class="a-tag">Direction A · recommended</p>
+      <h1 class="a-x">Neo-brutal docket</h1>
+      <p class="a-mood">A notice nailed to the courthouse door: bold, flat and plain about the money.</p>
+    </div>
+    <div>
+      <div class="a-type">
+        <div class="a-spec"><b class="a-x">Aa</b><span>Archivo Expanded 800: headlines, stamps, buttons</span></div>
+        <div class="a-spec"><b style="font-weight:500">Aa</b><span>Archivo 400–600: body and plea text</span></div>
+        <div class="a-spec"><b class="a-mono" style="font-weight:600">06:12</b><span>IBM Plex Mono: countdowns, inputs, addresses; amounts use tabular figures</span></div>
+      </div>
+      <div class="a-sw">
+        <div><div class="a-chip" style="background:#FBF6EA"></div><div class="a-swl">Paper<br>#FBF6EA</div></div>
+        <div><div class="a-chip" style="background:#FFFFFF"></div><div class="a-swl">Card<br>#FFFFFF</div></div>
+        <div><div class="a-chip" style="background:#121212"></div><div class="a-swl">Ink<br>#121212</div></div>
+        <div><div class="a-chip" style="background:#FFD92E"></div><div class="a-swl">Action<br>#FFD92E</div></div>
+        <div><div class="a-chip" style="background:#4BE08F"></div><div class="a-swl">Approved<br>#4BE08F</div></div>
+        <div><div class="a-chip" style="background:#FF5A4E"></div><div class="a-swl">Denied<br>#FF5A4E</div></div>
+        <div><div class="a-chip" style="background:repeating-linear-gradient(-45deg,#FFC247 0 8px,#FFE08A 8px 16px)"></div><div class="a-swl">Pending<br>#FFC247</div></div>
+        <div><div class="a-chip" style="background:#C9C3B6"></div><div class="a-swl">No verdict<br>#C9C3B6</div></div>
+        <div><div class="a-chip" style="background:#FFFFFF;border-style:dashed"></div><div class="a-swl">Lapsed<br>dashed</div></div>
+        <div><div class="a-chip" style="background:#6FA8FF"></div><div class="a-swl">Sold<br>#6FA8FF</div></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="a-screen" aria-label="Sample screen">
+    <nav class="a-bar" aria-label="Main">
+      <span class="a-logo a-x">PLEA</span>
+      <div class="a-nav">
+        <a href="#buy" class="on">Buy</a><a href="#plead">Plead</a><a href="#wall">Wall</a><a href="#seasons">Seasons</a><a href="#letters">Letters</a>
+      </div>
+      <span class="a-pill"><span class="a-dot"></span>Cabal alive · <span class="a-num">31h 12m</span></span>
+      <span class="a-pill">Season 2 · <span class="a-num">9d 4h</span> · pot <span class="a-num">184.20</span> IMD</span>
+      <span class="a-pill" style="background:#121212;color:#FFFFFF">mira_eth</span>
+    </nav>
+
+    <div class="a-main">
+      <article class="a-card" aria-label="Plea 214">
+        <div class="a-meta"><strong class="a-mono">Plea #214</strong><span>by <strong>mira_eth</strong></span><span class="a-seat">SEAT ×1.2</span><span>2 min ago</span></div>
+        <div class="a-stamp a-big s-ok">APPROVED<small>36 vs need 33</small></div>
+        <p class="a-quote" style="margin-top:44px">“I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.”</p>
+        <div class="a-facts">
+          <div class="a-fact"><span>Share sold</span><b class="a-num">20%</b><i>+16</i></div>
+          <div class="a-fact"><span>Held</span><b class="a-num">3d 4h</b><i>+4</i></div>
+          <div class="a-fact"><span>Profit or loss</span><b class="a-num">−18%</b><i>+13</i></div>
+          <div class="a-fact"><span>24h trend</span><b>flat</b><i>+5</i></div>
+        </div>
+        <div class="a-foot">
+          <span>Fact score <b class="a-num">38</b> → needs <b class="a-num">33</b> of 45</span>
+          <span>·</span>
+          <span>Sells <b class="a-num">1,240,000</b> PLEA ≈ <b class="a-num">17.56</b> IMD</span>
+          <span>·</span>
+          <span><b class="a-num">+43</b> points</span>
+        </div>
+        <p class="a-judge">Judged by 30 · 26 agreed · verdict in 4m 10s. A judge said: “Honest about the timing, and funny about it.”</p>
+        <div class="a-foot" style="margin-top:12px">
+          <span class="a-clock">Sell window <span class="a-mono">06:12</span></span>
+          <span class="a-clock" style="background:#FFFFFF;color:#121212;border:2px solid #121212">Objections close <span class="a-mono" style="color:#121212">18:40</span></span>
+        </div>
+      </article>
+
+      <form class="a-card a-buy" aria-label="Buy PLEA">
+        <h2 class="a-x">Buy PLEA</h2>
+        <label class="a-lbl" for="a-pay">You pay <span>Balance <span class="a-num">412.50</span> IMD · <a href="#max">Max</a></span></label>
+        <div class="a-field"><input id="a-pay" value="100.00" inputmode="decimal"><b>IMD</b></div>
+        <label class="a-lbl" for="a-get">You get</label>
+        <div class="a-field ro"><input id="a-get" value="≈ 6,881,240" readonly><b>PLEA</b></div>
+        <dl class="a-rows">
+          <div><dt>Price</dt><dd class="a-num">1M PLEA = 14.16 IMD</dd></div>
+          <div><dt>Fees 2.25%</dt><dd><span class="a-num">0.50</span> IMD back to you as staked IMD</dd></div>
+          <div><dt>Minimum (1% slippage)</dt><dd class="a-num">6,812,427 PLEA</dd></div>
+        </dl>
+        <button type="button" class="a-btn">Buy PLEA</button>
+        <p class="a-note">Buying is open. Selling needs a plea.</p>
+      </form>
+    </div>
+
+    <div class="a-strip">
+      <p>One stamp, six states</p>
+      <span class="a-stamp s-ok">APPROVED</span>
+      <span class="a-stamp s-no">DENIED</span>
+      <span class="a-stamp s-wait">PENDING <small>14:32</small></span>
+      <span class="a-stamp s-nv">NO VERDICT</span>
+      <span class="a-stamp s-lap">LAPSED</span>
+      <span class="a-stamp s-sold">SOLD</span>
+    </div>
+
+    <div class="a-lb">
+      <div class="a-lbh"><h3 class="a-x">Season 2 leaderboard</h3><span>Pot <span class="a-num">184.20</span> IMD + <span class="a-num">10,000,000</span> PLEA bonus · top 25 with 60+ points</span></div>
+      <table>
+        <thead><tr><th>Rank</th><th>Player</th><th>Best three</th><th class="r">Points</th><th class="r">Prize</th></tr></thead>
+        <tbody>
+          <tr><td class="a-num">#3</td><td>kafka_cat <span class="a-seat">SEAT ×1.2</span></td><td class="a-num">45 · 44 · 43</td><td class="r a-num"><b>132</b></td><td class="r"><span class="a-num">8.14</span> IMD + <span class="a-num">442,000</span> PLEA</td></tr>
+          <tr class="a-you"><td class="a-num">#4</td><td>mira_eth <span class="a-seat">SEAT ×1.2</span><span class="a-youtag">YOU</span></td><td class="a-num">43 · 40 · 39</td><td class="r a-num"><b>122</b></td><td class="r"><span class="a-num">8.07</span> IMD + <span class="a-num">438,000</span> PLEA</td></tr>
+          <tr><td class="a-num">#5</td><td class="a-mono">0x9c41…e07a</td><td class="a-num">38 · 36 · 35</td><td class="r a-num"><b>109</b></td><td class="r"><span class="a-num">7.98</span> IMD + <span class="a-num">433,000</span> PLEA</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+</body>
+</html>
