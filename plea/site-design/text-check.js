@@ -412,7 +412,7 @@
     var res;
     if (isWord(b, 'APPEAL')) {
       var from = after(b, 6);
-      res = textLetter('appeal', text, b, from, loc, 'An appeal of your latest denied plea, for its original share of your PLEA, sold automatically if approved.');
+      res = textLetter('appeal', text, b, from, loc, 'An appeal of your latest denied plea, for its original share of your PLEA. If approved, anyone can sell it for you within 7 minutes for the 0.25 IMD tip.');
       if (from === b.length) res.issues[0] = { code: 'empty', message: 'APPEAL needs your appeal text after it: APPEAL <text>.' };
     } else if (isWord(b, 'NAME')) {
       var nf = after(b, 4);
@@ -428,7 +428,7 @@
       res = { kind: 'sell', body: slice(text, b, b.length), ok: true, bytes: b.length, issues: [], error: null, reads: 'Sells your approved letter plea now (if no runner has yet), and the 0.25 IMD tip comes back to you.' };
       if (b.length > 4) res.issues.push({ code: 'ignored', warning: true, message: 'Everything after SELL is ignored: this letter is read as SELL, not as a plea. To plead, start with another word (or write “sell” in lower case).' });
     } else {
-      res = textLetter('plea', text, b, 0, loc, 'A new plea for 20% of your PLEA (at most 2,500,000), sold automatically if approved.');
+      res = textLetter('plea', text, b, 0, loc, 'A new plea for 20% of your PLEA (at most 2,500,000). If approved, anyone can sell it for you within 7 minutes for the 0.25 IMD tip.');
       var head = '';
       for (var k = 0; k < b.length && k < 7; k++) head += String.fromCharCode(b[k]);
       var first = /^(appeal|sell|name)(?![A-Za-z0-9_])/i.exec(head);

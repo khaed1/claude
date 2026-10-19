@@ -97,7 +97,7 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
 .measure { max-width: var(--measure); }
 
 /* ------------------------------------------------------------------ type */
-.hero-title { font-size: var(--text-hero); line-height: 1.02; }
+.hero-title { font-size: var(--text-hero); line-height: 1.02; text-wrap: pretty; }
 .page-title { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); margin-bottom: var(--space-2); }
 .lead { font-size: var(--text-lg); color: var(--ink-2); max-width: var(--measure); }
 .label { font-size: var(--text-xs); font-weight: var(--w-bold); color: var(--ink-2); line-height: var(--lh-snug); }
@@ -129,7 +129,7 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
   .logo { font-size: 1.0625rem; }
   .wallet-btn { max-width: 9rem; padding: 0 var(--space-3); }
 }
-.wallet-btn--connect { background: var(--action); color: var(--on-action); box-shadow: var(--shadow-sm); }
+.wallet-btn--connect { background: var(--action); color: var(--on-action); box-shadow: var(--shadow-sm); max-width: none; }
 .wallet-btn .seat-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--objection); border: var(--bw-thin) solid var(--card); }
 .menu-btn { display: inline-flex; }
 @media (min-width: 1100px) {
@@ -157,7 +157,8 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
 
 /* The dead banner (after the Cabal dies) and other full-width notices */
 .banner { border-bottom: var(--bw) solid var(--line); background: var(--noverdict); color: var(--on-state); font-weight: var(--w-bold); }
-.banner .page { display: flex; align-items: center; gap: var(--space-2); padding-block: var(--space-3); }
+.banner .page { display: flex; align-items: flex-start; gap: var(--space-2); padding-block: var(--space-3); }
+.banner .live-dot { border-color: var(--on-state); margin-top: 0.4em; }
 
 /* ------------------------------------------------------------------ buttons */
 .btn {
@@ -167,6 +168,7 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
   background: var(--card); color: var(--ink); box-shadow: var(--shadow-md);
   font-family: var(--font-body); font-weight: var(--w-bold); font-size: var(--text-md); line-height: 1.2;
   text-decoration: none; text-align: center; white-space: normal; padding-block: var(--space-2);
+  flex-wrap: wrap; row-gap: 0;   /* a cost sub-line drops under its label on a narrow screen */
   transition: transform var(--dur-press) var(--ease-out), box-shadow var(--dur-press) var(--ease-out), background var(--dur-fast);
 }
 .btn:hover { background: var(--paper-2); text-decoration: none; }
@@ -207,7 +209,7 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
 .input[aria-invalid="true"], .input.is-invalid { border-color: var(--line); background: var(--card); box-shadow: inset 0 -6px 0 var(--denied); }
 .textarea { display: flex; flex-direction: column; border: var(--bw) solid var(--line); border-radius: var(--radius-md); background: var(--card); }
 .textarea:focus-within { outline: var(--focus-ring); outline-offset: var(--focus-offset); }
-.textarea textarea { min-height: 132px; resize: vertical; border: 0; outline: 0; background: transparent; padding: var(--space-3) var(--space-4); font-family: var(--font-body); font-size: var(--text-lg); line-height: var(--lh-body); color: var(--ink); }
+.textarea textarea { min-height: 132px; field-sizing: content; resize: vertical; border: 0; outline: 0; background: transparent; padding: var(--space-3) var(--space-4); font-family: var(--font-body); font-size: var(--text-lg); line-height: var(--lh-body); color: var(--ink); }
 .textarea textarea::placeholder { color: var(--ink-3); }
 .textarea__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-2) var(--space-3); padding: var(--space-2) var(--space-3); border-top: var(--bw-thin) solid var(--line); background: var(--paper-2); border-radius: 0 0 calc(var(--radius-md) - 3px) calc(var(--radius-md) - 3px); }
 .textarea.is-invalid .textarea__bar { background: var(--denied); color: var(--on-state); }
@@ -335,7 +337,7 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
 /* ------------------------------------------------------------------ the plea card (status page, home, plead result) */
 .plea { display: grid; gap: var(--space-4); }
 .plea__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); }
-.plea__id { font-family: var(--font-mono); font-weight: var(--w-bold); }
+.plea__id { font-family: var(--font-mono); font-stretch: 100%; font-weight: var(--w-bold); font-size: var(--text-md); letter-spacing: 0; line-height: var(--lh-snug); }
 .plea__who { font-weight: var(--w-bold); }
 .plea__time { color: var(--ink-2); font-size: var(--text-sm); }
 .plea__top { display: flex; flex-direction: column-reverse; gap: var(--space-3); }
@@ -437,6 +439,7 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
 .stat { padding: var(--space-3) var(--space-4); border-right: var(--bw-thin) solid var(--line-soft); border-bottom: var(--bw-thin) solid var(--line-soft); margin: 0 calc(-1 * var(--bw-thin)) calc(-1 * var(--bw-thin)) 0; min-width: 0; }
 .stat__label { display: block; font-size: var(--text-xs); font-weight: var(--w-bold); color: var(--ink-2); }
 .stat__value { display: block; font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: var(--display-weight); font-size: var(--text-lg); font-variant-numeric: tabular-nums; line-height: 1.2; overflow-wrap: normal; }
+@media (max-width: 399px) { .stat__value { font-size: var(--text-md); } }
 @media (min-width: 768px) { .stat__value { font-size: var(--text-xl); } }
 .stat__note { display: block; font-size: var(--text-xs); color: var(--ink-2); }
 
@@ -557,3 +560,50 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
   .btn[aria-disabled="true"], .btn[disabled] { color: GrayText; border-color: GrayText; }
   .live-dot { forced-color-adjust: none; background: CanvasText; }
 }
+
+/* ------------------------------------------------------------------ promoted from the pages (second review) */
+.small, .ref__caption, .empty p, .checks, .cmd > span:last-child { text-wrap: pretty; }
+.toggle-card__title { text-wrap: balance; }
+.empty__icon, .empty > .icon { width: var(--space-7); height: var(--space-7); }
+.wall-card__id { white-space: nowrap; margin-left: auto; }
+.split--stretch { align-items: stretch; }
+.btn-row--fill > .btn { flex: 1 1 auto; }
+/* A panel whose last block sits on its bottom edge (links, a footer line) */
+.panel--fill { display: flex; flex-direction: column; }
+.panel__foot { margin-top: auto; padding: var(--space-3) var(--space-4); border-top: var(--bw-thin) solid var(--line-soft); }
+@media (min-width: 768px) { .panel__foot { padding-inline: var(--space-5); } }
+/* Five amount chips on one row on phones */
+@media (max-width: 767px) {
+  .chips--fit { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .chips--fit .chip { justify-content: center; padding-inline: 0; }
+}
+/* Four stats: 2 then 4 across (the default strip is 2 / 3 / 6) */
+@media (min-width: 768px) { .stats--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .stats--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* Three steps: one column, three across from 1100 px */
+@media (min-width: 768px) { .steps--3 { grid-template-columns: minmax(0, 1fr); } }
+@media (min-width: 1100px) { .steps--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.costs .is-part dt { padding-left: var(--space-4); }
+.cell-note { display: block; font-size: var(--text-xs); font-weight: var(--w-regular); color: var(--ink-2); }
+@media (max-width: 767px) {
+  .table--tight th, .table--tight td { padding-inline: var(--space-2); }
+  .table--tight th:first-child, .table--tight td:first-child { padding-left: var(--space-4); }
+  .table--tight th:last-child, .table--tight td:last-child { padding-right: var(--space-4); }
+}
+.input--addr .input__control { font-size: var(--text-md); font-weight: var(--w-medium); text-overflow: ellipsis; }
+.input .skeleton__line { flex: 1; margin-right: auto; }
+.addr-check { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.addr-check > .input { flex: 1 1 calc(5 * var(--space-8)); }
+/* Reference band: states in one row end level; two short states can share a cell */
+.ref__item:has(> .panel, > .card, > .empty, > .error-box, > .notice) { grid-template-rows: auto 1fr; align-content: stretch; }
+.ref .empty { align-content: center; }
+.ref__col { display: grid; gap: var(--space-5); align-content: start; min-width: 0; }
+/* Share cards: the post beside each card, a second small stamp, a wide stamp, the loading shape */
+.share-post { display: grid; gap: var(--space-3); align-content: start; }
+.share-post .btn-row > .btn { flex: 1 1 auto; }
+.share-row { align-items: stretch; }
+.share-row > .share-post { display: flex; flex-direction: column; }
+.share-row > .share-post > .btn-row { margin-top: auto; }
+.share-card__stamp .stamp--sm { font-size: calc(30 * var(--u)); padding: calc(8 * var(--u)) calc(18 * var(--u)) calc(6 * var(--u)); border-width: calc(4 * var(--u)); box-shadow: calc(4 * var(--u)) calc(4 * var(--u)) 0 var(--shadow-color); }
+.share-card--wide-stamp .share-card__text { max-width: calc(550 * var(--u)); }
+.share-skeleton { height: auto; aspect-ratio: 1200 / 675; }

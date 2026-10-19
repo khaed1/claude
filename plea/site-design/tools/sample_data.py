@@ -33,7 +33,7 @@ MIN_POINTS = 60
 PRICE = 14.16          # IMD per 1,000,000 PLEA now (hourly snapshot)
 PRICE_24H = 14.05      # 24h-ago checkpoint: +0.8%, flat
 OPEN_PRICE = 14.00     # 14,000 IMD opening market cap / 1e9 PLEA
-BURNED = 3_412_950
+BURNED = 26_134_870   # 0.25% of the PLEA leg of ~141,000 IMD of trading (the pots' 0.25%) at ~14.1 IMD per 1M, plus cap trims
 SUPPLY = 1_000_000_000 - BURNED
 FEE = 0.0225
 IMD_LEG = 0.02         # 0.5 cashback + 1 owner + 0.25 pot + 0.25 wall
@@ -173,7 +173,7 @@ RAW = [
     dict(id=215, who='deg_monk', how='site', share=20, balance=4_800_000, hold=2.25, pl=35.0, trend=0.8, score=None,
          submitted=NOW - timedelta(minutes=2, seconds=30), outcome='pending',
          text='Second try, shorter this time. I held through two days of silence from the chart and from my wife. One fifth out to buy flowers; the rest stays in the monastery.'),
-    dict(id=211, who='0x51ab', how='site', share=10, balance=3_100_000, hold=1.2, pl=8.0, trend=0.8, score=37,
+    dict(id=211, who='0x51ab', how='site', share=10, balance=3_100_000, hold=1.2, pl=0.0, trend=0.8, score=37,
          submitted=NOW - timedelta(minutes=17, seconds=40), delay=timedelta(minutes=5, seconds=0), agreed=25, answered=30,
          outcome='sold', objection=dict(id=9, by='kafka_cat', rescore=None, agreed=None, answered=None, pending=True,
                                         text='The plea says nothing about why: "already regret it" is a mood, not a reason. Judge it as plain.'),
@@ -192,7 +192,7 @@ RAW = [
          submitted=NOW - timedelta(hours=3, minutes=5), delay=timedelta(minutes=3, seconds=58), agreed=28, answered=30,
          outcome='lapsed', judge_note='Specific and loyal. The goblin will be fine.',
          text='Goblin law says never sell. Goblin landlord says pay rent. Goblin compromise: one fifth, and I keep the hoard warm for the other four.'),
-    dict(id=207, who='oath_keeper', how='site', share=20, balance=5_600_000, hold=3.2, pl=-15.0, trend=0.8, score=34,
+    dict(id=207, who='oath_keeper', how='site', share=20, balance=5_600_000, hold=3.06, pl=-15.0, trend=0.8, score=34,
          submitted=NOW - timedelta(hours=4, minutes=40), delay=timedelta(minutes=4, seconds=30), agreed=26, answered=30,
          outcome='sold', appeal_of=205,
          text='My first plea scored 30 against a need of 33, and that was fair: I wrote it in a hurry. Here is the real reason. My daughter starts school on Monday and needs shoes; I keep 80% and my word.'),
@@ -438,7 +438,7 @@ S2 = {
     'bagholder_99': [29, 28, 27],
     'lamp_oil': [33, 28],
     'rope_seller': [30, 27],
-    'fresh_start': [36, 22],
+    'fresh_start': [32, 26],   # a recorded score is at least 26 (the lowest possible need)
     'one_shot': [44],
     'late_owl': [35],
 }
@@ -548,7 +548,7 @@ market = {
     'burned': fmt_int(BURNED),
     'marketCapImd': fmt_int(PRICE * SUPPLY / 1e6),
     'wallImd': '412.80',
-    'pleas': {'total': 215, 'approved': 119, 'denied': 74, 'noVerdict': 21, 'pending': 1, 'approvalRateOfJudged': f'{119 / 193 * 100:.1f}%'},
+    'pleas': {'total': 215, 'approved': 140, 'denied': 55, 'noVerdict': 19, 'pending': 1, 'approvalRateOfJudged': f'{140 / 195 * 100:.1f}%'},   # enough approvals for both seasons' boards
     'cabal': {
         'alive': True,
         'lastVerdict': t(last_verdict),
@@ -562,7 +562,7 @@ buy = {
     'pay': '100.00', 'unit': 'IMD', 'balanceImd': '412.50',
     'get': '6,881,240', 'minimum1pct': '6,812,427',
     # The hook takes its 2% IMD fee from what reaches the pool (100 * 200 / 10200), plus 0.25% of the PLEA burned.
-    'fees': {'total': '2.25%', 'reachesPool': '98.04', 'feeImd': '1.96', 'cashback': '0.49', 'owner': '0.98', 'pot': '0.25', 'wall': '0.25', 'burnPct': '0.25% of the PLEA'},
+    'fees': {'total': '2.25%', 'reachesPool': '98.04', 'feeImd': '1.96', 'cashback': '0.49', 'owner': '0.98', 'pot': '0.245', 'wall': '0.245', 'burnPct': '0.25% of the PLEA'},
     'launchWindow': {
         'example': 'at 12:30 UTC on opening day (30 of 90 minutes gone)',
         'launchFeePct': '46.7% of the IMD that reaches the pool, on top of the normal 2.25% (falls in a straight line from 70% to 0% at 13:30 UTC)',
@@ -580,6 +580,9 @@ autosell = {
     'feesPleaAbout': '54,180',   # the exact-output fee swap needs about 54,182 PLEA (reviewed against PleaHook)
     'feesPleaMax': fmt_int(math.ceil(fee_imd * 1.1 / (PRICE / 1e6))),   # Letterbox.feesFor: snapshot value + 10%
     'tipImd': fmt_imd(TIP),
+    'appealFeesImd': '1.10',
+    'appealFeesPleaAbout': fmt_int(round(1.10 / (PRICE / 1e6) / (1 - FEE), -1)),
+    'appealFeesPleaMax': fmt_int(math.ceil(1.10 * 1.1 / (PRICE / 1e6))),
     'autoSellFeeImd': fmt_imd(AUTO_SELL_FEE),
     'quote': sale_quote(1_240_000, auto=True),
     'explain': 'Fees are paid in PLEA in the same transaction (0.50 IMD oracle fee + 0.25 IMD tip). If approved, anyone can sell it for you within 7 minutes and earns the tip (our runner does it; you can also press Sell and keep the tip); 0.35 IMD of the sale goes to the season prize pot. If nobody sells it, or on any other ending, your PLEA and the tip come back (the 0.50 IMD oracle fee is spent).',
@@ -592,9 +595,9 @@ plead_form = {
     'min': fmt_int(6_200_000 // 100), 'max': fmt_int(min(2_500_000, 6_200_000 // 2)),
     'fact': by_id[214]['facts'], 'factScore': by_id[214]['fact'], 'need': by_id[214]['need'],
     'cannotPassExample': {
-        'who': 'a wallet that bought 2 hours ago, at +40%, on a falling day',
-        'amount': '1,860,000 of 6,200,000 (30%)', 'facts': 'share 30% \u2192 9 + held 2h \u2192 0 + gain 40% \u2192 12 + 24h down \u2192 0 = 21', 'need': 50,
-        'message': 'Even a perfect plea (45) cannot pass at this size today. Sell less or wait for better facts.',
+        'who': 'you, at the Max chip',
+        'amount': '2,500,000 of 6,200,000 (40%)', 'facts': 'share 40% \u2192 3 + held 3d 4h \u2192 4 + loss \u2192 13 + flat \u2192 5 = 25', 'need': 46,
+        'message': 'Even a perfect plea (45) cannot pass at this size. Plead 20% or less (need 33) or wait for better facts.',
     },
     'cooldownExample': 'Next plea possible at 12:00 UTC (4-hour cooldown after your sale).',
     'oracleFee': '0.50 IMD',
@@ -662,6 +665,8 @@ profile = {
     'buyRecord': buy['record'],
     'cooldown': 'Plea #214 is open: sell by 08:06 UTC. Next plea 4 hours after the sale (12:00 UTC if sold now), or 11:59 UTC if it lapses.',
     'pleas': [214, 196],
+    'pleasNote': 'The latest two; season 2 also counts #188 and #171 (all pleas on the Wall, filtered by wallet).',
+    'nextPleaAfterSale': 'After #214 sells, the balance is 4,960,000: a 20% plea is 992,000 PLEA and needs 33 (16 + 4 + 13 + 5).',
     'seasonPoints': [{'season': 1, 'points': 97, 'rank': 14, 'prizeImd': fmt_floor2(POT_S1 * SHARES[13] / 10000), 'bonusPlea': fmt_int(BONUS * SHARES[13] / 10000)},
                      {'season': 2, 'points': 116, 'rank': season2['you']['rank'], 'prizeImd': None}],
     'nameBox': {'value': 'mira_eth', 'state': 'This is your current name.', 'taken': 'kafka_cat is taken.', 'bad': 'Only lower-case a–z, digits 0–9 and _ are allowed.'},
@@ -679,6 +684,7 @@ addresses = {
 }
 
 data = {
+    'roundingNote': 'Each IMD amount is rounded down on its own, as the chain pays and prints it, so parts and totals can differ by a cent.',
     '_about': 'Sample data for the PLEA site mockups, generated by tools/sample_data.py from the agreed mainnet numbers. Names, wallets and texts are made up; mainnet PLEA addresses do not exist yet.',
     'rules': {
         'fact': {'share': '≤20%: 16 · ≤35%: 9 · more: 3', 'hold': '≥7d: 7 · ≥3d: 4 · ≥1d: 2',
