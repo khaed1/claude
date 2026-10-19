@@ -30,7 +30,7 @@ The page shows its main state. Below `</main>`, the `.ref` band ("Design referen
 - One `h1`, headings in order, landmarks from the shell. Every input has a `<label>`; hints and errors are tied with `aria-describedby`; invalid fields get `aria-invalid="true"`.
 - Links go somewhere, buttons do something (`<a href>` vs `<button type="button">`). Icon-only buttons have `aria-label`. Decorative SVG is `aria-hidden="true"`.
 - Never remove focus outlines. Colour is never the only signal: the state is always in words.
-- Countdowns: `role="timer"` with an `aria-label` that reads in words. The checks list is `aria-live="polite"`.
+- Countdowns: `role="timer"` with an `aria-label` that reads in words. The checks list is not a live region: site.js adds one polite summary line after it.
 - Tables: `<caption>` (may be `.sr-only`), `<th scope>`; a `.table-wrap` that can scroll gets `tabindex="0" role="region" aria-label`.
 - Body text at least 4.5:1, large text 3:1 (the tokens already pass: don't put text on a fill that isn't a token pair from components.html).
 

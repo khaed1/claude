@@ -20,29 +20,16 @@
     .status__side { display: contents; }
     .status__sell { order: -1; }
   }
-  /* From 1100 px: the plea and its timeline on the left, the seller's actions on the right. */
+  /* From 1100 px: the plea and its timeline on the left, the seller's actions on the right;
+     both columns end on one line (the side's last panel takes what is left). */
   @media (min-width: 1100px) {
     .status { grid-template-rows: auto 1fr; grid-template-areas: "plea side" "timeline side"; }
     .status__plea { grid-area: plea; }
-    .status__side { grid-area: side; }
+    .status__side { grid-area: side; align-self: stretch; }
     .status__timeline { grid-area: timeline; align-self: stretch; }
-    /* Both columns end on one line: the side's last panel takes what is left. */
-    .status__side { align-self: stretch; }
     .status__side > :last-child { flex-grow: 1; }
   }
-  /* Share and Details side by side end on one line. */
-  .split--stretch { align-items: stretch; }
-  /* The share buttons share each line they wrap onto (ragged widths at 360). */
-  .share-actions > .btn { flex: 1 1 auto; }
-  /* A button with a cost line: on phones the cost wraps under the label instead of squeezing it. */
-  .btn--wrap { flex-wrap: wrap; row-gap: 0; }
-  /* The toggle's title breaks into even lines ("Sell automatically / if approved"), not one orphan word. */
-  .toggle-card__title { text-wrap: balance; }
-  /* The appeal box grows with its text. */
-  .textarea textarea { field-sizing: content; }
-  /* Reference band: the panels of one row end on one line. */
-  .ref__item:has(> .panel, > .error-box) { grid-template-rows: auto 1fr; }
-  .ref__grid { grid-auto-flow: dense; }
+  /* Reference band: the wide appeal state leaves no hole in the three-column grid. */
   /* The appeal state: the denied plea and the appeal form side by side from 768 px. */
   .ref-pair { display: grid; gap: var(--space-5); align-items: start; }
   @media (min-width: 768px) { .ref-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -87,16 +74,24 @@
   </nav>
   <div class="status-strip">
     <div class="page">
-      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a verdict</span>
-      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span> IMD + 10,000,000 PLEA</span>
+      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a&nbsp;verdict</span>
+      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span>&nbsp;IMD + 10,000,000&nbsp;PLEA</span>
       <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
     </div>
   </div>
 </header>
 
+<!-- After the Cabal dies, the status strip and a banner read (the same on every page):
+  <div class="status-strip"><div class="page">
+    <span class="status-item"><span class="live-dot live-dot--dead" aria-hidden="true"></span><b>Cabal dead</b> · no verdict for 33&nbsp;hours</span>
+    <span class="status-item"><b>Season 2</b> ended with the Cabal · close it from 17:59&nbsp;UTC</span>
+    <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+  </div></div>
+  <div class="banner" role="status"><div class="page"><span class="live-dot live-dot--dead" aria-hidden="true"></span><span>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever. Pleas and objections are closed; sell on the Buy page.</span></div></div>
+-->
 <main id="main" class="page main">
   <div class="stack stack--lg">
-    <div class="stack stack--sm">
+    <div>
       <nav class="meta" aria-label="Breadcrumb"><a href="wall.html">Wall</a> <span aria-hidden="true">/</span> <a href="plea.html" aria-current="page">Plea #214</a></nav>
       <div class="page-title"><h1>Plea #214</h1><span class="badge badge--you">YOU</span></div>
       <p class="lead">The Cabal approved your plea 48&nbsp;s ago. Sell within the 7-minute window, by 08:06&nbsp;UTC. Your +43 points are held while objections are open: record them after 08:19&nbsp;UTC.</p>
@@ -109,7 +104,7 @@
           <div class="plea__head">
             <span>by <span class="plea__who">mira_eth</span></span>
             <span class="badge badge--seat"><svg class="icon" aria-hidden="true"><use href="#i-armchair"/></svg>SEAT ×1.2</span>
-            <span class="plea__time">Judged 48 s ago</span>
+            <span class="plea__time">approved 48 s ago</span>
           </div>
           <span class="stamp stamp--lg stamp--approved stamp--land">Approved<span class="stamp__sub">36 vs need 33</span></span>
         </div>
@@ -142,7 +137,7 @@
             <dl class="costs">
               <div><dt>Sells</dt><dd>1,240,000&nbsp;PLEA</dd></div>
               <div class="total"><dt>You get</dt><dd>about 17.14&nbsp;IMD</dd></div>
-              <div><dt>Minimum, 1% slippage</dt><dd>16.97&nbsp;IMD</dd></div>
+              <div><dt>At least, with 1% slippage</dt><dd>16.97&nbsp;IMD</dd></div>
             </dl>
             <button class="btn btn--ink btn--block" type="button">Sell now <span class="btn__sub">≈ 17.14&nbsp;IMD</span></button>
           </div>
@@ -152,7 +147,7 @@
           <h2 class="card__title" id="pts-title">Your points</h2>
           <div class="stack">
             <div>
-              <span class="stat__value">+43 points</span>
+              <span class="stat__value">+43 points held</span>
               <span class="stat__note">36 × 1.2 with your IMD seat (43.2, rounded down)</span>
             </div>
             <p class="small">Held until 08:19&nbsp;UTC while objections are open. A sale doesn't record them: after 08:19&nbsp;UTC anyone can press Record my points. Recorded, they lift your season 2 total from 116 to 122 points (best three <span class="nowrap">43 + 40 + 39</span>; the 37 drops out) and your rank from 4 to 3.</p>
@@ -169,7 +164,7 @@
               <span class="pill">0 of 2 filed</span>
             </div>
             <p class="small"><b>You can't object to your own plea.</b> Others may until 08:19&nbsp;UTC, for a 0.50&nbsp;IMD fee + 0.35&nbsp;IMD stake. A new panel of 30 re-scores it: sustained only at 30 or less (more than 2 below your need of 33), and then no points. Void if that panel splits or gives no answer within 20 minutes: nothing changes. The sale is never touched.</p>
-            <p class="small"><a href="objections.html">How objections work</a></p>
+            <div><a class="link-btn" href="objections.html">How objections work<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></a></div>
           </div>
         </section>
       </div>
@@ -193,13 +188,13 @@
       <section class="panel" aria-labelledby="share-title">
         <h2 class="card__title" id="share-title">Share</h2>
         <div class="stack">
-          <div class="share-frame theme-light" role="img" aria-label="Share card for plea #214 by mira_eth, seat holder: “I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.” Approved, 36 vs need 33. +43 points, season 2 rank 4. plea.sites.imd.fun/#/p/214">
+          <div class="share-frame theme-light" role="img" aria-label="Share card for plea #214 by mira_eth, seat holder: “I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.” Approved, 36 vs need 33. +43 points held, season 2 rank 4. plea.sites.imd.fun/#/p/214">
             <div class="share-card">
               <div class="share-card__top"><span class="logo">PLEA</span><span class="share-card__who">mira_eth <span class="badge badge--seat">SEAT ×1.2</span></span><span class="share-card__id">Plea #214</span></div>
               <p class="share-card__text is-long">“I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.”</p>
               <div class="share-card__stamp"><span class="stamp stamp--approved">Approved<span class="stamp__sub">36 vs need 33</span></span></div>
               <div class="share-card__foot">
-                <div class="share-card__nums"><span><b>36</b>score</span><span><b>33</b>need</span><span><b>+43</b>points</span><span><b>#4</b>season 2</span></div>
+                <div class="share-card__nums"><span><b>36</b>score</span><span><b>33</b>need</span><span><b>+43</b>points held</span><span><b>#4</b>season 2</span></div>
                 <span class="share-card__url">plea.sites.imd.fun/#/p/214</span>
               </div>
             </div>
@@ -209,7 +204,7 @@
             <p class="chain-text">The Cabal APPROVED my plea, 36 vs need 33. “I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA.” Plead your case: plea.sites.imd.fun/#/p/214</p>
             <p class="small text-2">Attach the image: the link alone shows the default card.</p>
           </div>
-          <div class="btn-row share-actions">
+          <div class="btn-row btn-row--fill">
             <a class="btn btn--sm" href="https://twitter.com/intent/tweet?text=The%20Cabal%20APPROVED%20my%20plea%2C%2036%20vs%20need%2033.%20%E2%80%9CI%20bought%20at%20the%20top%20like%20a%20fool%20and%20held%20through%20two%20red%20weeks.%20My%20rent%20is%20due%20Friday%20and%20my%20landlord%20does%20not%20take%20PLEA.%E2%80%9D%20Plead%20your%20case%3A&amp;url=https%3A%2F%2Fplea.sites.imd.fun%2F%23%2Fp%2F214"><svg class="icon" aria-hidden="true"><use href="#i-x-logo"/></svg>Share on X<span class="sr-only">: plea #214</span></a>
             <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-down"/></svg>Download image<span class="sr-only"> of plea #214</span></button>
             <button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg>Copy image<span class="sr-only"> of plea #214</span></button>
@@ -228,8 +223,8 @@
           <div><dt>Need</dt><dd><span class="num">33</span> (71 − 38)</dd></div>
           <div><dt>Panel</dt><dd>30 seats, quorum 17: 26 of 30 agreed, in 4m&nbsp;10s</dd></div>
           <!-- Placeholder links: the real transaction hashes exist after launch. -->
-          <div><dt>Plea transaction</dt><dd class="cluster cluster--sm"><span class="nowrap">07:55:02&nbsp;UTC</span><a class="nowrap" href="https://etherscan.io/">View on Etherscan<span class="sr-only">: the plea transaction</span></a></dd></div>
-          <div><dt>Verdict transaction</dt><dd class="cluster cluster--sm"><span class="nowrap">07:59:12&nbsp;UTC</span><a class="nowrap" href="https://etherscan.io/">View on Etherscan<span class="sr-only">: the verdict transaction</span></a></dd></div>
+          <div><dt>Plea transaction</dt><dd class="cluster cluster--sm"><span class="nowrap">07:55:02&nbsp;UTC</span><a class="link-btn nowrap" href="https://etherscan.io/">View on Etherscan<span class="sr-only">: the plea transaction</span></a></dd></div>
+          <div><dt>Verdict transaction</dt><dd class="cluster cluster--sm"><span class="nowrap">07:59:12&nbsp;UTC</span><a class="link-btn nowrap" href="https://etherscan.io/">View on Etherscan<span class="sr-only">: the verdict transaction</span></a></dd></div>
           <div><dt>Contract</dt><dd>CabalGate <span class="mono">[after launch]</span></dd></div>
         </dl>
       </section>
@@ -241,14 +236,14 @@
 <section class="ref" aria-labelledby="ref-title">
   <div class="page">
     <p class="ref__label" id="ref-title">Design reference · other states</p>
-    <p class="ref__note">The page above is #214 for its seller, mira_eth, at 08:00&nbsp;UTC. The stamp shows the plea's outcome: SOLD with the IMD received, OVERTURNED or UPHELD for an appeal, otherwise the verdict with the score against the need. An objection's state is a second, small lilac stamp.</p>
+    <p class="ref__note">The page above is #214 for its seller, mira_eth, at 08:00&nbsp;UTC. The stamp shows the plea's main state with the score against the need under it (the time left for PENDING, the reason for NO VERDICT), never an amount; OVERTURNED and UPHELD mark an appeal. An objection's state is a second, small lilac stamp with a plain line after it. Amounts and points go below the stamp.</p>
     <div class="ref__grid ref__grid--3">
       <div class="ref__item">
         <p class="ref__caption">PENDING · #215, waiting for the Cabal</p>
         <div class="panel stack">
           <div class="stack stack--sm">
             <div><span class="stamp stamp--pending">Pending<span class="stamp__sub">17:30 left</span></span></div>
-            <p class="small"><span class="mono strong">#215</span> by <span class="strong">deg_monk</span> · sent 07:57:30&nbsp;UTC</p>
+            <p class="small"><span class="mono strong">#215</span> by <span class="strong">deg_monk</span> · sent 2 min ago</p>
           </div>
           <div class="countdown countdown--block countdown--wait" role="timer" aria-label="Waiting for the Cabal: expires in 17 minutes 30 seconds, at 08:17:30 UTC">
             <span>Waiting for the Cabal</span><span class="countdown__time">17:30</span><span class="countdown__bar" aria-hidden="true"><span style="--left: 87.5%"></span></span><span class="small">Usually 3 to 6 minutes. The request expires at 08:17:30&nbsp;UTC.</span>
@@ -291,15 +286,16 @@
             <div class="stack">
               <div class="stack stack--md">
                 <label class="toggle-card">
-                  <input class="box" type="checkbox" checked data-autosell>
-                  <span class="stack stack--sm"><span class="toggle-card__title">Sell automatically if approved</span><span class="small text-2">The fees are paid in PLEA, with the 0.25&nbsp;IMD tip. If approved, anyone can sell it for you within 7 minutes and earns the tip; our runner does.</span></span>
+                  <input class="box" type="checkbox" checked data-autosell aria-labelledby="ref-appeal-as-title" aria-describedby="ref-appeal-as-desc">
+                  <span class="stack stack--sm"><span class="toggle-card__title" id="ref-appeal-as-title">Sell automatically if approved</span><span class="small text-2" id="ref-appeal-as-desc">The fees are paid in PLEA, with the 0.25&nbsp;IMD tip. If approved, anyone can sell it for you within 7 minutes and earns the tip; our runner does. 0.35&nbsp;IMD of the sale goes to the season prize pot.</span></span>
                 </label>
                 <div data-autosell-on>
                   <dl class="costs">
                     <div><dt>Oracle fee</dt><dd>0.50&nbsp;IMD</dd></div>
                     <div><dt>To the buy wall</dt><dd>0.35&nbsp;IMD</dd></div>
                     <div><dt>Tip for whoever sells it</dt><dd>0.25&nbsp;IMD</dd></div>
-                    <div class="total"><dt>Paid in PLEA</dt><dd>1.10&nbsp;IMD</dd></div>
+                    <div class="total"><dt>Paid in PLEA, 1.10&nbsp;IMD</dt><dd>about 79,470&nbsp;PLEA</dd></div>
+                    <div><dt>At most</dt><dd>85,452&nbsp;PLEA</dd></div>
                     <div><dt>Auto-sell fee, from the sale to the season prize pot</dt><dd>0.35&nbsp;IMD</dd></div>
                   </dl>
                   <p class="small text-2">Press Sell yourself and you keep the tip. If nobody sells it, or on any other ending, your PLEA and the tip come back; the oracle fee and the buy-wall share are spent.</p>
@@ -315,10 +311,10 @@
                 </div>
               </div>
               <div class="stack stack--sm">
-                <button class="btn btn--primary btn--block btn--wrap" type="button" id="ref-appeal-submit" aria-describedby="ref-appeal-note">Appeal <span class="btn__sub" data-autosell-on>1.10&nbsp;IMD in PLEA</span><span class="btn__sub" data-autosell-off hidden>0.85&nbsp;IMD</span></button>
+                <button class="btn btn--primary btn--block" type="button" id="ref-appeal-submit" aria-describedby="ref-appeal-note ref-appeal-checks">Appeal <span class="btn__sub" data-autosell-on>1.10&nbsp;IMD in PLEA</span><span class="btn__sub" data-autosell-off hidden>0.85&nbsp;IMD</span></button>
                 <p class="small text-2" id="ref-appeal-note">Appeal stays off until your text passes the checks; nothing is paid before that. Send it before 11:53&nbsp;UTC.</p>
               </div>
-              <p class="small">Or send <code>APPEAL &lt;text&gt;</code> to the Letterbox from Etherscan: 1.10&nbsp;IMD paid in PLEA (0.50 oracle fee + 0.35 to the buy wall + 0.25 tip, back if you send SELL yourself). <a class="nowrap" href="letters.html">How letters work</a></p>
+              <p class="small">Or send <code>APPEAL &lt;text&gt;</code> to the Letterbox from Etherscan: 1.10&nbsp;IMD paid in PLEA, about 79,470&nbsp;PLEA (0.50 oracle fee + 0.35 to the buy wall + 0.25 tip, back if you send SELL yourself). <a class="nowrap" href="letters.html">How letters work</a></p>
               <p class="small">Not appealing? Call settle to get your PLEA back; a new plea waits for the cooldown, until 11:53&nbsp;UTC.</p>
             </div>
           </div>
@@ -356,10 +352,10 @@
         <p class="ref__caption">SOLD by letter · #212, objections still open</p>
         <div class="panel stack">
           <div class="stack stack--sm">
-            <div><span class="stamp stamp--sold">Sold<span class="stamp__sub">25.98&nbsp;IMD</span></span></div>
+            <div><span class="stamp stamp--sold">Sold<span class="stamp__sub">37 vs need 30</span></span></div>
             <p class="cluster cluster--sm small"><span><span class="mono strong">#212</span> by <span class="strong">lettersonly</span></span><span class="badge badge--letter"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg>BY LETTER</span></p>
           </div>
-          <p class="small">Approved 37 vs need 30 at 07:47:40&nbsp;UTC and sold at 07:48:52&nbsp;UTC by a runner, who earned the 0.25&nbsp;IMD tip.</p>
+          <p class="small">Approved at 07:47:40&nbsp;UTC and sold at 07:48:52&nbsp;UTC by a runner, who earned the 0.25&nbsp;IMD tip.</p>
           <dl class="costs">
             <div><dt>Sold</dt><dd>1,880,000&nbsp;PLEA</dd></div>
             <div><dt>Sold by</dt><dd class="mono">0x3b7e…91d0</dd></div>
@@ -376,15 +372,15 @@
         <p class="ref__caption">OBJECTION pending · #211, points held</p>
         <div class="panel stack">
           <div class="stack stack--sm">
-            <div><span class="stamp stamp--sold">Sold<span class="stamp__sub">4.28&nbsp;IMD</span></span></div>
+            <div><span class="stamp stamp--sold">Sold<span class="stamp__sub">37 vs need 36</span></span></div>
             <p class="small"><span class="mono strong">#211</span> by <span class="mono strong">0x51ab…7c3e</span></p>
           </div>
-          <p class="cluster cluster--sm small"><span class="stamp stamp--sm stamp--objection">Objection</span><span>#9 pending: points held</span></p>
+          <p class="cluster cluster--sm small"><span class="stamp stamp--sm stamp--objection">Objection #9</span><span>pending</span></p>
           <div class="stack stack--sm">
             <p class="small">Objection #9 by <span class="strong">kafka_cat</span>:</p>
             <p class="plea__text">“The plea says nothing about why: "already regret it" is a mood, not a reason. Judge it as plain.”</p>
           </div>
-          <p class="small"><b>+37 points held</b> until the second panel rules. Sustained if the new score is 33 or less (more than 2 below the need 36). The sale stands either way.</p>
+          <p class="small"><b>+37 points held</b> until the second panel rules. Sustained if the new score is 33 or less (more than 2 below the need 36). The sale stands either way: 310,000&nbsp;PLEA sold for 4.28&nbsp;IMD at 07:48:32&nbsp;UTC.</p>
           <div class="cluster"><span class="countdown" role="timer" aria-label="Objections close in 7 minutes 20 seconds, at 08:07:20 UTC">Objections close in <span class="countdown__time">07:20</span></span><span class="pill">1 of 2 filed</span></div>
         </div>
       </div>
@@ -393,10 +389,10 @@
         <p class="ref__caption">SUSTAINED · #209, no points, the sale stands</p>
         <div class="panel stack">
           <div class="stack stack--sm">
-            <div><span class="stamp stamp--sold">Sold<span class="stamp__sub">10.78&nbsp;IMD</span></span></div>
+            <div><span class="stamp stamp--sold">Sold<span class="stamp__sub">34 vs need 33</span></span></div>
             <p class="small"><span class="mono strong">#209</span> by <span class="mono strong">0x9c41…e07a</span></p>
           </div>
-          <p class="cluster cluster--sm small"><span class="stamp stamp--sm stamp--objection">Sustained</span><span>#8 re-scored it 29 vs need 33</span></p>
+          <p class="cluster cluster--sm small"><span class="stamp stamp--sm stamp--objection">Sustained</span><span>#8: 29 vs need 33</span></p>
           <p class="small">Objection #8 by <span class="mono">0x2d10…b6f2</span>: a second panel re-scored it 29 (23 of 30 agreed). The first panel gave 34.</p>
           <p><b>No points for this plea.</b> The sale stands: 780,000&nbsp;PLEA sold for 10.78&nbsp;IMD at 05:55:17&nbsp;UTC.</p>
           <p class="small text-2">The objector's 0.35&nbsp;IMD stake was returned.</p>
@@ -437,7 +433,7 @@
         <div class="panel stack">
           <p class="small">Only the seller can sell plea #214.</p>
           <div class="cluster"><span class="countdown" role="timer" aria-label="Objections close in 19 minutes 12 seconds, at 08:19:12 UTC">Objections close in <span class="countdown__time">19:12</span></span><span class="pill">0 of 2 filed</span></div>
-          <a class="btn btn--primary btn--block btn--wrap" href="objections.html">Object <span class="btn__sub">0.85&nbsp;IMD</span></a>
+          <a class="btn btn--primary btn--block" href="objections.html">Object <span class="btn__sub">0.85&nbsp;IMD</span></a>
           <p class="small text-2">0.50&nbsp;IMD oracle fee + 0.35&nbsp;IMD stake. A new panel of 30 re-scores it; the sale is never touched.</p>
         </div>
       </div>
@@ -446,7 +442,7 @@
         <p class="ref__caption">Not connected: a visitor</p>
         <div class="panel stack">
           <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><div><p class="notice__title">Connect in the top bar to object.</p><p>The plea, its verdict and its timeline read without a wallet. Only the seller can sell it.</p></div></div>
-          <button class="btn btn--primary btn--block btn--wrap" type="button" aria-disabled="true" aria-describedby="nc-why">Object <span class="btn__sub">0.85&nbsp;IMD</span></button>
+          <button class="btn btn--primary btn--block" type="button" aria-disabled="true" aria-describedby="nc-why">Object <span class="btn__sub">0.85&nbsp;IMD</span></button>
           <p class="small" id="nc-why">Connect a wallet first. Objections close at 08:19&nbsp;UTC.</p>
         </div>
       </div>
@@ -467,7 +463,7 @@
         <p class="ref__caption">Sell failed: the price moved, or the window closed</p>
         <div class="toasts toasts--static">
           <div class="toast toast--bad" role="alert"><svg class="icon" aria-hidden="true"><use href="#i-warning-circle"/></svg><div><p class="toast__title">The price moved more than 1%.</p><p>Nothing was sold; your PLEA stays in your wallet. The window is open until 08:06:12&nbsp;UTC: try again.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
-          <div class="toast" role="status"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg><div><p class="toast__title">The window closed at 08:06:12&nbsp;UTC.</p><p>Plea #214 lapsed: nothing was sold. Your +43 points still count; record them after 08:19&nbsp;UTC. Next plea at 11:59&nbsp;UTC.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+          <div class="toast" role="status"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg><div><p class="toast__title">The window closed at 08:06:12&nbsp;UTC.</p><p>Plea #214 lapsed: nothing was sold. Your +43 points still count: held until 08:19&nbsp;UTC, then record them. Next plea at 11:59&nbsp;UTC.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
         </div>
       </div>
 
@@ -479,7 +475,7 @@
             <p class="small">Objections closed. Anyone can record a plea's points; nothing records them by itself.</p>
           </div>
           <div class="toasts toasts--static">
-            <div class="toast toast--ok" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="toast__title">+43 points recorded.</p><p>Season 2: 122 points <span class="nowrap">(43 + 40 + 39),</span> rank 3.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+            <div class="toast toast--ok" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="toast__title">+43 points recorded.</p><p>Season 2: 122 points <span class="nowrap">(43 + 40 + 39),</span> rank 3. <a class="nowrap" href="#ref-title">View transaction</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
           </div>
         </div>
       </div>

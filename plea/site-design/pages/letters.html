@@ -14,13 +14,7 @@
 <script src="../icons.js" defer></script>
 <style>
   /* Letters only: what the kit still lacks (report). Tokens only. */
-  /* Three steps: one column up to 1099 px, three across from 1100 px (the kit has two and four). */
-  @media (min-width: 768px) { .steps--3 { grid-template-columns: minmax(0, 1fr); } }
-  @media (min-width: 1100px) { .steps--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-  /* The letter box grows with its text, so a prefilled letter is read whole on a phone. */
-  .textarea textarea { field-sizing: content; }
-  /* No one-word last lines in the prose the kit does not cover. */
-  .small, .checks, .cmd > span:last-child, .cmd p, .chain-text, .empty p, .ref__caption { text-wrap: pretty; }
+  /* The chain's status sentences (samp) end without a one-word last line; the kit's text-wrap list has no samp. */
   /* Three example letters across from 1100 px; their boxes end on one line so the "Reads as" lines align. */
   .examples { display: grid; gap: var(--space-5); }
   .examples > div { display: grid; gap: var(--space-2); align-content: start; }
@@ -28,9 +22,6 @@
     .examples { grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: var(--space-2); }
     .examples > div { grid-row: span 2; grid-template-rows: subgrid; }
   }
-  /* Reference band: the panels of one row end on one line. */
-  .ref__item:has(> .panel, > .empty) { grid-template-rows: auto 1fr; }
-  .ref .empty { align-content: center; }
 </style>
 </head>
 <body>
@@ -72,13 +63,21 @@
   </nav>
   <div class="status-strip">
     <div class="page">
-      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a verdict</span>
-      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span> IMD + 10,000,000 PLEA</span>
+      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a&nbsp;verdict</span>
+      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span>&nbsp;IMD + 10,000,000&nbsp;PLEA</span>
       <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
     </div>
   </div>
 </header>
 
+<!-- After the Cabal dies, the status strip and a banner read (the same on every page):
+  <div class="status-strip"><div class="page">
+    <span class="status-item"><span class="live-dot live-dot--dead" aria-hidden="true"></span><b>Cabal dead</b> · no verdict for 33&nbsp;hours</span>
+    <span class="status-item"><b>Season 2</b> ended with the Cabal · close it from 17:59&nbsp;UTC</span>
+    <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+  </div></div>
+  <div class="banner" role="status"><div class="page"><span class="live-dot live-dot--dead" aria-hidden="true"></span><span>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever. Pleas and objections are closed; sell on the Buy page.</span></div></div>
+-->
 <main id="main" class="page main">
   <!-- ============================================================ title and the Letterbox -->
   <div class="split">
@@ -145,7 +144,7 @@
     <div class="stack">
       <ul class="cmds">
         <li class="cmd"><span class="cmd__word">any text</span><span>A new plea for 20% of your PLEA (at most 2,500,000). If approved, anyone may sell it for you within 7 minutes and earns the 0.25 IMD tip. On the Wall it carries the BY LETTER badge.</span></li>
-        <li class="cmd"><span class="cmd__word">APPEAL &lt;text&gt;</span><span>Appeals your latest denied plea within its 4 hours, for the same share of your PLEA. It costs 1.10 IMD in PLEA: 0.35 IMD more, to the buy wall.</span></li>
+        <li class="cmd"><span class="cmd__word">APPEAL &lt;text&gt;</span><span>Appeals your latest denied plea within its 4 hours, for the same share of your PLEA. It costs 1.10&nbsp;IMD in PLEA: 0.35&nbsp;IMD more, to the buy wall.</span></li>
         <li class="cmd"><span class="cmd__word">SELL</span><span>Sells your approved letter plea yourself, within its 7 minutes and if nobody has yet, and the 0.25 IMD tip comes back to you.</span></li>
         <li class="cmd"><span class="cmd__word">NAME &lt;name&gt;</span><span>Sets your display name: 3 to 20 characters, only lower-case <span class="nowrap">a–z</span>, digits <span class="nowrap">0–9</span> and _. <code>NAME</code> alone clears it.</span></li>
       </ul>
@@ -167,7 +166,7 @@
           </div>
         </div>
         <div class="stack stack--md">
-          <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg><p id="try-reads-line"><b>Reads as:</b> <span id="try-reads">A new plea for 20% of your PLEA (at most 2,500,000), sold automatically if approved.</span></p></div>
+          <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg><p id="try-reads-line"><b>Reads as:</b> <span id="try-reads">A new plea for 20% of your PLEA (at most 2,500,000). If approved, anyone can sell it for you within 7 minutes for the 0.25 IMD tip.</span></p></div>
           <ul class="checks" id="try-checks"></ul>
         </div>
       </div>
@@ -187,6 +186,8 @@
           <div><dt>In PLEA, at 1M PLEA = 14.16 IMD and after the 2.25% trade fee</dt><dd class="nowrap">about 54,180 PLEA</dd></div>
           <div><dt>Never more than</dt><dd class="nowrap">58,263 PLEA</dd></div>
           <div><dt>An APPEAL letter: 0.50 oracle fee + 0.35 to the buy wall + 0.25 tip</dt><dd class="nowrap">1.10 IMD</dd></div>
+          <div><dt>In PLEA, at the same rate</dt><dd class="nowrap">about 79,470 PLEA</dd></div>
+          <div><dt>Never more than</dt><dd class="nowrap">85,452 PLEA</dd></div>
           <div><dt>Auto-sell fee</dt><dd>none for letters</dd></div>
         </dl>
         <p class="small text-2">The tip comes back if you send SELL yourself. If nobody sells within the 7 minutes, the plea lapses. A lapse, a denial or no verdict returns your PLEA and the tip through settle. The 0.50 IMD oracle fee is spent either way.</p>
@@ -242,7 +243,7 @@
       </li>
       <li class="cmd">
         <span class="cmd__word">leaderboard()</span>
-        <p>Returns the season's top 25 as text, with each rank's IMD prize and PLEA bonus at the current pot. The same list is on the <a href="seasons.html">Seasons page</a>.</p>
+        <p>Returns the season's top 25 as text, with each rank's IMD prize and PLEA bonus from the season prize pot as it stands. The same list is on the <a href="seasons.html">Seasons page</a>.</p>
       </li>
     </ul>
   </section>
@@ -267,7 +268,7 @@
               <textarea id="ref-appeal" rows="3" data-text-check="letter" data-counter="ref-appeal-count" data-checks="ref-appeal-checks" data-reads="ref-appeal-reads" aria-describedby="ref-appeal-line ref-appeal-checks">APPEAL My first letter said too little. The truth: my brother lent me the money and his wedding is Saturday. I keep the rest and repay him with interest.</textarea>
               <div class="textarea__bar"><span class="counter" id="ref-appeal-count"><span class="counter__meter" aria-hidden="true"><span></span></span><span data-count>146 / 280 bytes</span></span></div>
             </div>
-            <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg><p id="ref-appeal-line"><b>Reads as:</b> <span id="ref-appeal-reads">An appeal of your latest denied plea, for its original share of your PLEA, sold automatically if approved.</span></p></div>
+            <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg><p id="ref-appeal-line"><b>Reads as:</b> <span id="ref-appeal-reads">An appeal of your latest denied plea, for its original share of your PLEA. If approved, anyone can sell it for you within 7 minutes for the 0.25 IMD tip.</span></p></div>
             <ul class="checks" id="ref-appeal-checks"></ul>
           </div>
         </div>
@@ -314,7 +315,7 @@
               <div class="textarea__bar"><span class="counter" id="ref-long-count"><span class="counter__meter" aria-hidden="true"><span></span></span><span data-count>301 / 280 bytes</span></span></div>
             </div>
             <p class="field__hint bad-text" id="ref-long-msg">The Letterbox refuses it: <code>LetterTooLong(301, 280)</code>. Cut 21 bytes.</p>
-            <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg><p><b>Reads as:</b> <span id="ref-long-reads">A new plea for 20% of your PLEA (at most 2,500,000), sold automatically if approved.</span></p></div>
+            <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg><p><b>Reads as:</b> <span id="ref-long-reads">A new plea for 20% of your PLEA (at most 2,500,000). If approved, anyone can sell it for you within 7 minutes for the 0.25 IMD tip.</span></p></div>
             <ul class="checks" id="ref-long-checks"></ul>
           </div>
         </div>
@@ -330,15 +331,25 @@
               <div class="textarea__bar"><span class="counter" id="ref-zw-count"><span class="counter__meter" aria-hidden="true"><span></span></span><span data-count>159 / 280 bytes</span></span></div>
             </div>
             <p class="field__hint bad-text" id="ref-zw-msg">The Letterbox refuses it: <code>BadPleaText</code>. The character is invisible: delete everything between “sandwich.” and “Twenty” and type one space.</p>
-            <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg><p><b>Reads as:</b> <span id="ref-zw-reads">A new plea for 20% of your PLEA (at most 2,500,000), sold automatically if approved.</span></p></div>
+            <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg><p><b>Reads as:</b> <span id="ref-zw-reads">A new plea for 20% of your PLEA (at most 2,500,000). If approved, anyone can sell it for you within 7 minutes for the 0.25 IMD tip.</span></p></div>
             <ul class="checks" id="ref-zw-checks"></ul>
           </div>
         </div>
       </div>
 
       <div class="ref__item">
-        <p class="ref__caption">The Cabal is dead: letters are refused</p>
-        <div class="empty"><svg class="icon" style="width: 40px; height: 40px" aria-hidden="true"><use href="#i-envelope-simple"/></svg><p class="empty__title">The Letterbox is closed</p><p>The Cabal is dead: no verdict for 33 hours, so a new letter is refused (<code>CabalNotWatching</code>) and PLEA trades freely. PLEA still waiting in a letter comes back through settle. The mail room has gone home.</p><a class="btn btn--sm" href="buy.html">Sell on the Buy page</a></div>
+        <p class="ref__caption">After the Cabal dies: the status strip turns dead, the site-wide banner sits under it, and the Letterbox refuses new letters</p>
+        <div class="panel panel--flush">
+          <div class="status-strip"><div class="page">
+            <span class="status-item"><span class="live-dot live-dot--dead" aria-hidden="true"></span><b>Cabal dead</b> · no verdict for 33&nbsp;hours</span>
+            <span class="status-item"><b>Season 2</b> ended with the Cabal · close it from 17:59&nbsp;UTC</span>
+            <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+          </div></div>
+          <div class="banner" role="status"><div class="page"><span class="live-dot live-dot--dead" aria-hidden="true"></span><span>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever. Pleas and objections are closed; sell on the Buy page.</span></div></div>
+          <div class="panel__body">
+            <div class="empty"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg><p class="empty__title">The Letterbox is&nbsp;closed</p><p>A new letter is refused (<code>CabalNotWatching</code>). PLEA still waiting in a letter comes back through settle. The mail room has gone home.</p><a class="btn btn--sm" href="buy.html">Sell on the Buy page</a></div>
+          </div>
+        </div>
       </div>
 
       <div class="ref__item">
@@ -351,9 +362,9 @@
       </div>
 
       <div class="ref__item">
-        <p class="ref__caption">After launch, once the Letterbox has its address: the Copy button for 1.5 s after a click, with its toast</p>
+        <p class="ref__caption">The shape after launch: the full address with a Copy button, 1.5 s after a click, and its toast. The Sepolia test run's Letterbox (run 9) stands in for the mainnet address; before launch the placeholder has no Copy button.</p>
         <div class="panel stack">
-          <span class="addr"><span class="addr__text text-2">[Letterbox address, after launch]</span><button class="copy-btn" type="button" aria-label="Copied: the Letterbox address"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Copied</span></button></span>
+          <span class="addr"><span class="addr__text">0xbc335Ae3DC12D4bF78f8E44A03f4fC62e3afd1d3</span><button class="copy-btn" type="button" aria-label="Copied: Letterbox address"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>Copied</span></button></span>
           <div class="toasts toasts--static"><div class="toast" role="status"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><div><p class="toast__title">Letterbox address copied.</p><p>Paste it into Send To on Etherscan.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div></div>
         </div>
       </div>

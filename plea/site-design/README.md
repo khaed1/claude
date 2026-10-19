@@ -4,6 +4,8 @@ The look of the next PLEA site (plea.sites.imd.fun), built by IMD's site job. Th
 
 **Open first:** [`components.html`](components.html) (every component in every state) and [`pages/index.html`](pages/index.html) (the page mockups; the theme button switches light and dark). Screenshots are in [`shots/`](shots/).
 
+**How it was checked:** every page and the gallery pass `tools/check.mjs` at 320, 360, 768 and 1280 px in light and dark (96 runs: no sideways scroll, no console errors, no axe violations); `text-check.js` matches the contracts' Solidity on about 75,000 inputs and every Unicode code point (`tools/difftest/`); every number on every page was recomputed from the contracts by independent reviewers, and keyboard, screen-reader announcements, forced colours, reduced motion and 200% zoom were tested by hand-written Playwright scripts.
+
 **The user's choices (2026-10-19):** direction A, neo-brutal docket ([step 1](step-1-styles/README.md)); light first plus a real dark theme; medium colour; a display face for headlines; a court with a wink; one motion moment; redo the X logo and header ([`../brand/`](../brand/README.md)).
 
 ## Files
@@ -18,8 +20,18 @@ The look of the next PLEA site (plea.sites.imd.fun), built by IMD's site job. Th
 | `pages/` | The mockups: `index` (home and how it works), `buy`, `plead` (with the auto-sell box), `plea` (a plea's status page), `letters` (the Etherscan how-to), `objections`, `seasons` (leaderboard with the seat multiplier), `wall`, `claim` (the 12% and delegate.xyz), `profile`, `share-cards` (the X card per plea). `_shell.html` is the frame every page copies. Each page ends with a dashed "Design reference · other states" band: the other states of its parts, for the builder, not for the site. |
 | `sample-data.json` | One consistent set of numbers for every mockup, computed by `tools/sample_data.py` from the agreed mainnet numbers. Names, wallets and plea texts are made up; mainnet PLEA addresses are `[after launch]`. |
 | `PAGE-KIT.md` | The rules a page follows (also for the site builder). |
-| `tools/` | `check.mjs` (a page in Chromium at 360/768/1280 px, light and dark: sideways overflow, console errors, axe-core WCAG 2.1 AA), `contrast.py`, `crop.py`, `sample_data.py`, `build_icons.cjs`, the text-check tests. |
+| `tools/` | `check.mjs` (a page in Chromium at 320/360/768/1280 px, light and dark: sideways overflow, console errors, axe-core WCAG 2.1 AA), `render_share_cards.mjs` (every share card to a 1200 × 675 PNG), `difftest/` (text-check.js against the Solidity), `contrast.py`, `crop.py`, `sample_data.py`, `build_icons.cjs`, the text-check unit tests. |
 | `brief-imd-site-job.md` | The brief for IMD's site job (under 5,500 characters). |
+| `shots/` | Share cards as PNG (`share-card-<id>.png`, one per verdict state, plus the dark #214 and the default link card) and every page at 1280 px light, 360 px light and 1280 px dark (`shots/pages/`). |
+
+## Decisions the pages follow
+
+- Plea #214 (the sample's star) is a manual plea: its seller sells with "Sell now" in the 7-minute window; the auto-sell box is shown unticked on Plead, ticked in its reference band.
+- The urgent pair (the sell window and Sell now) shows only to the wallet that can sell; everyone else sees a plain countdown.
+- Card times are when the plea was sent; the verdict moment on the hero, the status page and objection cards says "approved N ago".
+- Points inside an objection window or under a pending objection always say "held"; points are never recorded by themselves (anyone presses Record my points).
+- After the Cabal dies every page shows the same strip and banner (commented in `pages/_shell.html`).
+- Prizes and payouts are rounded down, as the chain pays them; a list and its total may differ by a cent, and the page says so.
 
 ## Principles
 

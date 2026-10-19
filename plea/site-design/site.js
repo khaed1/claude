@@ -93,6 +93,10 @@
       var showBad = bad && (touched || v.length > 0);
       if (wrap) wrap.classList.toggle('is-invalid', showBad);
       input.setAttribute('aria-invalid', showBad ? 'true' : 'false');
+      if (counter && mode === 'name') {
+        var nc = counter.querySelector('[data-count]');
+        if (nc) nc.textContent = T.byteLength(v) + ' / 20 characters';
+      }
       if (counter && mode !== 'name') {
         var n = res.bytes;
         counter.querySelector('[data-count]').textContent = n + ' / 280 bytes';
@@ -208,9 +212,11 @@
     syncScrollBoxes();
     window.addEventListener('resize', syncScrollBoxes);
     document.querySelectorAll('[data-autosell]').forEach(function (box) {
+      // Each box drives the cost blocks of its own form (or card), so two boxes on a page don't fight.
+      var scope = box.closest('form, .card, .ref__item') || document;
       function sync() {
-        document.querySelectorAll('[data-autosell-on]').forEach(function (e) { e.hidden = !box.checked; });
-        document.querySelectorAll('[data-autosell-off]').forEach(function (e) { e.hidden = box.checked; });
+        scope.querySelectorAll('[data-autosell-on]').forEach(function (e) { e.hidden = !box.checked; });
+        scope.querySelectorAll('[data-autosell-off]').forEach(function (e) { e.hidden = box.checked; });
       }
       box.addEventListener('change', sync);
       sync();

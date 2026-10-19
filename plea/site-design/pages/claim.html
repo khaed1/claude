@@ -12,23 +12,6 @@
 <script src="../text-check.js"></script>
 <script src="../site.js"></script>
 <script src="../icons.js" defer></script>
-<style>
-  /* Claim only: what the kit still lacks (report). Tokens only. */
-  /* An address box with its Check button beside it, both the same height; where the box would be
-     narrower than 320 px (phones, the reference cells at 768 px) the button drops under it. */
-  .addr-check { display: flex; flex-wrap: wrap; gap: var(--space-3); }
-  .addr-check > .input { flex: 1 1 calc(5 * var(--space-8)); }
-  /* A 42-character address: the kit's input (mono, 22 px, bold) fits it at no width, so 16 px mono (not
-     smaller: iOS zooms into inputs under 16 px). The result under the box repeats the full address. */
-  .input--addr .input__control { font-size: var(--text-md); font-weight: var(--w-medium); text-overflow: ellipsis; }
-  /* No one-word last lines in the prose the kit does not cover. */
-  .small, .ref__caption, .empty p { text-wrap: pretty; }
-  /* Reference band: the panels of one row end on one line. */
-  .ref__item:has(> .panel, > .empty, > .error-box, > .notice) { grid-template-rows: auto 1fr; }
-  .ref .empty { align-content: center; }
-  /* Two short states stacked in one cell of the reference grid (same rule as buy.html). */
-  .ref__col { display: grid; gap: var(--space-5); align-content: start; min-width: 0; }
-</style>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -69,13 +52,21 @@
   </nav>
   <div class="status-strip">
     <div class="page">
-      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a verdict</span>
-      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span> IMD + 10,000,000 PLEA</span>
+      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a&nbsp;verdict</span>
+      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span>&nbsp;IMD + 10,000,000&nbsp;PLEA</span>
       <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
     </div>
   </div>
 </header>
 
+<!-- After the Cabal dies, the status strip and a banner read (the same on every page):
+  <div class="status-strip"><div class="page">
+    <span class="status-item"><span class="live-dot live-dot--dead" aria-hidden="true"></span><b>Cabal dead</b> · no verdict for 33&nbsp;hours</span>
+    <span class="status-item"><b>Season 2</b> ended with the Cabal · close it from 17:59&nbsp;UTC</span>
+    <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+  </div></div>
+  <div class="banner" role="status"><div class="page"><span class="live-dot live-dot--dead" aria-hidden="true"></span><span>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever. Pleas and objections are closed; sell on the Buy page.</span></div></div>
+-->
 <main id="main" class="page main">
   <div class="stack stack--lg">
     <div>
@@ -274,7 +265,7 @@
 
       <div class="ref__item">
         <p class="ref__caption">No delegations found</p>
-        <div class="empty"><svg class="icon" style="width: 40px; height: 40px" aria-hidden="true"><use href="#i-wallet"/></svg><p class="empty__title">No delegated vaults</p><p>No vault has delegated to <span class="mono nowrap">0x7a3f…c21e</span> on delegate.xyz. You can still claim for any address above. Nobody has trusted you with their vault yet.</p><a class="btn btn--sm" href="https://delegate.xyz">Open delegate.xyz</a></div>
+        <div class="empty"><svg class="icon" aria-hidden="true"><use href="#i-wallet"/></svg><p class="empty__title">No delegated vaults</p><p>No vault has delegated to <span class="mono nowrap">0x7a3f…c21e</span> on delegate.xyz. You can still claim for any address above. Nobody has trusted you with their vault yet.</p><a class="btn btn--sm" href="https://delegate.xyz">Open delegate.xyz</a></div>
       </div>
     </div>
   </div>

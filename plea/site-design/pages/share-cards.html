@@ -13,26 +13,13 @@
 <script src="../site.js"></script>
 <script src="../icons.js" defer></script>
 <style>
-  /* Share cards only (report: candidates for the kit). Tokens and the card's own unit (--u) only. */
-  /* An objection's state is a second, small stamp under the main one: the kit sizes every stamp on
-     the card at 44u, so the small one is set here (30u word, 20u sub, 4u outline). */
-  /* The two widest stamps, OVERTURNED (485u) and NO VERDICT (435u), reach further left than APPROVED
-     (397u), the stamp the kit's 660u text width is set for: on those cards the text stops at 550u. */
-  .share-card--wide-stamp .share-card__text { max-width: calc(550 * var(--u)); }
-  .share-card__stamp .stamp--sm { font-size: calc(30 * var(--u)); padding: calc(8 * var(--u)) calc(18 * var(--u)) calc(6 * var(--u)); border-width: calc(4 * var(--u)); box-shadow: calc(4 * var(--u)) calc(4 * var(--u)) 0 var(--shadow-color); }
-  /* The post beside each card: label, text, hint, buttons. The buttons share each line they wrap
-     onto, so a narrow panel shows full-width buttons instead of a ragged column. */
-  .share-post { display: grid; gap: var(--space-3); align-content: start; }
-  .share-post .btn-row > .btn { flex: 1 1 auto; }
-  /* Card and post side by side (from 1100 px): the post panel takes the card's height and its
-     buttons sit on the bottom edge, level with the card's foot. */
-  .share-row { align-items: stretch; }
-  .share-row > .share-post { display: flex; flex-direction: column; }
-  .share-row > .share-post > .btn-row { margin-top: auto; }
+  /* Share cards only. Tokens and the card's own unit (--u) only. */
   /* The jump list: one line of state names, wrapping. */
   .jump { list-style: none; gap: 0 var(--space-4); }
-  /* Reference band: the drawing skeleton has the image's shape. */
-  .share-skeleton { height: auto; aspect-ratio: 1200 / 675; }
+  /* The objection stamp has one form (PAGE-KIT): the small stamp with no sub-line, then plain text.
+     On the card that text sits under the small stamp, right-aligned, at the size of the foot's labels
+     (report: candidate for the kit, next to .share-card__stamp .stamp--sm). */
+  .share-card__objection { display: grid; justify-items: end; gap: calc(10 * var(--u)); font-size: calc(22 * var(--u)); font-weight: var(--w-bold); line-height: 1.25; color: var(--ink-2); text-align: right; }
 </style>
 </head>
 <body>
@@ -74,13 +61,21 @@
   </nav>
   <div class="status-strip">
     <div class="page">
-      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a verdict</span>
-      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span> IMD + 10,000,000 PLEA</span>
+      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a&nbsp;verdict</span>
+      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span>&nbsp;IMD + 10,000,000&nbsp;PLEA</span>
       <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
     </div>
   </div>
 </header>
 
+<!-- After the Cabal dies, the status strip and a banner read (the same on every page):
+  <div class="status-strip"><div class="page">
+    <span class="status-item"><span class="live-dot live-dot--dead" aria-hidden="true"></span><b>Cabal dead</b> · no verdict for 33&nbsp;hours</span>
+    <span class="status-item"><b>Season 2</b> ended with the Cabal · close it from 17:59&nbsp;UTC</span>
+    <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+  </div></div>
+  <div class="banner" role="status"><div class="page"><span class="live-dot live-dot--dead" aria-hidden="true"></span><span>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever. Pleas and objections are closed; sell on the Buy page.</span></div></div>
+-->
 <main id="main" class="page main">
   <div class="stack stack--lg">
     <div>
@@ -115,13 +110,13 @@
   <section class="section" id="s-214" aria-labelledby="c-214">
     <div class="section__head"><h2 id="c-214">Approved</h2><p class="meta">Plea #214 by mira_eth (you) · 193 bytes, smaller text</p></div>
     <div class="split split--even share-row">
-      <div class="share-frame theme-light" role="img" aria-label="Share card for plea #214 by mira_eth, seat holder: “I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.” Approved, 36 vs need 33. +43 points, season 2 rank 4. plea.sites.imd.fun/#/p/214" data-share-png="214">
+      <div class="share-frame theme-light" role="img" aria-label="Share card for plea #214 by mira_eth, seat holder: “I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.” Approved, 36 vs need 33. +43 points held, season 2 rank 4. plea.sites.imd.fun/#/p/214" data-share-png="214">
         <div class="share-card">
           <div class="share-card__top"><span class="logo">PLEA</span><span class="share-card__who">mira_eth <span class="badge badge--seat">SEAT ×1.2</span></span><span class="share-card__id">Plea #214</span></div>
           <p class="share-card__text is-long">“I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.”</p>
           <div class="share-card__stamp"><span class="stamp stamp--approved">Approved<span class="stamp__sub">36 vs need 33</span></span></div>
           <div class="share-card__foot">
-            <div class="share-card__nums"><span><b>36</b>score</span><span><b>33</b>need</span><span><b>+43</b>points</span><span><b>#4</b>season 2</span></div>
+            <div class="share-card__nums"><span><b>36</b>score</span><span><b>33</b>need</span><span><b>+43</b>points held</span><span><b>#4</b>season 2</span></div>
             <span class="share-card__url">plea.sites.imd.fun/#/p/214</span>
           </div>
         </div>
@@ -223,13 +218,13 @@
   <section class="section" id="s-212" aria-labelledby="c-212">
     <div class="section__head"><h2 id="c-212">Sold</h2><p class="meta">Plea #212 by lettersonly, sold by letter · 181 bytes, smaller text</p></div>
     <div class="split split--even share-row">
-      <div class="share-frame theme-light" role="img" aria-label="Share card for plea #212 by lettersonly, by letter: “Eight days ago I promised my sister I would stop trading memes. She found out. I am keeping four fifths as proof I can hold; let one fifth go so I can buy her dinner and an apology.” Sold, 37 vs need 30, for 25.98 IMD. +37 points. plea.sites.imd.fun/#/p/212" data-share-png="212">
+      <div class="share-frame theme-light" role="img" aria-label="Share card for plea #212 by lettersonly, by letter: “Eight days ago I promised my sister I would stop trading memes. She found out. I am keeping four fifths as proof I can hold; let one fifth go so I can buy her dinner and an apology.” Sold, 37 vs need 30, for 25.98 IMD. +37 points held. plea.sites.imd.fun/#/p/212" data-share-png="212">
         <div class="share-card">
           <div class="share-card__top"><span class="logo">PLEA</span><span class="share-card__who">lettersonly <span class="badge badge--letter"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg>BY LETTER</span></span><span class="share-card__id">Plea #212</span></div>
           <p class="share-card__text is-long">“Eight days ago I promised my sister I would stop trading memes. She found out. I am keeping four fifths as proof I can hold; let one fifth go so I can buy her dinner and an apology.”</p>
           <div class="share-card__stamp"><span class="stamp stamp--sold">Sold<span class="stamp__sub">37 vs need 30</span></span></div>
           <div class="share-card__foot">
-            <div class="share-card__nums"><span><b>37</b>score</span><span><b>30</b>need</span><span><b>25.98</b>IMD</span><span><b>+37</b>points</span></div>
+            <div class="share-card__nums"><span><b>37</b>score</span><span><b>30</b>need</span><span><b>25.98</b>IMD</span><span><b>+37</b>points held</span></div>
             <span class="share-card__url">plea.sites.imd.fun/#/p/212</span>
           </div>
         </div>
@@ -335,7 +330,7 @@
         <div class="share-card">
           <div class="share-card__top"><span class="logo">PLEA</span><span class="share-card__who"><span class="mono">0x51ab…7c3e</span></span><span class="share-card__id">Plea #211</span></div>
           <p class="share-card__text">“Bought yesterday, already regret it. Not a loss, not a gain, just a lesson. Ten percent out, the rest stays to learn the second half of the lesson.”</p>
-          <div class="share-card__stamp share-card__stamp--pair"><span class="stamp stamp--sold">Sold<span class="stamp__sub">37 vs need 36</span></span><span class="stamp stamp--objection stamp--sm">Objection<span class="stamp__sub">#9 pending</span></span></div>
+          <div class="share-card__stamp share-card__stamp--pair"><span class="stamp stamp--sold">Sold<span class="stamp__sub">37 vs need 36</span></span><span class="share-card__objection"><span class="stamp stamp--sm stamp--objection">Objection #9</span><span>pending</span></span></div>
           <div class="share-card__foot">
             <div class="share-card__nums"><span><b>37</b>score</span><span><b>36</b>need</span><span><b>4.28</b>IMD</span><span><b>+37</b>points held</span></div>
             <span class="share-card__url">plea.sites.imd.fun/#/p/211</span>
@@ -358,13 +353,13 @@
   <section class="section" id="s-209" aria-labelledby="c-209">
     <div class="section__head"><h2 id="c-209">Sustained</h2><p class="meta">Plea #209 by 0x9c41…e07a, sold; objection #8 sustained · 165 bytes, smaller text; the post quotes one sentence (two would pass 280 characters)</p></div>
     <div class="split split--even share-row">
-      <div class="share-frame theme-light" role="img" aria-label="Share card for plea #209 by 0x9c41…e07a: “My grandmother says a man who cannot sell a meme coin is not a man but a bag. I would like to prove her wrong by selling 15% and keeping the rest as a bag of honour.” Sold, 34 vs need 33, for 10.78 IMD. Objection sustained, re-scored 29 vs need 33: no points. plea.sites.imd.fun/#/p/209" data-share-png="209">
+      <div class="share-frame theme-light" role="img" aria-label="Share card for plea #209 by 0x9c41…e07a: “My grandmother says a man who cannot sell a meme coin is not a man but a bag. I would like to prove her wrong by selling 15% and keeping the rest as a bag of honour.” Sold, 34 vs need 33, for 10.78 IMD. Objection #8 sustained, 29 vs need 33: no points. plea.sites.imd.fun/#/p/209" data-share-png="209">
         <div class="share-card">
           <div class="share-card__top"><span class="logo">PLEA</span><span class="share-card__who"><span class="mono">0x9c41…e07a</span></span><span class="share-card__id">Plea #209</span></div>
           <p class="share-card__text is-long">“My grandmother says a man who cannot sell a meme coin is not a man but a bag. I would like to prove her wrong by selling 15% and keeping the rest as a bag of honour.”</p>
-          <div class="share-card__stamp share-card__stamp--pair"><span class="stamp stamp--sold">Sold<span class="stamp__sub">34 vs need 33</span></span><span class="stamp stamp--objection stamp--sm">Sustained<span class="stamp__sub">29 vs need 33</span></span></div>
+          <div class="share-card__stamp share-card__stamp--pair"><span class="stamp stamp--sold">Sold<span class="stamp__sub">34 vs need 33</span></span><span class="share-card__objection"><span class="stamp stamp--sm stamp--objection">Sustained</span><span>#8: 29 vs need 33</span></span></div>
           <div class="share-card__foot">
-            <div class="share-card__nums"><span><b>34</b>score</span><span><b>33</b>need</span><span><b>10.78</b>IMD</span><span><b>0</b>points</span></div>
+            <div class="share-card__nums"><span><b>34</b>score</span><span><b>33</b>need</span><span><b>10.78</b>IMD</span><span><b>No</b>points</span></div>
             <span class="share-card__url">plea.sites.imd.fun/#/p/209</span>
           </div>
         </div>
@@ -385,11 +380,11 @@
   <section class="section" id="s-206" aria-labelledby="c-206">
     <div class="section__head"><h2 id="c-206">Overruled</h2><p class="meta">Plea #206 by brine_oracle, sold; objection #7 overruled · 133 bytes, full-size text</p></div>
     <div class="split split--even share-row">
-      <div class="share-frame theme-light" role="img" aria-label="Share card for plea #206 by brine_oracle, seat holder: “Four days of holding taught me patience, humility and that I should not check the chart at 3 a.m. I would like to sell 15% and sleep.” Sold, 34 vs need 33, for 4.15 IMD. Objection overruled, re-scored 33 vs need 33: counts 39 points. plea.sites.imd.fun/#/p/206" data-share-png="206">
+      <div class="share-frame theme-light" role="img" aria-label="Share card for plea #206 by brine_oracle, seat holder: “Four days of holding taught me patience, humility and that I should not check the chart at 3 a.m. I would like to sell 15% and sleep.” Sold, 34 vs need 33, for 4.15 IMD. Objection #7 overruled, 33 vs need 33: counts 39 points. plea.sites.imd.fun/#/p/206" data-share-png="206">
         <div class="share-card">
           <div class="share-card__top"><span class="logo">PLEA</span><span class="share-card__who">brine_oracle <span class="badge badge--seat">SEAT ×1.2</span></span><span class="share-card__id">Plea #206</span></div>
           <p class="share-card__text">“Four days of holding taught me patience, humility and that I should not check the chart at 3 a.m. I would like to sell 15% and sleep.”</p>
-          <div class="share-card__stamp share-card__stamp--pair"><span class="stamp stamp--sold">Sold<span class="stamp__sub">34 vs need 33</span></span><span class="stamp stamp--objection stamp--sm">Overruled<span class="stamp__sub">33 vs need 33</span></span></div>
+          <div class="share-card__stamp share-card__stamp--pair"><span class="stamp stamp--sold">Sold<span class="stamp__sub">34 vs need 33</span></span><span class="share-card__objection"><span class="stamp stamp--sm stamp--objection">Overruled</span><span>#7: 33 vs need 33 · counts 39 points</span></span></div>
           <div class="share-card__foot">
             <div class="share-card__nums"><span><b>34</b>score</span><span><b>33</b>need</span><span><b>4.15</b>IMD</span><span><b>+39</b>points, 33 × 1.2</span></div>
             <span class="share-card__url">plea.sites.imd.fun/#/p/206</span>
@@ -412,13 +407,13 @@
   <section class="section" id="s-214-dark" aria-labelledby="c-214-dark">
     <div class="section__head"><h2 id="c-214-dark">Dark card</h2><p class="meta">Plea #214, drawn dark when the site is in the dark theme</p></div>
     <div class="split split--even share-row">
-      <div class="share-frame theme-dark" role="img" aria-label="Dark share card for plea #214 by mira_eth, seat holder: “I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.” Approved, 36 vs need 33. +43 points, season 2 rank 4. plea.sites.imd.fun/#/p/214" data-share-png="214-dark">
+      <div class="share-frame theme-dark" role="img" aria-label="Dark share card for plea #214 by mira_eth, seat holder: “I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.” Approved, 36 vs need 33. +43 points held, season 2 rank 4. plea.sites.imd.fun/#/p/214" data-share-png="214-dark">
         <div class="share-card">
           <div class="share-card__top"><span class="logo">PLEA</span><span class="share-card__who">mira_eth <span class="badge badge--seat">SEAT ×1.2</span></span><span class="share-card__id">Plea #214</span></div>
           <p class="share-card__text is-long">“I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.”</p>
           <div class="share-card__stamp"><span class="stamp stamp--approved">Approved<span class="stamp__sub">36 vs need 33</span></span></div>
           <div class="share-card__foot">
-            <div class="share-card__nums"><span><b>36</b>score</span><span><b>33</b>need</span><span><b>+43</b>points</span><span><b>#4</b>season 2</span></div>
+            <div class="share-card__nums"><span><b>36</b>score</span><span><b>33</b>need</span><span><b>+43</b>points held</span><span><b>#4</b>season 2</span></div>
             <span class="share-card__url">plea.sites.imd.fun/#/p/214</span>
           </div>
         </div>

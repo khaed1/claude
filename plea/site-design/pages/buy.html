@@ -12,19 +12,6 @@
 <script src="../text-check.js"></script>
 <script src="../site.js"></script>
 <script src="../icons.js" defer></script>
-<style>
-  /* Buy only: what the kit still lacks (report). Tokens only. */
-  /* The fee split sits under its total, indented one step. */
-  .costs .is-part dt { padding-left: var(--space-4); }
-  /* A quote that is still loading: the skeleton line takes the value's place, the unit stays at the right. */
-  .input .skeleton__line { margin-right: auto; }
-  /* No one-word last lines in the prose the kit does not cover. */
-  .small, .ref__caption { text-wrap: pretty; }
-  /* Reference band: the panels of one row end on one line. */
-  .ref__item:has(> .panel, > .error-box) { grid-template-rows: auto 1fr; }
-  /* Two short states stacked in one cell of the reference grid. */
-  .ref__col { display: grid; gap: var(--space-5); align-content: start; min-width: 0; }
-</style>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to content</a>
@@ -65,13 +52,21 @@
   </nav>
   <div class="status-strip">
     <div class="page">
-      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a verdict</span>
-      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span> IMD + 10,000,000 PLEA</span>
+      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a&nbsp;verdict</span>
+      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span>&nbsp;IMD + 10,000,000&nbsp;PLEA</span>
       <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
     </div>
   </div>
 </header>
 
+<!-- After the Cabal dies, the status strip and a banner read (the same on every page):
+  <div class="status-strip"><div class="page">
+    <span class="status-item"><span class="live-dot live-dot--dead" aria-hidden="true"></span><b>Cabal dead</b> · no verdict for 33&nbsp;hours</span>
+    <span class="status-item"><b>Season 2</b> ended with the Cabal · close it from 17:59&nbsp;UTC</span>
+    <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+  </div></div>
+  <div class="banner" role="status"><div class="page"><span class="live-dot live-dot--dead" aria-hidden="true"></span><span>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever. Pleas and objections are closed; sell on the Buy page.</span></div></div>
+-->
 <main id="main" class="page main">
   <div class="stack stack--lg">
     <div>
@@ -108,13 +103,13 @@
               <div><dt class="nowrap">Minimum, <span data-group="slip" data-name="1">1%</span><span data-group="slip" data-name="05" hidden>0.5%</span><span data-group="slip" data-name="2" hidden>2%</span> slippage</dt><dd><span data-group="slip" data-name="1">6,812,427</span><span data-group="slip" data-name="05" hidden>6,846,833</span><span data-group="slip" data-name="2" hidden>6,743,615</span> PLEA</dd></div>
               <div><dt>Reaches the pool</dt><dd>98.04 IMD</dd></div>
               <div class="total"><dt class="nowrap">Fees, 2.25%</dt><dd><span class="nowrap">1.96 IMD +</span> <span class="nowrap">0.25% of the PLEA</span></dd></div>
-              <div class="is-part"><dt>Back to you as staked IMD (0.50%)</dt><dd class="nowrap">0.49 IMD</dd></div>
+              <div class="is-part"><dt>Back to you as staked IMD&nbsp;(0.50%)</dt><dd class="nowrap">0.49 IMD</dd></div>
               <div class="is-part"><dt>Owner (1.00%)</dt><dd class="nowrap">0.98 IMD</dd></div>
-              <div class="is-part"><dt>Season prize pot (0.25%)</dt><dd class="nowrap">0.25 IMD</dd></div>
-              <div class="is-part"><dt>Buy wall (0.25%)</dt><dd class="nowrap">0.25 IMD</dd></div>
+              <div class="is-part"><dt>Season prize pot (0.25%)</dt><dd class="nowrap">0.245 IMD</dd></div>
+              <div class="is-part"><dt>Buy wall (0.25%)</dt><dd class="nowrap">0.245 IMD</dd></div>
               <div class="is-part"><dt>Burned (0.25%)</dt><dd class="nowrap">0.25% of the PLEA</dd></div>
             </dl>
-            <p class="small text-2">The IMD fee is 2% of what reaches the pool: <span class="nowrap">98.04 + 1.96 = 100.00 IMD</span>. Each share is rounded to 0.01&nbsp;IMD.</p>
+            <p class="small text-2">The IMD fee is 2% of what reaches the pool: <span class="nowrap">98.04 + 1.96 = 100.00 IMD</span>. The season prize pot and buy wall shares get a third decimal, so the four parts add up to <span class="nowrap">1.96 IMD</span>.</p>
           </div>
 
           <div class="stack stack--sm">
@@ -141,7 +136,8 @@
             <div class="stack stack--sm">
               <p class="label">What selling takes</p>
               <p class="small">A plea. The Cabal scores why you sell. Your hold time and profit or loss above are two of the four facts that set your need (71 − fact score); a new buy updates both.</p>
-              <div><a class="btn btn--sm" href="plead.html">Plead to sell<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></a></div>
+              <p class="small"><b>Plea #214 is open: sell by 08:06&nbsp;UTC.</b> Next plea 4 hours after the sale (12:00&nbsp;UTC if sold now), or 11:59&nbsp;UTC if it lapses.</p>
+              <div><a class="btn btn--sm" href="plea.html">Open plea #214<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></a></div>
             </div>
           </div>
         </section>
@@ -240,7 +236,37 @@
         <div class="error-box" role="alert"><p class="error-box__title"><svg class="icon" aria-hidden="true"><use href="#i-plugs"/></svg>Can't read the price</p><p class="small">The public RPC did not answer, so there is no quote to buy at. The site tries the next one by itself; nothing was sent.</p><div class="btn-row"><button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-clockwise"/></svg>Try again</button></div></div>
       </div>
 
+      <div class="ref__item">
+        <p class="ref__caption">Your PLEA, no plea open: the panel ends in Plead to sell</p>
+        <div class="panel stack stack--sm">
+          <p class="label">What selling takes</p>
+          <p class="small">A plea. The Cabal scores why you sell. Your hold time and profit or loss above are two of the four facts that set your need (71 − fact score); a new buy updates both.</p>
+          <div><a class="btn btn--sm" href="plead.html">Plead to sell<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></a></div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">The launch window: the first 90 minutes (here 12:30 UTC on opening day, 2026-10-26)</p>
+        <div class="panel stack">
+          <div class="notice notice--warn"><svg class="icon" aria-hidden="true"><use href="#i-timer"/></svg><div><p class="notice__title">Launch window: 30 of 90 minutes gone.</p><p>Until 13:30 UTC every buy pays a launch fee on top of the normal 2.25%; a buy over the cap is refused.</p></div></div>
+          <dl class="costs">
+            <div><dt class="nowrap">Launch fee now</dt><dd>46.7% of the IMD that reaches the pool</dd></div>
+            <div><dt class="nowrap">How it falls</dt><dd>in a straight line from 70% to 0% at 13:30 UTC</dd></div>
+            <div><dt class="nowrap">Most per buy</dt><dd>5,000,000 PLEA</dd></div>
+            <div><dt class="nowrap">Normal fees, on top</dt><dd>2.25%</dd></div>
+          </dl>
+          <div><span class="countdown" role="timer" aria-label="The launch fee ends at 13:30 UTC, in 1 hour 0 minutes">Launch fee ends at 13:30 UTC <span class="countdown__time">1h 00m</span></span></div>
+        </div>
+      </div>
+
       <div class="ref__col">
+        <div class="ref__item">
+          <p class="ref__caption">The launch window: a buy over the cap (BuyTooLarge)</p>
+          <div class="toasts toasts--static">
+            <div class="toast toast--bad" role="alert"><svg class="icon" aria-hidden="true"><use href="#i-warning-circle"/></svg><div><p class="toast__title">Not bought: more than <span class="nowrap">5,000,000 PLEA</span> in one buy.</p><p>Until 13:30 UTC one buy can take at most <span class="nowrap">5,000,000 PLEA</span>. Pay less IMD, or split the buy in two. Nothing was bought.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+          </div>
+        </div>
+
         <div class="ref__item">
           <p class="ref__caption">Bought</p>
           <div class="toasts toasts--static">
@@ -256,53 +282,60 @@
         </div>
       </div>
 
-      <div class="ref__col">
-        <div class="ref__item">
-          <p class="ref__caption">The launch window: the first 90 minutes (here 12:30 UTC on opening day, 2026-10-26)</p>
-          <div class="panel stack">
-            <div class="notice notice--warn"><svg class="icon" aria-hidden="true"><use href="#i-timer"/></svg><div><p class="notice__title">Launch window: 30 of 90 minutes gone.</p><p>Until 13:30 UTC every buy pays a launch fee on top of the normal 2.25%; a buy over the cap is refused.</p></div></div>
-            <dl class="costs">
-              <div><dt class="nowrap">Launch fee now</dt><dd>46.7% of the IMD that reaches the pool</dd></div>
-              <div><dt class="nowrap">How it falls</dt><dd>in a straight line from 70% to 0% at 13:30 UTC</dd></div>
-              <div><dt class="nowrap">Most per buy</dt><dd>5,000,000 PLEA</dd></div>
-              <div><dt class="nowrap">Normal fees, on top</dt><dd>2.25%</dd></div>
-            </dl>
-            <div><span class="countdown" role="timer" aria-label="The launch fee ends at 13:30 UTC, in 1 hour 0 minutes">Launch fee ends at 13:30 UTC <span class="countdown__time">1h 00m</span></span></div>
+      <div class="ref__item ref__item--wide">
+        <p class="ref__caption">After the Cabal dies: the strip and banner from the shell's commented block, the same on every page; the Swap card gets a Buy / Sell switch and selling needs no plea (numbers shown as now)</p>
+        <div class="panel panel--flush">
+          <div class="status-strip"><div class="page">
+            <span class="status-item"><span class="live-dot live-dot--dead" aria-hidden="true"></span><b>Cabal dead</b> · no verdict for 33&nbsp;hours</span>
+            <span class="status-item"><b>Season 2</b> ended with the Cabal · close it from 17:59&nbsp;UTC</span>
+            <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+          </div></div>
+          <div class="banner" role="status"><div class="page"><span class="live-dot live-dot--dead" aria-hidden="true"></span><span>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever. Pleas and objections are closed; sell on the Buy page.</span></div></div>
+          <div class="panel__body">
+            <div class="split">
+              <form class="card" aria-labelledby="sell-title">
+                <h2 class="card__title" id="sell-title">Sell PLEA</h2>
+                <div class="stack stack--lg">
+                  <div class="chips" role="group" aria-label="Buy or sell">
+                    <button class="chip" type="button" aria-pressed="false">Buy</button><button class="chip" type="button" aria-pressed="true">Sell</button>
+                  </div>
+                  <div class="field">
+                    <div class="field__top"><label class="field__label" for="sell-in">You sell</label><span class="field__aside">Balance <span class="num">6,200,000</span> PLEA</span></div>
+                    <div class="input"><input class="input__control" id="sell-in" inputmode="numeric" value="1,240,000" autocomplete="off"><span class="input__unit">PLEA</span></div>
+                  </div>
+                  <div class="field">
+                    <div class="field__top"><label class="field__label" for="sell-out">You get (quote)</label><span class="field__aside">Updated 3 s ago</span></div>
+                    <div class="input input--readonly"><input class="input__control" id="sell-out" value="≈ 17.14" readonly><span class="input__unit">IMD</span></div>
+                  </div>
+                  <dl class="costs">
+                    <div><dt>Minimum, 1% slippage</dt><dd>16.97 IMD</dd></div>
+                    <div><dt>Fees</dt><dd>2.25%</dd></div>
+                    <div><dt>Plea needed</dt><dd>none, the Cabal is dead</dd></div>
+                  </dl>
+                  <button class="btn btn--primary btn--block" type="button">Sell PLEA</button>
+                </div>
+              </form>
+              <section class="panel" aria-labelledby="dead-mine-title">
+                <h2 class="card__title" id="dead-mine-title">Your PLEA</h2>
+                <div class="stack">
+                  <p><span class="stat__label">Balance</span><span class="stat__value">6,200,000 PLEA</span></p>
+                  <div class="stack stack--sm">
+                    <p class="label">Your buy record</p>
+                    <dl class="costs">
+                      <div><dt>Cost basis</dt><dd>17.27 IMD per 1M</dd></div>
+                      <div><dt>Held, buy-weighted</dt><dd>3d 4h</dd></div>
+                      <div><dt>Now, at 14.16 IMD per 1M</dt><dd>−18.0%</dd></div>
+                    </dl>
+                  </div>
+                  <div class="stack stack--sm">
+                    <p class="label">What selling takes</p>
+                    <p class="small">Nothing more than a swap. No plea and no need: the Cabal is dead, so PLEA sells like any token on Uniswap v4.</p>
+                  </div>
+                </div>
+              </section>
+            </div>
           </div>
         </div>
-
-        <div class="ref__item">
-          <p class="ref__caption">The launch window: a buy over the cap (BuyTooLarge)</p>
-          <div class="toasts toasts--static">
-            <div class="toast toast--bad" role="alert"><svg class="icon" aria-hidden="true"><use href="#i-warning-circle"/></svg><div><p class="toast__title">Not bought: more than <span class="nowrap">5,000,000 PLEA</span> in one buy.</p><p>Until 13:30 UTC one buy can take at most <span class="nowrap">5,000,000 PLEA</span>. Pay less IMD, or split the buy in two. Nothing was bought.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="ref__item">
-        <p class="ref__caption">After the Cabal dies: selling needs no plea</p>
-        <form class="card" aria-labelledby="sell-title">
-          <h2 class="card__title" id="sell-title">Sell PLEA</h2>
-          <div class="stack stack--lg">
-            <div class="chips" role="group" aria-label="Buy or sell">
-              <button class="chip" type="button" aria-pressed="false">Buy</button><button class="chip" type="button" aria-pressed="true">Sell</button>
-            </div>
-            <div class="field">
-              <div class="field__top"><label class="field__label" for="sell-in">You sell</label><span class="field__aside">Balance <span class="num">6,200,000</span> PLEA</span></div>
-              <div class="input"><input class="input__control" id="sell-in" inputmode="numeric" value="1,240,000" autocomplete="off"><span class="input__unit">PLEA</span></div>
-            </div>
-            <div class="field">
-              <div class="field__top"><label class="field__label" for="sell-out">You get (quote)</label><span class="field__aside">Updated 3 s ago</span></div>
-              <div class="input input--readonly"><input class="input__control" id="sell-out" value="≈ 17.14" readonly><span class="input__unit">IMD</span></div>
-            </div>
-            <dl class="costs">
-              <div><dt>Minimum, 1% slippage</dt><dd>16.97 IMD</dd></div>
-              <div><dt>Fees</dt><dd>2.25%</dd></div>
-              <div><dt>Plea needed</dt><dd>none, the Cabal is dead</dd></div>
-            </dl>
-            <button class="btn btn--primary btn--block" type="button">Sell PLEA</button>
-          </div>
-        </form>
       </div>
     </div>
   </div>
