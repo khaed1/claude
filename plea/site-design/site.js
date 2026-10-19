@@ -24,8 +24,6 @@
       // One fixed name ("Dark theme") and a pressed state: never a label that contradicts the state.
       b.setAttribute('aria-pressed', t === 'dark' ? 'true' : 'false');
       if (!b.hasAttribute('data-keep-label')) b.setAttribute('aria-label', 'Dark theme');
-      var use = b.querySelector('use');
-      if (use) use.setAttribute('href', t === 'dark' ? '#i-sun' : '#i-moon');
     });
   }
 
@@ -128,8 +126,13 @@
         }
       }
       if (live) {
-        var summary = isCurrent ? 'This is your current name.' : res.ok ? (v.length ? 'Text passes the checks.' : '') : problems.length + (problems.length === 1 ? ' problem: ' : ' problems: ') + (problems[0] ? problems[0].message : '');
-        if (summary !== lastSummary && (touched || v.length)) { live.textContent = summary; lastSummary = summary; }
+        // Announce once per change of verdict: keyed on the problem codes, never on live numbers.
+        var key = isCurrent ? 'current' : res.clears ? 'clears' : res.ok ? (v.length ? 'ok' : 'empty') : problems.map(function (i) { return i.code; }).join(',');
+        if (!touched) lastSummary = key;
+        else if (key !== lastSummary) {
+          lastSummary = key;
+          live.textContent = isCurrent ? 'This is your current name.' : res.clears ? 'An empty name clears your display name.' : res.ok ? (v.length ? 'Text passes the checks.' : '') : problems.length + (problems.length === 1 ? ' problem: ' : ' problems: ') + (problems[0] ? problems[0].message : '');
+        }
       }
       if (reads && res.reads) reads.textContent = res.reads;
       if (submit) {
@@ -149,8 +152,7 @@
     document.querySelectorAll('[data-menu-toggle]').forEach(function (b) {
       var d = document.getElementById(b.getAttribute('aria-controls'));
       function setOpen(open) {
-        b.setAttribute('aria-expanded', open ? 'true' : 'false');
-        b.setAttribute('aria-label', open ? 'Close menu' : 'Menu');
+        b.setAttribute('aria-expanded', open ? 'true' : 'false');   // the name stays "Menu"; expanded says the rest
         if (d) d.hidden = !open;
         var use = b.querySelector('use');
         if (use) use.setAttribute('href', open ? '#i-x' : '#i-list');
@@ -158,7 +160,11 @@
       }
       b.addEventListener('click', function () { setOpen(b.getAttribute('aria-expanded') !== 'true'); });
       document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && b.getAttribute('aria-expanded') === 'true') { setOpen(false); b.focus(); }
+        if (e.key === 'Escape' && b.getAttribute('aria-expanded') === 'true') {
+          var inside = (d && d.contains(document.activeElement)) || document.activeElement === b;
+          setOpen(false);
+          if (inside) b.focus();
+        }
       });
     });
     /* A click anywhere in an .input box focuses its field (the box is taller than the <input>). */
@@ -172,13 +178,35 @@
       if (d) { e.preventDefault(); e.stopPropagation(); }
     }, true);
     document.querySelectorAll('[data-text-check]').forEach(wireTextCheck);
+    /* One polite status line for the page (copy confirmations). */
+    var status = el('p', 'sr-only');
+    status.setAttribute('role', 'status');
+    document.body.appendChild(status);
+    function announce(msg) { status.textContent = ''; setTimeout(function () { status.textContent = msg; }, 50); }
     document.querySelectorAll('[data-copy]').forEach(function (b) {
       b.addEventListener('click', function () {
         var text = b.getAttribute('data-copy');
-        var done = function () { var old = b.lastChild.textContent; b.lastChild.textContent = 'Copied'; setTimeout(function () { b.lastChild.textContent = old; }, 1500); };
-        if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () {}); else done();
+        var label = b.getAttribute('aria-label');
+        var done = function () {
+          var old = b.lastChild.textContent;
+          b.lastChild.textContent = 'Copied';
+          if (label) b.setAttribute('aria-label', label.replace(/^Copy /, 'Copied: '));
+          announce('Copied ' + (label ? label.replace(/^Copy /, '') : 'to the clipboard') + '.');
+          setTimeout(function () { b.lastChild.textContent = old; if (label) b.setAttribute('aria-label', label); }, 1500);
+        };
+        if (navigator.clipboard) navigator.clipboard.writeText(text).then(done, function () { announce('Copy did not work here: select the text and copy it.'); }); else done();
       });
     });
+    /* A table box is a tab stop and a region only while it actually scrolls sideways. */
+    function syncScrollBoxes() {
+      document.querySelectorAll('.table-wrap').forEach(function (w) {
+        var scrolls = w.scrollWidth > w.clientWidth + 1;
+        if (scrolls) { w.setAttribute('tabindex', '0'); w.setAttribute('role', 'region'); if (!w.getAttribute('aria-label') && w.dataset.label) w.setAttribute('aria-label', w.dataset.label); }
+        else { if (w.getAttribute('aria-label')) w.dataset.label = w.getAttribute('aria-label'); w.removeAttribute('tabindex'); w.removeAttribute('role'); w.removeAttribute('aria-label'); }
+      });
+    }
+    syncScrollBoxes();
+    window.addEventListener('resize', syncScrollBoxes);
     document.querySelectorAll('[data-autosell]').forEach(function (box) {
       function sync() {
         document.querySelectorAll('[data-autosell-on]').forEach(function (e) { e.hidden = !box.checked; });

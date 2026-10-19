@@ -107,16 +107,19 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
 /* ------------------------------------------------------------------ header and nav */
 .site-header { background: var(--card); border-bottom: var(--bw) solid var(--line); position: relative; z-index: var(--z-nav); }
 .nav { display: flex; align-items: center; gap: var(--space-3); min-height: 68px; }
-.logo { display: inline-flex; align-items: center; padding: 5px 11px 4px; background: var(--action); color: var(--on-action); border: var(--bw) solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); transform: rotate(var(--stamp-tilt)); font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: var(--display-weight); font-size: 1.25rem; line-height: 1; letter-spacing: 0.01em; text-decoration: none; flex: none; }
+.logo { display: inline-flex; align-items: center; min-height: var(--target); padding: 5px 11px 4px; background: var(--action); color: var(--on-action); border: var(--bw) solid var(--line); border-radius: var(--radius-sm); box-shadow: var(--shadow-sm); transform: rotate(var(--stamp-tilt)); font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: var(--display-weight); font-size: 1.25rem; line-height: 1; letter-spacing: 0.01em; text-decoration: none; flex: none; }
 .logo:hover { text-decoration: none; }
 .nav__primary { display: contents; }
 .nav__links { display: none; list-style: none; gap: var(--space-1); margin-left: var(--space-3); }
 .nav__links a { display: inline-flex; align-items: center; min-height: var(--target); padding: 0 var(--space-3); border-radius: var(--radius-md); font-weight: var(--w-bold); font-size: var(--text-md); text-decoration: none; white-space: nowrap; }
 .nav__links a:hover { background: var(--paper-2); }
 .nav__links a[aria-current="page"] { background: var(--ink); color: var(--card); }
+.nav__links a:focus-visible { position: relative; z-index: 1; }   /* the ring stays over the next pill */
+@media (max-width: 1099px) { .nav__primary { display: none; } }   /* no empty "Main" landmark: the drawer carries the links */
 .nav__end { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
 .icon-btn { display: inline-flex; align-items: center; justify-content: center; width: var(--target); height: var(--target); padding: 0; border: var(--bw-thin) solid var(--line); border-radius: var(--radius-md); background: var(--card); color: var(--ink); }
 .icon-btn:hover { background: var(--paper-2); }
+.icon-btn[aria-pressed="true"] { background: var(--ink); color: var(--card); }   /* the theme toggle shows its state, not the action */
 .wallet-btn { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; max-width: 11rem; min-height: var(--target); padding: 0 var(--space-4); border: var(--bw) solid var(--line); border-radius: var(--radius-pill); background: var(--ink); color: var(--card); font-weight: var(--w-bold); font-size: var(--text-sm); white-space: nowrap; text-decoration: none; }
 .wallet-btn__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .nav__end { min-width: 0; }
@@ -297,7 +300,7 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
 .stamp--objection { background: var(--objection); }
 .stamp--sm { padding: 3px 8px 2px; font-size: 0.75rem; border-width: var(--bw-thin); box-shadow: 2px 2px 0 var(--shadow-color); }
 .stamp--sm .stamp__sub { font-size: 0.6875rem; }
-.stamp--lg { padding: 10px 20px 8px; font-size: 1.5rem; }
+.stamp--lg { padding: 10px 20px 8px; font-size: clamp(1.125rem, 0.6rem + 2.4vw, 1.5rem); }
 .stamp--lg .stamp__sub { font-size: 0.875rem; margin-top: 2px; }
 .stamp--xl { padding: 14px 28px 12px; font-size: clamp(1.75rem, 1rem + 4vw, 2.5rem); border-width: 4px; box-shadow: var(--shadow-lg); }
 .stamp--xl .stamp__sub { font-size: 1.125rem; margin-top: 4px; }
@@ -367,8 +370,8 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
 @media (prefers-reduced-motion: reduce) { .wall-card, .wall-card:active { transition: none; transform: none; } }
 
 /* ------------------------------------------------------------------ countdowns */
-.countdown { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 40px; padding: 0 var(--space-3); border: var(--bw-thin) solid var(--line); border-radius: var(--radius-md); background: var(--card); font-size: var(--text-sm); font-weight: var(--w-bold); white-space: nowrap; }
-.countdown__time { font-family: var(--font-mono); font-size: var(--text-md); font-weight: var(--w-bold); font-variant-numeric: tabular-nums; }
+.countdown { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-2); min-height: 40px; padding: 0 var(--space-3); border: var(--bw-thin) solid var(--line); border-radius: var(--radius-md); background: var(--card); font-size: var(--text-sm); font-weight: var(--w-bold); }
+.countdown__time { font-family: var(--font-mono); font-size: var(--text-md); font-weight: var(--w-bold); font-variant-numeric: tabular-nums; white-space: nowrap; word-spacing: -0.3em; }   /* Plex Mono's wide space: '32h 59m' reads as one value */
 .countdown--urgent { background: var(--urgent-bg); color: var(--urgent-ink); border-color: var(--line); }
 .countdown--urgent .countdown__time { color: var(--urgent-digits); }
 .countdown--wait { background: var(--stripes); color: var(--on-state); }
@@ -391,7 +394,7 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
 .timeline__meta { font-size: var(--text-sm); color: var(--ink-2); }
 
 /* ------------------------------------------------------------------ tables and the leaderboard */
-.table-wrap { width: 100%; overflow-x: auto; }
+.table-wrap { width: 100%; overflow-x: auto; scroll-padding-inline: var(--space-5); }
 .table-wrap:focus-visible { outline-offset: calc(-1 * var(--bw)); }   /* inside panel--flush (overflow hidden) the ring must sit inside */
 .table .mono, .table .r, .table .nowrap { white-space: nowrap; }
 .table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
@@ -523,7 +526,7 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
 .share-card__top .logo { font-size: calc(34 * var(--u)); padding: calc(8 * var(--u)) calc(16 * var(--u)) calc(6 * var(--u)); border-width: calc(4 * var(--u)); box-shadow: calc(4 * var(--u)) calc(4 * var(--u)) 0 var(--shadow-color); }
 .share-card__who { display: flex; align-items: center; gap: calc(12 * var(--u)); }
 .share-card__who .badge { font-size: calc(20 * var(--u)); padding: calc(2 * var(--u)) calc(10 * var(--u)); border-width: calc(2 * var(--u)); }
-.share-card__text { align-self: center; max-width: calc(660 * var(--u)); text-wrap: pretty; font-size: calc(38 * var(--u)); line-height: 1.32; font-weight: var(--w-medium); }
+.share-card__text { align-self: center; max-width: calc(620 * var(--u)); text-wrap: pretty; font-size: calc(38 * var(--u)); line-height: 1.32; font-weight: var(--w-medium); }
 .share-card__text.is-long { font-size: calc(31 * var(--u)); }
 .share-card__stamp { position: absolute; top: calc(150 * var(--u)); right: calc(64 * var(--u)); }
 .share-card__stamp--pair { display: grid; justify-items: end; gap: calc(28 * var(--u)); }
@@ -553,7 +556,10 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
 @media (forced-colors: active) {
   .meter__fill { forced-color-adjust: none; background: Highlight; border-right-color: CanvasText; }
   .meter__need { forced-color-adjust: none; background: CanvasText; box-shadow: 0 0 0 2px Canvas; }
-  .chip[aria-pressed="true"], .chip[aria-checked="true"], .nav__links a[aria-current="page"], .drawer a[aria-current="page"] { outline: 3px solid CanvasText; outline-offset: -6px; }
+  .chip[aria-pressed="true"], .chip[aria-checked="true"], .nav__links a[aria-current="page"], .drawer a[aria-current="page"], .icon-btn[aria-pressed="true"] { forced-color-adjust: none; background: SelectedItem; color: SelectedItemText; border-color: SelectedItem; }
+  :focus-visible { outline-color: Highlight; }
+  .meter__need::after { border-top-color: CanvasText; }
+  .counter__meter > span, .countdown__bar > span { forced-color-adjust: none; background: CanvasText; }
   .stamp, .btn, .card, .panel, .wall-card, .toast, .notice { border-color: CanvasText; }
   .stamp--lapsed { border-style: dashed; }
   .stamp--pending { border-style: double; border-width: 5px; }
@@ -563,6 +569,10 @@ html { scrollbar-color: var(--ink-3) var(--paper-2); }
 
 /* ------------------------------------------------------------------ promoted from the pages (second review) */
 .small, .ref__caption, .empty p, .checks, .cmd > span:last-child { text-wrap: pretty; }
+p, li, dt, dd, td, .stat__note, .plea__text, .wall-card__text { text-wrap: pretty; }
+.ref + .site-footer { margin-top: 0; }
+.site-footer nav a, nav[aria-label="Breadcrumb"] a { display: inline-flex; align-items: center; min-height: var(--target); }
+.status-strip .mono { word-spacing: -0.3em; }
 .toggle-card__title { text-wrap: balance; }
 .empty__icon, .empty > .icon { width: var(--space-7); height: var(--space-7); }
 .wall-card__id { white-space: nowrap; margin-left: auto; }
