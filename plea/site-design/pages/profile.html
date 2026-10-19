@@ -14,43 +14,27 @@
 <script src="../icons.js" defer></script>
 <style>
   /* Profile only (report: candidates for the kit). Tokens only. */
-  /* dl reset for .costs. */
-  .costs { margin: 0; }
-  /* Four stats: two by two, four across from 1100 px (the kit's strip is 2/3/6, which leaves an
-     orphan at 768 px). The last column's and last row's dividers tuck under the outer frame. */
+  /* Four stats: two by two, four across from 1100 px (the kit's strip is 2/3/6: an orphan at 768 px, empty cells at 1280 px). */
   @media (min-width: 768px) { .stats--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (min-width: 1100px) { .stats--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-  .stats--4 .stat { margin-right: calc(-1 * var(--bw-thin)); margin-bottom: calc(-1 * var(--bw-thin)); }
-  /* A sub-heading inside a panel. */
+  /* A sub-heading inside a panel, one step under the panel title. */
   .sub-title { font-size: var(--text-lg); }
-  /* Two panels side by side keep one height. */
+  /* Two panels side by side keep one height; a stretched one keeps its last line at the bottom. */
   .split--stretch { align-items: stretch; }
-  /* Two of your pleas: two columns from 768 px, never a third, empty one. */
-  @media (min-width: 1280px) { .wall-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  /* The who row keeps badge height, so the dashed rules line up across a row. */
-  .wall-card__who { min-height: var(--space-5); }
-  /* Phones: stat values one size down so 7-digit PLEA amounts stay on one line. */
-  @media (max-width: 767px) { .stats--4 .stat__value { font-size: var(--text-lg); } }
-  /* Your seasons on phones: tighter cells, so four columns fit at 360 px without scrolling. */
-  @media (max-width: 767px) {
-    .table th, .table td { padding-inline: var(--space-2); }
-    .table th:first-child, .table td:first-child { padding-left: var(--space-4); }
-    .table th:last-child, .table td:last-child { padding-right: var(--space-4); }
-  }
-  /* A second, quieter line inside a table cell (closed, so far, paid). */
-  .cell-note { display: block; font-size: var(--text-xs); font-weight: var(--w-regular); color: var(--ink-2); }
-  /* A table in a flush panel lines its outer cells up with the panel head (24 px from 768 px). */
-  @media (min-width: 768px) {
-    .panel--flush .table th:first-child, .panel--flush .table td:first-child { padding-left: var(--space-5); }
-    .panel--flush .table th:last-child, .panel--flush .table td:last-child { padding-right: var(--space-5); }
-  }
-  /* A card or panel stretched to its row's height keeps its last line at the bottom. */
   .fill { display: flex; flex-direction: column; }
   .fill > .stack { flex: 1; }
   .fill .push-end { margin-top: auto; padding-top: var(--space-4); border-top: var(--bw-thin) dashed var(--line-soft); }
-  /* A note under a table, inside its flush panel. */
-  .table-foot { margin-top: auto; padding: var(--space-3) var(--space-4); border-top: var(--bw-thin) solid var(--line-soft); }
-  @media (min-width: 768px) { .table-foot { padding-inline: var(--space-5); } }
+  /* Your seasons on phones: tighter inner cells, so four columns fit at 360 px without scrolling. */
+  @media (max-width: 767px) {
+    .table--tight th, .table--tight td { padding-inline: var(--space-2); }
+    .table--tight th:first-child, .table--tight td:first-child { padding-left: var(--space-4); }
+    .table--tight th:last-child, .table--tight td:last-child { padding-right: var(--space-4); }
+  }
+  /* A second, quieter line inside a table cell. */
+  .cell-note { display: block; font-size: var(--text-xs); font-weight: var(--w-regular); color: var(--ink-2); }
+  /* A note under the rows of a flush panel, on the rows' edges (at the bottom when the panel is stretched). */
+  .panel__foot { margin-top: auto; padding: var(--space-3) var(--space-4); border-top: var(--bw-thin) solid var(--line-soft); }
+  @media (min-width: 768px) { .panel__foot { padding-inline: var(--space-5); } }
 </style>
 </head>
 <body>
@@ -58,6 +42,7 @@
 <header class="site-header">
   <div class="page nav">
     <a class="logo" href="index.html" aria-label="PLEA home">PLEA</a>
+    <nav class="nav__primary" aria-label="Main">
     <ul class="nav__links">
       <li><a href="buy.html">Buy</a></li>
       <li><a href="plead.html">Plead</a></li>
@@ -67,9 +52,10 @@
       <li><a href="objections.html">Objections</a></li>
       <li><a href="claim.html">Claim</a></li>
     </ul>
+    </nav>
     <div class="nav__end">
-      <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch to dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
-      <a class="wallet-btn" href="profile.html"><span class="seat-dot" aria-hidden="true"></span>mira_eth<span class="sr-only">: your profile (holds an IMD seat)</span></a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+      <a class="wallet-btn" href="profile.html"><span class="seat-dot" aria-hidden="true"></span><span class="wallet-btn__name">mira_eth</span><span class="sr-only">: your profile (holds an IMD seat)</span></a>
       <button class="icon-btn menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="drawer" aria-label="Menu"><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg></button>
     </div>
   </div>
@@ -85,23 +71,26 @@
         <li><a href="claim.html">Claim</a></li>
         <li><a href="index.html#how">How it works</a></li>
       </ul>
+      <div class="theme-row"><span>Theme</span><button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button></div>
     </div>
   </nav>
   <div class="status-strip">
     <div class="page">
-      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b><span class="long"> · dies in <span class="mono">32h 59m</span> without a verdict</span><span class="short"> · <span class="mono">32h 59m</span></span></span>
-      <span class="status-item"><b><span class="long">Season 2</span><span class="short">S2</span></b> · <span class="num">9d 4h</span><span class="long"> left</span> · <span class="long">pot </span><span class="num">184.20</span> IMD<span class="long"> + 10,000,000 PLEA</span></span>
-      <span class="status-item long">1M PLEA = <span class="num">14.16</span> IMD</span>
+      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a verdict</span>
+      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span> IMD + 10,000,000 PLEA</span>
+      <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
     </div>
   </div>
 </header>
 
 <main id="main" class="page main">
   <div class="stack stack--lg">
-    <div class="stack stack--sm">
+    <div>
       <div class="page-title"><h1>mira_eth</h1><span class="badge badge--seat"><svg class="icon" aria-hidden="true"><use href="#i-armchair"/></svg>SEAT ×1.2</span></div>
-      <span class="addr"><span class="addr__text">0x7a3f2c19d4e85b06a1f3c9e2d7b4a6f8e1c0c21e</span><button class="copy-btn" type="button" data-copy="0x7a3f2c19d4e85b06a1f3c9e2d7b4a6f8e1c0c21e" aria-label="Copy your address"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></span>
-      <p class="lead">Your wallet as PLEA sees it: what you hold, the buy record your next plea is scored on, your name, your pleas and your seasons.</p>
+      <div class="stack stack--sm">
+        <span class="addr"><span class="addr__text">0x7a3f2c19d4e85b06a1f3c9e2d7b4a6f8e1c0c21e</span><button class="copy-btn" type="button" data-copy="0x7a3f2c19d4e85b06a1f3c9e2d7b4a6f8e1c0c21e" aria-label="Copy your address"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></span>
+        <p class="lead">Your wallet as PLEA sees it: what you hold, the buy record your next plea is scored on, your name, your pleas and your seasons.</p>
+      </div>
     </div>
 
     <!-- ============================================================ balances -->
@@ -109,7 +98,18 @@
       <div class="stat"><span class="stat__label">PLEA</span><span class="stat__value">6,200,000</span><span class="stat__note">A plea: <span class="nowrap">62,000 to 2,500,000</span></span></div>
       <div class="stat"><span class="stat__label">IMD</span><span class="stat__value">412.50</span><span class="stat__note">For buys and the <span class="nowrap">0.50 IMD</span> oracle fee</span></div>
       <div class="stat"><span class="stat__label">Cashback earned</span><span class="stat__value">0.83 IMD</span><span class="stat__note">As staked IMD on <a href="https://imdacc.fun">imdacc.fun</a></span></div>
-      <div class="stat"><span class="stat__label">Next plea</span><span class="stat__value">now</span><span class="stat__note">No cooldown</span></div>
+      <div class="stat"><span class="stat__label">Next plea</span><span class="stat__value">after #214</span><span class="stat__note">4-hour cooldown after <span class="nowrap">its sale or lapse</span></span></div>
+    </div>
+
+    <div class="notice notice--info">
+      <svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg>
+      <div class="stack stack--md">
+        <div><p class="notice__title">Plea #214 is open: sell by 08:06 UTC.</p><p>Next plea 4 hours after the sale (12:00 UTC if sold now), or 11:59 UTC if it lapses.</p></div>
+        <div class="cluster">
+          <span class="countdown countdown--urgent" role="timer" aria-label="Sell within 6 minutes 12 seconds, by 08:06 UTC"><svg class="icon" aria-hidden="true"><use href="#i-timer"/></svg>Sell within <span class="countdown__time">06:12</span></span>
+          <a class="link-btn" href="plea.html?id=214">Open plea #214 to sell<svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+        </div>
+      </div>
     </div>
 
     <!-- ============================================================ buy record and name -->
@@ -119,9 +119,9 @@
         <div class="stack stack--lg">
           <p class="small text-2">The hook records every buy you make. Your next plea's facts come from it.</p>
           <dl class="costs">
-            <div><dt>Cost basis</dt><dd>17.27 IMD per 1M PLEA</dd></div>
+            <div><dt>Cost basis</dt><dd>17.27 IMD per 1M</dd></div>
             <div><dt>Held, buy-weighted</dt><dd>3d 4h</dd></div>
-            <div class="total"><dt>Profit or loss now, at 14.16</dt><dd>−18.0%</dd></div>
+            <div><dt>Now, at 14.16 IMD per 1M</dt><dd>−18.0%</dd></div>
           </dl>
           <div class="stack stack--md">
             <h3 class="sub-title">Your next plea, at 20%</h3>
@@ -132,11 +132,11 @@
               <div class="fact"><span class="fact__label">24h trend</span><span class="fact__value">flat</span><span class="fact__pts">+5</span></div>
             </div>
             <div class="meter meter--none" style="--score: 0; --need: 33">
-              <div class="meter__legend"><span>Fact score <b class="num">38</b></span><span>Need <b class="num">33</b> = 71 − 38</span></div>
+              <div class="meter__legend"><span>No score yet</span><span>Need <b class="num">33</b> = 71 − fact <b class="num">38</b></span></div>
               <div class="meter__bar" role="img" aria-label="No score yet. A 20% plea needs 33 of 45 from the judges."><span class="meter__fill"></span><span class="meter__need"></span></div>
               <div class="meter__scale" aria-hidden="true"><span>0</span><span>45</span></div>
             </div>
-            <p class="small">A 20% plea (1,240,000 PLEA) passes with 33 of 45 from the judges. The same facts as plea #214. <a class="nowrap" href="plead.html">Write a plea</a></p>
+            <p class="small">A 20% plea (1,240,000 PLEA) passes with 33 of 45 from the judges: the same facts as plea #214. The price and your next buy move them.</p>
           </div>
         </div>
       </section>
@@ -150,16 +150,13 @@
           </div>
           <div class="field">
             <div class="field__top"><label class="field__label" for="name-input">Display name</label><span class="field__aside">3–20 of a–z, 0–9, _</span></div>
-            <div class="input input--text"><input class="input__control" id="name-input" value="mira_eth" data-text-check="name" aria-describedby="name-hint name-rules" autocomplete="off" spellcheck="false"></div>
-            <ul class="checks" id="name-hint"><li class="check check--ok"><svg class="icon" aria-hidden="true"><use href="#i-check"/></svg><span>This is your current name.</span></li></ul>
+            <div class="input input--text"><input class="input__control" id="name-input" value="mira_eth" data-text-check="name" data-current="mira_eth" data-checks="name-checks" data-submit="save-name" aria-describedby="name-checks name-rules" autocomplete="off" spellcheck="false"></div>
+            <ul class="checks" id="name-checks"></ul>
             <p class="field__hint" id="name-rules">Names are unique. Reserved: cabal, admin, imd, plea and owner.</p>
           </div>
-          <div class="stack stack--sm">
-            <div class="btn-row">
-              <button class="btn btn--primary" type="button" aria-disabled="true" aria-describedby="save-why">Save name</button>
-              <button class="link-btn" type="button">Clear name</button>
-            </div>
-            <p class="small text-2" id="save-why">Nothing to save yet: the name is unchanged.</p>
+          <div class="btn-row">
+            <button class="btn btn--primary" type="button" id="save-name" aria-disabled="true" aria-describedby="name-checks">Save name</button>
+            <button class="link-btn" type="button">Clear name</button>
           </div>
           <p class="small push-end">Or send the letter <code>NAME &lt;name&gt;</code> to the Letterbox from Etherscan; <code>NAME</code> alone clears it. <a href="letters.html">How letters work</a></p>
         </div>
@@ -170,18 +167,18 @@
   <!-- ============================================================ pleas -->
   <section class="section" aria-labelledby="pleas-title">
     <div class="section__head"><h2 id="pleas-title">Your pleas</h2><a class="meta" href="wall.html">All pleas on the Wall</a></div>
-    <div class="wall-grid wall-grid--2">
-      <a class="wall-card" href="plea.html">
-        <div class="wall-card__top"><span class="stamp stamp--approved">Approved<span class="stamp__sub">36 vs 33</span></span><span class="wall-card__id">#214 · 48 s ago</span></div>
+    <div class="auto-grid">
+      <a class="wall-card" href="plea.html?id=214">
+        <div class="wall-card__top"><span class="stamp stamp--approved">Approved<span class="stamp__sub">36 vs need 33</span></span><span class="wall-card__id">#214 · 4 min ago</span></div>
         <p class="wall-card__text">“I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.”</p>
-        <div class="wall-card__nums"><span><b>1,240,000</b> PLEA</span><span><b>+43</b> pts held until 08:19 UTC</span></div>
-        <div class="wall-card__who"><span class="strong">mira_eth</span><span class="badge badge--seat">SEAT ×1.2</span></div>
+        <div class="wall-card__nums"><span><b>1,240,000</b> PLEA</span><span><b>+43</b> points held</span><span>sell by <b>08:06</b> UTC</span></div>
+        <div class="wall-card__who"><span class="strong">mira_eth</span><span class="badge badge--seat">SEAT ×1.2</span><span class="badge badge--you">YOU</span></div>
       </a>
-      <a class="wall-card" href="plea.html">
-        <div class="wall-card__top"><span class="stamp stamp--sold">Sold<span class="stamp__sub">15.13 IMD</span></span><span class="wall-card__id">#206 · 3 d ago</span></div>
-        <p class="wall-card__text">“Three weeks of holding taught me patience, humility and that I should not check the chart at 3 a.m. I would like to sell 15% and sleep.”</p>
-        <div class="wall-card__nums"><span><b>1,095,000</b> PLEA</span><span><b>34</b> vs 33</span><span><b>+39</b> pts (counts 33)</span></div>
-        <div class="wall-card__who"><span class="strong">mira_eth</span><span class="badge badge--seat">SEAT ×1.2</span><span class="stamp stamp--sm stamp--objection">Overruled</span></div>
+      <a class="wall-card" href="plea.html?id=196">
+        <div class="wall-card__top"><span class="stamp stamp--sold">Sold<span class="stamp__sub">33 vs need 33</span></span><span class="wall-card__id">#196 · 3 d ago</span></div>
+        <p class="wall-card__text">“Small bag, small plea. I am selling fifteen percent to pay back the friend who told me not to buy. He was right; I am keeping the rest out of spite.”</p>
+        <div class="wall-card__nums"><span><b>300,000</b> PLEA</span><span><b>+39</b> points</span><span>sold for <b>4.15</b> IMD</span></div>
+        <div class="wall-card__who"><span class="strong">mira_eth</span><span class="badge badge--seat">SEAT ×1.2</span><span class="badge badge--you">YOU</span></div>
       </a>
     </div>
   </section>
@@ -192,16 +189,16 @@
       <section class="panel panel--flush fill" aria-labelledby="ys-title">
         <div class="panel__head"><h2 id="ys-title">Your seasons</h2><a class="meta" href="seasons.html">Season 2 leaderboard</a></div>
         <div class="table-wrap" tabindex="0" role="region" aria-label="Your seasons">
-          <table class="table">
+          <table class="table table--tight">
             <caption class="sr-only">Your points, rank and prize in each season</caption>
             <thead><tr><th scope="col">Season</th><th scope="col" class="r">Points</th><th scope="col" class="r">Rank</th><th scope="col" class="r">Prize</th></tr></thead>
             <tbody>
-              <tr><td class="strong"><span class="nowrap">Season 1</span><span class="cell-note">closed</span></td><td class="r">97</td><td class="r">14</td><td class="r"><span class="nowrap">8.41 IMD</span> <span class="nowrap">+ 396,000 PLEA</span><span class="cell-note">paid</span></td></tr>
-              <tr><td class="strong"><span class="nowrap">Season 2</span><span class="cell-note">9d 4h left</span></td><td class="r">116</td><td class="r">4<span class="cell-note nowrap">so far</span></td><td class="r"><span class="nowrap">8.07 IMD</span> <span class="nowrap">+ 438,000 PLEA</span><span class="cell-note">if it ended now</span></td></tr>
+              <tr><td class="strong"><span class="nowrap">Season 1</span><span class="cell-note">closed, paid</span></td><td class="r">97</td><td class="r">14</td><td class="r">8.41 IMD<span class="cell-note">+ 396,000 PLEA</span></td></tr>
+              <tr><td class="strong"><span class="nowrap">Season 2</span><span class="cell-note">9d 4h left</span></td><td class="r">116</td><td class="r">4<span class="cell-note">so far</span></td><td class="r">8.06 IMD<span class="cell-note">+ 438,000 PLEA</span></td></tr>
             </tbody>
           </table>
         </div>
-        <p class="meta table-foot">Prizes are paid at the close: season 2 can be closed from <span class="nowrap">2026-11-25 13:00 UTC.</span></p>
+        <p class="meta panel__foot">Season 2's prize is rank 4's share if it ended now. Prizes are rounded down and paid at the close, from <span class="nowrap">2026-11-25 13:00 UTC.</span></p>
       </section>
 
       <section class="panel" aria-labelledby="seat-title">
@@ -223,95 +220,126 @@
 <section class="ref" aria-labelledby="ref-title">
   <div class="page">
     <p class="ref__label" id="ref-title">Design reference · other states</p>
-    <div class="stack stack--xl">
-
-      <div class="ref__item">
+    <div class="ref__grid">
+      <div class="ref__item ref__item--wide">
         <p class="ref__caption">Someone else's profile (kafka_cat), seen by mira_eth: read only, no name box, their pleas</p>
         <div class="stack stack--lg">
-          <div class="stack stack--sm">
+          <div>
             <div class="page-title"><h2>kafka_cat</h2><span class="badge badge--seat"><svg class="icon" aria-hidden="true"><use href="#i-armchair"/></svg>SEAT ×1.2</span><span class="pill">Read only</span></div>
             <span class="addr"><span class="addr__text">0x1c8e4a7b2f90d36e5a1b7c4d9e0f2a3b6c5dd4a9</span><button class="copy-btn" type="button" data-copy="0x1c8e4a7b2f90d36e5a1b7c4d9e0f2a3b6c5dd4a9" aria-label="Copy kafka_cat's address"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></span>
           </div>
           <div class="stats stats--4">
             <div class="stat"><span class="stat__label">PLEA</span><span class="stat__value">7,450,000</span><span class="stat__note">Balance at plea #213</span></div>
             <div class="stat"><span class="stat__label">Season 2</span><span class="stat__value">rank 1</span><span class="stat__note">132 points <span class="nowrap">(45 · 44 · 43)</span></span></div>
-            <div class="stat"><span class="stat__label">Season 1</span><span class="stat__value">rank 2</span><span class="stat__note">127 points, paid <span class="nowrap">9.48 IMD</span> <span class="nowrap">+ 446,000 PLEA</span></span></div>
-            <div class="stat"><span class="stat__label">Next plea</span><span class="stat__value">11:41 UTC</span><span class="stat__note">Cooldown after <span class="nowrap">plea #213</span></span></div>
+            <div class="stat"><span class="stat__label">Season 1</span><span class="stat__value">rank 2</span><span class="stat__note">127 points, paid <span class="nowrap">9.47 IMD</span> <span class="nowrap">+ 446,000 PLEA</span></span></div>
+            <div class="stat"><span class="stat__label">Next plea</span><span class="stat__value">11:53 UTC</span><span class="stat__note">Cooldown after #213 was denied; <span class="nowrap">an appeal can go in before</span></span></div>
           </div>
           <div class="split split--even">
-            <a class="wall-card" href="plea.html">
-              <div class="wall-card__top"><span class="stamp stamp--denied">Denied<span class="stamp__sub">31 vs 38</span></span><span class="wall-card__id">#213 · 18 min ago</span></div>
-              <p class="wall-card__text">“Dear Cabal, my cat walked across the keyboard and bought PLEA. He is up 140% and now demands tuna. I am only his accountant. Release a fifth so he can eat like a whale.”</p>
-              <div class="wall-card__nums"><span><b>1,490,000</b> PLEA</span><span>appeal until <b>11:41</b> UTC</span></div>
-              <div class="wall-card__who"><span class="strong">kafka_cat</span><span class="badge badge--letter"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg>BY LETTER</span></div>
+            <a class="wall-card" href="plea.html?id=213">
+              <div class="wall-card__top"><span class="stamp stamp--denied">Denied<span class="stamp__sub">31 vs need 36</span></span><span class="wall-card__id">#213 · 11 min ago</span></div>
+              <p class="wall-card__text">“Dear Cabal, my cat walked across the keyboard and bought PLEA. He is up 12% and now demands tuna. I am only his accountant. Release a fifth so he can eat like a whale.”</p>
+              <div class="wall-card__nums"><span><b>1,490,000</b> PLEA</span><span>no points</span><span>appeal until <b>11:53</b> UTC</span></div>
+              <div class="wall-card__who"><span class="strong">kafka_cat</span><span class="badge badge--seat">SEAT ×1.2</span><span class="badge badge--letter"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg>BY LETTER</span></div>
             </a>
             <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><div><p class="notice__title">You are viewing kafka_cat's profile.</p><p>Balances, pleas and seasons are public and read from the chain. Only kafka_cat can change this name, so there is no name box. <a href="profile.html">Back to your profile</a></p></div></div>
           </div>
         </div>
       </div>
 
-      <div class="ref__grid">
-        <div class="ref__item">
-          <p class="ref__caption">A name someone else has (checked on the chain)</p>
-          <div class="card stack stack--lg">
+      <div class="ref__item">
+        <p class="ref__caption">A name someone else has (checked on the chain after the text passes)</p>
+        <div class="card stack stack--lg">
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="ref-name-taken">Display name</label><span class="field__aside">3–20 of a–z, 0–9, _</span></div>
+            <div class="input input--text is-invalid"><input class="input__control" id="ref-name-taken" value="kafka_cat" aria-invalid="true" aria-describedby="ref-taken-msg" autocomplete="off" spellcheck="false"></div>
+            <ul class="checks" id="ref-taken-msg"><li class="check check--bad"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg><span>kafka_cat is taken. Try another name.</span></li></ul>
+          </div>
+          <div class="btn-row"><button class="btn btn--primary" type="button" aria-disabled="true" aria-describedby="ref-taken-msg">Save name</button><button class="link-btn" type="button">Clear name</button></div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">A name the contract refuses (live: text-check.js, as Letterbox._checkName)</p>
+        <div class="card stack stack--lg">
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="ref-name-bad">Display name</label><span class="field__aside">3–20 of a–z, 0–9, _</span></div>
+            <div class="input input--text"><input class="input__control" id="ref-name-bad" value="Mira!" data-text-check="name" data-current="mira_eth" data-checks="ref-bad-checks" data-submit="ref-bad-save" aria-describedby="ref-bad-checks" autocomplete="off" spellcheck="false"></div>
+            <ul class="checks" id="ref-bad-checks"></ul>
+          </div>
+          <div class="btn-row"><button class="btn btn--primary" type="button" id="ref-bad-save" aria-disabled="true" aria-describedby="ref-bad-checks">Save name</button><button class="link-btn" type="button">Clear name</button></div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Saving (busy, after the wallet confirmed): a wallet that showed as 0x7a3f…c21e sets mira_eth</p>
+        <div class="card stack stack--lg">
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="ref-name-busy">Display name</label><span class="field__aside">3–20 of a–z, 0–9, _</span></div>
+            <div class="input input--text input--readonly"><input class="input__control" id="ref-name-busy" value="mira_eth" readonly autocomplete="off" spellcheck="false"></div>
+          </div>
+          <div class="btn-row"><button class="btn btn--primary" type="button" aria-busy="true">Saving name…</button></div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Saved (toast)</p>
+        <div class="toasts toasts--static">
+          <div class="toast toast--ok" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="toast__title">Name saved: mira_eth.</p><p>The Wall and the leaderboard show it from now on. The court will address you accordingly. <a class="nowrap" href="#ref-title">View transaction</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Next plea after #214 is sold (sold at 08:00 UTC)</p>
+        <div class="notice notice--info">
+          <svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg>
+          <div class="stack stack--md">
+            <div><p class="notice__title">Plea #214 sold.</p><p>Next plea possible at 12:00 UTC (4-hour cooldown after your sale).</p></div>
+            <div><span class="countdown" role="timer" aria-label="Cooldown: next plea at 12:00 UTC, in 4 hours 0 minutes">Next plea in <span class="countdown__time">4h 00m</span></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Next plea after #214 lapses (the window closes at 08:06 UTC)</p>
+        <div class="notice notice--info">
+          <svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg>
+          <div class="stack stack--md">
+            <div><p class="notice__title">Plea #214 lapsed: nothing was sold.</p><p>Next plea possible at 11:59 UTC. Your +43 points still count; record them after 08:19 UTC.</p></div>
+            <div><span class="countdown" role="timer" aria-label="Cooldown: next plea at 11:59 UTC, in 3 hours 53 minutes">Next plea in <span class="countdown__time">3h 53m</span></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Not connected (the wallet button reads Connect)</p>
+        <div class="panel stack stack--lg">
+          <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-wallet"/></svg><div><p class="notice__title">Connect in the top bar to see your profile.</p><p>Profiles are public: paste any address to read its balances, pleas and seasons from the chain.</p></div></div>
+          <div class="stack stack--md">
             <div class="field">
-              <div class="field__top"><label class="field__label" for="ref-name-taken">Display name</label><span class="field__aside">3–20 of a–z, 0–9, _</span></div>
-              <div class="input input--text is-invalid"><input class="input__control" id="ref-name-taken" value="kafka_cat" aria-invalid="true" aria-describedby="ref-taken-msg" autocomplete="off" spellcheck="false"></div>
-              <ul class="checks" id="ref-taken-msg"><li class="check check--bad"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg><span>kafka_cat is taken. Try another name.</span></li></ul>
+              <div class="field__top"><label class="field__label" for="ref-addr">Any address</label></div>
+              <div class="input input--text"><input class="input__control" id="ref-addr" placeholder="0x…" autocomplete="off" spellcheck="false"></div>
             </div>
-            <div class="btn-row"><button class="btn btn--primary" type="button" aria-disabled="true" aria-describedby="ref-taken-msg">Save name</button><button class="link-btn" type="button">Clear name</button></div>
+            <div><button class="btn btn--sm" type="button">Show profile</button></div>
           </div>
         </div>
+      </div>
 
-        <div class="ref__item">
-          <p class="ref__caption">A name the contract refuses (live: text-check.js, as Letterbox._checkName)</p>
-          <div class="card stack stack--lg">
-            <div class="field">
-              <div class="field__top"><label class="field__label" for="ref-name-bad">Display name</label><span class="field__aside">3–20 of a–z, 0–9, _</span></div>
-              <div class="input input--text"><input class="input__control" id="ref-name-bad" value="Mira!" data-text-check="name" data-checks="ref-bad-checks" data-submit="ref-bad-save" aria-describedby="ref-bad-checks" autocomplete="off" spellcheck="false"></div>
-              <ul class="checks" id="ref-bad-checks" aria-live="polite"></ul>
-            </div>
-            <div class="btn-row"><button class="btn btn--primary" type="button" id="ref-bad-save" aria-describedby="ref-bad-checks">Save name</button><button class="link-btn" type="button">Clear name</button></div>
-          </div>
-        </div>
+      <div class="ref__item">
+        <p class="ref__caption">No pleas yet</p>
+        <div class="empty"><svg class="icon" style="width: 40px; height: 40px" aria-hidden="true"><use href="#i-scales"/></svg><p class="empty__title">No pleas yet</p><p>Your pleas land here with their verdicts, newest first.</p><p>The Cabal is patient.</p><a class="btn btn--sm" href="plead.html">Write a plea</a></div>
+      </div>
 
-        <div class="ref__item">
-          <p class="ref__caption">Saving (busy, after the wallet confirmed): a wallet that showed as 0x7a3f…c21e sets mira_eth</p>
-          <div class="card stack stack--lg">
-            <div class="field">
-              <div class="field__top"><label class="field__label" for="ref-name-busy">Display name</label><span class="field__aside">3–20 of a–z, 0–9, _</span></div>
-              <div class="input input--text input--readonly"><input class="input__control" id="ref-name-busy" value="mira_eth" readonly autocomplete="off" spellcheck="false"></div>
-            </div>
-            <div class="btn-row"><button class="btn btn--primary" type="button" aria-busy="true">Saving name…</button></div>
-          </div>
+      <div class="ref__item">
+        <p class="ref__caption">Loading</p>
+        <div class="panel stack" aria-busy="true">
+          <p class="loading-label"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg>Reading mira_eth's balances, pleas and seasons from the chain…</p>
+          <div class="skeleton"><div class="skeleton__block"></div><div class="skeleton__line"></div><div class="skeleton__line skeleton__line--mid"></div><div class="skeleton__line skeleton__line--short"></div></div>
         </div>
+      </div>
 
-        <div class="ref__item">
-          <p class="ref__caption">Saved (toast)</p>
-          <div class="toasts toasts--static">
-            <div class="toast toast--ok" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="toast__title">Name saved: mira_eth.</p><p>The Wall and the leaderboard show it from now on. The court will address you accordingly. <a class="nowrap" href="#ref-title">View transaction</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
-          </div>
-        </div>
-
-        <div class="ref__item">
-          <p class="ref__caption">Not connected (the wallet button reads Connect)</p>
-          <div class="panel stack stack--lg">
-            <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-wallet"/></svg><div><p class="notice__title">Connect to see your profile, or paste any address.</p><p>Profiles are public: balances, pleas and seasons read from the chain.</p></div></div>
-            <div><button class="btn btn--primary" type="button">Connect</button></div>
-            <div class="stack stack--md">
-              <div class="field">
-                <div class="field__top"><label class="field__label" for="ref-addr">Or paste any address</label></div>
-                <div class="input input--text"><input class="input__control" id="ref-addr" placeholder="0x…" autocomplete="off" spellcheck="false"></div>
-              </div>
-              <div><button class="btn btn--sm" type="button">Show profile</button></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref__item">
-          <p class="ref__caption">No pleas yet</p>
-          <div class="empty"><svg class="icon" style="width: 40px; height: 40px" aria-hidden="true"><use href="#i-scales"/></svg><p class="empty__title">No pleas yet</p><p>Your pleas land here with their verdicts, newest first.</p><p>The Cabal is patient.</p><a class="btn btn--sm" href="plead.html">Write a plea</a></div>
-        </div>
+      <div class="ref__item">
+        <p class="ref__caption">Read error</p>
+        <div class="error-box" role="alert"><p class="error-box__title"><svg class="icon" aria-hidden="true"><use href="#i-plugs"/></svg>Can't read this profile</p><p class="small">The public RPC did not answer. The site tries the next one by itself; nothing in your wallet is affected.</p><div class="btn-row"><button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-clockwise"/></svg>Try again</button></div></div>
       </div>
     </div>
   </div>

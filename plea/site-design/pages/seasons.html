@@ -14,24 +14,13 @@
 <script src="../icons.js" defer></script>
 <style>
   /* Seasons only (report: candidates for the kit). Tokens only. */
-  /* dl reset for .costs. */
-  .costs { margin: 0; }
-  /* Your standing: rank, points and prize side by side, wrapping as whole blocks. */
-  .standing { --cluster: var(--space-4) var(--space-6); align-items: flex-start; }
+  /* Your standing: rank, points and prize side by side, labels on one line, wrapping as whole blocks. */
+  .standing { gap: var(--space-4) var(--space-6); align-items: flex-start; }
   /* Two panels side by side keep one height. */
   .split--stretch { align-items: stretch; }
-  /* Leaderboard on phones: three lines (who and points; best three; prize). With the kit's two
-     lines the prize column took its full width and squeezed names and scores to about 60 px. */
-  @media (max-width: 767px) {
-    .lb__row { grid-template-areas: "rank who pts" "rank best best" "rank prize prize"; }
-    .lb__rank, .lb__pts { align-self: start; }
-    .lb__prize { text-align: left; }
-  }
-  /* A seat holder's raw scores wrap as one piece, never mid-list. */
-  .seatx { white-space: nowrap; }
-  /* A note under the leaderboard rows, inside its flush panel, on the rows' edges. */
-  .lb-foot { padding: var(--space-3) var(--space-4); border-top: var(--bw-thin) solid var(--line-soft); }
-  @media (min-width: 768px) { .lb-foot { padding-inline: var(--space-5); } }
+  /* A note under the rows of a flush panel, on the rows' edges. */
+  .panel__foot { padding: var(--space-3) var(--space-4); border-top: var(--bw-thin) solid var(--line-soft); }
+  @media (min-width: 768px) { .panel__foot { padding-inline: var(--space-5); } }
 </style>
 </head>
 <body>
@@ -39,6 +28,7 @@
 <header class="site-header">
   <div class="page nav">
     <a class="logo" href="index.html" aria-label="PLEA home">PLEA</a>
+    <nav class="nav__primary" aria-label="Main">
     <ul class="nav__links">
       <li><a href="buy.html">Buy</a></li>
       <li><a href="plead.html">Plead</a></li>
@@ -48,9 +38,10 @@
       <li><a href="objections.html">Objections</a></li>
       <li><a href="claim.html">Claim</a></li>
     </ul>
+    </nav>
     <div class="nav__end">
-      <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Switch to dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
-      <a class="wallet-btn" href="profile.html"><span class="seat-dot" aria-hidden="true"></span>mira_eth<span class="sr-only">: your profile (holds an IMD seat)</span></a>
+      <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+      <a class="wallet-btn" href="profile.html"><span class="seat-dot" aria-hidden="true"></span><span class="wallet-btn__name">mira_eth</span><span class="sr-only">: your profile (holds an IMD seat)</span></a>
       <button class="icon-btn menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="drawer" aria-label="Menu"><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg></button>
     </div>
   </div>
@@ -66,22 +57,23 @@
         <li><a href="claim.html">Claim</a></li>
         <li><a href="index.html#how">How it works</a></li>
       </ul>
+      <div class="theme-row"><span>Theme</span><button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button></div>
     </div>
   </nav>
   <div class="status-strip">
     <div class="page">
-      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b><span class="long"> · dies in <span class="mono">32h 59m</span> without a verdict</span><span class="short"> · <span class="mono">32h 59m</span></span></span>
-      <span class="status-item"><b><span class="long">Season 2</span><span class="short">S2</span></b> · <span class="num">9d 4h</span><span class="long"> left</span> · <span class="long">pot </span><span class="num">184.20</span> IMD<span class="long"> + 10,000,000 PLEA</span></span>
-      <span class="status-item long">1M PLEA = <span class="num">14.16</span> IMD</span>
+      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a verdict</span>
+      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span> IMD + 10,000,000 PLEA</span>
+      <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
     </div>
   </div>
 </header>
 
 <main id="main" class="page main">
   <div class="stack stack--lg">
-    <div class="stack stack--sm">
+    <div>
       <div class="page-title"><h1>Season 2</h1><span class="pill" role="timer" aria-label="Season 2 ends in 9 days 4 hours">ends in <span class="mono">9d 4h</span></span></div>
-      <p class="lead">15 days. Your best three approved pleas count, and the top 25 with at least 60 points share the pot.</p>
+      <p class="lead">15 days. Your best three approved pleas count, and the top 25 with at least 60 points share the season prize pot and the PLEA bonus.</p>
     </div>
 
     <!-- ============================================================ the season in three numbers -->
@@ -93,16 +85,16 @@
           <div><dt>Started</dt><dd>2026-11-10 12:00 UTC</dd></div>
           <div><dt>Length</dt><dd>15 days</dd></div>
           <div><dt>Grace after the end</dt><dd>1 hour</dd></div>
-          <div><dt>Can be closed</dt><dd>from 13:00 UTC, by anyone</dd></div>
+          <div><dt>Anyone can close it</dt><dd>from 13:00 UTC</dd></div>
         </dl>
       </div>
       <div class="panel stack stack--md md-span-4 lg-span-4">
-        <div><p class="stat__label">Prize pot</p><p class="stat__value">184.20 IMD</p></div>
+        <div><p class="stat__label">Season prize pot</p><p class="stat__value">184.20 IMD</p></div>
         <dl class="costs">
-          <div><dt>Trade fees (0.25% of every trade)</dt><dd>152.88</dd></div>
-          <div><dt>Auto-sell fees (23 × 0.35)</dt><dd>8.05</dd></div>
+          <div><dt>Trade fees (0.25% of every trade)</dt><dd>152.89</dd></div>
+          <div><dt>Site auto-sell sales (23 × 0.35; letters pay none)</dt><dd>8.05</dd></div>
           <div><dt>Overruled stakes (2 × 0.35)</dt><dd>0.70</dd></div>
-          <div><dt>Rolled over from season 1</dt><dd>22.57</dd></div>
+          <div><dt>Rolled over from season 1</dt><dd>22.56</dd></div>
           <div class="total"><dt>Pot</dt><dd>184.20 IMD</dd></div>
         </dl>
       </div>
@@ -110,10 +102,10 @@
         <div><p class="stat__label">PLEA bonus</p><p class="stat__value">10,000,000 PLEA</p></div>
         <dl class="costs">
           <div><dt>Season</dt><dd>2 of 6</dd></div>
-          <div><dt>Paid to</dt><dd>the same top 25, 60+ points</dd></div>
-          <div><dt>Shares</dt><dd>as the pot, 4.50% to 3.50%</dd></div>
+          <div><dt>Paid to</dt><dd>top 25, 60+ points</dd></div>
+          <div><dt>Shares, as the pot</dt><dd>4.50% to 3.50%</dd></div>
           <div><dt>Unpaid shares</dt><dd>burned at the close</dd></div>
-          <div><dt>From</dt><dd>the 6% minted to Seasons</dd></div>
+          <div><dt>From</dt><dd>the 6% season bonus</dd></div>
         </dl>
       </div>
     </div>
@@ -126,7 +118,7 @@
           <div class="cluster standing">
             <div><p class="stat__label">Rank</p><p class="stat__value">4</p></div>
             <div><p class="stat__label">Points</p><p class="stat__value">116</p></div>
-            <div><p class="stat__label">Prize if it ended now</p><p class="stat__value">8.07 IMD</p><p class="stat__note">+ 438,000 PLEA</p></div>
+            <div><p class="stat__label">Prize now</p><p class="stat__value">8.06 IMD</p><p class="stat__note">+ 438,000 PLEA</p></div>
           </div>
           <dl class="costs">
             <div><dt>Best three</dt><dd>40 + 39 + 37 = 116</dd></div>
@@ -136,13 +128,13 @@
           <div class="stack stack--md">
             <div class="notice notice--info">
               <svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg>
-              <div><p class="notice__title">Plea #214's +43 is held until 08:19 UTC.</p><p>Once recorded: 122 points (<span class="nowrap">43 + 40 + 39</span>; the 37 drops out) and rank 3, worth <span class="nowrap">8.14 IMD</span> <span class="nowrap">+ 442,000 PLEA</span> at today's pot.</p></div>
+              <div><p class="notice__title">Plea #214's +43 points are held until 08:19 UTC.</p><p>Recorded, they make 122 points (<span class="nowrap">43 + 40 + 39</span>; the 37 drops out) and rank 3: <span class="nowrap">8.14 IMD</span> <span class="nowrap">+ 442,000 PLEA</span> at today's pot.</p></div>
             </div>
             <div class="cluster">
-              <span class="countdown" role="timer" aria-label="Objections on plea 214 close in 19 minutes 12 seconds">Objections close <span class="countdown__time">19:12</span></span>
-              <button class="btn btn--sm" type="button" aria-disabled="true" aria-describedby="rec-why">Record my points</button>
+              <span class="countdown" role="timer" aria-label="Objections on plea 214 close in 19 minutes 12 seconds, at 08:19:12 UTC">Objections close in <span class="countdown__time">19:12</span></span>
+              <button class="btn" type="button" aria-disabled="true" aria-describedby="rec-why">Record my points</button>
             </div>
-            <p class="small text-2" id="rec-why">Record my points opens at 08:19 UTC, when objections on <a href="plea.html">plea #214</a> close.</p>
+            <p class="small text-2" id="rec-why">Record your +43 points after 08:19 UTC, when objections on <a href="plea.html">plea #214</a> close. Nothing records them by itself: anyone can press Record my points.</p>
           </div>
         </div>
       </section>
@@ -150,13 +142,13 @@
       <section class="panel" id="seat" aria-labelledby="seat-title">
         <h2 class="card__title" id="seat-title">The seat multiplier</h2>
         <div class="stack stack--lg">
-          <p>Hold an IMD seat NFT when your plea is recorded and its points are the score <span class="nowrap">× 1.2</span>, rounded down.</p>
+          <p>Hold an IMD seat NFT when your plea is recorded and its points are the judges' score <span class="nowrap">× 1.2</span>, rounded down.</p>
           <dl class="costs">
             <div><dt>Score 36, with a seat</dt><dd>43 points</dd></div>
             <div><dt>Score 45, with a seat</dt><dd>54 points</dd></div>
             <div><dt>Score 36, no seat</dt><dd>36 points</dd></div>
           </dl>
-          <p class="small">One seat or ten, the same. Points only: the judges' score, your need and the 60-point bar don't change.</p>
+          <p class="small">One seat or ten, the same. Points only: the judges' score, your need and the 60-point bar don't change. The leaderboard shows a seat holder's judges' scores in brackets.</p>
           <div class="stack stack--sm">
             <p class="label">Seat NFT · identity.md</p>
             <span class="addr"><span class="addr__text">0x0000ec93…ec1d</span><button class="copy-btn" type="button" data-copy="0x0000ec93127baa929e58e97dd0095a2bfb38ec1d" aria-label="Copy identity.md seat NFT address"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></span>
@@ -171,52 +163,53 @@
   <section class="section" aria-labelledby="lb-title">
     <div class="stack stack--lg">
       <div class="panel panel--flush">
-        <div class="panel__head"><h2 id="lb-title">Season 2 leaderboard</h2><span class="meta">Pot <b class="num">184.20</b> IMD + <b class="num">10,000,000</b> PLEA · top 25 with 60+ points</span></div>
+        <div class="panel__head"><h2 id="lb-title">Season 2 leaderboard</h2><span class="meta">Pot <b>184.20</b> IMD + <b>10,000,000</b> PLEA · top 25 with 60+ points</span></div>
         <ol class="lb">
-        <li class="lb__head" aria-hidden="true"><span class="lb__rank">Rank</span><span class="lb__who">Player</span><span class="lb__best">Best three</span><span class="lb__pts">Points</span><span class="lb__prize">Prize now</span></li>
-        <li class="lb__row"><span class="lb__rank">1</span><span class="lb__who">kafka_cat <span class="badge badge--seat"><svg class="icon" aria-hidden="true"><use href="#i-armchair"/></svg>SEAT ×1.2</span></span><span class="lb__best"><span class="sr-only">Best: </span>45 · 44 · 43 <span class="seatx">(38·37·36 × 1.2)</span></span><span class="lb__pts">132<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">8.29 IMD</span> <span class="nowrap">+ 450,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">2</span><span class="lb__who">oath_keeper <span class="badge badge--seat"><svg class="icon" aria-hidden="true"><use href="#i-armchair"/></svg>SEAT ×1.2</span></span><span class="lb__best"><span class="sr-only">Best: </span>44 · 40 · 40 <span class="seatx">(37·34·34 × 1.2)</span></span><span class="lb__pts">124<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">8.22 IMD</span> <span class="nowrap">+ 446,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">3</span><span class="lb__who">lettersonly</span><span class="lb__best"><span class="sr-only">Best: </span>41 · 39 · 37</span><span class="lb__pts">117<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">8.14 IMD</span> <span class="nowrap">+ 442,000 PLEA</span></span></li>
-        <li class="lb__row lb__row--you"><span class="lb__rank">4</span><span class="lb__who">mira_eth <span class="badge badge--seat"><svg class="icon" aria-hidden="true"><use href="#i-armchair"/></svg>SEAT ×1.2</span> <span class="badge badge--you">YOU</span></span><span class="lb__best"><span class="sr-only">Best: </span>40 · 39 · 37 <span class="seatx">(34·33·31 × 1.2)</span></span><span class="lb__pts">116<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">8.07 IMD</span> <span class="nowrap">+ 438,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">5</span><span class="lb__who"><span class="mono">0x9c41…e07a</span></span><span class="lb__best"><span class="sr-only">Best: </span>38 · 36 · 35</span><span class="lb__pts">109<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">7.98 IMD</span> <span class="nowrap">+ 433,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">6</span><span class="lb__who">shrimp_lord</span><span class="lb__best"><span class="sr-only">Best: </span>37 · 36 · 33</span><span class="lb__pts">106<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">7.90 IMD</span> <span class="nowrap">+ 429,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">7</span><span class="lb__who">hodl_goblin</span><span class="lb__best"><span class="sr-only">Best: </span>35 · 35 · 34</span><span class="lb__pts">104<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">7.83 IMD</span> <span class="nowrap">+ 425,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">8</span><span class="lb__who">deg_monk</span><span class="lb__best"><span class="sr-only">Best: </span>38 · 34 · 31</span><span class="lb__pts">103<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">7.75 IMD</span> <span class="nowrap">+ 421,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">9</span><span class="lb__who">brine_oracle <span class="badge badge--seat"><svg class="icon" aria-hidden="true"><use href="#i-armchair"/></svg>SEAT ×1.2</span></span><span class="lb__best"><span class="sr-only">Best: </span>36 · 33 · 33 <span class="seatx">(30·28·28 × 1.2)</span></span><span class="lb__pts">102<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">7.68 IMD</span> <span class="nowrap">+ 417,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">10</span><span class="lb__who">velvet_rug</span><span class="lb__best"><span class="sr-only">Best: </span>35 · 34 · 32</span><span class="lb__pts">101<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">7.59 IMD</span> <span class="nowrap">+ 412,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">11</span><span class="lb__who">not_selling</span><span class="lb__best"><span class="sr-only">Best: </span>34 · 33 · 31</span><span class="lb__pts">98<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">7.52 IMD</span> <span class="nowrap">+ 408,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">12</span><span class="lb__who">paper_crane</span><span class="lb__best"><span class="sr-only">Best: </span>36 · 32 · 30</span><span class="lb__pts">98<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">7.44 IMD</span> <span class="nowrap">+ 404,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">13</span><span class="lb__who">gm_lawyer <span class="badge badge--seat"><svg class="icon" aria-hidden="true"><use href="#i-armchair"/></svg>SEAT ×1.2</span></span><span class="lb__best"><span class="sr-only">Best: </span>33 · 33 · 32 <span class="seatx">(28·28·27 × 1.2)</span></span><span class="lb__pts">98<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">7.37 IMD</span> <span class="nowrap">+ 400,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">14</span><span class="lb__who">tuna_fund</span><span class="lb__best"><span class="sr-only">Best: </span>34 · 31 · 30</span><span class="lb__pts">95<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">7.29 IMD</span> <span class="nowrap">+ 396,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">15</span><span class="lb__who">quiet_whale</span><span class="lb__best"><span class="sr-only">Best: </span>32 · 31 · 30</span><span class="lb__pts">93<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">7.22 IMD</span> <span class="nowrap">+ 392,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">16</span><span class="lb__who">moth_capital</span><span class="lb__best"><span class="sr-only">Best: </span>33 · 30 · 29</span><span class="lb__pts">92<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">7.15 IMD</span> <span class="nowrap">+ 388,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">17</span><span class="lb__who"><span class="mono">0x51ab…7c3e</span></span><span class="lb__best"><span class="sr-only">Best: </span>31 · 30 · 29</span><span class="lb__pts">90<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">7.05 IMD</span> <span class="nowrap">+ 383,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">18</span><span class="lb__who">judge_judy_fan</span><span class="lb__best"><span class="sr-only">Best: </span>30 · 30 · 28</span><span class="lb__pts">88<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">6.98 IMD</span> <span class="nowrap">+ 379,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">19</span><span class="lb__who">salt_miner</span><span class="lb__best"><span class="sr-only">Best: </span>31 · 29 · 27</span><span class="lb__pts">87<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">6.91 IMD</span> <span class="nowrap">+ 375,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">20</span><span class="lb__who">bagholder_99</span><span class="lb__best"><span class="sr-only">Best: </span>29 · 28 · 27</span><span class="lb__pts">84<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">6.83 IMD</span> <span class="nowrap">+ 371,000 PLEA</span></span></li>
-        <li class="lb__row"><span class="lb__rank">21</span><span class="lb__who">lamp_oil</span><span class="lb__best"><span class="sr-only">Best: </span>33 · 28</span><span class="lb__pts">61<span class="sr-only"> points</span></span><span class="lb__prize"><span class="nowrap">6.76 IMD</span> <span class="nowrap">+ 367,000 PLEA</span></span></li>
-        <li class="lb__bar">60-point line: below it no prize; the IMD share rolls over to season 3 and the PLEA share is burned</li>
-        <li class="lb__row lb__row--out"><span class="lb__rank">22</span><span class="lb__who">rope_seller</span><span class="lb__best"><span class="sr-only">Best: </span>30 · 28</span><span class="lb__pts">58<span class="sr-only"> points</span></span><span class="lb__prize">no prize <span class="nowrap">(58 of 60)</span></span></li>
-        <li class="lb__row lb__row--out"><span class="lb__rank">23</span><span class="lb__who">fresh_start</span><span class="lb__best"><span class="sr-only">Best: </span>36 · 22</span><span class="lb__pts">58<span class="sr-only"> points</span></span><span class="lb__prize">no prize <span class="nowrap">(58 of 60)</span></span></li>
-        <li class="lb__row lb__row--out"><span class="lb__rank">24</span><span class="lb__who">one_shot</span><span class="lb__best"><span class="sr-only">Best: </span>44</span><span class="lb__pts">44<span class="sr-only"> points</span></span><span class="lb__prize">no prize <span class="nowrap">(44 of 60)</span></span></li>
-        <li class="lb__row lb__row--out"><span class="lb__rank">25</span><span class="lb__who">late_owl</span><span class="lb__best"><span class="sr-only">Best: </span>35</span><span class="lb__pts">35<span class="sr-only"> points</span></span><span class="lb__prize">no prize <span class="nowrap">(35 of 60)</span></span></li>
+          <li class="lb__head" aria-hidden="true"><span class="lb__rank">Rank</span><span class="lb__who">Player</span><span class="lb__best">Best three</span><span class="lb__pts">Points</span><span class="lb__prize">Prize now</span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>1</span><span class="lb__who">kafka_cat <span class="badge badge--seat">SEAT ×1.2</span></span><span class="lb__best"><span class="lb__label">Best three</span> 45 · 44 · 43 <span class="seatx nowrap">(38·37·36 × 1.2)</span></span><span class="lb__pts"><span class="lb__label">Points</span> 132</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">8.28 IMD</span> <span class="nowrap">+ 450,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>2</span><span class="lb__who">oath_keeper <span class="badge badge--seat">SEAT ×1.2</span></span><span class="lb__best"><span class="lb__label">Best three</span> 44 · 40 · 40 <span class="seatx nowrap">(37·34·34 × 1.2)</span></span><span class="lb__pts"><span class="lb__label">Points</span> 124</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">8.21 IMD</span> <span class="nowrap">+ 446,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>3</span><span class="lb__who">lettersonly</span><span class="lb__best"><span class="lb__label">Best three</span> 41 · 39 · 37</span><span class="lb__pts"><span class="lb__label">Points</span> 117</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">8.14 IMD</span> <span class="nowrap">+ 442,000 PLEA</span></span></li>
+          <li class="lb__row lb__row--you"><span class="lb__rank"><span class="sr-only">Rank </span>4</span><span class="lb__who">mira_eth <span class="badge badge--seat">SEAT ×1.2</span> <span class="badge badge--you">YOU</span></span><span class="lb__best"><span class="lb__label">Best three</span> 40 · 39 · 37 <span class="seatx nowrap">(34·33·31 × 1.2)</span></span><span class="lb__pts"><span class="lb__label">Points</span> 116</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">8.06 IMD</span> <span class="nowrap">+ 438,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>5</span><span class="lb__who"><span class="mono">0x9c41…e07a</span></span><span class="lb__best"><span class="lb__label">Best three</span> 38 · 36 · 35</span><span class="lb__pts"><span class="lb__label">Points</span> 109</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">7.97 IMD</span> <span class="nowrap">+ 433,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>6</span><span class="lb__who">brine_oracle <span class="badge badge--seat">SEAT ×1.2</span></span><span class="lb__best"><span class="lb__label">Best three</span> 39 · 36 · 33 <span class="seatx nowrap">(33·30·28 × 1.2)</span></span><span class="lb__pts"><span class="lb__label">Points</span> 108</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">7.90 IMD</span> <span class="nowrap">+ 429,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>7</span><span class="lb__who">shrimp_lord</span><span class="lb__best"><span class="lb__label">Best three</span> 37 · 36 · 33</span><span class="lb__pts"><span class="lb__label">Points</span> 106</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">7.82 IMD</span> <span class="nowrap">+ 425,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>8</span><span class="lb__who">hodl_goblin</span><span class="lb__best"><span class="lb__label">Best three</span> 35 · 35 · 34</span><span class="lb__pts"><span class="lb__label">Points</span> 104</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">7.75 IMD</span> <span class="nowrap">+ 421,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>9</span><span class="lb__who">deg_monk</span><span class="lb__best"><span class="lb__label">Best three</span> 38 · 34 · 31</span><span class="lb__pts"><span class="lb__label">Points</span> 103</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">7.68 IMD</span> <span class="nowrap">+ 417,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>10</span><span class="lb__who">velvet_rug</span><span class="lb__best"><span class="lb__label">Best three</span> 35 · 34 · 32</span><span class="lb__pts"><span class="lb__label">Points</span> 101</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">7.58 IMD</span> <span class="nowrap">+ 412,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>11</span><span class="lb__who">not_selling</span><span class="lb__best"><span class="lb__label">Best three</span> 34 · 33 · 32</span><span class="lb__pts"><span class="lb__label">Points</span> 99</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">7.51 IMD</span> <span class="nowrap">+ 408,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>12</span><span class="lb__who">paper_crane</span><span class="lb__best"><span class="lb__label">Best three</span> 36 · 32 · 30</span><span class="lb__pts"><span class="lb__label">Points</span> 98</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">7.44 IMD</span> <span class="nowrap">+ 404,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>13</span><span class="lb__who">gm_lawyer <span class="badge badge--seat">SEAT ×1.2</span></span><span class="lb__best"><span class="lb__label">Best three</span> 33 · 32 · 32 <span class="seatx nowrap">(28·27·27 × 1.2)</span></span><span class="lb__pts"><span class="lb__label">Points</span> 97</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">7.36 IMD</span> <span class="nowrap">+ 400,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>14</span><span class="lb__who">tuna_fund</span><span class="lb__best"><span class="lb__label">Best three</span> 34 · 31 · 30</span><span class="lb__pts"><span class="lb__label">Points</span> 95</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">7.29 IMD</span> <span class="nowrap">+ 396,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>15</span><span class="lb__who">quiet_whale</span><span class="lb__best"><span class="lb__label">Best three</span> 32 · 31 · 30</span><span class="lb__pts"><span class="lb__label">Points</span> 93</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">7.22 IMD</span> <span class="nowrap">+ 392,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>16</span><span class="lb__who">moth_capital</span><span class="lb__best"><span class="lb__label">Best three</span> 33 · 30 · 29</span><span class="lb__pts"><span class="lb__label">Points</span> 92</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">7.14 IMD</span> <span class="nowrap">+ 388,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>17</span><span class="lb__who"><span class="mono">0x51ab…7c3e</span></span><span class="lb__best"><span class="lb__label">Best three</span> 31 · 30 · 29</span><span class="lb__pts"><span class="lb__label">Points</span> 90</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">7.05 IMD</span> <span class="nowrap">+ 383,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>18</span><span class="lb__who">judge_judy_fan</span><span class="lb__best"><span class="lb__label">Best three</span> 30 · 30 · 28</span><span class="lb__pts"><span class="lb__label">Points</span> 88</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">6.98 IMD</span> <span class="nowrap">+ 379,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>19</span><span class="lb__who">salt_miner</span><span class="lb__best"><span class="lb__label">Best three</span> 31 · 29 · 27</span><span class="lb__pts"><span class="lb__label">Points</span> 87</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">6.90 IMD</span> <span class="nowrap">+ 375,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>20</span><span class="lb__who">bagholder_99</span><span class="lb__best"><span class="lb__label">Best three</span> 29 · 28 · 27</span><span class="lb__pts"><span class="lb__label">Points</span> 84</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">6.83 IMD</span> <span class="nowrap">+ 371,000 PLEA</span></span></li>
+          <li class="lb__row"><span class="lb__rank"><span class="sr-only">Rank </span>21</span><span class="lb__who">lamp_oil</span><span class="lb__best"><span class="lb__label">Best three</span> 33 · 28</span><span class="lb__pts"><span class="lb__label">Points</span> 61</span><span class="lb__prize"><span class="lb__label">Prize now</span> <span class="nowrap">6.76 IMD</span> <span class="nowrap">+ 367,000 PLEA</span></span></li>
+          <li class="lb__bar">60-point line · below it no prize: the IMD share rolls over to season 3 and the PLEA bonus share is&nbsp;burned</li>
+          <li class="lb__row lb__row--out"><span class="lb__rank"><span class="sr-only">Rank </span>22</span><span class="lb__who">fresh_start</span><span class="lb__best"><span class="lb__label">Best three</span> 36 · 22</span><span class="lb__pts"><span class="lb__label">Points</span> 58</span><span class="lb__prize"><span class="lb__label">Prize now</span> no prize <span class="nowrap">(58 of 60)</span></span></li>
+          <li class="lb__row lb__row--out"><span class="lb__rank"><span class="sr-only">Rank </span>23</span><span class="lb__who">rope_seller</span><span class="lb__best"><span class="lb__label">Best three</span> 30 · 27</span><span class="lb__pts"><span class="lb__label">Points</span> 57</span><span class="lb__prize"><span class="lb__label">Prize now</span> no prize <span class="nowrap">(57 of 60)</span></span></li>
+          <li class="lb__row lb__row--out"><span class="lb__rank"><span class="sr-only">Rank </span>24</span><span class="lb__who">one_shot</span><span class="lb__best"><span class="lb__label">Best three</span> 44</span><span class="lb__pts"><span class="lb__label">Points</span> 44</span><span class="lb__prize"><span class="lb__label">Prize now</span> no prize <span class="nowrap">(44 of 60)</span></span></li>
+          <li class="lb__row lb__row--out"><span class="lb__rank"><span class="sr-only">Rank </span>25</span><span class="lb__who">late_owl</span><span class="lb__best"><span class="lb__label">Best three</span> 35</span><span class="lb__pts"><span class="lb__label">Points</span> 35</span><span class="lb__prize"><span class="lb__label">Prize now</span> no prize <span class="nowrap">(35 of 60)</span></span></li>
         </ol>
-        <p class="meta lb-foot">Equal points: the wallet whose newest counted plea came first ranks higher (ranks 11 to 13 have 98 each).</p>
+        <p class="meta panel__foot">Equal points: the wallet whose newest counted plea is older ranks higher. Seat holders' judges' scores are in brackets (each × 1.2, rounded down).</p>
       </div>
 
       <div class="split split--even split--stretch">
         <div class="panel panel--sunken stack stack--md">
           <p class="strong">If the season ended now</p>
           <dl class="costs">
-            <div><dt>Paid to 21 wallets</dt><dd>85.76% · 157.97 IMD</dd></div>
+            <div><dt>Paid to 21 wallets</dt><dd>85.76% · 157.96 IMD</dd></div>
             <div><dt>Rolls over to season 3</dt><dd>14.24% · 26.23 IMD</dd></div>
             <div><dt>PLEA bonus paid</dt><dd>8,576,000 PLEA</dd></div>
             <div><dt>PLEA bonus burned</dt><dd>1,424,000 PLEA</dd></div>
           </dl>
+          <p class="small text-2">Prizes are rounded down, as the chain pays them.</p>
         </div>
         <div class="panel stack stack--md">
           <p class="strong">Closing the season</p>
-          <p class="small">The close records the points still waiting, pays the top 25 with 60+ points in IMD and PLEA, rolls the unpaid IMD over to season 3 and burns the unpaid PLEA.</p>
+          <p class="small">The close records any approved plea nobody recorded, pays the top 25 with 60+ points in IMD and PLEA, rolls the unpaid IMD over to season 3 and burns the unpaid PLEA.</p>
           <div class="stack stack--sm">
             <div><button class="btn" type="button" aria-disabled="true" aria-describedby="close-why">Close season 2</button></div>
             <p class="small text-2" id="close-why">Anyone can close it after <span class="nowrap">2026-11-25 13:00 UTC</span> (1-hour grace).</p>
@@ -244,7 +237,7 @@
             <dl class="costs">
               <div><dt>Pot</dt><dd>212.48 IMD</dd></div>
               <div><dt>Paid to 22 wallets</dt><dd>189.91 IMD</dd></div>
-              <div><dt>Rolled over to season 2</dt><dd>22.57 IMD</dd></div>
+              <div><dt>Rolled over to season 2</dt><dd>22.56 IMD</dd></div>
               <div><dt>PLEA bonus paid</dt><dd>8,938,000 PLEA</dd></div>
               <div><dt>PLEA bonus burned</dt><dd>1,062,000 PLEA</dd></div>
             </dl>
@@ -253,7 +246,7 @@
             <p class="label">Top three, and you</p>
             <dl class="costs">
               <div><dt><span class="nowrap">1 · one_shot,</span> <span class="nowrap">129 points</span></dt><dd><span class="nowrap">9.56 IMD</span> <span class="nowrap">+ 450,000 PLEA</span></dd></div>
-              <div><dt><span class="nowrap">2 · kafka_cat,</span> <span class="nowrap">127 points</span></dt><dd><span class="nowrap">9.48 IMD</span> <span class="nowrap">+ 446,000 PLEA</span></dd></div>
+              <div><dt><span class="nowrap">2 · kafka_cat,</span> <span class="nowrap">127 points</span></dt><dd><span class="nowrap">9.47 IMD</span> <span class="nowrap">+ 446,000 PLEA</span></dd></div>
               <div><dt><span class="nowrap">3 · lettersonly,</span> <span class="nowrap">118 points</span></dt><dd><span class="nowrap">9.39 IMD</span> <span class="nowrap">+ 442,000 PLEA</span></dd></div>
               <div><dt><span class="nowrap">14 · mira_eth (you),</span> <span class="nowrap">97 points</span></dt><dd><span class="nowrap">8.41 IMD</span> <span class="nowrap">+ 396,000 PLEA</span></dd></div>
             </dl>
@@ -278,9 +271,22 @@
         <p class="ref__caption">The leaderboard loading: a still skeleton under the real head</p>
         <div class="panel panel--flush" aria-busy="true">
           <div class="panel__head"><h3>Season 2 leaderboard</h3></div>
-          <div class="panel__body">
+          <div class="panel__body stack">
             <p class="loading-label"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg>Reading the leaderboard from Seasons…</p>
-            <div class="skeleton" style="margin-top: var(--space-4)"><div class="skeleton__line"></div><div class="skeleton__line skeleton__line--mid"></div><div class="skeleton__line"></div><div class="skeleton__line skeleton__line--mid"></div><div class="skeleton__line"></div><div class="skeleton__line skeleton__line--short"></div></div>
+            <div class="skeleton"><div class="skeleton__line"></div><div class="skeleton__line skeleton__line--mid"></div><div class="skeleton__line"></div><div class="skeleton__line skeleton__line--mid"></div><div class="skeleton__line"></div><div class="skeleton__line skeleton__line--short"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Record my points: after 08:19 UTC, busy, recorded</p>
+        <div class="stack">
+          <div class="panel stack">
+            <div class="cluster"><button class="btn" type="button">Record my points</button><button class="btn" type="button" aria-busy="true">Confirm in your wallet…</button></div>
+            <p class="small">Objections on plea #214 closed. Anyone can record a plea's points; nothing records them by itself.</p>
+          </div>
+          <div class="toasts toasts--static">
+            <div class="toast toast--ok" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="toast__title">+43 points recorded.</p><p>Season 2: 122 points <span class="nowrap">(43 + 40 + 39),</span> rank 3. <a class="nowrap" href="#ref-title">View transaction</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
           </div>
         </div>
       </div>
@@ -300,59 +306,45 @@
         </div>
       </div>
 
-      <div class="stack stack--lg">
-        <div class="ref__item">
-          <p class="ref__caption">Not connected: the leaderboard reads without a wallet; your standing asks to connect</p>
-          <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-wallet"/></svg><div><p class="notice__title">Connect to see your rank.</p><p>The leaderboard, the pot and past seasons read without a wallet.</p></div></div>
-        </div>
-        <div class="ref__item">
-          <p class="ref__caption">Read error</p>
-          <div class="error-box" role="alert"><p class="error-box__title"><svg class="icon" aria-hidden="true"><use href="#i-plugs"/></svg>Can't read the leaderboard</p><p class="small">The public RPC did not answer. The site tries the next one by itself; your points are on the chain and not affected.</p><div class="btn-row"><button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-clockwise"/></svg>Try again</button></div></div>
+      <div class="ref__item">
+        <p class="ref__caption">Not connected: the leaderboard reads without a wallet; your standing asks to connect</p>
+        <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-wallet"/></svg><div><p class="notice__title">Connect in the top bar to see your rank.</p><p>The leaderboard, the pot and past seasons read without a wallet.</p></div></div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Read error</p>
+        <div class="error-box" role="alert"><p class="error-box__title"><svg class="icon" aria-hidden="true"><use href="#i-plugs"/></svg>Can't read the leaderboard</p><p class="small">The public RPC did not answer. The site tries the next one by itself; your points are on the chain and not affected.</p><div class="btn-row"><button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-clockwise"/></svg>Try again</button></div></div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Close season 2 after the grace (from 2026-11-25 13:00 UTC): ready, then busy</p>
+        <div class="panel stack stack--md">
+          <p class="strong">Closing the season</p>
+          <p class="small">The grace is over: anyone can close season 2 now. The close records any approved plea nobody recorded, pays the top 25 with 60+ points and rolls the rest over.</p>
+          <div class="cluster"><button class="btn" type="button">Close season 2</button><button class="btn" type="button" aria-busy="true">Confirm in your wallet…</button></div>
         </div>
       </div>
 
-      <div class="stack stack--lg">
-        <div class="ref__item">
-          <p class="ref__caption">Close season 2 after the grace (from 2026-11-25 13:00 UTC): ready</p>
-          <div class="panel stack stack--md">
-            <p class="strong">Closing the season</p>
-            <p class="small">The grace is over: anyone can close season 2 now. The close records the points still waiting, pays the top 25 and rolls the rest over.</p>
-            <div><button class="btn" type="button">Close season 2</button></div>
-          </div>
-        </div>
-        <div class="ref__item">
-          <p class="ref__caption">Closing: busy</p>
-          <div class="panel stack stack--md">
-            <p class="strong">Closing the season</p>
-            <p class="small">Recording the waiting points, paying 21 wallets and rolling the rest over to season 3.</p>
-            <div><button class="btn" type="button" aria-busy="true">Confirm in your wallet…</button></div>
-          </div>
-        </div>
-        <div class="ref__item">
-          <p class="ref__caption">Closed: done (today's numbers as the example)</p>
-          <div class="toasts toasts--static">
-            <div class="toast toast--ok" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="toast__title">Season 2 closed.</p><p>21 wallets paid <span class="nowrap">157.97 IMD</span> <span class="nowrap">+ 8,576,000 PLEA.</span> <span class="nowrap">26.23 IMD</span> rolls over to <span class="nowrap">season 3;</span> <span class="nowrap">1,424,000 PLEA</span> burned. Court adjourned. <a class="nowrap" href="#ref-title">View transaction</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
-          </div>
+      <div class="ref__item">
+        <p class="ref__caption">Closed: done (today's numbers as the example)</p>
+        <div class="toasts toasts--static">
+          <div class="toast toast--ok" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="toast__title">Season 2 closed.</p><p>21 wallets paid <span class="nowrap">157.96 IMD</span> <span class="nowrap">+ 8,576,000 PLEA.</span> <span class="nowrap">26.23 IMD</span> rolls over to <span class="nowrap">season 3;</span> <span class="nowrap">1,424,000 PLEA</span> burned. Court adjourned. <a class="nowrap" href="#ref-title">View transaction</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
         </div>
       </div>
 
-      <div class="stack stack--lg">
-        <div class="ref__item">
-          <p class="ref__caption">After the Cabal dies and its last season is closed: flushToWall(), anyone</p>
-          <div class="stack stack--md">
-            <div class="banner" style="border: var(--bw) solid var(--line); border-radius: var(--radius-md)"><div class="page"><span class="live-dot live-dot--dead" aria-hidden="true"></span><span>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever.</span></div></div>
-            <div class="panel stack stack--md">
-              <p class="strong">No more seasons</p>
-              <p class="small">What is left in Seasons goes to the buy wall, and the PLEA bonus of any of the first six seasons that never ran is burned, in one call that anyone can make. If the Cabal died in season 2, seasons 3 to 6 never run: 40,000,000 PLEA burned.</p>
-              <div><button class="btn" type="button">Send leftovers to the buy wall</button></div>
-            </div>
-          </div>
+      <div class="ref__item">
+        <p class="ref__caption">After the Cabal dies (the banner shows on every page) and its last season is closed: flushToWall(), anyone</p>
+        <div class="panel stack stack--md">
+          <p class="strong">No more seasons</p>
+          <p class="small">The Cabal is dead: no verdict for 33 hours, and PLEA trades freely forever. What is left in Seasons goes to the buy wall, and the PLEA bonus of any of the first six seasons that never ran is burned, in one call that anyone can make. If the Cabal died in season 2, seasons 3 to 6 never run: 40,000,000 PLEA burned.</p>
+          <div><button class="btn" type="button">Send leftovers to the buy wall</button></div>
         </div>
-        <div class="ref__item">
-          <p class="ref__caption">Leftovers sent: done</p>
-          <div class="toasts toasts--static">
-            <div class="toast toast--ok" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="toast__title">Leftovers sent to the buy wall.</p><p>The IMD now backs the wall and the unused bonus PLEA is burned. Nothing is left in Seasons. <a class="nowrap" href="#ref-title">View transaction</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
-          </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Leftovers sent: done</p>
+        <div class="toasts toasts--static">
+          <div class="toast toast--ok" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="toast__title">Leftovers sent to the buy wall.</p><p>The IMD now backs the wall and the unused bonus PLEA is burned. Nothing is left in Seasons. <a class="nowrap" href="#ref-title">View transaction</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
         </div>
       </div>
     </div>
