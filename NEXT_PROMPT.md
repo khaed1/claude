@@ -62,7 +62,7 @@ Your tasks, in order:
   - The fact score adds four parts:
     - Share of the balance: at most 20% gives 16.
     - Holding time: 1 / 3 / 7 days give 2 / 4 / 7.
-    - Profit: at a loss gives 13. PLEA without a buy record (the airdrop, prizes) counts as held since the seed, with 10.
+    - Profit: at a loss gives 13 (a fresh buyer is at a loss through the fees). Received PLEA (the airdrop, prizes) follows the agreed rule of 2026-10-15: held since the seed, at profit 10.
     - The 24h trend: flat gives 5, and our volumes keep it flat.
   - So the need is:
 
