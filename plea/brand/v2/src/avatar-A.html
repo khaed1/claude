@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLEA profile photo A</title>
+<!-- Profile photo option A: the yellow PLEA stamp on cream (#FBF6EA), ink outline and shadow.
+     1000 x 1000; X crops it to the inscribed circle. Open with ?guide to see the crop. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;display=block">
+<link rel="stylesheet" href="brand.css">
+<style>
+  .frame { position: relative; width: 1000px; height: 1000px; display: grid; place-items: center; background: var(--paper); overflow: hidden; }
+  /* Tighter side padding than the nav logo so the letters are as big as the circle allows:
+     the stamp's half-diagonal, shadow included, stays inside 93% of the circle's radius. */
+  .frame .logo { font-size: var(--f, 190px); padding: 0.22em 0.36em 0.17em; translate: -0.075em -0.075em; }
+  .guide { position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 2000px rgba(255,0,160,.35); outline: 2px dashed #f0a; pointer-events: none; }
+  .guide::after { content: ""; position: absolute; inset: 40px; border-radius: 50%; outline: 2px dotted #f0a; }
+</style>
+</head>
+<body>
+<div class="frame">
+  <span class="logo">PLEA</span>
+  <div class="guide" hidden></div>
+</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  if (q.has('guide')) document.querySelector('.guide').hidden = false;
+  if (q.get('f')) document.documentElement.style.setProperty('--f', q.get('f') + 'px');
+</script>
+</body>
+</html>

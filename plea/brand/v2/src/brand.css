@@ -1,0 +1,71 @@
+/* PLEA brand v2 (X account @Pleaimd), in the site's design system "neo-brutal docket".
+   Values copied from plea/site-design/tokens.css; the logo and stamp follow .logo and .stamp in
+   plea/site-design/components.css, sized in em so one rule scales from a 32 px avatar to a 1500 px header.
+   Fonts: Archivo (wdth 125 = Expanded, wght 800) and IBM Plex Mono 600, both SIL OFL 1.1, from Google Fonts. */
+
+:root {
+  --paper: #FBF6EA;        /* cream ground */
+  --card: #FFFFFF;
+  --ink: #121212;          /* text, outlines, hard shadows */
+  --ink-2: #4A463E;        /* secondary text, 8.7:1 on paper */
+  --action: #FFD92E;       /* the logo stamp's yellow */
+  --on-action: #121212;
+  --approved: #4BE08F;
+  --denied: #FF5A4E;
+  --on-state: #121212;
+  --cream-ink: #F5F0E4;    /* the dark theme's ink: outline and shadow of the logo on dark grounds */
+  --stamp-tilt: -3deg;
+
+  --line: var(--ink);
+  --shadow-color: var(--ink);
+
+  --font-body: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --display-stretch: 125%;
+  --display-weight: 800;
+}
+
+/* On an ink ground the logo takes the dark theme's cream outline and shadow, as on the site. */
+.on-dark { --line: var(--cream-ink); --shadow-color: var(--cream-ink); }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The PLEA logo stamp: the site's .logo (20 px type, 5/11/4 px padding, 3 px outline, 3 px shadow,
+   4 px radius, -3deg) expressed in em. Set font-size on it to scale. */
+.logo {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0.25em 0.55em 0.2em;
+  background: var(--action); color: var(--on-action);
+  border: 0.15em solid var(--line); border-radius: 0.2em;
+  box-shadow: 0.15em 0.15em 0 var(--shadow-color);
+  transform: rotate(var(--stamp-tilt));
+  font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: var(--display-weight);
+  line-height: 1; letter-spacing: 0.01em; white-space: nowrap;
+}
+
+/* The verdict stamp: the site's .stamp at share-card proportions (44/14/26/12/5/6 units). */
+.stamp {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 0.32em 0.59em 0.27em;
+  border: 0.114em solid var(--line); border-radius: 0.1em;
+  background: var(--card); color: var(--on-state);
+  box-shadow: 0.136em 0.136em 0 var(--shadow-color);
+  transform: rotate(var(--stamp-tilt));
+  font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: var(--display-weight);
+  line-height: 1.1; letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap;
+}
+.stamp__sub {
+  margin-top: 0.12em;
+  font-family: var(--font-mono); font-stretch: 100%; font-weight: 600;
+  font-size: 0.46em; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums;
+}
+.stamp--approved { background: var(--approved); }
+.stamp--denied { background: var(--denied); }
