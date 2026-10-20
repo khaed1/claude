@@ -22,6 +22,7 @@ The look of the next PLEA site (plea.sites.imd.fun), built by IMD's site job. Th
 | `PAGE-KIT.md` | The rules a page follows (also for the site builder). |
 | `tools/` | `check.mjs` (a page in Chromium at 320/360/768/1280 px, light and dark: sideways overflow, console errors, axe-core WCAG 2.1 AA), `render_share_cards.mjs` (every share card to a 1200 × 675 PNG), `difftest/` (text-check.js against the Solidity), `contrast.py`, `crop.py`, `sample_data.py`, `build_icons.cjs`, the text-check unit tests. |
 | `brief-imd-site-job.md` | The brief for IMD's site job (under 5,500 characters). |
+| `brief-site-job-run9.md` | The same brief for the Sepolia test site on run 9 (launch #2234): the run's addresses, imdTEST, PoolSwapTest, events read from the chain instead of an indexer, the not-yet-seeded and no-claims states. Sent as IMD job `plea/job-run9-site.json` on 2026-10-20. |
 | `shots/` | Share cards as PNG (`share-card-<id>.png`, one per verdict state, plus the dark #214 and the default link card) and every page at 1280 px light, 360 px light and 1280 px dark (`shots/pages/`). |
 
 ## Decisions the pages follow
