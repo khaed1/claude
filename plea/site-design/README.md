@@ -24,6 +24,7 @@ The look of the next PLEA site (plea.sites.imd.fun), built by IMD's site job. Th
 | `brief-imd-site-job.md` | The brief for IMD's site job (under 5,500 characters). |
 | `brief-site-job-run9.md` | The same brief for the Sepolia test site on run 9 (launch #2234): the run's addresses, imdTEST, PoolSwapTest, events read from the chain instead of an indexer, the not-yet-seeded and no-claims states. Sent as IMD job `plea/job-run9-site.json` on 2026-10-20. |
 | `run9-site-review.md` | The test of the site that job built (https://plea-test-run-9.sites.imd.fun/): 158 verified findings from fork playthroughs, automated checks, a chain and code review and mockup comparisons, merged into 73 fix items (19 P1) for the follow-up fix job. |
+| `run9-site-review-2.md` | The re-test after IMD's fix job fd8cb957: 43 of the 73 items fixed, 30 partly, 56 new issues and 2 regressions, merged into 45 round-2 items (12 P1) for a second fix job. |
 | `shots/` | Share cards as PNG (`share-card-<id>.png`, one per verdict state, plus the dark #214 and the default link card) and every page at 1280 px light, 360 px light and 1280 px dark (`shots/pages/`). |
 
 ## Decisions the pages follow
