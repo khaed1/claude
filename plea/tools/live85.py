@@ -138,12 +138,32 @@ def players():
 
 
 def _player_key(name):
+    label = _derive_label()
+    if label:
+        return _derived_key(label, int(name.lstrip("p")))
     path = os.path.join(STATE, "players.env")
     for line in open(path):
         k, _, v = line.strip().partition("=")
         if k == name.upper() + "_KEY":
             return v
     raise Fail(f"no key for {name}")
+
+
+def _derive_label():
+    path = os.path.join(STATE, "players.derive")
+    return open(path).read().strip() if os.path.exists(path) else ""
+
+
+def _derived_key(label, i):
+    """Player i's key = keccak256(wallet A's key ++ utf8(label + i)): a container restart cannot strand
+    the players' funds, and no player key is ever written down."""
+    key = os.environ.get("PONDPAD_TESTNET_KEY", "")
+    if FORK and not key:
+        key = "0x" + "00" * 31 + "a1"  # fork rehearsal without the real key
+    if len(key.removeprefix("0x")) != 64:
+        raise Fail("PONDPAD_TESTNET_KEY not set")
+    from distributor_root import keccak256
+    return "0x" + keccak256(bytes.fromhex(key.removeprefix("0x")) + f"{label}{i}".encode()).hex()
 
 
 def addr(name):
@@ -302,6 +322,76 @@ def cmd_new_players(n, *_):
     json.dump(pj, open(os.path.join(STATE, "players.json"), "w"), indent=1)
     for k, v in pj.items():
         print(f"  {k} {v}")
+
+
+def cmd_derive_players(n, label="plea-run9-p", *_):
+    """Players p1..pn with keys derived from wallet A's key (keccak256(key ++ label+i)); only the
+    addresses and the label are stored."""
+    if os.path.exists(os.path.join(STATE, "players.env")):
+        raise Fail("players.env exists (random players); use another STATE_DIR")
+    pj = {}
+    for i in range(1, int(n) + 1):
+        k = _derived_key(label, i)
+        pj[f"p{i}"] = _run(["wallet", "address", "--private-key", k], secret=k)
+    with open(os.path.join(STATE, "players.derive"), "w") as f:
+        f.write(label)
+    json.dump(pj, open(os.path.join(STATE, "players.json"), "w"), indent=1)
+    for k, v in pj.items():
+        print(f"  {k} {v}")
+
+
+def cmd_tree(each, a_amount="0", *names):
+    """Distributor tree: `each` PLEA to each named player (default: all), `a_amount` PLEA to wallet A.
+    Leaf = keccak256(abi.encodePacked(index, account, amount)); writes $STATE_DIR/tree.json."""
+    from distributor_root import leaf, build, proof, verify
+    rows = [(n, addr(n), int(float(each) * E18)) for n in (names or list(players()))]
+    if float(a_amount) > 0:
+        rows.append(("a", WALLET_A, int(float(a_amount) * E18)))
+    leaves = [leaf(i, a, amt) for i, (_, a, amt) in enumerate(rows)]
+    layers = build(leaves)
+    root = layers[-1][0]
+    claims = []
+    for i, (n, a, amt) in enumerate(rows):
+        pf = proof(layers, i)
+        assert verify(root, leaves[i], pf)
+        claims.append({"name": n, "index": i, "account": a, "amount": str(amt), "proof": ["0x" + x.hex() for x in pf]})
+    out = {"root": "0x" + root.hex(), "total": str(sum(r[2] for r in rows)), "claims": claims}
+    json.dump(out, open(os.path.join(STATE, "tree.json"), "w"), indent=1)
+    print(f"  root {out['root']} total {fmt(int(out['total']))} PLEA")
+    for c in claims:
+        print(f"  #{c['index']} {c['name']:4} {c['account']} {fmt(int(c['amount']))}")
+
+
+def _tree():
+    return json.load(open(os.path.join(STATE, "tree.json")))
+
+
+def cmd_set_root(*_):
+    """Wallet A sets the distributor's one-time root from tree.json."""
+    t = _tree()
+    cur = call(DISTRIBUTOR, "merkleRoot()(bytes32)")
+    if int(cur, 16) != 0:
+        raise Fail(f"root already set: {cur}")
+    send("a", DISTRIBUTOR, "setMerkleRoot(bytes32)", t["root"])
+    print(f"  root now {call(DISTRIBUTOR, 'merkleRoot()(bytes32)')}")
+
+
+def cmd_claim(caller, *names):
+    """`caller` claims from the distributor for each named leaf (the PLEA always goes to the leaf's account)."""
+    t = _tree()
+    if call(DISTRIBUTOR, "merkleRoot()(bytes32)").lower() != t["root"].lower():
+        raise Fail("tree.json's root is not the distributor's")
+    for n in names:
+        c = next((c for c in t["claims"] if c["name"] == n), None)
+        if c is None:
+            raise Fail(f"{n} is not in the tree")
+        if call(DISTRIBUTOR, "isClaimed(uint256)(bool)", c["index"]) == "true":
+            print(f"  {n} already claimed")
+            continue
+        before = bal(PLEA, c["account"])
+        send(caller, DISTRIBUTOR, "claim(uint256,address,uint256,bytes32[])", c["index"], c["account"], c["amount"],
+             "[" + ",".join(c["proof"]) + "]")
+        print(f"  {n} received {fmt(bal(PLEA, c['account']) - before)} PLEA")
 
 
 def cmd_fund(eth, *names):
@@ -564,6 +654,8 @@ def cmd_fork_warp(seconds):
     print(f"  fork time now {now()}")
 
 
+sys.dont_write_bytecode = True
+sys.path.insert(0, HERE)  # distributor_root (keccak, Merkle tree) sits beside this file
 COMMANDS = {k[4:].replace("_", "-"): v for k, v in globals().items() if k.startswith("cmd_")}
 
 
