@@ -4,21 +4,21 @@ Rules: agreed numbers in NEXT_SESSION never change without asking. Never ask for
 
 **My go-ahead (Tue 2026-10-20):** the run 9 live test below, on Sepolia, from wallet A and test wallets, with the 50 imdTEST. Anything else (IMD jobs, Ethereum or Base transactions, mainnet) still needs my go-ahead.
 
-Where we stopped (Tue 2026-10-20 ~19:00 UTC):
+Where we stopped (Wed 2026-10-21 ~08:00 UTC):
 - **Run 9** is launch #2234 (`testnet9` @ 241c05e). It is the final code, with imdTEST as both the pool token and the oracle fee.
   - It is live on Sepolia and **not seeded**. Addresses are in `plea/live-run9/addresses.json`. Wallet A deployed the Letterbox, Tribunal and PleaHook.
-  - START is Wed 2026-10-21 15:00 UTC. Wallet A may seed any time; anyone may seed from START.
+  - START is Wed 2026-10-21 15:00 UTC. Wallet A may seed any time; anyone may seed from START through the contract (the run 9 site's seed button now shows only for wallet A).
 - **imdTEST** is `0x56bcf2a5F47710649A4091219Ef0b56e2d1B58BF`. IMD's Sepolia oracle is sold only in it, at 0.5 a question, and only the dev mints it.
   - Wallet A holds 50 (the dev's mint, block 11,955,606).
-  - Other holders: `0xff3cbe2385d56960bbad93c1d5378fef2e1f8390` (another project's oracle consumer, 1,000), and 10 each at `0xdea11b3a70b77134424d436f6eb455f1abbd4449`, `0x3c587eff6c96eacf7e3dcc2cff6416161386e48c` and `0xabd06aa2679444959e96a799f297f3a8e89be2aa`.
+  - Other holders (supply 1,130): `0xff3cbe2385d56960bbad93c1d5378fef2e1f8390` (another project's oracle consumer, 1,000), `0x5d861edaf67625b8e22c4ccf9915205b63baa7ae` (50), and 10 each at `0xdea11b3a70b77134424d436f6eb455f1abbd4449`, `0x3c587eff6c96eacf7e3dcc2cff6416161386e48c` and `0xabd06aa2679444959e96a799f297f3a8e89be2aa`.
 - **The dev's concern:** he asked us not to use imdTEST as the pool token, in case outsiders buy in and use the oracles. I decided to test anyway, with little imdTEST in the pool, and to take it back out at the end.
 - **IMD's Sepolia oracle is answering:** another project's request on 2026-10-20 at 15:34 UTC got its panel's result in about 2 minutes.
-- **The run 9 site:** https://plea-test-run-9.sites.imd.fun/ (IMD's site job, submitted by the design session).
+- **The run 9 site:** https://plea-test-run-9.sites.imd.fun/ (IMD's site job). The design session is fixing it: round-2 fix job `cd805c00` was running at 06:00 UTC on Wed.
 - **khaed1/plea:** `next` = `testnet9` @ 241c05e, `main` @ 46bd23a, `mainnet` @ 3d0976a (852/852 on each, with both forks); `light-profile` @ 180b13b.
 - **Wallet A** (`0x4b91078b2374c956A65F7Af0999CaE0a935E6821`):
   - Sepolia: 7.79 ETH, nonce 274, 50 imdTEST.
-  - Ethereum: 0.80 IMD, nonce 57.
-  - The imd/acc session shares it, so check that nonce latest = pending before every send.
+  - Ethereum: 0.80 IMD, nonce 61 (the design session pays its site jobs from it).
+  - The imd/acc session and the design session also use wallet A, so check that nonce latest = pending before every send.
 - **Last session's check-in** `trig_01U3M24dECwSxDhMcsH4FF7t` (send_later, Wed 15:05 UTC) fires into the old session. It checks whether someone else seeded run 9.
 
 Your tasks, in order:
@@ -39,7 +39,7 @@ Your tasks, in order:
 - Then take the imdTEST back out of the pool.
 
 **Limits:**
-- **imdTEST into the pool:** the owner's 2 opening buy plus at most 5 of test buys. Appeal wall shares (0.35 each) also land in the pool. Ask me before going over.
+- **imdTEST into the pool:** the owner's 2 opening buy plus at most 5 of test buys: one small buy per test wallet (my choice, so approvals and letters come days sooner than with the airdrop alone). Appeal wall shares (0.35 each) also land in the pool. Ask me before going over.
 - **Oracle fees** (0.5 a question, paid to IMD) come from each test wallet's own imdTEST, which wallet A sends. Plan for about 20 questions.
 - **Stop and tell me** if the oracle stops answering (pleas expiring), or if any wallet that isn't ours buys, pleads, objects or delivers a letter.
 
@@ -134,7 +134,7 @@ Your tasks, in order:
    - Claim wallet A's 20M. Sell every wallet's PLEA back into the pool with PoolSwapTest; `rebalance` and sell into the wall again; redeem any ERC-6909 imdTEST claims. Repeat until the pool holds (almost) no imdTEST.
    - Gather all the imdTEST in wallet A.
    - Tell me how much came back, how much went to IMD as oracle fees, and what is left in the pool and why. Send it nowhere else without my go-ahead.
-7. **Optional:** look at the run 9 site with the live data and list what it shows wrong, for the later site work. Change nothing there.
+7. **Optional:** look at the run 9 site with the live data and note in HANDOFF what it shows wrong, for the design session. Change nothing there.
 
 Report to me in chat after each phase, simply. Use send_later check-ins for the timed steps instead of waiting.
 
