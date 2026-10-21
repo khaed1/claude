@@ -13,7 +13,7 @@ Where we stopped (Wed 2026-10-21 ~08:00 UTC):
   - Other holders (supply 1,130): `0xff3cbe2385d56960bbad93c1d5378fef2e1f8390` (another project's oracle consumer, 1,000), `0x5d861edaf67625b8e22c4ccf9915205b63baa7ae` (50), and 10 each at `0xdea11b3a70b77134424d436f6eb455f1abbd4449`, `0x3c587eff6c96eacf7e3dcc2cff6416161386e48c` and `0xabd06aa2679444959e96a799f297f3a8e89be2aa`.
 - **The dev's concern:** he asked us not to use imdTEST as the pool token, in case outsiders buy in and use the oracles. I decided to test anyway, with little imdTEST in the pool, and to take it back out at the end.
 - **IMD's Sepolia oracle is answering:** another project's request on 2026-10-20 at 15:34 UTC got its panel's result in about 2 minutes.
-- **The run 9 site:** https://plea-test-run-9.sites.imd.fun/ (IMD's site job). The design session is fixing it: round-2 fix job `cd805c00` was running at 06:00 UTC on Wed.
+- **The run 9 site:** https://plea-test-run-9.sites.imd.fun/ (IMD's site job). The design session is fixing it: round 2 (job `cd805c00`) was delivered at 07:52 UTC on Wed and is being re-tested.
 - **khaed1/plea:** `next` = `testnet9` @ 241c05e, `main` @ 46bd23a, `mainnet` @ 3d0976a (852/852 on each, with both forks); `light-profile` @ 180b13b.
 - **Wallet A** (`0x4b91078b2374c956A65F7Af0999CaE0a935E6821`):
   - Sepolia: 7.79 ETH, nonce 274, 50 imdTEST.
