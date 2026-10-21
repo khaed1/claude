@@ -90,6 +90,7 @@ Your tasks, in order:
 - **The distributor:**
   - Its root can be set only once, by wallet A.
   - Anyone may claim for a listed wallet; the PLEA always goes to that wallet.
+- **Glamsterdam gas** is live on Sepolia since 2026-10-06: new storage and code cost far more (see HANDOFF, 2026-10-21). The Intake gives callbacks 1,000,000 gas on Sepolia (200,000 on mainnet), so the test is not blocked, but record the gas of every step, above all the writer's verdict transactions, to compare with the measured callbacks (approval ~174k, first denial ~296k, repeat denial ~198k, first objection ruling ~313k).
 
 **Steps.** Rehearse every new kind of step on an anvil fork of Sepolia first (`plea/tools/live85.py` with `fork-init` / `fork-answer`). Then do one live step at a time: check nonce latest = pending, use gas = estimate × 1.3, and log every tx in `plea/live-run9/`.
 
