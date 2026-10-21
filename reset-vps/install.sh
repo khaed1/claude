@@ -111,7 +111,7 @@ if [ ! -e $H/config.json ]; then
  "start": "2026-10-21T07:46:09+00:00",
  "end": "2026-10-24T07:46:09+00:00",
  "model": "sonnet",
- "tick_seconds": 30
+ "tick_seconds": 10
 }
 EOF
   )
