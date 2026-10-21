@@ -1,0 +1,16 @@
+#!/bin/sh
+# resetctl check|pause|resume|stop|start|log [n] — control the RESET worker (systemd).
+H=/root/reset-agent
+case "$1" in
+  check)  echo "worker:    $(systemctl is-active reset-worker) ($(systemctl is-enabled reset-worker 2>/dev/null) at boot)"
+          [ -e $H/PAUSE ] && echo "worker:    PAUSED (resetctl resume to continue)"
+          echo "dashboard: $(systemctl is-active reset-dashboard) on http://127.0.0.1:4747"
+          python3 -c "import json;s=json.load(open('$H/state.json'));c=json.load(open('$H/config.json'));print(f\"model spend: \${s['spent_usd']:.3f} of \${c['budget_usd']} | ends {c['end']} | lock cap {c['max_lock']} | overclaim {c['allow_over']}\")" 2>/dev/null || echo "model spend: no runs yet"
+          /opt/node24/bin/node $H/call.mjs status | python3 -c "import json,sys;d=json.loads(sys.stdin.readline());r=d.get('result');print('live: read failed, retry:',r or d) if not isinstance(r,dict) else print('live:',{k:r[k] for k in ('tip','counted','balance','deposit','claim','strikes','moves_left')},'window_open',r['mine']['window_open'],'round',r['mine']['round'])" ;;
+  pause)  touch $H/PAUSE; echo "paused (worker keeps running but does nothing)" ;;
+  resume) rm -f $H/PAUSE; echo resumed ;;
+  stop)   systemctl disable --now reset-worker; echo "worker stopped and will not start at boot" ;;
+  start)  systemctl enable --now reset-worker reset-dashboard; echo started ;;
+  log)    tail -n ${2:-20} $H/logs/activity.jsonl ;;
+  *) echo "usage: resetctl check|pause|resume|stop|start|log [n]"; exit 64 ;;
+esac
