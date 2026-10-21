@@ -7,7 +7,7 @@ is started only when a decision is due: a lock within the owner's cap, or this r
 Mine claim. Limits come from config.json; state and records persist in this directory.
 Single instance via flock. Pause by creating ./PAUSE; stop by killing the tmux session.
 """
-import datetime as dt, fcntl, json, os, subprocess, sys, time, uuid
+import datetime as dt, fcntl, json, os, shutil, subprocess, sys, time, uuid
 
 HOME = '/root/reset-agent'
 NODE = '/opt/node24/bin/node'
@@ -89,9 +89,14 @@ Finish with ONE line of JSON: {{"decision": "...", "reason": "...", "submitted":
     mcp = json.dumps({'mcpServers': {'reset': {'command': NODE, 'args': [f'{HOME}/guard-mcp.mjs']}}})
     cap = min(cfg['per_run_max_usd'], budget_left)
     log('agent_start', run=run_id, tasks=tasks, round=st['mine']['round'], cap_usd=round(cap, 4))
-    env = {**os.environ, 'RESET_RUN_ID': run_id}
+    # Find Claude Code and Node whether started by systemd or from a login shell.
+    env = {**os.environ, 'RESET_RUN_ID': run_id,
+           'PATH': '/opt/node24/bin:/opt/reset-claude/bin:' + os.environ.get('PATH', '/usr/bin:/bin')}
     try:
-        p = subprocess.run(['claude', '-p', prompt, '--model', cfg['model'], '--strict-mcp-config', '--mcp-config', mcp,
+        claude = shutil.which('claude', path=env['PATH'])
+        if not claude:
+            raise FileNotFoundError('claude not found in /opt/reset-claude/bin or PATH')
+        p = subprocess.run([claude, '-p', prompt, '--model', cfg['model'], '--strict-mcp-config', '--mcp-config', mcp,
                             '--allowedTools', ','.join(f'mcp__reset__{t}' for t in AGENT_TOOLS),
                             '--disallowedTools', DENY, '--max-budget-usd', f'{cap:.4f}',
                             '--no-session-persistence', '--output-format', 'json'],

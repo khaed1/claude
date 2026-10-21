@@ -175,16 +175,22 @@ WantedBy=multi-user.target
 EOF
 systemctl daemon-reload
 
+# A running worker holds the single-instance lock; stop it so the tests can run.
+systemctl stop reset-worker 2>/dev/null || true
+
 say "Test 1: one worker pass (status + headers, no model)"
 python3 $H/worker.py --once
 tail -n 2 $H/logs/activity.jsonl
 
-say "Test 2: one headless Claude decision run (uses a little of your Pro usage)"
+say "Test 2: one headless Claude decision run (uses a little of your Claude plan usage)"
 python3 $H/worker.py --test-agent
-tail -n 1 $H/logs/activity.jsonl
+last="$(tail -n 1 $H/logs/activity.jsonl)"; echo "$last"
+echo "$last" | grep -q '"event": "agent_done"' && echo "$last" | grep -q '"is_error": false' ||
+  die "the headless Claude decision run failed (see the line above); the worker service was NOT started"
 
 say "Starting services"
-systemctl enable --now reset-worker reset-dashboard
+systemctl enable reset-worker reset-dashboard
+systemctl restart reset-worker reset-dashboard
 sleep 5
 resetctl check
 say "Done. Control it with: resetctl check | pause | resume | stop | start | log"
