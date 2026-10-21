@@ -14,9 +14,11 @@ the headless Claude test run on the VPS itself and print their results.
    ```sh
    scp ~/Downloads/reset-keystore-851f5941.json root@YOUR_VPS_IP:/root/
    ```
-2. On the VPS, as root, make sure root's Claude Code is signed in (`claude auth status` shows
-   `"loggedIn": true`; if not, run `claude auth login --claudeai`).
-3. Get this folder and run the installer:
+2. On the VPS, as root, get this folder and run the installer. It installs its own Claude Code in
+   `/opt/reset-claude` (separate from any other Claude Code on the VPS). The first time, it stops and asks you
+   to sign root in with `PATH=/opt/node24/bin:$PATH /opt/reset-claude/bin/claude auth login --claudeai`;
+   then run the same installer command again.
+3. Installer command:
    ```sh
    git clone -q -b claude/friendly-bell-uureey https://github.com/khaed1/claude /root/reset-vps-src
    bash /root/reset-vps-src/reset-vps/install.sh /root/reset-keystore-851f5941.json

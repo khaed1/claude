@@ -14,6 +14,7 @@ ADDR=851f5941652918bd2db0b7749d8d4c1480c9bffed46635f7d463cc8b46d230b9
 H=/root/reset-agent
 PWFILE=/root/.config/reset/signer-password
 NODE=/opt/node24/bin/node
+CLAUDE_V=2.1.300
 
 say() { printf '\n== %s\n' "$*"; }
 die() { printf '\nSTOPPED: %s\n' "$*" >&2; exit 1; }
@@ -21,11 +22,7 @@ die() { printf '\nSTOPPED: %s\n' "$*" >&2; exit 1; }
 say "Checking this machine"
 [ "$(id -u)" = 0 ] || die "run as root"
 [ "$(uname -m)" = x86_64 ] || die "this installer is for x86_64"
-CLAUDE="$(command -v claude)" || die "claude (Claude Code) not found in PATH"
 command -v systemctl >/dev/null || die "systemd is required"
-# The worker runs as root, so root's own Claude Code must be signed in (other users' logins don't count).
-"$CLAUDE" auth status 2>/dev/null | grep -q '"loggedIn": true' ||
-  die "root's Claude Code is not signed in; run: claude auth login --claudeai   then run this installer again"
 missing=""
 for t in git curl python3 xz; do command -v $t >/dev/null || missing="$missing $t"; done
 if [ -n "$missing" ]; then
@@ -44,6 +41,24 @@ else
   mkdir -p /opt/node24 && tar -xJf "$tmp/$f" -C /opt/node24 --strip-components=1 && rm -rf "$tmp"
   $NODE -v
 fi
+
+say "Claude Code for the RESET worker"
+# Its own copy in /opt/reset-claude, so other setups on this VPS (and their updates) are not touched.
+CLAUDE=/opt/reset-claude/bin/claude
+if [ -x $CLAUDE ]; then
+  echo "already installed: $(PATH=/opt/node24/bin:$PATH $CLAUDE --version)"
+else
+  PATH=/opt/node24/bin:$PATH npm install -g --prefix /opt/reset-claude --no-audit --no-fund @anthropic-ai/claude-code@$CLAUDE_V
+  PATH=/opt/node24/bin:$PATH $CLAUDE --version
+fi
+# The worker runs as root, so root's own sign-in is needed (other users' sign-ins do not count).
+if ! PATH=/opt/node24/bin:$PATH $CLAUDE auth status 2>/dev/null | grep -q '"loggedIn": true'; then
+  die "root's Claude Code is not signed in yet. Run:
+    PATH=/opt/node24/bin:\$PATH $CLAUDE auth login --claudeai
+  open the link it prints, sign in with your Claude Pro account, paste the code back,
+  then run this installer again (everything done so far is kept)."
+fi
+echo "signed in"
 
 say "RESET signer at $RESET_COMMIT"
 if [ -d /root/reset/.git ]; then
@@ -122,7 +137,8 @@ Wants=network-online.target
 Type=simple
 User=root
 Environment=HOME=/root
-Environment=PATH=/opt/node24/bin:$(dirname "$CLAUDE"):/usr/local/bin:/usr/bin:/bin
+Environment=PATH=/opt/node24/bin:/opt/reset-claude/bin:/usr/local/bin:/usr/bin:/bin
+Environment=DISABLE_AUTOUPDATER=1
 WorkingDirectory=$H
 ExecStart=/usr/bin/python3 $H/worker.py
 Restart=on-failure
