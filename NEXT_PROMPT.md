@@ -14,7 +14,7 @@ Where we stopped (Wed 2026-10-21 ~08:00 UTC):
 - **The dev's concern:** he asked us not to use imdTEST as the pool token, in case outsiders buy in and use the oracles. I decided to test anyway, with little imdTEST in the pool, and to take it back out at the end.
 - **IMD's Sepolia oracle is answering:** another project's request on 2026-10-20 at 15:34 UTC got its panel's result in about 2 minutes.
 - **The run 9 site:** https://plea-test-run-9.sites.imd.fun/ (IMD's site job). The design session is fixing it: round 2 (job `cd805c00`) was delivered at 07:52 UTC on Wed and is being re-tested.
-- **khaed1/plea:** `next` = `testnet9` @ 241c05e, `main` @ 46bd23a, `mainnet` @ 3d0976a (852/852 on each, with both forks); `light-profile` @ 180b13b.
+- **khaed1/plea:** `next` @ 3e64f29 (= `testnet9` @ 241c05e + a docs-only commit: the buy record's bought-first order), `main` @ 16bf1f0 (tree = `next`), `mainnet` @ e61a832 (852/852 on the code, with both forks); `light-profile` @ 180b13b.
 - **Wallet A** (`0x4b91078b2374c956A65F7Af0999CaE0a935E6821`):
   - Sepolia: 7.79 ETH, nonce 274, 50 imdTEST.
   - Ethereum: 0.80 IMD, nonce 61 (the design session pays its site jobs from it).
