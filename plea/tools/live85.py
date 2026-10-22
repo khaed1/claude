@@ -20,6 +20,7 @@ Usage: python3 -I live85.py <command> [args]   (python3 -I live85.py help)
 """
 import json
 import os
+from decimal import Decimal
 import subprocess
 import sys
 import time
@@ -75,6 +76,11 @@ OBJ_F = ["pleaId", "objector", "ruling", "newScore", "settled", "filedAt", "inta
 RULING = ["None", "Pending", "Sustained", "Overruled", "Void"]
 ATT_T = "(bytes32,uint256,bytes32,uint8,bytes,uint256,uint64,uint64,bytes32,bytes32,uint16,uint16,uint16,uint64,uint64)"
 FORK_SIGNER_KEY = "0x" + "00" * 29 + "0a11ce"  # test key, only ever written into a local fork
+
+
+def wei(x):
+    """Exact token units from a decimal string ("90000" -> 90000e18); float would be off by a few wei."""
+    return int(Decimal(str(x)) * E18)
 
 
 class Fail(Exception):
@@ -344,9 +350,9 @@ def cmd_tree(each, a_amount="0", *names):
     """Distributor tree: `each` PLEA to each named player (default: all), `a_amount` PLEA to wallet A.
     Leaf = keccak256(abi.encodePacked(index, account, amount)); writes $STATE_DIR/tree.json."""
     from distributor_root import leaf, build, proof, verify
-    rows = [(n, addr(n), int(float(each) * E18)) for n in (names or list(players()))]
-    if float(a_amount) > 0:
-        rows.append(("a", WALLET_A, int(float(a_amount) * E18)))
+    rows = [(n, addr(n), wei(each)) for n in (names or list(players()))]
+    if Decimal(a_amount) > 0:
+        rows.append(("a", WALLET_A, wei(a_amount)))
     leaves = [leaf(i, a, amt) for i, (_, a, amt) in enumerate(rows)]
     layers = build(leaves)
     root = layers[-1][0]
@@ -410,7 +416,7 @@ def cmd_faucet(*names):
 def cmd_give(amount, *names):
     """Wallet A sends `amount` IMD (imdTEST on run 9) to each player."""
     for n in names:
-        send("a", IMD, "transfer(address,uint256)", addr(n), int(float(amount) * E18))
+        send("a", IMD, "transfer(address,uint256)", addr(n), wei(amount))
 
 
 def cmd_claims(*names):
@@ -431,7 +437,7 @@ def cmd_approve(*names):
 
 
 def cmd_mint_oracle(name, amount="5"):
-    send(name, ORACLE, "mint(address,uint256)", addr(name), int(float(amount) * E18))
+    send(name, ORACLE, "mint(address,uint256)", addr(name), wei(amount))
 
 
 def cmd_seat(name, token_id):
@@ -441,7 +447,7 @@ def cmd_seat(name, token_id):
 def cmd_buy(name, imd_in):
     """Exact-input buy through PoolSwapTest with hookData abi.encode(buyer)."""
     a = addr(name)
-    if num(call(IMD, "allowance(address,address)(uint256)", a, PST)) < int(float(imd_in) * E18):
+    if num(call(IMD, "allowance(address,address)(uint256)", a, PST)) < wei(imd_in):
         send(name, IMD, "approve(address,uint256)", PST, MAX)
     pz = call(HOOK, "pleaIsZero()(bool)") == "true"
     zero_for_one = not pz  # a buy pays IMD; IMD is currency0 when PLEA is not
@@ -449,7 +455,7 @@ def cmd_buy(name, imd_in):
     hook_data = _run(["abi-encode", "f(address)", a])
     before = bal(PLEA, a)
     send(name, PST, "swap((address,address,uint24,int24,address),(bool,int256,uint160),(bool,bool),bytes)",
-         pool_key(), f"({str(zero_for_one).lower()},-{int(float(imd_in) * E18)},{limit})", "(false,false)", hook_data)
+         pool_key(), f"({str(zero_for_one).lower()},-{wei(imd_in)},{limit})", "(false,false)", hook_data)
     print(f"  {name} bought {fmt(bal(PLEA, a) - before)} PLEA for {imd_in} tIMD")
 
 
@@ -471,8 +477,8 @@ def cmd_typed(name, text):
 
 def _amount(name, amount):
     if str(amount).endswith("%"):
-        return bal(PLEA, name) * int(float(amount[:-1]) * 100) // 10_000
-    return int(float(amount) * E18)
+        return bal(PLEA, name) * int(Decimal(amount[:-1]) * 100) // 10_000
+    return wei(amount)
 
 
 def cmd_plead(name, amount, text):
