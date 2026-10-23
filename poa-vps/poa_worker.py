@@ -33,6 +33,13 @@ class Busy(Exception):
     pass
 
 
+class RateLimited(Busy):
+    """HTTP 429: the node refused before acting, so nothing was created; retry after `retry_after` seconds."""
+    def __init__(self, msg, retry_after):
+        super().__init__(msg)
+        self.retry_after = retry_after
+
+
 def now():
     return dt.datetime.now(dt.timezone.utc)
 
@@ -110,7 +117,13 @@ def hosted_get(path, timeout=150, **params):
             body = r.read(1_000_000).decode('utf-8', 'replace')
     except urllib.error.HTTPError as e:
         detail = redact(e.read(2000).decode('utf-8', 'replace'))
-        if e.code >= 500 or e.code == 429:
+        if e.code == 429:
+            try:
+                wait = int(json.loads(detail).get('retry_after_seconds') or 60)
+            except (ValueError, AttributeError):
+                wait = 60
+            raise RateLimited(f'{path} HTTP 429: {detail[:200]}', wait)
+        if e.code >= 500:
             raise Busy(f'{path} HTTP {e.code}: {detail[:200]}')
         raise RuntimeError(f'{path} HTTP {e.code}: {detail[:300]}')
     except (urllib.error.URLError, TimeoutError, OSError) as e:
@@ -175,9 +188,19 @@ def hosted_register(cfg, state):
     if time.time() - state.get('hosted_register_try', 0) < 86400:
         log('hosted_wait', note='registration already attempted in the last 24 h; waiting for it or the next day')
         return False
-    state['hosted_register_try'] = time.time()
+    state['hosted_register_try'] = time.time()   # an unclear outcome (timeout) may still have created an account
     save_state(state)
-    res = hosted_get('api/hosted/register', timeout=180, label=cfg.get('hosted_label', 'vps-claude-miner'))
+    for attempt in range(5):
+        try:
+            res = hosted_get('api/hosted/register', timeout=180, label=cfg.get('hosted_label', 'vps-claude-miner'))
+            break
+        except RateLimited as e:                  # refused before acting: no account exists, so waiting is safe
+            log('hosted_register_paced', attempt=attempt + 1, retry_after_s=e.retry_after)
+            time.sleep(min(max(e.retry_after, 10), 120))
+    else:
+        state['hosted_register_try'] = 0          # only refusals happened: retry at the next cycle, not in 24 h
+        save_state(state)
+        raise Busy('registration paced globally; next hourly cycle retries')
     key, addr = find(res, ['api_key']), find(res, ['poa_address', 'address'])
     if not (isinstance(key, str) and key.startswith('pk_')):
         log('hosted_register_failed', response=json.dumps(res)[:400])
