@@ -90,7 +90,7 @@ def ask_claude(cfg, ch, budget_left):
     words = ch['words']
     prompt = (f"Write the answer to this task and output ONLY the answer text, nothing else.\n\n"
               f"Task: {ch['task']}\n\n"
-              f"Hard requirements: 120 to 600 characters; plain prose on one paragraph; it must contain each of "
+              f"Hard requirements: between 200 and 550 characters (the hard limit is 600, so stay well under it); plain prose on one paragraph; it must contain each of "
               f"these words exactly as written: {', '.join(words)}; original, specific and coherent.")
     claude = shutil.which('claude', path=PATH)
     if not claude:
