@@ -5,7 +5,7 @@ case "$1" in
   check)  echo "timer:  $(systemctl is-active poa-worker.timer) ($(systemctl is-enabled poa-worker.timer 2>/dev/null) at boot), next: $(systemctl show poa-worker.timer -p NextElapseUSecRealtime --value)"
           echo "last cycle: $(systemctl show poa-worker.service -p ExecMainExitTimestamp --value) result=$(systemctl show poa-worker.service -p Result --value)"
           [ -e $A/PAUSE ] && echo "PAUSED (poactl resume to continue)"
-          python3 -c "import json;s=json.load(open('$A/state.json'));c=json.load(open('/etc/poa-worker/config.json'));print(f\"address: {s.get('address')} | model spend: \${s['spent_usd']:.3f} of \${c['budget_usd']} | ends {c['end']}\")" 2>/dev/null || echo "no cycle has finished yet"
+          python3 -c "import json;import os;s=json.load(open('$A/state.json'));c=json.load(open('/etc/poa-worker/config.json'));h='/home/poa-worker/poa/hosted.json';a=json.load(open(h)).get('poa_address') if os.path.exists(h) else s.get('address');print(f\"address: {a} | model spend: \${s['spent_usd']:.3f} of \${c['budget_usd']} | ends {c['end']}\")" 2>/dev/null || echo "no cycle has finished yet"
           [ -e /home/poa-worker/poa/hosted.json ] && echo "mode: hosted (node holds the key)" || echo "mode: self-custody"
           grep '"event": "balance"' $A/logs/activity.jsonl 2>/dev/null | tail -n 1 ;;
   run)    systemctl start --no-block poa-worker.service; echo "cycle started; see: poactl log" ;;
