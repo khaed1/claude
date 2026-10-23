@@ -121,8 +121,12 @@ def decide_level(cfg, st, state, rnd):
     run_id = uuid.uuid4().hex[:12]
     cap = min(cfg['per_run_max_usd'], cfg['budget_usd'] - state['spent_usd'])
     prompt = f"""You decide this round's RESET Mine claim for your owner. Owner limits: overclaiming is NOT
-allowed, so the level must be an integer from 0 to 1000 (1000 = exactly your fair share). Your code submits the
-level you choose once the window is open and retries it if the gateway is busy; you only decide.
+allowed, so the level must be an integer from 0 to 1000. Your code submits the level you choose once the window
+is open and retries it if the gateway is busy; you only decide.
+
+Fact from the RESET rules (docs/llms.txt): "Level 1000 requests exactly your eventual fair share" - it is computed
+at settlement, not from the displayed estimate, so a level of 1000 or less can never be an overclaim or add a
+strike. Levels below 1000 just claim a smaller part of the fair share.
 
 Current status (just read): {json.dumps(st)}
 
@@ -232,7 +236,7 @@ def tick(cfg, state):
             del runs[k]
         save_state(state)
         out = run_claim(state['decision']['level'], rnd)
-        log('claim_run', round=rnd, **out)
+        log('claim_run', **{**out, 'round': rnd})
         if out.get('result') in ('claimed', 'duplicate', 'window_closed', 'refused_by_guard'):
             state['claim_done'] = rnd
         return
