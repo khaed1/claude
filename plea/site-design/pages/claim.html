@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claim your PLEA · PLEA</title>
+<meta name="description" content="Buying is open. Selling needs a plea.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../text-check.js"></script>
+<script src="../site.js"></script>
+<script src="../icons.js" defer></script>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="page nav">
+    <a class="logo" href="index.html" aria-label="PLEA home">PLEA</a>
+    <nav class="nav__primary" aria-label="Main">
+    <ul class="nav__links">
+      <li><a href="buy.html">Buy</a></li>
+      <li><a href="plead.html">Plead</a></li>
+      <li><a href="wall.html">Wall</a></li>
+      <li><a href="seasons.html">Seasons</a></li>
+      <li><a href="letters.html">Letters</a></li>
+      <li><a href="objections.html">Objections</a></li>
+      <li><a href="claim.html" aria-current="page">Claim</a></li>
+    </ul>
+    </nav>
+    <div class="nav__end">
+      <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+      <a class="wallet-btn" href="profile.html"><span class="seat-dot" aria-hidden="true"></span><span class="wallet-btn__name">mira_eth</span><span class="sr-only">: your profile (holds an IMD seat)</span></a>
+      <button class="icon-btn menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="drawer" aria-label="Menu"><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg></button>
+    </div>
+  </div>
+  <nav class="drawer" id="drawer" aria-label="Pages" hidden>
+    <div class="page">
+      <ul>
+        <li><a href="buy.html">Buy</a></li>
+        <li><a href="plead.html">Plead</a></li>
+        <li><a href="wall.html">Wall</a></li>
+        <li><a href="seasons.html">Seasons</a></li>
+        <li><a href="letters.html">Letters</a></li>
+        <li><a href="objections.html">Objections</a></li>
+        <li><a href="claim.html" aria-current="page">Claim</a></li>
+        <li><a href="index.html#how">How it works</a></li>
+      </ul>
+      <div class="theme-row"><span>Theme</span><button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button></div>
+    </div>
+  </nav>
+  <div class="status-strip">
+    <div class="page">
+      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a&nbsp;verdict</span>
+      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span>&nbsp;IMD + 10,000,000&nbsp;PLEA</span>
+      <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+    </div>
+  </div>
+</header>
+
+<!-- After the Cabal dies, the status strip and a banner read (the same on every page):
+  <div class="status-strip"><div class="page">
+    <span class="status-item"><span class="live-dot live-dot--dead" aria-hidden="true"></span><b>Cabal dead</b> · no verdict for 33&nbsp;hours</span>
+    <span class="status-item"><b>Season 2</b> ended with the Cabal · close it from 17:59&nbsp;UTC</span>
+    <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+  </div></div>
+  <div class="banner" role="status"><div class="page"><span class="live-dot live-dot--dead" aria-hidden="true"></span><span>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever. Pleas and objections are closed; sell on the Buy page.</span></div></div>
+-->
+<main id="main" class="page main">
+  <div class="stack stack--lg">
+    <div>
+      <div class="page-title"><h1>Claim your PLEA</h1></div>
+      <p class="lead">12% of PLEA (120,000,000) went to a claim list: the IMD swarm’s 10% and a 2% airdrop. Anyone can send a claim for any address, and the PLEA always goes to the address on the list.</p>
+    </div>
+
+    <div class="split">
+      <div class="stack stack--lg">
+        <!-- ============================================================ the claim -->
+        <form class="card" aria-labelledby="claim-title">
+          <h2 class="card__title" id="claim-title">Check an address</h2>
+          <div class="stack stack--lg">
+            <div class="field">
+              <div class="field__top"><label class="field__label" for="claim-addr">Address on the list</label><span class="field__aside">Your connected wallet</span></div>
+              <div class="addr-check">
+                <div class="input input--addr"><input class="input__control" id="claim-addr" type="text" value="0x7a3f2c19d4e85b06a1f3c9e2d7b4a6f8e1c0c21e" autocomplete="off" spellcheck="false" aria-describedby="claim-addr-hint"></div>
+                <button class="btn" type="button">Check</button>
+              </div>
+              <p class="field__hint" id="claim-addr-hint">Any address works. The PLEA goes to this address, whoever sends the claim.</p>
+            </div>
+
+            <div class="notice notice--ok" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="notice__title">48,210 PLEA claimable (claim #117)</p><p class="mono addr__text">0x7a3f2c19d4e85b06a1f3c9e2d7b4a6f8e1c0c21e</p></div></div>
+
+            <div class="stack stack--sm">
+              <button class="btn btn--primary btn--block" type="button" aria-describedby="claim-note">Claim 48,210&nbsp;PLEA <span class="btn__sub">gas only</span></button>
+              <p class="small text-2" id="claim-note">About 70,000 gas. Send it from any wallet, even a burner that only pays gas; the PLEA goes to <span class="mono nowrap">0x7a3f…c21e</span>.</p>
+            </div>
+          </div>
+        </form>
+
+        <!-- ============================================================ delegate.xyz -->
+        <section class="panel panel--flush" aria-labelledby="vaults-title">
+          <div class="panel__head"><h2 id="vaults-title">Delegated vaults</h2><span class="meta">delegate.xyz</span></div>
+          <div class="panel__body stack">
+            <p class="small">A vault delegated to your wallet, <span class="mono nowrap">0x7a3f…c21e</span>, on delegate.xyz. You can claim its PLEA from here.</p>
+            <dl class="costs">
+              <div><dt>Vault</dt><dd><span class="mono">0x5e1d…44b0</span></dd></div>
+              <div><dt>Claimable</dt><dd>212,500 PLEA</dd></div>
+            </dl>
+            <div class="stack stack--sm">
+              <div><button class="btn" type="button" aria-describedby="vault-note">Claim 212,500&nbsp;PLEA to&nbsp;the&nbsp;vault <span class="btn__sub">gas only</span></button></div>
+              <p class="small text-2" id="vault-note">Sent from this hot wallet; the PLEA lands on the vault, which never connects.</p>
+            </div>
+            <div class="stack stack--sm">
+              <p class="label">Read from the delegate.xyz registry</p>
+              <span class="addr"><span class="addr__text">0x00000000000000447e69651d841bD8D104Bed493</span><button class="copy-btn" type="button" data-copy="0x00000000000000447e69651d841bD8D104Bed493" aria-label="Copy the delegate.xyz registry address"><svg class="icon" aria-hidden="true"><use href="#i-copy"/></svg><span>Copy</span></button></span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- ============================================================ about the list -->
+      <section class="panel panel--flush" aria-labelledby="list-title">
+        <div class="panel__head"><h2 id="list-title">About the list</h2><span class="meta">Final</span></div>
+        <div class="panel__body stack">
+          <p class="small">The root was set once, on <span class="nowrap">2026-10-26 13:02:11 UTC</span>, and the list is final: no claim can be added, changed or removed.</p>
+          <dl class="costs">
+            <div><dt>Claims on the list</dt><dd>482</dd></div>
+            <div><dt>Claimed so far</dt><dd>311</dd></div>
+            <div><dt>Still open</dt><dd>171</dd></div>
+            <div><dt>IMD swarm (10%)</dt><dd>100,000,000 PLEA</dd></div>
+            <div><dt>Airdrop (2%)</dt><dd>20,000,000 PLEA</dd></div>
+            <div class="total"><dt>In all (12%)</dt><dd>120,000,000 PLEA</dd></div>
+          </dl>
+          <div class="stack stack--sm">
+            <p class="label">The receipt</p>
+            <p class="small">Each claim emits <code>Claimed(index, account, amount)</code>. That event, on Etherscan, is your receipt.</p>
+          </div>
+          <div class="stack stack--sm">
+            <p class="label">Pleading with claimed PLEA</p>
+            <p class="small">Claimed PLEA has no buy record, so in a plea it counts as held since trading opened (<span class="nowrap">2026-10-26 12:00 UTC</span>) and scores 10 for profit or loss.</p>
+          </div>
+          <div class="stack stack--sm">
+            <p class="label">PleaDistributor</p>
+            <span class="addr text-2">[after launch]</span>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<!-- Mockups only: other states of this page, clearly marked as design reference, not site content. -->
+<section class="ref" aria-labelledby="ref-title">
+  <div class="page">
+    <p class="ref__label" id="ref-title">Design reference · other states</p>
+    <div class="ref__grid">
+      <div class="ref__item">
+        <p class="ref__caption">Not connected: checking works, sending needs a wallet</p>
+        <div class="panel stack">
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="nc-addr">Address on the list</label></div>
+            <div class="addr-check">
+              <div class="input input--addr"><input class="input__control" id="nc-addr" type="text" value="" placeholder="0x…" autocomplete="off" spellcheck="false" aria-describedby="nc-addr-hint"></div>
+              <button class="btn" type="button">Check</button>
+            </div>
+            <p class="field__hint" id="nc-addr-hint">Paste any address. Checking needs no wallet.</p>
+          </div>
+          <div class="stack stack--sm">
+            <button class="btn btn--primary btn--block" type="button" aria-disabled="true" aria-describedby="nc-why">Claim PLEA <span class="btn__sub">gas only</span></button>
+            <p class="small" id="nc-why">Connect in the top bar to send a claim. Any wallet will do: it only pays the gas.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Checking</p>
+        <div class="panel stack" aria-busy="true">
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="chk-addr">Address on the list</label><span class="field__aside">Your connected wallet</span></div>
+            <div class="addr-check">
+              <div class="input input--addr"><input class="input__control" id="chk-addr" type="text" value="0x7a3f2c19d4e85b06a1f3c9e2d7b4a6f8e1c0c21e" autocomplete="off" spellcheck="false"></div>
+              <button class="btn" type="button" aria-busy="true">Checking…</button>
+            </div>
+          </div>
+          <p class="loading-label"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg><span>Looking up <span class="mono nowrap">0x7a3f…c21e</span> on the list…</span></p>
+          <div class="skeleton" aria-hidden="true">
+            <div class="skeleton__line skeleton__line--mid"></div>
+            <div class="skeleton__line skeleton__line--short"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Not an address</p>
+        <div class="panel">
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="bad-addr">Address on the list</label></div>
+            <div class="addr-check">
+              <div class="input input--addr is-invalid"><input class="input__control" id="bad-addr" type="text" value="mira_eth" autocomplete="off" spellcheck="false" aria-invalid="true" aria-describedby="bad-addr-msg"></div>
+              <button class="btn" type="button">Check</button>
+            </div>
+            <p class="field__hint bad-text" id="bad-addr-msg">That is not an address. Paste one that starts with 0x and has 40 more characters, <span class="nowrap">0–9</span> and <span class="nowrap">a–f</span> in either case.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Error: the list or the chain did not answer</p>
+        <div class="error-box" role="alert"><p class="error-box__title"><svg class="icon" aria-hidden="true"><use href="#i-plugs"/></svg>Can't check the list</p><p class="small">The claim list (claims.json) did not load, or the public RPC did not answer, so the site can't tell what this address may claim. Nothing was sent. The site tries the next RPC by itself.</p><div class="btn-row"><button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-clockwise"/></svg>Try again</button></div></div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Already claimed</p>
+        <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-seal-check"/></svg><div><p class="notice__title">Already claimed for <span class="mono nowrap">0x2b9c…a01f</span>.</p><p>120,000 PLEA went to this address on <span class="nowrap">2026-10-27 09:14 UTC</span>. Nothing is left to claim. <a class="nowrap" href="https://etherscan.io/">View the receipt<span class="sr-only">: the Claimed event</span></a></p></div></div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Not on the list</p>
+        <div class="notice"><svg class="icon" aria-hidden="true"><use href="#i-x-circle"/></svg><div><p class="notice__title"><span class="mono nowrap">0x0d4e…b3c2</span> is not on the list.</p><p>The list is final, so nothing can be added. Try another address of yours.</p></div></div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Claiming</p>
+        <div class="panel stack stack--sm">
+          <button class="btn btn--primary btn--block" type="button" aria-busy="true">Confirm the claim in&nbsp;your&nbsp;wallet…</button>
+          <p class="small">Gas only. The 48,210 PLEA go to <span class="mono nowrap">0x7a3f…c21e</span>.</p>
+        </div>
+      </div>
+
+      <div class="ref__col">
+        <div class="ref__item">
+          <p class="ref__caption">Claimed</p>
+          <div class="toasts toasts--static">
+            <div class="toast toast--ok" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="toast__title">Claimed 48,210 PLEA for <span class="mono nowrap">0x7a3f…c21e</span>.</p><p>Claim #117 is done. Selling it will take a plea. <a class="nowrap" href="https://etherscan.io/">View the receipt</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+          </div>
+        </div>
+
+        <div class="ref__item">
+          <p class="ref__caption">Claimed to the vault</p>
+          <div class="toasts toasts--static">
+            <div class="toast toast--ok" role="status"><svg class="icon" aria-hidden="true"><use href="#i-check-circle"/></svg><div><p class="toast__title">Claimed 212,500 PLEA for the vault <span class="mono nowrap">0x5e1d…44b0</span>.</p><p>The PLEA is on the vault; this wallet paid only the gas. <a class="nowrap" href="https://etherscan.io/">View the receipt</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__col">
+        <div class="ref__item">
+          <p class="ref__caption">Delegated vaults: loading</p>
+          <div class="panel stack" aria-busy="true">
+            <p class="loading-label"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg><span>Reading the delegate.xyz registry for <span class="mono nowrap">0x7a3f…c21e</span>…</span></p>
+            <div class="skeleton" aria-hidden="true">
+              <div class="skeleton__line"></div>
+              <div class="skeleton__line skeleton__line--mid"></div>
+              <div class="skeleton__line skeleton__line--short"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref__item">
+          <p class="ref__caption">Delegated vault already claimed</p>
+          <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-seal-check"/></svg><div><p class="notice__title">Already claimed for the vault <span class="mono nowrap">0x5e1d…44b0</span>.</p><p>Its 212,500 PLEA went to the vault. Nothing is left to claim for it. <a class="nowrap" href="https://etherscan.io/">View the receipt<span class="sr-only">: the Claimed event</span></a></p></div></div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">No delegations found</p>
+        <div class="empty"><svg class="icon" aria-hidden="true"><use href="#i-wallet"/></svg><p class="empty__title">No delegated vaults</p><p>No vault has delegated to <span class="mono nowrap">0x7a3f…c21e</span> on delegate.xyz. You can still claim for any address above. Nobody has trusted you with their vault yet.</p><a class="btn btn--sm" href="https://delegate.xyz">Open delegate.xyz</a></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="page">
+    <div class="stack stack--sm">
+      <p class="fine">PLEA is a meme token on Uniswap v4. Buying is open; selling needs a plea while the Cabal lives. Not financial advice, and not an official IMD page. Any PLEA traded before launch day isn't ours. Inspired by CabalCoin by TokenWorks (2025).</p>
+    </div>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="index.html#how">How it works</a></li>
+        <li><a href="index.html#contracts">Contracts</a></li>
+        <li><a href="profile.html">Profile</a></li>
+        <li><a href="https://x.com/Pleaimd">@Pleaimd on X</a></li>
+        <li><a href="https://github.com/khaed1/plea">Code</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

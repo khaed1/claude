@@ -1,0 +1,59 @@
+{
+ "root": "0x4a45ef6a0a53ef9201be4d11698728c518bfbe1dd472fee3f10b96edc8240862",
+ "total": "30000000000000002717908992",
+ "claims": [
+  {
+   "name": "p1",
+   "index": 0,
+   "account": "0x6828002d07385205dB0d998a109417E25B8e8F4f",
+   "amount": "2500000000000000226492416",
+   "proof": [
+    "0x7a521adf5e0856887c537769bb52f61aa81b3ca6f0cab54c4d4140d9a8ac303f",
+    "0x3efe6ec9db35730e841de1f49fbe401859c64e37e088696e9ca74ea3ec8a3da8",
+    "0x8f57d8b44cfeae875682e904940c496c85ae2095fad1c757e6d07906cb1c7d27"
+   ]
+  },
+  {
+   "name": "p2",
+   "index": 1,
+   "account": "0xB45Acc9b62f43d5D69Bb5195b74743a721641811",
+   "amount": "2500000000000000226492416",
+   "proof": [
+    "0x9c152fa7f769a5addfa32bf3762f16c0949f6101b5f1988ae8961fb15a2a3eb7",
+    "0x3efe6ec9db35730e841de1f49fbe401859c64e37e088696e9ca74ea3ec8a3da8",
+    "0x8f57d8b44cfeae875682e904940c496c85ae2095fad1c757e6d07906cb1c7d27"
+   ]
+  },
+  {
+   "name": "p3",
+   "index": 2,
+   "account": "0x5e33118F5921BD2771370d6cb5c1B27356833e0A",
+   "amount": "2500000000000000226492416",
+   "proof": [
+    "0xfcf45032e818a25027365bf42f81bd9c47a4fdcc99b9a891e5a4bd11851a2d82",
+    "0x7f53de6447e3b439fc6faa436e192e1766c97b7fd3cf537fef7ce5cfb6ecb4e1",
+    "0x8f57d8b44cfeae875682e904940c496c85ae2095fad1c757e6d07906cb1c7d27"
+   ]
+  },
+  {
+   "name": "p4",
+   "index": 3,
+   "account": "0xF73A7f2B05Cd478B3CD9fAA626ACB68C372e6dF0",
+   "amount": "2500000000000000226492416",
+   "proof": [
+    "0x8a9924c3499d058c87f07fddf5aaae6d3deadd10889c56c89436d61cd247b17e",
+    "0x7f53de6447e3b439fc6faa436e192e1766c97b7fd3cf537fef7ce5cfb6ecb4e1",
+    "0x8f57d8b44cfeae875682e904940c496c85ae2095fad1c757e6d07906cb1c7d27"
+   ]
+  },
+  {
+   "name": "a",
+   "index": 4,
+   "account": "0x4b91078b2374c956A65F7Af0999CaE0a935E6821",
+   "amount": "20000000000000001811939328",
+   "proof": [
+    "0x6ac67018965f57fd7781058368fd6ab8b969c1baaf6b85dc4c8fafbe12ce6597"
+   ]
+  }
+ ]
+}

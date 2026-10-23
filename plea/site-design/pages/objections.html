@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Objection! · PLEA</title>
+<meta name="description" content="Buying is open. Selling needs a plea.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../text-check.js"></script>
+<script src="../site.js"></script>
+<script src="../icons.js" defer></script>
+<style>
+  /* Objections only: what the kit still lacks (report). Tokens only. */
+  /* Rulings table: the objection text keeps a readable width; on phones the table scrolls in its box. */
+  .table td.ruling-text { min-width: calc(5 * var(--space-7)); }
+  /* A plea link in a table cell is a full-height target (.link-btn) without pushing its cell note below the other cells' notes. */
+  /* Reference cards stretch to their row; their content stays at the top. */
+  .ref .card.plea { align-content: start; }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="page nav">
+    <a class="logo" href="index.html" aria-label="PLEA home">PLEA</a>
+    <nav class="nav__primary" aria-label="Main">
+    <ul class="nav__links">
+      <li><a href="buy.html">Buy</a></li>
+      <li><a href="plead.html">Plead</a></li>
+      <li><a href="wall.html">Wall</a></li>
+      <li><a href="seasons.html">Seasons</a></li>
+      <li><a href="letters.html">Letters</a></li>
+      <li><a href="objections.html" aria-current="page">Objections</a></li>
+      <li><a href="claim.html">Claim</a></li>
+    </ul>
+    </nav>
+    <div class="nav__end">
+      <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+      <a class="wallet-btn" href="profile.html"><span class="seat-dot" aria-hidden="true"></span><span class="wallet-btn__name">mira_eth</span><span class="sr-only">: your profile (holds an IMD seat)</span></a>
+      <button class="icon-btn menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="drawer" aria-label="Menu"><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg></button>
+    </div>
+  </div>
+  <nav class="drawer" id="drawer" aria-label="Pages" hidden>
+    <div class="page">
+      <ul>
+        <li><a href="buy.html">Buy</a></li>
+        <li><a href="plead.html">Plead</a></li>
+        <li><a href="wall.html">Wall</a></li>
+        <li><a href="seasons.html">Seasons</a></li>
+        <li><a href="letters.html">Letters</a></li>
+        <li><a href="objections.html" aria-current="page">Objections</a></li>
+        <li><a href="claim.html">Claim</a></li>
+        <li><a href="index.html#how">How it works</a></li>
+      </ul>
+      <div class="theme-row"><span>Theme</span><button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button></div>
+    </div>
+  </nav>
+  <div class="status-strip">
+    <div class="page">
+      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a&nbsp;verdict</span>
+      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span>&nbsp;IMD + 10,000,000&nbsp;PLEA</span>
+      <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+    </div>
+  </div>
+</header>
+
+<!-- After the Cabal dies, the status strip and a banner read (the same on every page):
+  <div class="status-strip"><div class="page">
+    <span class="status-item"><span class="live-dot live-dot--dead" aria-hidden="true"></span><b>Cabal dead</b> · no verdict for 33&nbsp;hours</span>
+    <span class="status-item"><b>Season 2</b> ended with the Cabal · close it from 17:59&nbsp;UTC</span>
+    <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+  </div></div>
+  <div class="banner" role="status"><div class="page"><span class="live-dot live-dot--dead" aria-hidden="true"></span><span>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever. Pleas and objections are closed; sell on the Buy page.</span></div></div>
+-->
+<main id="main" class="page main">
+  <div>
+    <div class="page-title"><h1>Objection!</h1></div>
+    <div class="stack">
+      <p class="lead">For 20 minutes after an approval, anyone else may object. A new panel of 30 <span class="nowrap">re-scores</span> the plea. The sale is never touched; only the season points can fall.</p>
+      <div class="cluster cluster--sm">
+        <span class="pill">20 minutes after an approval</span>
+        <span class="pill">0.50 IMD fee + 0.35 IMD stake</span>
+        <span class="pill">At most 2 per plea</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================ open cases -->
+  <section class="section" aria-labelledby="open-title">
+    <div class="section__head"><h2 id="open-title">Open now</h2><p class="meta">3 approved pleas · closing soonest first</p></div>
+    <div class="split">
+      <div class="stack stack--lg">
+
+        <!-- plea #211: one slot left, objection #9 pending -->
+        <article class="card plea" aria-labelledby="case-211">
+          <div class="plea__top">
+            <div class="plea__head">
+              <h3 class="plea__id" id="case-211">Plea #211</h3>
+              <span>by <span class="plea__who mono">0x51ab…7c3e</span></span>
+              <span class="plea__time">approved 12 min ago</span>
+            </div>
+            <span class="stamp stamp--sold">Sold<span class="stamp__sub">37 vs need 36</span></span>
+          </div>
+          <p class="plea__text">“Bought yesterday, already regret it. Not a loss, not a gain, just a lesson. Ten percent out, the rest stays to learn the second half of the lesson.”</p>
+          <p class="factline"><span>Judges <b>37</b></span><span>Need <b>36</b> = 71 − fact <b>35</b></span><span>Sold <b>310,000</b> PLEA for <b>4.28</b> IMD</span></p>
+          <div class="cluster">
+            <span class="countdown" role="timer" aria-label="Objections close in 7 minutes 20 seconds, at 08:07:20 UTC">Objections close in <span class="countdown__time">07:20</span></span>
+            <span class="pill">1 of 2 filed · one slot left</span>
+          </div>
+
+          <div class="panel panel--sunken stack stack--sm">
+            <p class="cluster cluster--sm small"><span class="stamp stamp--sm stamp--objection">Objection #9</span><span>pending</span><span class="text-2">by kafka_cat · a new panel is re-scoring the plea</span></p>
+            <p>“The plea says nothing about why: "already regret it" is a mood, not a reason. Judge it as plain.”</p>
+            <p class="small text-2">+37 points held (an objection is pending).</p>
+          </div>
+
+          <form class="stack" aria-labelledby="form-211-title">
+            <h4 id="form-211-title">Object to plea #211</h4>
+            <div class="field">
+              <div class="field__top"><label class="field__label" for="obj-211">Your objection</label><span class="field__aside">One line, up to 280 bytes</span></div>
+              <div class="textarea">
+                <textarea id="obj-211" rows="3" placeholder="Why is the score too high?" data-text-check="objection" data-counter="obj-211-count" data-checks="obj-211-checks" data-submit="obj-211-submit" aria-describedby="obj-211-hint obj-211-checks"></textarea>
+                <div class="textarea__bar"><span class="counter" id="obj-211-count"><span class="counter__meter" aria-hidden="true"><span></span></span><span data-count>0 / 280 bytes</span></span><span class="small">≈ 280 Latin · 140 Cyrillic · 93 CJK</span></div>
+              </div>
+              <p class="field__hint" id="obj-211-hint">Say why the score is too high. On plea #211 the objection is sustained if the new score is 33 or less, more than 2 below the need 36. <a href="#how-title">How a ruling works</a></p>
+              <ul class="checks" id="obj-211-checks"></ul>
+            </div>
+            <div class="stack stack--sm">
+              <button class="btn btn--primary btn--block" type="button" id="obj-211-submit" aria-disabled="true" aria-describedby="obj-211-why obj-211-checks">Object <span class="btn__sub">0.85&nbsp;IMD</span></button>
+              <p class="small text-2" id="obj-211-why">0.50 IMD oracle fee + 0.35 IMD stake, from your IMD (412.50 IMD). Write your objection to send it; nothing is paid until it passes.</p>
+            </div>
+          </form>
+        </article>
+
+        <!-- plea #212: no objection yet -->
+        <article class="card plea" aria-labelledby="case-212">
+          <div class="plea__top">
+            <div class="plea__head">
+              <h3 class="plea__id" id="case-212">Plea #212</h3>
+              <span>by <span class="plea__who">lettersonly</span></span>
+              <span class="badge badge--letter"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg>BY LETTER</span>
+              <span class="plea__time">approved 12 min ago</span>
+            </div>
+            <span class="stamp stamp--sold">Sold<span class="stamp__sub">37 vs need 30</span></span>
+          </div>
+          <p class="plea__text">“Eight days ago I promised my sister I would stop trading memes. She found out. I am keeping four fifths as proof I can hold; let one fifth go so I can buy her dinner and an apology.”</p>
+          <p class="factline"><span>Judges <b>37</b></span><span>Need <b>30</b> = 71 − fact <b>41</b></span><span>Sold <b>1,880,000</b> PLEA for <b>25.98</b> IMD</span></p>
+          <div class="cluster">
+            <span class="countdown" role="timer" aria-label="Objections close in 7 minutes 40 seconds, at 08:07:40 UTC">Objections close in <span class="countdown__time">07:40</span></span>
+            <span class="pill">0 of 2 filed</span>
+          </div>
+          <p class="small text-2">+37 points held (objections open until 08:07 UTC). Sold by letter; the sale stands whatever the ruling.</p>
+
+          <form class="stack" aria-labelledby="form-212-title">
+            <h4 id="form-212-title">Object to plea #212</h4>
+            <div class="field">
+              <div class="field__top"><label class="field__label" for="obj-212">Your objection</label><span class="field__aside">One line, up to 280 bytes</span></div>
+              <div class="textarea">
+                <textarea id="obj-212" rows="3" placeholder="Why is the score too high?" data-text-check="objection" data-counter="obj-212-count" data-checks="obj-212-checks" data-submit="obj-212-submit" aria-describedby="obj-212-hint obj-212-checks"></textarea>
+                <div class="textarea__bar"><span class="counter" id="obj-212-count"><span class="counter__meter" aria-hidden="true"><span></span></span><span data-count>0 / 280 bytes</span></span><span class="small">≈ 280 Latin · 140 Cyrillic · 93 CJK</span></div>
+              </div>
+              <p class="field__hint" id="obj-212-hint">Say why the score is too high. On plea #212 the objection is sustained if the new score is 27 or less, more than 2 below the need 30. <a href="#how-title">How a ruling works</a></p>
+              <ul class="checks" id="obj-212-checks"></ul>
+            </div>
+            <div class="stack stack--sm">
+              <button class="btn btn--primary btn--block" type="button" id="obj-212-submit" aria-disabled="true" aria-describedby="obj-212-why obj-212-checks">Object <span class="btn__sub">0.85&nbsp;IMD</span></button>
+              <p class="small text-2" id="obj-212-why">0.50 IMD oracle fee + 0.35 IMD stake, from your IMD (412.50 IMD). Write your objection to send it; nothing is paid until it passes.</p>
+            </div>
+          </form>
+        </article>
+
+        <!-- plea #214: your own plea, no form -->
+        <article class="card plea" aria-labelledby="case-214">
+          <div class="plea__top">
+            <div class="plea__head">
+              <h3 class="plea__id" id="case-214">Plea #214</h3>
+              <span>by <span class="plea__who">mira_eth</span></span>
+              <span class="badge badge--seat"><svg class="icon" aria-hidden="true"><use href="#i-armchair"/></svg>SEAT ×1.2</span>
+              <span class="badge badge--you">YOU</span>
+              <span class="plea__time">approved 48 s ago</span>
+            </div>
+            <span class="stamp stamp--approved">Approved<span class="stamp__sub">36 vs need 33</span></span>
+          </div>
+          <p class="plea__text">“I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.”</p>
+          <p class="factline"><span>Judges <b>36</b></span><span>Need <b>33</b> = 71 − fact <b>38</b></span><span><b>1,240,000</b> PLEA, sell by <b>08:06</b> UTC</span></p>
+          <div class="cluster">
+            <span class="countdown" role="timer" aria-label="Objections close in 19 minutes 12 seconds, at 08:19:12 UTC">Objections close in <span class="countdown__time">19:12</span></span>
+            <span class="pill">0 of 2 filed</span>
+          </div>
+          <p class="small text-2">+43 points held until 08:19 UTC (objections open): 36&nbsp;×&nbsp;1.2 with your seat.</p>
+          <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-hand-palm"/></svg><div><p class="notice__title">Your own plea: you cannot object to it.</p><p>Others may until 08:19 UTC; your sale is not touched either way. Sell by 08:06 UTC, then record your +43 points after 08:19 UTC. <a class="nowrap" href="plea.html?id=214">Open plea #214</a></p></div></div>
+        </article>
+      </div>
+
+      <!-- ============================================================ how a ruling works: the one explainer -->
+      <section class="panel stack" aria-labelledby="how-title">
+        <h3 id="how-title">How a ruling works</h3>
+        <p class="small">A new panel of 30 re-scores the plea, from 0 to 45, against the same need.</p>
+        <ul class="stack">
+          <li class="stack stack--sm"><div><span class="stamp stamp--sm stamp--objection">Sustained</span></div><p class="small">The new score is more than 2 below the need: the plea gets no points, and your stake comes back.</p></li>
+          <li class="stack stack--sm"><div><span class="stamp stamp--sm stamp--objection">Overruled</span></div><p class="small">Otherwise: the plea counts the lowest score any panel gave, and your stake goes to the season prize pot.</p></li>
+          <li class="stack stack--sm"><div><span class="stamp stamp--sm stamp--objection">Void</span></div><p class="small">The panel splits or gives no answer within 20 minutes: nothing changes, and your stake comes back.</p></li>
+        </ul>
+        <dl class="costs">
+          <div><dt>Oracle fee, spent</dt><dd class="nowrap">0.50 IMD</dd></div>
+          <div><dt>Stake: back unless overruled</dt><dd class="nowrap">0.35 IMD</dd></div>
+          <div class="total"><dt>An objection, from your IMD</dt><dd class="nowrap">0.85 IMD</dd></div>
+        </dl>
+        <ul class="checks">
+          <li class="check"><svg class="icon" aria-hidden="true"><use href="#i-coins"/></svg><span>Stakes move when anyone calls settle after the ruling.</span></li>
+          <li class="check"><svg class="icon" aria-hidden="true"><use href="#i-scales"/></svg><span>At most 2 objections per plea, from different wallets; both may be pending at once.</span></li>
+          <li class="check"><svg class="icon" aria-hidden="true"><use href="#i-gavel"/></svg><span>A sustain closes the case. The sale is never touched.</span></li>
+          <li class="check"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg><span>Rulings never reset the Cabal's 33 hours: only plea verdicts keep it alive.</span></li>
+        </ul>
+      </section>
+    </div>
+  </section>
+
+  <!-- ============================================================ recent rulings -->
+  <section class="section" aria-labelledby="recent-title">
+    <div class="section__head"><h2 id="recent-title">Recent rulings</h2><p class="meta">Newest first</p></div>
+    <div class="panel panel--flush">
+      <div class="table-wrap" data-label="Recent rulings table, scrolls sideways">
+        <table class="table table--tight">
+          <caption class="sr-only">Recent rulings on objections, newest first</caption>
+          <thead><tr><th scope="col">Objection</th><th scope="col">Ruling</th><th scope="col">Plea</th><th scope="col">Points that count</th><th scope="col">Stake</th><th scope="col">Objection text</th></tr></thead>
+          <tbody>
+            <tr>
+              <td class="nowrap"><span class="mono">#8</span><span class="cell-note">by <span class="mono">0x2d10…b6f2</span></span></td>
+              <td class="nowrap"><div class="stack stack--sm"><div><span class="stamp stamp--sm stamp--objection">Sustained</span></div><span>29 vs need 33<span class="cell-note">23 of 30 agreed</span></span></div></td>
+              <td class="nowrap"><a class="link-btn mono" href="plea.html?id=209">#209</a><span class="cell-note">by <span class="mono">0x9c41…e07a</span></span></td>
+              <td class="nowrap">none<span class="cell-note">was 34</span></td>
+              <td class="nowrap">0.35 IMD<span class="cell-note">returned</span></td>
+              <td class="ruling-text">“This plea is the 2025 CabalCoin winner with two words changed; copied text scores low under the rules.”</td>
+            </tr>
+            <tr>
+              <td class="nowrap"><span class="mono">#7</span><span class="cell-note">by <span class="mono">0x2d10…b6f2</span></span></td>
+              <td class="nowrap"><div class="stack stack--sm"><div><span class="stamp stamp--sm stamp--objection">Overruled</span></div><span>33 vs need 33<span class="cell-note">24 of 30 agreed</span></span></div></td>
+              <td class="nowrap"><a class="link-btn mono" href="plea.html?id=206">#206</a><span class="cell-note">by brine_oracle <span class="badge badge--seat">SEAT ×1.2</span></span></td>
+              <td class="nowrap">39 (33 × 1.2)<span class="cell-note">was 40 (34 × 1.2)</span></td>
+              <td class="nowrap">0.35 IMD<span class="cell-note">to the season prize pot</span></td>
+              <td class="ruling-text">“The seller pleaded the same story on another token last month.”</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Mockups only: other states of this page, clearly marked as design reference, not site content. -->
+<section class="ref" aria-labelledby="ref-title">
+  <div class="page">
+    <p class="ref__label" id="ref-title">Design reference · other states</p>
+    <div class="ref__grid">
+      <div class="ref__item">
+        <p class="ref__caption">Sending: the wallet, then the objection is filed</p>
+        <div class="stack">
+          <div class="stack stack--sm">
+            <button class="btn btn--primary btn--block" type="button" aria-busy="true">Confirm in your wallet…</button>
+            <p class="small">One transaction: 0.85 IMD from your IMD.</p>
+          </div>
+          <div class="toasts toasts--static">
+            <div class="toast toast--pending" role="status"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg><div><p class="toast__title">Objection #10 filed. A new panel is reading plea #211.</p><p>Usually 3 to 6 minutes. Your 0.35 IMD stake waits in the Tribunal and moves when anyone calls settle after the ruling. <a class="nowrap" href="plea.html?id=211">Open plea #211</a></p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">A ruling arrives (objections #8 and #7, to the objector)</p>
+        <div class="toasts toasts--static">
+          <div class="toast" role="status"><svg class="icon" aria-hidden="true"><use href="#i-gavel"/></svg><div><p class="toast__title">Objection #8 sustained, 29 vs need 33.</p><p>Plea #209 gets no points. Your 0.35 IMD stake comes back when anyone calls settle. The Tribunal thanks you for your service.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+          <div class="toast" role="status"><svg class="icon" aria-hidden="true"><use href="#i-gavel"/></svg><div><p class="toast__title">Objection #7 overruled, 33 vs need 33.</p><p>Plea #206 counts 33: 39 points with brine_oracle's seat (33&nbsp;×&nbsp;1.2). Your 0.35 IMD stake goes to the season prize pot when anyone calls settle.</p></div><button class="icon-btn" type="button" aria-label="Dismiss"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Case full: 2 of 2 filed (plea #211 after objection #10)</p>
+        <div class="card plea">
+          <div class="plea__top">
+            <div class="plea__head"><h3 class="plea__id">Plea #211</h3><span>by <span class="plea__who mono">0x51ab…7c3e</span></span></div>
+            <span class="stamp stamp--sold">Sold<span class="stamp__sub">37 vs need 36</span></span>
+          </div>
+          <div class="cluster">
+            <span class="countdown" role="timer" aria-label="Objections close in 7 minutes 20 seconds, at 08:07:20 UTC">Objections close in <span class="countdown__time">07:20</span></span>
+            <span class="pill">2 of 2 filed</span>
+          </div>
+          <p class="cluster cluster--sm small"><span class="stamp stamp--sm stamp--objection">Objection #9</span><span class="stamp stamp--sm stamp--objection">Objection #10</span><span>pending (by kafka_cat and mira_eth): +37 points held until both panels rule.</span></p>
+          <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-prohibit"/></svg><div><p class="notice__title">This case is full.</p><p>A plea takes at most 2 objections, from different wallets.</p></div></div>
+          <button class="btn btn--primary btn--block" type="button" aria-disabled="true" aria-describedby="full-why">Object <span class="btn__sub">0.85&nbsp;IMD</span></button>
+          <p class="small" id="full-why">Two objections are pending on plea #211. Nothing to send.</p>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Window closed (plea #212 after 08:07:40 UTC, if no objection is filed)</p>
+        <div class="card plea">
+          <div class="plea__top">
+            <div class="plea__head"><h3 class="plea__id">Plea #212</h3><span>by <span class="plea__who">lettersonly</span></span></div>
+            <span class="stamp stamp--sold">Sold<span class="stamp__sub">37 vs need 30</span></span>
+          </div>
+          <div class="cluster">
+            <span class="pill">Objections closed at 08:07 UTC</span>
+            <span class="pill">0 of 2 filed</span>
+          </div>
+          <p class="small">+37 points to record: anyone can press Record my points on <a class="nowrap" href="plea.html?id=212">plea #212</a>; nothing records them by itself.</p>
+          <button class="btn btn--primary btn--block" type="button" aria-disabled="true" aria-describedby="closed-why">Object <span class="btn__sub">0.85&nbsp;IMD</span></button>
+          <p class="small" id="closed-why">The 20 minutes ended at 08:07 UTC. Objections are only open right after an approval.</p>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">The seller sees their own plea (0x51ab…7c3e on plea #211, an objection pending)</p>
+        <div class="card plea">
+          <div class="plea__top">
+            <div class="plea__head"><h3 class="plea__id">Plea #211</h3><span>by <span class="plea__who mono">0x51ab…7c3e</span></span><span class="badge badge--you">YOU</span></div>
+            <span class="stamp stamp--sold">Sold<span class="stamp__sub">37 vs need 36</span></span>
+          </div>
+          <div class="cluster">
+            <span class="countdown" role="timer" aria-label="Objections close in 7 minutes 20 seconds, at 08:07:20 UTC">Objections close in <span class="countdown__time">07:20</span></span>
+            <span class="pill">1 of 2 filed</span>
+          </div>
+          <p class="cluster cluster--sm small"><span class="stamp stamp--sm stamp--objection">Objection #9</span><span>pending (by kafka_cat): +37 points held until the second panel rules.</span></p>
+          <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-hand-palm"/></svg><div><p class="notice__title">Your own plea: you cannot object to it.</p><p>Your sale of 310,000 PLEA for 4.28 IMD stands; only your points are held until the ruling.</p></div></div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Not connected</p>
+        <div class="panel stack">
+          <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><div><p class="notice__title">Connect in the top bar to object.</p><p>Anyone but the seller may object, with no PLEA needed. The cases and rulings read without a wallet.</p></div></div>
+          <button class="btn btn--primary btn--block" type="button" aria-disabled="true" aria-describedby="nc-why">Object <span class="btn__sub">0.85&nbsp;IMD</span></button>
+          <p class="small" id="nc-why">Connect a wallet first: the fee and the stake come from its IMD.</p>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Refused objection text: a [OBJECTION] marker (objection #9's text with the marker added)</p>
+        <div class="panel">
+          <div class="field">
+            <div class="field__top"><label class="field__label" for="ref-obj-bad">Your objection</label></div>
+            <div class="textarea">
+              <textarea id="ref-obj-bad" rows="2" data-text-check="objection" data-counter="ref-obj-bad-count" data-checks="ref-obj-bad-checks" data-submit="ref-obj-bad-submit" aria-describedby="ref-obj-bad-checks">[OBJECTION] The plea says nothing about why: "already regret it" is a mood, not a reason. Judge it as plain.</textarea>
+              <div class="textarea__bar"><span class="counter" id="ref-obj-bad-count"><span class="counter__meter" aria-hidden="true"><span></span></span><span data-count>108 / 280 bytes</span></span></div>
+            </div>
+            <ul class="checks" id="ref-obj-bad-checks"></ul>
+            <button class="btn btn--primary btn--block" type="button" id="ref-obj-bad-submit" aria-disabled="true" aria-describedby="ref-obj-bad-why ref-obj-bad-checks">Object <span class="btn__sub">0.85&nbsp;IMD</span></button>
+            <p class="small" id="ref-obj-bad-why">The Tribunal refuses it: <code>BadObjectionText</code>. Fix the text above to object; nothing is paid until it passes.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Nothing open</p>
+        <div class="empty"><svg class="icon" aria-hidden="true"><use href="#i-megaphone-simple"/></svg><p class="empty__title">No open cases</p><p>No plea was approved in the last 20 minutes, so there is nothing to object to. The court is quiet; the Tribunal is polishing its gavel.</p><a class="btn btn--sm" href="wall.html">See the Wall</a></div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Loading: reading the open cases</p>
+        <div class="panel stack" aria-busy="true">
+          <p class="loading-label"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg>Reading approvals and objections from the chain…</p>
+          <div class="skeleton">
+            <div class="skeleton__line skeleton__line--short"></div>
+            <div class="skeleton__line"></div>
+            <div class="skeleton__line skeleton__line--mid"></div>
+            <div class="skeleton__block"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Error: no connection to Ethereum</p>
+        <div class="error-box" role="alert"><p class="error-box__title"><svg class="icon" aria-hidden="true"><use href="#i-plugs"/></svg>Can't reach Ethereum</p><p class="small">The public RPC did not answer, so the open cases can't be read. The site tries the next one by itself; nothing was sent.</p><div class="btn-row"><button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-clockwise"/></svg>Try again</button></div></div>
+      </div>
+
+      <div class="ref__item ref__item--wide">
+        <p class="ref__caption">After the Cabal dies: the status strip turns dead, the site-wide banner sits under it, and Open now gives way to this (Recent rulings stay)</p>
+        <div class="panel panel--flush">
+          <div class="status-strip"><div class="page">
+            <span class="status-item"><span class="live-dot live-dot--dead" aria-hidden="true"></span><b>Cabal dead</b> · no verdict for 33&nbsp;hours</span>
+            <span class="status-item"><b>Season 2</b> ended with the Cabal · close it from 17:59&nbsp;UTC</span>
+            <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+          </div></div>
+          <div class="banner" role="status"><div class="page"><span class="live-dot live-dot--dead" aria-hidden="true"></span><span>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever. Pleas and objections are closed; sell on the Buy page.</span></div></div>
+          <div class="panel__body">
+            <div class="empty"><svg class="icon" aria-hidden="true"><use href="#i-gavel"/></svg><p class="empty__title">The court has risen</p><p>No plea can be approved any more, so there is nothing new to object to. Stakes on objections already filed still move when anyone calls settle.</p><a class="btn btn--sm" href="buy.html">Sell on the Buy page</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="page">
+    <div class="stack stack--sm">
+      <p class="fine">PLEA is a meme token on Uniswap v4. Buying is open; selling needs a plea while the Cabal lives. Not financial advice, and not an official IMD page. Any PLEA traded before launch day isn't ours. Inspired by CabalCoin by TokenWorks (2025).</p>
+    </div>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="index.html#how">How it works</a></li>
+        <li><a href="index.html#contracts">Contracts</a></li>
+        <li><a href="profile.html">Profile</a></li>
+        <li><a href="https://x.com/Pleaimd">@Pleaimd on X</a></li>
+        <li><a href="https://github.com/khaed1/plea">Code</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

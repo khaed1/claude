@@ -1,0 +1,20 @@
+# PLEA testnet run 2: what to type in the imd.fun form
+
+Same request as job-testnet2-launch.json, field by field.
+
+## Description (box at the top)
+
+```
+Launch PLEA test run 2 on Sepolia from this Foundry repository exactly as launch.json lists it: six contracts (PLEA, CabalGate, Seasons, Laureates, PleaDistributor, PleaLaunch), deployed in order in one transaction with the constructor arguments in launch.json. This is the code of launch #1242 (your accepted adaptation kept) plus four changes: a PLEA season bonus (PLEA.init mints 88% to the hook, 2% to Seasons, 10% to the distributor; each of the first four seasons pays 5,000,000 PLEA to its qualifying top 10 and burns the unpaid rest; flushToWall burns what is left; nobody can withdraw it), the cap decays to its floor in 25 days, a POOL4-style wall placement guard, and Intake v2 0xa43e6f75ee006411f79ac1c84120606c2330de82 (pleas ask with requestWithFailure; onPleaFailure only clears our own still-pending plea, emits PleaFailed and never moves value; expire() stays as the fallback). The cashback Stacker is imd/acc launch #1294 (0x0457276d7b036818b3eddc1a4a3fceda61e9314d), as launch.json lists. Audit the imported code and deploy it unchanged; fix only what the audit proves is a real bug, and keep every number as it is (fees, timings, panel 30, quorum 17, 5-hour seasons, 33-hour dead-man, START 1792162800, credit gas 1300000). Keep the full failure function and its event: on Sepolia the six-contract deploy may exceed 16,777,216 gas (launch #1242 used 81.8M in one transaction); the manifest test reports that margin instead of asserting it. PleaHook is not a launch.json entry: PleaLaunch.deployHook deploys it after launch with a salt mined off chain. Keep PLEA.setLauncher accepting either the deploy-transaction flag or PLEA's deployment block. Keep foundry.toml as it is, including [lint] lint_on_build = false.
+```
+
+## Other fields
+- Start from: **My GitHub repository**
+  - Repository: `https://github.com/khaed1/plea`
+  - Branch / commit: `4b2aed1e620039084d434494d28565c4e5adfeb0` (branch `testnet`)
+  - Contracts to focus on, if asked: `src/CabalGate.sol`, `src/Seasons.sol`, `src/PleaHook.sol`, `src/PLEA.sol`
+- Deploy onchain: **on**
+- With a token: **off** (PLEA is our own contract; its pool opens later with `seed()`)
+- Owner: `0x4b91078b2374c956a65f7af0999cae0a935e6821`
+- Chain: **Sepolia**
+- Then press **Check**: it should show no blockers.
