@@ -96,7 +96,7 @@ fi
 
 say "Worker files in $H"
 install -d -m 700 $H $H/logs $H/work
-install -m 600 "$BUNDLE"/worker.py "$BUNDLE"/guard-mcp.mjs "$BUNDLE"/call.mjs $H/
+install -m 600 "$BUNDLE"/worker.py "$BUNDLE"/guard-mcp.mjs "$BUNDLE"/call.mjs "$BUNDLE"/claim.mjs $H/
 install -m 700 "$BUNDLE"/reset-mcp.sh "$BUNDLE"/resetctl $H/
 ln -sf $H/resetctl /usr/local/bin/resetctl
 if [ ! -e $H/config.json ]; then
