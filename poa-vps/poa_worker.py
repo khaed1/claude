@@ -148,8 +148,21 @@ def find(obj, keys):
 
 
 def hosted_cycle(cfg, state):
+    """Challenge, mine and balance/grading are independent: a timeout in one does not skip the others."""
     acct = json.load(open(HOSTED))
     key = acct['api_key']
+    busy = []
+    for step in (hosted_challenge, hosted_mine, hosted_me):
+        try:
+            step(cfg, state, key, acct)
+        except Busy as e:
+            busy.append(str(e)[:150])
+            log('node_busy', step=step.__name__, detail=str(e)[:300], note='other steps continue; next cycle retries')
+    if len(busy) == 3:
+        raise Busy('all hosted steps busy')
+
+
+def hosted_challenge(cfg, state, key, acct):
     ch = hosted_get('api/hosted/challenge', key=key)
     words = find(ch, ['words', 'required_words', 'challenge_words'])
     epoch = find(ch, ['epoch', 'current_epoch'])
@@ -176,8 +189,14 @@ def hosted_cycle(cfg, state):
                 state['answered'][f'h{epoch}'] = 2
                 log('answer_submitted', mode='hosted', run=run, epoch=epoch, words=words, cost_usd=round(cost, 4),
                     spent_usd=round(state['spent_usd'], 4), response=json.dumps(res)[:400], text=text)
+
+
+def hosted_mine(cfg, state, key, acct):
     mine = hosted_get('api/hosted/mine', key=key)
     log('mined', mode='hosted', response=json.dumps(mine)[:300])
+
+
+def hosted_me(cfg, state, key, acct):
     me = hosted_get('api/hosted/me', key=key)
     log('balance', mode='hosted', address=acct.get('poa_address'),
         **{k: find(me, [k]) for k in ('balance', 'spendable', 'locked', 'grading_seats_open') if find(me, [k]) is not None})
