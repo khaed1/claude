@@ -34,6 +34,23 @@ Open the link, sign in with the **Max** account, paste the code back, then run t
 the self-custody wallet, starts the hourly timer and runs one cycle as a test. `node_busy` in that test is normal:
 the site is often overloaded and the next hourly cycle retries.
 
+## Hosted fallback (off by default)
+
+The self-custody client downloads the whole ledger (`/api/snapshot`), which the site often refuses ("origin
+busy"). If the self-custody wallet has never joined and you turn the fallback on, the worker registers **once**
+through the site's hosted API (at most one attempt per day) and from then on each cycle: fetches the challenge,
+has Claude answer it (it gets only the 3 words and this worker's own task text, never the site's instructions),
+requests `mine`, and reads the balance. **The site's node holds that account's key**; the `pk_` key is stored in
+`/home/poa-worker/poa/hosted.json` (0600), never logged, and can be exported to self-custody later
+(`/api/hosted/export`). It is a new address; the self-custody wallet stays unused.
+
+```sh
+poactl enable-hosted          # optional label: poactl enable-hosted my-label
+poactl run                    # start a cycle now
+poactl log 10                 # expect: self_custody_busy, hosted_registered, answer_submitted, mined, balance
+poactl hosted-key             # show the key ONCE and save it offline (password manager); never share it
+```
+
 ## Use
 
 ```sh

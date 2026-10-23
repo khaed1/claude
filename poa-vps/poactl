@@ -6,6 +6,7 @@ case "$1" in
           echo "last cycle: $(systemctl show poa-worker.service -p ExecMainExitTimestamp --value) result=$(systemctl show poa-worker.service -p Result --value)"
           [ -e $A/PAUSE ] && echo "PAUSED (poactl resume to continue)"
           python3 -c "import json;s=json.load(open('$A/state.json'));c=json.load(open('/etc/poa-worker/config.json'));print(f\"address: {s.get('address')} | model spend: \${s['spent_usd']:.3f} of \${c['budget_usd']} | ends {c['end']}\")" 2>/dev/null || echo "no cycle has finished yet"
+          [ -e /home/poa-worker/poa/hosted.json ] && echo "mode: hosted (node holds the key)" || echo "mode: self-custody"
           grep '"event": "balance"' $A/logs/activity.jsonl 2>/dev/null | tail -n 1 ;;
   run)    systemctl start --no-block poa-worker.service; echo "cycle started; see: poactl log" ;;
   pause)  runuser -u poa-worker -- touch $A/PAUSE; echo "paused (cycles do nothing)" ;;
@@ -13,5 +14,10 @@ case "$1" in
   stop)   systemctl disable --now poa-worker.timer; echo "timer stopped and disabled at boot" ;;
   start)  systemctl enable --now poa-worker.timer; echo started ;;
   log)    tail -n ${2:-20} $A/logs/activity.jsonl ;;
-  *) echo "usage: poactl check|run|pause|resume|stop|start|log [n]"; exit 64 ;;
+  enable-hosted)  python3 -c "import json;p='/etc/poa-worker/config.json';c=json.load(open(p));c['hosted_fallback']=True;c.setdefault('hosted_label','${2:-vps-claude-miner}');json.dump(c,open(p,'w'),indent=1);print('hosted_fallback on, label',c['hosted_label'])" ;;
+  disable-hosted) python3 -c "import json;p='/etc/poa-worker/config.json';c=json.load(open(p));c['hosted_fallback']=False;json.dump(c,open(p,'w'),indent=1);print('hosted_fallback off (an already registered hosted account keeps being used)')" ;;
+  hosted-key)     [ -e /home/poa-worker/poa/hosted.json ] || { echo "no hosted account registered yet"; exit 1; }
+                  echo "SAVE this key offline (password manager). Anyone who has it controls the PoA account; never share it."
+                  python3 -c "import json;d=json.load(open('/home/poa-worker/poa/hosted.json'));print('address:',d.get('poa_address'));print('api_key:',d['api_key'])" ;;
+  *) echo "usage: poactl check|run|pause|resume|stop|start|log [n]|enable-hosted [label]|disable-hosted|hosted-key"; exit 64 ;;
 esac
