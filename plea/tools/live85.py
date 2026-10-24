@@ -459,6 +459,48 @@ def cmd_buy(name, imd_in):
     print(f"  {name} bought {fmt(bal(PLEA, a) - before)} PLEA for {imd_in} tIMD")
 
 
+def cmd_sell_free(name, amount="all"):
+    """After the Cabal's death: an exact-input sell of PLEA through PoolSwapTest (hookData = the seller).
+    `amount` in PLEA, or `all`."""
+    a = addr(name)
+    amt = bal(PLEA, a) if amount == "all" else wei(amount)
+    if amt == 0:
+        print(f"  {name} holds no PLEA")
+        return
+    if num(call(PLEA, "allowance(address,address)(uint256)", a, PST)) < amt:
+        send(name, PLEA, "approve(address,uint256)", PST, MAX)
+    pz = call(HOOK, "pleaIsZero()(bool)") == "true"
+    zero_for_one = pz  # a sell pays PLEA: PLEA is currency0 only when pleaIsZero
+    limit = MIN_SQRT_PRICE_PLUS_1 if zero_for_one else MAX_SQRT_PRICE_MINUS_1
+    hook_data = _run(["abi-encode", "f(address)", a])
+    before, plea_before = bal(IMD, a), bal(PLEA, a)
+    send(name, PST, "swap((address,address,uint24,int24,address),(bool,int256,uint160),(bool,bool),bytes)",
+         pool_key(), f"({str(zero_for_one).lower()},-{amt},{limit})", "(false,false)", hook_data)
+    print(f"  {name} sold {fmt(plea_before - bal(PLEA, a))} PLEA for {fmt(bal(IMD, a) - before)} IMD")
+
+
+def cmd_flush(name):
+    """Seasons.flushToWall(): once the Cabal is dead and its last season closed."""
+    send(name, SEASONS, "flushToWall()")
+
+
+def cmd_collect(*names):
+    """Each player sends all its IMD (imdTEST) to wallet A (keeps its ETH for gas)."""
+    for n in names:
+        amt = bal(IMD, n)
+        if amt:
+            send(n, IMD, "transfer(address,uint256)", WALLET_A, amt)
+            print(f"  {n} -> A {fmt(amt)} IMD")
+
+
+def cmd_pool(*_):
+    """The pool's IMD: the market band, the wall, the hook's claims, and the PoolManager's IMD balance."""
+    for f in ("imdInMarket()(uint256)", "wallImd()(uint256)", "retainClaims()(uint256)", "pleaInMarket()(uint256)"):
+        print(f"  {f.split('(')[0]:14} {fmt(num(call(HOOK, f)))}")
+    print(f"  pendingRebalance {call(HOOK, 'pendingRebalance()(bool)')}")
+    print(f"  PoolManager IMD  {fmt(bal(IMD, POOL_MANAGER))}  hook IMD {fmt(bal(IMD, HOOK))}  Seasons IMD {fmt(bal(IMD, SEASONS))}")
+
+
 def _text_hex(text):
     return "0x" + text.encode("utf-8").hex()
 
