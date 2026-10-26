@@ -13,7 +13,7 @@ const page = await browser.newPage({ viewport: { width: w, height: h }, deviceSc
 const errors = [];
 page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text()); });
 page.on('pageerror', (e) => errors.push(String(e)));
-await page.goto(`http://127.0.0.1:8123/promo-video/src/index.html?fmt=${fmt}`);
+await page.goto(`http://127.0.0.1:8123/promo-video/src/index.html?fmt=${fmt}&film=${process.env.FILM || "promo"}`);
 await page.evaluate(() => window.ready);
 for (const t of ts) {
   await page.evaluate(async (t) => { await window.seek(Number(t)); }, t);

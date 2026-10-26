@@ -13,7 +13,7 @@ const [w, h] = fmt === '9x16' ? [720, 1280] : [1280, 720];
 const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: Number(process.env.SCALE || 1.5) });   // SCALE=0.75 → 960 x 540 drafts
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
-await page.goto(`http://127.0.0.1:8124/promo-video/src/index.html?fmt=${fmt}`);
+await page.goto(`http://127.0.0.1:8124/promo-video/src/index.html?fmt=${fmt}&film=${process.env.FILM || "promo"}`);
 await page.evaluate(() => window.ready);
 
 const args = ['-y', '-v', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-'];
