@@ -10,12 +10,14 @@
 //     wallet: { address: '0x…', send: true },     // optional: an injected EIP-1193 / EIP-6963 wallet
 //     clock: 1792600000,                         // optional: browser clock (unix seconds), e.g. await forkTime(fork)
 //     oracle: true,                              // optional: mock api.imd.fun /oracle/requests/<id> (fork verdicts)
+//     chain: '0x1',                              // optional: the site's network (default Sepolia); with RPC_HOSTS=<the
+//                                                // Ethereum build's RPC hosts> the same tests run against an Ethereum fork
 //   })
 //
 // The wallet answers eth_accounts / eth_requestAccounts with `address` (connected: false starts it
 // unauthorised, so eth_accounts is [] until the site asks with eth_requestAccounts: a first visit;
 // by default the site reconnects by itself, as for a returning visitor), eth_chainId with its chain
-// (default Sepolia 0xaa36a7; wallet.chainId to start elsewhere), handles wallet_switchEthereumChain /
+// (default: `chain`, Sepolia 0xaa36a7 unless set; wallet.chainId to start elsewhere), handles wallet_switchEthereumChain /
 // wallet_addEthereumChain, and forwards everything else to `wallet.rpc` (default: the fork). With
 // send: true, eth_sendTransaction is forwarded to the fork as is: impersonate the address first
 // (anvil_impersonateAccount) so anvil signs it. Without send (or without a fork) every send and every
@@ -98,7 +100,8 @@ export async function openSite(browser, o = {}) {
 
   let wallet = null;
   if (o.wallet) {
-    wallet = { address: o.wallet.address.toLowerCase(), chainId: o.wallet.chainId || SEPOLIA, calls: [], txs: [], added: [],
+    const home = (o.chain || SEPOLIA).toLowerCase(); // the network the site runs on (o.chain: '0x1' for an Ethereum fork)
+    wallet = { address: o.wallet.address.toLowerCase(), chainId: o.wallet.chainId || home, home, calls: [], txs: [], added: [],
       send: !!o.wallet.send, rpc: o.wallet.rpc || o.fork, authorized: o.wallet.connected !== false };
     await ctx.exposeBinding('__pleaWallet', async (_src, method, params) => {
       wallet.calls.push({ method, params });
@@ -110,7 +113,7 @@ export async function openSite(browser, o = {}) {
         case 'net_version': return { result: String(parseInt(wallet.chainId, 16)) };
         case 'wallet_switchEthereumChain': {
           const id = params?.[0]?.chainId?.toLowerCase();
-          if (id !== SEPOLIA && !wallet.added.includes(id)) return fail(4902, 'Unrecognized chain ID');
+          if (id !== wallet.home && id !== '0x1' && id !== SEPOLIA && !wallet.added.includes(id)) return fail(4902, 'Unrecognized chain ID');
           wallet.chainId = id; return { result: null, chainChanged: id };
         }
         case 'wallet_addEthereumChain': wallet.added.push(params?.[0]?.chainId?.toLowerCase()); wallet.addParams = params?.[0]; return { result: null };
@@ -118,7 +121,7 @@ export async function openSite(browser, o = {}) {
         case 'wallet_getPermissions': return { result: [{ parentCapability: 'eth_accounts' }] };
         case 'eth_sendTransaction': {
           if (!wallet.send || !wallet.rpc) return fail(4001, 'User rejected the request.');
-          if (wallet.chainId !== SEPOLIA) return fail(4001, 'Wallet is on another chain');
+          if (wallet.chainId !== wallet.home) return fail(4001, 'Wallet is on another chain');
           try { const hash = await rpcCall(wallet.rpc, method, params); wallet.txs.push({ request: params[0], hash }); return { result: hash }; }
           catch (e) { return { error: { code: e.code ?? -32000, message: e.message, data: e.data } }; }
         }
