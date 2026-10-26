@@ -55,6 +55,8 @@ const read = (address, abi, functionName, args = []) => pub.readContract({ addre
 
 const args = ['--fork-url', FORK_URL, '--port', PORT, '--silent', '--gas-limit', '200000000', '--chain-id', '1'];
 if (process.env.FORK_BLOCK) args.push('--fork-block-number', process.env.FORK_BLOCK);
+// Public archive RPCs rate-limit a fork's burst of state reads: retry with backoff and pace the requests.
+args.push(...(process.env.ANVIL_ARGS ?? '--retries 12 --fork-retry-backoff 1500 --compute-units-per-second 120').split(' ').filter(Boolean));
 const anvil = spawn('anvil', args, { stdio: 'ignore', detached: true });
 anvil.unref();
 for (let i = 0; ; i++) {
