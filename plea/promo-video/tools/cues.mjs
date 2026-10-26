@@ -5,10 +5,11 @@ import { writeFileSync } from 'node:fs';
 import { serve } from './serve.mjs';
 
 const [film, out] = process.argv.slice(2);
-const server = await serve(8125);
+const PORT = Number(process.env.PORT || 8125);
+const server = await serve(PORT);
 const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
-await page.goto(`http://127.0.0.1:8125/promo-video/src/index.html?fmt=16x9&film=${film}`);
+await page.goto(`http://127.0.0.1:${PORT}/promo-video/src/index.html?fmt=16x9&film=${film}`);
 await page.evaluate(() => window.ready);
 const spec = await page.evaluate(() => window.cues());
 writeFileSync(out, JSON.stringify(spec));

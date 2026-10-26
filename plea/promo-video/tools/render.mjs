@@ -7,13 +7,14 @@ import { serve } from './serve.mjs';
 
 const [out, fmt, from, to, fpsArg, audio] = process.argv.slice(2);
 const FPS = Number(fpsArg || 30), T0 = Number(from), T1 = Number(to);
-const server = await serve(8124);
+const PORT = Number(process.env.PORT || 8124);   // PORT=… lets several renders run at once
+const server = await serve(PORT);
 const browser = await chromium.launch();
 const [w, h] = fmt === '9x16' ? [720, 1280] : [1280, 720];
 const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: Number(process.env.SCALE || 1.5) });   // SCALE=0.75 → 960 x 540 drafts
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
-await page.goto(`http://127.0.0.1:8124/promo-video/src/index.html?fmt=${fmt}&film=${process.env.FILM || "promo"}`);
+await page.goto(`http://127.0.0.1:${PORT}/promo-video/src/index.html?fmt=${fmt}&film=${process.env.FILM || "promo"}`);
 await page.evaluate(() => window.ready);
 
 const args = ['-y', '-v', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-i', '-'];

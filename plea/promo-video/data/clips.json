@@ -1,3 +1,9 @@
 {
- "clip1": {"n": 1, "title": "Plead", "module": "plead", "next": "Your bar"}
+ "clip1": {"n": 1, "title": "Plead", "module": "plead", "next": "Your bar"},
+ "clip2": {"n": 2, "title": "Your bar", "module": "bar", "next": "Appeal"},
+ "clip3": {"n": 3, "title": "Appeal", "module": "appeal", "next": "Objection!"},
+ "clip4": {"n": 4, "title": "Objection!", "module": "objection", "next": "Letters"},
+ "clip5": {"n": 5, "title": "Letters", "module": "letters", "next": "Seasons"},
+ "clip6": {"n": 6, "title": "Seasons", "module": "seasons", "next": "Dead-man"},
+ "clip7": {"n": 7, "title": "Dead-man", "module": "deadman", "next": null}
 }

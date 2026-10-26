@@ -129,3 +129,85 @@ export function recap(layer, root, c, { at, sub, rows, fine }) {
       [c.HIT, 'thump', 1.2, 1.6], [c.HIT + 0.35, 'tap', 1.2, 900, 0.04]],
   };
 }
+
+// ── Helpers the scenes share. ──
+
+// An element placed at (left, top) that slides in at `at` from (dx, dy) and leaves at `out` (fades).
+export function piece(layer, c, html, { left, top, width, cls = 'abs', at = 0, out = Infinity, dx = 0, dy = 40, kind = 'ui' }) {
+  const e = c.el('div', cls, html);
+  Object.assign(e.style, { left: `${left}px`, top: `${top}px` }, width ? { width: `${width}px` } : {});
+  layer.appendChild(e);
+  return {
+    e,
+    update(t, extra = '') {
+      const on = t >= at && t < out + 0.4;
+      e.style.display = on ? '' : 'none';
+      if (!on) return false;
+      const k = c.M.sp(t - at, kind);
+      e.style.transform = `translate(${(1 - k) * dx}px, ${(1 - k) * dy}px) ${extra}`;
+      e.style.opacity = Math.min(c.M.ramp(t, at, at + 0.12), 1 - c.M.ramp(t, out, out + 0.3));
+      return true;
+    },
+  };
+}
+
+// A verdict stamp (the site's component) centred on (x, y), landing at `at` and gone at `off`.
+export function verdict(layer, c, { state, word, sub = '', x, y, zoom = 1.3, tilt = -3 }) {
+  const e = c.el('div', 'abs', `<div style="zoom:${zoom}"><span class="stamp stamp--${state} stamp--xl">${esc(word)}${sub ? `<span class="stamp__sub">${esc(sub)}</span>` : ''}</span></div>`);
+  Object.assign(e.style, { left: `${x}px`, top: `${y}px` });
+  layer.appendChild(e);
+  return {
+    e,
+    update(t, at, off = Infinity, dy = 0) {
+      const s = c.M.stampLand(t - at, { from: 2, tiltFrom: -12, tilt });
+      c.show(e, s.visible && t < off);
+      e.style.transform = `translate(-50%, -50%) translateY(${dy + c.M.jolt(t - at - 0.06, 6)}px) rotate(${s.rot}deg) scale(${s.scale})`;
+    },
+  };
+}
+
+// The site's meter (score vs need, 0-45) at film size; `marks` adds labelled ticks under the bar.
+export function meter(layer, c, { x, y, w, need, needLabel = `need ${need}` }) {
+  const e = c.el('div', 'abs');
+  e.innerHTML = `<div style="zoom:2;width:${w / 2}px"><div class="meter meter--pending" style="--score:0;--need:${need}">
+    <div class="meter__bar"><div class="meter__fill"></div><div class="meter__need"></div></div><div class="meter__scale"><span>0</span><span>45</span></div></div></div>
+    <div class="mono sx-needlabel" style="position:absolute;left:${(need / 45) * w}px;top:84px;transform:translateX(-50%);white-space:nowrap;font-size:17px;background:var(--ink);color:var(--paper);padding:4px 10px;border-radius:6px">${esc(needLabel)}</div>`;
+  Object.assign(e.style, { left: `${x}px`, top: `${y}px`, width: `${w}px` });
+  layer.appendChild(e);
+  const box = e.querySelector('.meter'), needEl = e.querySelector('.meter__need'), label = e.querySelector('.sx-needlabel');
+  return {
+    e, box,
+    x: (v) => x + (v / 45) * w,
+    set(score, { need: n = need, state } = {}) {
+      box.style.setProperty('--score', Math.max(0, score).toFixed(3));
+      box.style.setProperty('--need', n.toFixed(3));
+      label.style.left = `${(n / 45) * w}px`;
+      box.classList.toggle('meter--pending', state ? state === 'pending' : score < n);
+      box.classList.toggle('meter--denied', state === 'denied');
+    },
+    showNeed(t, at) {
+      const k = c.M.sp(t - at, 'snappy');
+      needEl.style.transform = `translateY(${(1 - k) * -40}px)`;
+      needEl.style.opacity = c.M.ramp(t, at, at + 0.05);
+      c.show(label, t >= at);
+      label.style.transform = `translate(-50%, ${(1 - k) * 12}px)`;
+    },
+  };
+}
+
+// Types `text` into `el` between t0 and t1, with the yellow caret while typing.
+export function typeInto(el, text, t, t0, t1, caretUntil = t1 + 0.6) {
+  const n = Math.round(text.length * Math.min(1, Math.max(0, (t - t0) / (t1 - t0))));
+  const caret = t >= t0 && t < caretUntil && Math.floor(t / 0.25) % 2 === 0 ? '<span style="border-left:3px solid var(--action);margin-left:1px"></span>' : '';
+  el.innerHTML = esc(text.slice(0, n)) + caret;
+  return n;
+}
+
+// hh:mm:ss for a number of seconds.
+export const hms = (s) => {
+  s = Math.max(0, Math.floor(s));
+  return [Math.floor(s / 3600), Math.floor(s / 60) % 60, s % 60].map((v) => String(v).padStart(2, '0')).join(':');
+};
+
+// Keystroke cues on sixteenths between t0 and t1.
+export const keys = (c, t0, t1, gain = 6) => { const q = []; for (let t = t0; t < t1; t += c.beatLen() / 4) q.push([t, 'key', gain]); return q; };
