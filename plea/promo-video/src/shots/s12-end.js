@@ -9,12 +9,13 @@ export default {
     root.classList.add('theme-dark');
     this.root = root;
     this.free = c.el('div', 'abs display');
-    this.free.innerHTML = '<div class="mask"><span>Trading is free.</span></div><br><div class="mask"><span>Forever.</span></div>';
-    Object.assign(this.free.style, { left: '64px', top: '70px', fontSize: '92px', lineHeight: '1.06' });
+    // The site's own words after the death (its home page: "Selling is open forever"), with the condition stated on the same slide.
+    this.free.innerHTML = '<div style="font-size:40px;line-height:1.15;color:var(--ink-2)"><span class="mask"><span>When the Cabal dies,</span></span></div><div style="margin-top:6px"><span class="mask"><span>selling is open.</span></span><br><span class="mask"><span>Forever.</span></span></div>';
+    Object.assign(this.free.style, { left: '64px', top: '56px', fontSize: '88px', lineHeight: '1.06' });
     const R = [['852', 'tests, both forks green'], ['8', 'swarm audit rounds'], ['5 days', 'live on Sepolia · 25 pleas · 3 objections']];
     this.receipts = R.map(([big, small], i) => {
       const e = c.el('div', 'receipt theme-light', `<div class="receipt__big">${big}</div><div class="receipt__small">${small}</div>`);
-      Object.assign(e.style, { left: `${64 + i * 384}px`, top: '320px', width: '360px', minHeight: '170px' });
+      Object.assign(e.style, { left: `${64 + i * 384}px`, top: '350px', width: '360px', minHeight: '170px' });
       e.querySelector('.receipt__big').style.fontSize = '72px'; e.querySelector('.receipt__small').style.fontSize = '20px';
       root.appendChild(e);
       return e;
@@ -36,7 +37,7 @@ export default {
     const { M, AT, BAR } = c;
     const t0 = BAR(32), tEnd = BAR(36);
     const spans = this.free.querySelectorAll('.mask > span');
-    [t0 - 0.08, AT(32, 2)].forEach((at, i) => { spans[i].style.transform = `translateY(${(1 - M.sp(t - at, 'type')) * 125}%)`; });
+    [t0 - 0.08, AT(32, 1), AT(32, 2.5)].forEach((at, i) => { spans[i].style.transform = `translateY(${(1 - M.sp(t - at, 'type')) * 125}%)`; });
     const off = M.sp(t - tEnd, 'heavy');
     this.free.style.transform = `translateX(${-1400 * off}px)`;
     this.receipts.forEach((e, i) => {

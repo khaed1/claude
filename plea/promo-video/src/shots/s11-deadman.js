@@ -28,7 +28,7 @@ export default {
     this.bannerImg.src = c.capture('dead-dark/home.png');
     Object.assign(this.bannerImg.style, { width: '1800px', transformOrigin: '0 0' });
     this.banner.appendChild(this.bannerImg);
-    this.cap = c.el('div', 'cap', caption(['33 hours, no verdict:', 'the Cabal dies.'], 'Run 9: Mon 07:28:12 UTC'));
+    this.cap = c.el('div', 'cap', caption(['33 hours, no verdict:', 'the Cabal dies.']));
     [this.label, this.clock, this.banner, this.cap].forEach((e) => root.appendChild(e));
   },
   update(lt, t, c) {
@@ -53,8 +53,8 @@ export default {
     c.show(this.banner, dark);
     this.banner.style.transform = `translateY(${(1 - b) * -90}px)`;
     this.bannerImg.style.transform = 'translate(-125px, -85px)';   // strip + banner of the 1440-px page at 1.25x
-    const lines = this.cap.querySelectorAll('.cap__main'), small = this.cap.querySelector('.cap__small');
-    [[lines[0], AT(28, 1)], [lines[1], AT(28, 3)], [small, HITS[4] + 0.4]].forEach(([e, at]) => {
+    const lines = this.cap.querySelectorAll('.cap__main');
+    [[lines[0], AT(28, 1)], [lines[1], AT(28, 3)]].forEach(([e, at]) => {
       c.show(e, t >= at);
       e.style.transform = `translateX(${(1 - M.sp(t - at, 'snappy')) * -80}px)`;
     });
