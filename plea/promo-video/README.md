@@ -23,6 +23,7 @@ rulebook) at the end with the PLEA stamp on the music's closing hit. Real run 9 
   the first 6 bars + the last 2 bars and the closing hit (20.9 s, −14 LUFS); `data/beats-clip.json` is its grid (`hit` = the closing hit).
 - Build one: `node tools/cues.mjs clipN <dir>/cues.json`, `python3 -I tools/sfx.py series <dir>/cues.json <dir>/clip.wav <dir>`,
   `FILM=clipN node tools/render.mjs <out.mp4> 16x9 0 20.9 60 <dir>/mix.wav`; stills: `FILM=clipN node tools/still.mjs <dir> 16x9 <t…>`.
+- Bonus · Run a keeper (`clip8`, `src/series/keeper.js`): `"bonus": true` in `data/clips.json` makes the tag "Bonus · …", the watermark §+, the recap "HOW PLEA WORKS · BONUS", and `"link"` replaces the Next chip with the guide link. Post it after the launch job, once the keeper is merged into `main` (the link is github.com/khaed1/plea/tree/main/keeper).
 - `data/panels.json` `plea19`: plea #19's text and IMD panel (request `bfc7011e…`: 18 answers, 17 agreed on 34, need 33), used by §1.
 
 Music for the series: "Spy Glass" Kevin MacLeod (incompetech.com), licensed under Creative Commons: By Attribution 4.0, https://creativecommons.org/licenses/by/4.0/

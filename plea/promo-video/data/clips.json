@@ -5,5 +5,6 @@
  "clip4": {"n": 4, "title": "Objection!", "module": "objection", "next": "Letters"},
  "clip5": {"n": 5, "title": "Letters", "module": "letters", "next": "Seasons"},
  "clip6": {"n": 6, "title": "Seasons", "module": "seasons", "next": "Dead-man"},
- "clip7": {"n": 7, "title": "Dead-man", "module": "deadman", "next": null}
+ "clip7": {"n": 7, "title": "Dead-man", "module": "deadman", "next": null},
+ "clip8": {"n": 8, "bonus": true, "title": "Run a keeper", "module": "keeper", "next": null, "link": "Guide: github.com/khaed1/plea → keeper/"}
 }

@@ -101,7 +101,7 @@ html, body { margin: 0; background: #000; }
 .sx-card__row { display: flex; align-items: center; gap: 16px; font-weight: 700; font-size: 23px; line-height: 1.25; }
 .sx-card__row b { flex: none; width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; background: var(--action); border: 3px solid var(--ink);
   display: grid; place-content: center; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 16px; }
-.sx-card__foot { margin-top: 24px; display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 20px; }
+.sx-card__foot { margin-top: 24px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; font-weight: 700; font-size: 20px; }
 .sx-card__next { font-family: var(--font-mono); font-weight: 600; font-size: 18px; background: var(--ink); color: var(--paper); padding: 7px 12px; border-radius: 8px; }
 .sx-fine { position: absolute; left: 0; right: 0; bottom: 22px; text-align: center; font-size: 13px; color: var(--ink-3); }
 /* Judges in a ring. */
