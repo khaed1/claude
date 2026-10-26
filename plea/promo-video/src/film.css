@@ -1,0 +1,58 @@
+/* The film's own layer on top of the site's tokens and components. The stage is 1280 x 720 CSS px
+   (16:9) or 720 x 1280 (9:16), rendered at device scale 1.5 to 1920 x 1080 / 1080 x 1920, so the
+   site's components keep their native sizes and scale cleanly. */
+@font-face { font-family: Archivo; src: url(fonts/archivo-variable.woff2) format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; }
+@font-face { font-family: "IBM Plex Mono"; src: url(fonts/ibm-plex-mono-latin-400-normal.woff2) format("woff2"); font-weight: 400; }
+@font-face { font-family: "IBM Plex Mono"; src: url(fonts/ibm-plex-mono-latin-500-normal.woff2) format("woff2"); font-weight: 500; }
+@font-face { font-family: "IBM Plex Mono"; src: url(fonts/ibm-plex-mono-latin-600-normal.woff2) format("woff2"); font-weight: 600; }
+
+html, body { margin: 0; background: #000; }
+#stage { position: relative; width: 1280px; height: 720px; overflow: hidden; background: var(--paper); color: var(--ink); }
+#stage.fmt-9x16 { width: 720px; height: 1280px; }
+.shot { position: absolute; inset: 0; overflow: hidden; background: var(--paper); }
+.shot.theme-dark { background: var(--paper); }
+.layer { position: absolute; inset: 0; transform-origin: 50% 50%; }
+.abs { position: absolute; }
+.mask { overflow: hidden; display: inline-block; vertical-align: top; }
+.mask > span { display: inline-block; will-change: auto; }
+
+/* Display type: Archivo Expanded 800, the site's headline face. */
+.display { font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: var(--display-weight); line-height: 1.02; letter-spacing: -0.01em; }
+.mono { font-family: var(--font-mono); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Captions: a docket label, left-aligned, at least 44 CSS px (66 px rendered). */
+.cap { position: absolute; left: 64px; bottom: 56px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.cap__main { font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: 800; font-size: 44px; line-height: 1.08;
+  background: var(--card); color: var(--ink); border: 3px solid var(--line); border-radius: 12px; box-shadow: 6px 6px 0 var(--shadow-color);
+  padding: 12px 22px 14px; max-width: 1100px; }
+.cap__small { font-family: var(--font-body); font-weight: 600; font-size: 26px; background: var(--ink); color: var(--card);
+  border-radius: 8px; padding: 6px 14px 7px; }
+.cap__small.mono { font-family: var(--font-mono); }
+
+/* The PLEA logo stamp at film size (the site's .logo, scaled). */
+.bigstamp { display: inline-flex; align-items: center; justify-content: center; background: var(--action); color: var(--ink);
+  border: 6px solid var(--ink); border-radius: 10px; padding: 18px 40px 14px; font-family: var(--font-display);
+  font-stretch: 125%; font-weight: 800; font-size: 150px; line-height: 1; letter-spacing: 0.02em; }
+
+/* The cursor: an ink arrow with a cream outline. */
+.cursor { position: absolute; width: 34px; height: 34px; pointer-events: none; z-index: 50; }
+.cursor svg { width: 100%; height: 100%; overflow: visible; }
+
+/* Captures of the run 9 site sit in a browser-less frame: a card with the site's outline. */
+.capture { position: absolute; border: 3px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--card); box-shadow: 8px 8px 0 var(--shadow-color); }
+.capture img { display: block; width: 100%; height: auto; transform-origin: 0 0; }
+
+/* Seats (the 30 judges). */
+.seat { position: absolute; width: 92px; height: 64px; border: 3px solid var(--line); border-radius: 8px; background: var(--card);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 4px 4px 0 var(--shadow-color); }
+.seat__id { font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--ink-2); line-height: 1; }
+.seat__score { font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 28px; line-height: 1.05; }
+.seat.is-empty { background: var(--paper-2); border-style: dashed; box-shadow: none; }
+.seat.is-on { background: var(--card); }
+.seat.is-dark { background: #2c2a24; border-color: #2c2a24; box-shadow: none; }
+
+/* Receipts. */
+.receipt { position: absolute; background: var(--card); border: 3px solid var(--line); border-radius: 6px; box-shadow: 6px 6px 0 var(--shadow-color);
+  padding: 18px 24px 20px; font-family: var(--font-mono); }
+.receipt__big { font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 46px; line-height: 1.05; }
+.receipt__small { font-size: 16px; font-weight: 500; color: var(--ink-2); margin-top: 6px; }
