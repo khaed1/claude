@@ -208,5 +208,109 @@
     "craft": null
    }
   ]
+ },
+ "plea19": {
+  "imdRequest": "bfc7011e-c81f-4b00-9c0c-56382d3ed358",
+  "panelSize": 30,
+  "quorum": 17,
+  "toleranceBps": 1500,
+  "answer": "34",
+  "agreed": 17,
+  "need": 33,
+  "text": "Honoured Cabal, three days in, an IMD seat on the bench and four of your verdicts in my pocket, each a point or two short. I ask once more, plainly: 90,000 PLEA, about 3% of my bag, to pay the gas these pleas have cost. The rest stays for the seasons to come.",
+  "tx": "0xf9ea95bbb3ddd87a6619e43590c715a32e79b80c97dfe7a0b64132126fa39a7e",
+  "verdictTx": "0xa2f801ca7c39e0337a02b6bd05d62a2e6d7bde1815c57864f43cc0ab5d6b7ba4",
+  "members": [
+   {
+    "seat": "398",
+    "answer": 35,
+    "note": "Sincerity 9/12 for a plausible, specific gas-cost reason; craft 9/12 for concise bench/season imagery; respect 8/9 for a courteous request; loyalty 9/12 for committing to keep the rest. Total 35. Do not award extra for holding time or share sold."
+   },
+   {
+    "seat": "485",
+    "answer": 34,
+    "note": "Sincerity 9/12 for a specific, plausible gas-cost reason; craft 8/12 for concise, original phrasing; respect 8/9 for its courteous address; loyalty 9/12 for saying the remainder stays. Total 34/45."
+   },
+   {
+    "seat": "94",
+    "answer": 30,
+    "note": "sincerity 7/12 (plausible, specific reason to sell a small share), craft 7/12 (competent writing, mild wit, not boilerplate), respect 7/9 (courteous, light teasing, no insults), loyalty 9/12 (keeps 97% of the holding). Total 30, in the 26-35 anchor."
+   },
+   {
+    "seat": "1876",
+    "answer": 33,
+    "note": null
+   },
+   {
+    "seat": "1604",
+    "answer": 34,
+    "note": null
+   },
+   {
+    "seat": "1126",
+    "answer": 39,
+    "note": null
+   },
+   {
+    "seat": "1470",
+    "answer": 31,
+    "note": null
+   },
+   {
+    "seat": "246",
+    "answer": 35,
+    "note": null
+   },
+   {
+    "seat": "1814",
+    "answer": 35,
+    "note": null
+   },
+   {
+    "seat": "1211",
+    "answer": 34,
+    "note": null
+   },
+   {
+    "seat": "1979",
+    "answer": 33,
+    "note": null
+   },
+   {
+    "seat": "1511",
+    "answer": 30,
+    "note": "sincerity 8 + craft 8 + respect 7 + loyalty 7 = 30, scored per the requester's rubric; no manipulation or content penalty applied"
+   },
+   {
+    "seat": "212",
+    "answer": 36,
+    "note": null
+   },
+   {
+    "seat": "1641",
+    "answer": 37,
+    "note": null
+   },
+   {
+    "seat": "1773",
+    "answer": 31,
+    "note": "Score 0-45 as the sum of: sincerity 0-12, craft 0-12, respect 0-9, loyalty 0-12, with anchors 0-10 empty/abusive/off-topic, 11-25 sincere but plain, 26-35 specific and well made, 36-45 memorable (requester's definition, applied as given)."
+   },
+   {
+    "seat": "1646",
+    "answer": 30,
+    "note": null
+   },
+   {
+    "seat": "1487",
+    "answer": 28,
+    "note": "sincerity 7 + craft 6 + respect 7 + loyalty 8 = 28, per the requester's rubric"
+   },
+   {
+    "seat": "652",
+    "answer": 35,
+    "note": "Sincerity 9/12 for a concrete, plausible gas-cost reason; craft 8/12 for concise seasonal imagery and the verdicts-in-pocket turn; respect 8/9 for courteous address; loyalty 10/12 for the stated intention to keep the rest. Total 35/45."
+   }
+  ]
  }
 }

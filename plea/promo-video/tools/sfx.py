@@ -1,9 +1,9 @@
 """Sound effects, synthesized in code and placed on the music's beat grid.
 usage: python3 -I tools/sfx.py <beats json> <music wav> <out dir>                     (the promo)
-       python3 -I tools/sfx.py clip <clipN> <data dir> <music wav> <out dir>            (an explainer clip)
+       python3 -I tools/sfx.py series <cues json> <music wav> <out dir>                (an explainer clip)
 writes <out>/sfx.wav (48 kHz mono) and <out>/mix.wav (music + effects, -14 LUFS via ffmpeg loudnorm).
-A clip replays the promo's cues inside each promo bar range it borrows (same tempo, same offsets), plus
-its own shots' cues (data/clips.json: hook and end card, and "cues" per segment: [bar, beat, kind, gain])."""
+An explainer clip's cues come from its own scene (window.cues(), dumped by tools/cues.mjs):
+{"length": s, "cues": [[t, kind, gain, ...args]]}, kind one of the sound functions below."""
 import json, math, subprocess, sys, wave
 import numpy as np
 
@@ -155,32 +155,13 @@ def mix(cues, dur, music_path, out):
   print(len(cues), "cues;", f"{out}/sfx.wav", f"{out}/mix.wav")
 
 
-KINDS = {"thump": lambda: thump(1.1), "thump_small": lambda: thump(0.5), "tap": lambda: tap(1000, 0.04), "pop": pop, "whoosh": lambda: whoosh(0.4),
-         "slam": slam, "scratch": scratch, "tick": lambda: tick(1600, 0.012, 0.4), "bell": lambda: bell(1046, 0.5), "ratchet": lambda: ratchet(8, 0.35),
-         "flatline": flatline, "switch": switch}
+SOUNDS = {"thump": thump, "tap": tap, "key": key, "pop": pop, "whoosh": whoosh, "tick": tick, "bell": bell, "slam": slam,
+          "scratch": scratch, "flatline": flatline, "switch": switch, "ratchet": ratchet}
 
-if sys.argv[1] == "clip":
-    name, data, music_path, out = sys.argv[2:6]
-    cfg = json.load(open(f"{data}/clips.json"))[name]
-    PG = json.load(open(f"{data}/beats-16x9.json")); PBAR, _ = grid(PG)
-    CG = json.load(open(f"{data}/beats-clip-{cfg['music']}.json")); CBAR, CAT = grid(CG)
-    promo = promo_cues(PG)
-    cues = []
-    for seg in cfg["segments"]:
-        a = CBAR(seg["from"]); b = CBAR(seg["to"]) if seg["to"] < 99 else CG["length"]
-        if "promo" in seg:
-            p0 = PBAR(seg["promo"])
-            p1 = min(p0 + (b - a), PBAR(seg["promo"] + seg["to"] - seg["from"]))
-            cues += [(t - p0 + a, s, g) for t, s, g in promo if p0 <= t < p1]
-        if seg.get("shot") == "hook":
-            nwords = sum(len(l) for l in seg["opts"]["lines"])
-            cues += [(CAT(0, 0), pop(400, 800), 0.4)] + [(CAT(0, 0.5 + 0.5 * k), tap(900, 0.02), 0.5) for k in range(nwords)]
-            if seg["opts"].get("small"): cues.append((CAT(0, 3), pop(), 0.5))
-        if seg.get("shot") == "endcard":
-            cues += [(CBAR(9), whoosh(0.5, 300, 1800), 0.45), (CBAR(10), thump(1.6), 1.2)]
-        for bar, beat, kind, gain in seg.get("cues", []):
-            cues.append((CAT(seg["from"] + bar, beat), KINDS[kind](), gain))
-    mix(cues, CG["length"], music_path, out)
+if sys.argv[1] == "series":
+    spec_path, music_path, out = sys.argv[2:5]
+    spec = json.load(open(spec_path))
+    mix([(c[0], SOUNDS[c[1]](*c[3:]), c[2]) for c in spec["cues"]], spec["length"], music_path, out)
 else:
     beats_path, music_path, out = sys.argv[1:4]
     mix(promo_cues(json.load(open(beats_path))), 78.37, music_path, out)

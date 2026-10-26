@@ -1,35 +1,24 @@
-"""Music for the explainer clips, cut from the same "The Builder" wav as the promo.
-usage: python3 -I tools/make_clips_music.py <builder.wav> <fit.json (measured beats of the original)> <out dir>
-Each clip: 9 bars from a section's first downbeat, then the song's last bar and its hard stop (A, B, C),
-or break 3 straight to the end (D, the dead-man). Writes <out>/clip_<X>.wav (-14 LUFS) and
-<out>/beats-clip-<X>.json (the clip's beats and downbeats, taken from the original's measured beats)."""
+"""Music for the explainer clips ("How PLEA works"): "Spy Glass" (Kevin MacLeod, 110 BPM), a different track
+from the promo so the series sounds like its own thing.
+usage: python3 -I tools/make_clips_music.py <spy.wav> <data/spy-beats-original.json> <out dir>
+The edit: the song's first 6 bars (its spy-bass riff, beats 0-23), then its last 2 bars (beats 392-399: the same
+riff, chord for chord, as beats 24-31) with the closing hit on beat 399 and the ring-out, faded at 22.0 s.
+Writes <out>/clip.wav (-14 LUFS) and <out>/beats-clip.json (beats, downbeats and the hit, from the measured beats)."""
 import json, subprocess, sys
 
 wav, fit, out = sys.argv[1:4]
-bt = json.load(open(fit))["beats"]          # beat 0 = the band's entrance (bar 0), four beats a bar
-B = lambda bar: bt[4 * bar]
-PRE, END = 0.025, 114.5                      # cut a hair before each downbeat; stop 1.3 s after the final hit
-CLIPS = {"A": [(0, 9), (53, None)], "B": [(16, 9), (53, None)], "C": [(32, 9), (53, None)], "D": [(44, None)]}
-
-for name, segs in CLIPS.items():
-    parts, beats, t = [], [], 0.0
-    for start, n in segs:
-        a = B(start) - PRE
-        b = (B(start + n) - PRE) if n else END
-        parts.append((a, b))
-        beats += [x - a + t for x in bt if a <= x < b]
-        t += b - a
-    filt, labels = [], []
-    for i, (a, b) in enumerate(parts):
-        filt.append(f"[0:a]atrim=start={a:.4f}:end={b:.4f},asetpts=PTS-STARTPTS[p{i}]")
-        labels.append(f"p{i}")
-    chain = labels[0]
-    for i in range(1, len(labels)):
-        filt.append(f"[{chain}][{labels[i]}]acrossfade=d=0.02:c1=tri:c2=tri[x{i}]")
-        chain = f"x{i}"
-    filt.append(f"[{chain}]afade=t=out:st={t - 0.9:.3f}:d=0.9,loudnorm=I=-14:TP=-1.5:LRA=11[o]")
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", wav, "-filter_complex", ";".join(filt), "-map", "[o]", "-ar", "48000", f"{out}/clip_{name}.wav"], check=True)
-    beats = [round(x, 4) for x in beats]
-    json.dump({"bpm": 60 / ((bt[-1] - bt[0]) / (len(bt) - 1)), "beats": beats, "downbeats": beats[::4], "length": round(t, 3)},
-              open(f"{out}/beats-clip-{name}.json", "w"))
-    print(name, f"{t:.2f} s", len(beats), "beats; final hit at", round(beats[-1], 3))
+bt = json.load(open(fit))["beats"]
+PRE = 0.025                                   # cut a hair before each downbeat
+parts = [(0.35, bt[24] - PRE), (bt[392] - PRE, 222.0)]
+beats, t = [], 0.0
+for a, b in parts:
+    beats += [x - a + t for x in bt if a <= x < b]
+    t += b - a
+hit = bt[399] - parts[1][0] + (parts[0][1] - parts[0][0])
+filt = [f"[0:a]atrim=start={a:.4f}:end={b:.4f},asetpts=PTS-STARTPTS[p{i}]" for i, (a, b) in enumerate(parts)]
+filt.append(f"[p0][p1]acrossfade=d=0.02:c1=tri:c2=tri,afade=t=out:st={t - 1.4:.3f}:d=1.4,loudnorm=I=-14:TP=-1.5:LRA=11[o]")
+subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", wav, "-filter_complex", ";".join(filt), "-map", "[o]", "-ar", "48000", f"{out}/clip.wav"], check=True)
+beats = [round(x, 4) for x in beats]
+json.dump({"bpm": 60 / ((bt[-1] - bt[0]) / (len(bt) - 1)), "beats": beats, "downbeats": beats[::4], "hit": round(hit, 4), "length": round(t, 3)},
+          open(f"{out}/beats-clip.json", "w"))
+print(f"{t:.2f} s, {len(beats)} beats, downbeats {[round(x, 2) for x in beats[::4]]}, hit {hit:.3f}")

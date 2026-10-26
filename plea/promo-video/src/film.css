@@ -63,3 +63,50 @@ html, body { margin: 0; background: #000; }
 #stage.fmt-9x16 .cap__main { font-size: 40px; max-width: 640px; }
 #stage.fmt-9x16 .cap__small { font-size: 24px; max-width: 640px; }
 #stage.fmt-9x16 .cap__main, #stage.fmt-9x16 .cap__small { text-wrap: balance; }
+
+/* ── The explainer series ("How PLEA works · §N"): the site's dark theme, a § numeral, a step tracker,
+   step headlines on the left, the mechanic on the right, a recap card at the end. ── */
+.sx { background: var(--paper); color: var(--ink); }
+.sx-mark { position: absolute; right: -36px; bottom: -150px; font-family: var(--font-display); font-stretch: 125%; font-weight: 800;
+  font-size: 600px; line-height: 1; letter-spacing: -0.04em; color: var(--paper-2); }
+.sx-tag { position: absolute; left: 56px; top: 40px; display: flex; align-items: center; gap: 14px; }
+.sx-tag__pill { background: var(--action); color: var(--on-action); font-family: var(--font-display); font-stretch: 125%; font-weight: 800;
+  font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; padding: 7px 12px 6px; border-radius: 6px; }
+.sx-tag__title { font-family: var(--font-mono); font-weight: 600; font-size: 18px; }
+.sx-steps { position: absolute; right: 56px; top: 38px; display: flex; align-items: center; }
+.sx-step { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; color: var(--ink-3); }
+.sx-step__dot { width: 34px; height: 34px; box-sizing: border-box; border-radius: 50%; border: 3px dashed var(--ink-3); display: grid; place-content: center;
+  font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 15px; }
+.sx-step.is-on, .sx-step.is-done { color: var(--ink); }
+.sx-step.is-on .sx-step__dot { background: var(--action); color: var(--on-action); border: 3px solid var(--ink); }
+.sx-step.is-done .sx-step__dot { background: var(--ink); color: var(--paper); border: 3px solid var(--ink); }
+.sx-step__line { position: relative; width: 40px; height: 3px; margin: 0 12px; background: var(--line-soft); overflow: hidden; }
+.sx-step__line > span { position: absolute; inset: 0; background: var(--ink); transform-origin: 0 50%; }
+.sx-head { position: absolute; left: 56px; top: 150px; width: 540px; }
+.sx-head__n { width: 64px; height: 64px; box-sizing: border-box; border-radius: 50%; background: var(--action); color: var(--on-action); border: 3px solid var(--ink);
+  display: grid; place-content: center; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 32px; box-shadow: 4px 4px 0 var(--shadow-color); }
+.sx-head__lines { margin-top: 26px; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 62px; line-height: 1.06; letter-spacing: -0.01em; }
+.sx-head__lines .mask { display: block; padding-bottom: 4px; }
+.sx-head__lines .mask > span { margin-right: 0.24em; }
+.sx-head__small { margin-top: 22px; font-family: var(--font-mono); font-weight: 600; font-size: 19px; line-height: 1.45; color: var(--ink-2);
+  border-left: 5px solid var(--action); padding-left: 14px; }
+.sx-big { font-family: var(--font-display); font-stretch: 125%; font-weight: 800; line-height: 1.02; letter-spacing: -0.01em; }
+/* The recap card: a light island on the dark ground, like an index card from the rulebook. */
+.sx-card { position: absolute; box-sizing: border-box; background: var(--paper); color: var(--ink); border: 4px solid var(--ink); border-radius: 14px;
+  box-shadow: 10px 10px 0 #000; padding: 30px 40px 28px; }
+.sx-card__top { display: flex; justify-content: space-between; font-family: var(--font-mono); font-weight: 600; font-size: 16px; color: var(--ink-2); }
+.sx-card__title { margin-top: 10px; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 64px; line-height: 1; }
+.sx-card__sub { margin-top: 8px; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 24px; color: var(--ink-2); }
+.sx-card__rows { margin-top: 22px; border-top: 3px solid var(--ink); padding-top: 18px; display: grid; gap: 14px; }
+.sx-card__row { display: flex; align-items: center; gap: 16px; font-weight: 700; font-size: 23px; line-height: 1.25; }
+.sx-card__row b { flex: none; width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; background: var(--action); border: 3px solid var(--ink);
+  display: grid; place-content: center; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 16px; }
+.sx-card__foot { margin-top: 24px; display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 20px; }
+.sx-card__next { font-family: var(--font-mono); font-weight: 600; font-size: 18px; background: var(--ink); color: var(--paper); padding: 7px 12px; border-radius: 8px; }
+.sx-fine { position: absolute; left: 0; right: 0; bottom: 22px; text-align: center; font-size: 13px; color: var(--ink-3); }
+/* Judges in a ring. */
+.sx-seat { position: absolute; width: 42px; height: 42px; margin: -21px 0 0 -21px; box-sizing: border-box; border-radius: 50%; border: 3px dashed var(--ink-3);
+  display: grid; place-content: center; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 17px; color: var(--on-action); }
+.sx-seat.is-on { border: 3px solid var(--ink); background: var(--ink); }
+.sx-seat.is-out { border: 3px dashed var(--ink-3); background: transparent; color: var(--ink-3); text-decoration: line-through; }
+.sx, .sx * { transition: none !important; animation: none !important; }
