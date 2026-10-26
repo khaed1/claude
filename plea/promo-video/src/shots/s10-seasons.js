@@ -20,7 +20,10 @@ export default {
     this.prize = c.el('div', 'abs', zoom(stamp('approved', 'Prize paid', '79 points · 1st', 'lg'), 1.6));
     Object.assign(this.prize.style, { left: '820px', top: '330px' });
     this.cap = c.el('div', 'cap', caption(['Every win scores. Top 25 split the pot.'], '+ 10,000,000 PLEA a season for the first six · IMD seat holders score 1.2×'));
-    [this.frame, this.prize, this.cap].forEach((e) => root.appendChild(e));
+    // An ink outline draws itself around the top row (rank 1, 79 points) on bar 26.
+    this.mark = c.el('div', 'abs');
+    Object.assign(this.mark.style, { left: '70px', top: '150px', width: '1140px', height: '44px', border: '4px solid var(--ink)', borderRadius: '8px', transformOrigin: '0 50%', boxShadow: '4px 4px 0 var(--action)' });
+    [this.frame, this.mark, this.prize, this.cap].forEach((e) => root.appendChild(e));
   },
   update(lt, t, c) {
     const { M, AT, BAR } = c;
@@ -32,6 +35,8 @@ export default {
     const closed = t >= BAR(27);
     c.show(this.img, !closed); c.show(this.img2, closed);
     this.img2.style.transform = `translate(-60px, 10px) scale(${1.15 + 0.03 * M.clamp((t - BAR(27)) / 2)})`;
+    c.show(this.mark, t >= BAR(26) && t < BAR(27));
+    this.mark.style.transform = `scaleX(${M.sp(t - BAR(26), 'heavy')})`;
     const st = M.stampLand(t - BAR(27), { from: 1.8, tilt: 0, tiltFrom: -11 });
     c.show(this.prize, st.visible);
     this.prize.style.transform = `rotate(${st.rot}deg) scale(${st.scale})`;

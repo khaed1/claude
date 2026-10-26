@@ -36,7 +36,7 @@ export default {
     const { M } = c;
     for (const w of this.words) {
       const k = M.sp(t - w.at, 'type');
-      w.s.style.transform = `translateY(${(1 - k) * 105}%)`;
+      w.s.style.transform = `translateY(${(1 - k) * 125}%)`;
     }
     const b0 = c.BAR(0);
     const st = M.stampLand(t - b0);

@@ -36,7 +36,7 @@ export default {
     const { M, AT, BAR } = c;
     const t0 = BAR(32), tEnd = BAR(36);
     const spans = this.free.querySelectorAll('.mask > span');
-    [t0, AT(32, 2)].forEach((at, i) => { spans[i].style.transform = `translateY(${(1 - M.sp(t - at, 'type')) * 105}%)`; });
+    [t0 - 0.08, AT(32, 2)].forEach((at, i) => { spans[i].style.transform = `translateY(${(1 - M.sp(t - at, 'type')) * 125}%)`; });
     const off = M.sp(t - tEnd, 'heavy');
     this.free.style.transform = `translateX(${-1400 * off}px)`;
     this.receipts.forEach((e, i) => {

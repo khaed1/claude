@@ -50,15 +50,15 @@ export default {
     // The card appears where the form was, then folds (squashes) on beat 1 and becomes the envelope.
     const fold = M.sp(t - AT(5, 1), 'snappy');
     const lift = M.sp(t - t0, 'ui');
-    const cardOn = t < AT(5, 1.6);
+    const cardOn = t < AT(5, 1.35);
     c.show(this.card, cardOn);
-    this.card.style.transform = `translateY(${(1 - lift) * 24}px) scale(${1 - 0.04 * (1 - lift)}, ${M.mix(1, 0.08, fold)})`;
+    this.card.style.transform = `translateY(${(1 - lift) * 24}px) scale(${1 - 0.04 * (1 - lift)}, ${M.mix(1, 0.45, fold)})`;
     // Envelope: pops from the fold, then slides to the docket on beat 2.5 and lands on bar 6.
-    const pop = M.sp(t - AT(5, 1.5), 'snappy');
+    const pop = M.sp(t - AT(5, 1.3), 'snappy');
     const slide = M.sp(t - AT(5, 2.5), 'heavy');
-    c.show(this.env, t >= AT(5, 1.5));
+    c.show(this.env, t >= AT(5, 1.3));
     const x = M.mix(0, 640, slide), y = M.mix(0, -6, slide), r = M.mix(0, 4, slide);
-    this.env.style.transform = `translate(${x}px, ${y}px) rotate(${r}deg) scale(${M.mix(0.6, 1, pop) * M.mix(1, 0.78, slide)})`;
+    this.env.style.transform = `translate(${x}px, ${y}px) rotate(${r}deg) scale(${M.mix(0.88, 1, pop) * M.mix(1, 0.78, slide)})`;
     const st = M.stampLand(t - AT(5, 3.2), { from: 1.5, tilt: 0, tiltFrom: -11 });
     c.show(this.envStamp, st.visible);
     this.envStamp.style.transform = `rotate(${st.rot}deg) scale(${st.scale})`;

@@ -10,7 +10,7 @@ const FPS = Number(fpsArg || 30), T0 = Number(from), T1 = Number(to);
 const server = await serve(8124);
 const browser = await chromium.launch();
 const [w, h] = fmt === '9x16' ? [720, 1280] : [1280, 720];
-const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1.5 });
+const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: Number(process.env.SCALE || 1.5) });   // SCALE=0.75 → 960 x 540 drafts
 const errors = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 await page.goto(`http://127.0.0.1:8124/promo-video/src/index.html?fmt=${fmt}`);
