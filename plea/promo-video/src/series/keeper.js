@@ -142,9 +142,9 @@ export default {
   cues(c) {
     const T = this.T, half = c.beatLen() / 2;
     const q = [[T.ask, 'pop', 2.2], [T.term, 'whoosh', 0.8, 0.3, 400, 2400], ...LOG.map((_, i) => [T.log0 + i * half, 'tick', 0.5, 2200, 0.008]),
-      [T.anyone, 'thump', 0.35, 1.2],
+      [T.anyone, 'thump', 0.28, 1.2],
       [T.steps[0], 'whoosh', 1.5, 0.35, 400, 2600], ...JOBS.map((_, i) => [T.jobs + i * T.jobGap, 'tap', 1.0, 1000 + 120 * i, 0.03]),
-      [T.steps[1], 'pop', 1.0, 400, 800], [T.card, 'whoosh', 0.8, 0.3, 400, 2400], [T.sent, 'tick', 0.8, 2200, 0.008], [T.done, 'tap', 1.0, 1800, 0.015],
+      [T.steps[1], 'pop', 1.0, 400, 800], [T.card, 'whoosh', 0.8, 0.3, 400, 2400], [T.sent, 'tick', 1.6, 2200, 0.008], [T.done, 'tap', 1.0, 1800, 0.015],
       [T.coin, 'whoosh', 0.8, 0.4, 600, 3000], [T.coin + 0.5, 'bell', 0.5, 1318, 0.4],
       [T.steps[2], 'whoosh', 1.0, 0.35, 400, 2600]];
     CMDS.forEach((_, i) => q.push(...keys(c, T.type0 + i * T.cmdGap, T.type0 + i * T.cmdGap + T.cmdGap * 0.7, 4.0)));
