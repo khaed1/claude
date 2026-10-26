@@ -40,7 +40,8 @@ html, body { margin: 0; background: #000; }
 
 /* Captures of the run 9 site sit in a browser-less frame: a card with the site's outline. */
 .capture { position: absolute; border: 3px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--card); box-shadow: 8px 8px 0 var(--shadow-color); }
-.capture img { display: block; width: 100%; height: auto; transform-origin: 0 0; }
+.capture img { display: block; width: 100%; max-width: none; height: auto; transform-origin: 0 0; }
+.shot img { max-width: none; }
 
 /* Seats (the 30 judges). */
 .seat { position: absolute; width: 92px; height: 64px; border: 3px solid var(--line); border-radius: 8px; background: var(--card);

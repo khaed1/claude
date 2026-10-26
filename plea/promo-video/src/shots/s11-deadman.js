@@ -13,20 +13,20 @@ export default {
   build(root, c) {
     this.root = root;
     this.label = c.el('div', 'abs label', 'The Cabal’s dead-man · no signed verdict for');
-    Object.assign(this.label.style, { left: '66px', top: '96px', fontSize: '22px' });
+    Object.assign(this.label.style, { left: '66px', top: '150px', fontSize: '22px' });
     this.clock = c.el('div', 'abs mono', SHOW[0]);
-    Object.assign(this.clock.style, { left: '58px', top: '120px', fontSize: '190px', lineHeight: '1', transformOrigin: '0 50%' });
+    Object.assign(this.clock.style, { left: '58px', top: '176px', fontSize: '180px', lineHeight: '1', transformOrigin: '0 50%' });
     this.seats = [...Array(30)].map((_, i) => {
       const e = c.el('div', 'abs');
-      Object.assign(e.style, { left: `${64 + i * 38}px`, top: '360px', width: '30px', height: '30px', border: '3px solid var(--ink)', borderRadius: '6px', background: 'var(--card)' });
+      Object.assign(e.style, { left: `${64 + i * 38}px`, top: '392px', width: '30px', height: '30px', border: '3px solid var(--ink)', borderRadius: '6px', background: 'var(--card)' });
       root.appendChild(e);
       return e;
     });
     this.banner = c.el('div', 'abs');
-    Object.assign(this.banner.style, { left: '0', top: '0', width: '1280px', height: '84px', overflow: 'hidden', borderBottom: '3px solid var(--ink)' });
+    Object.assign(this.banner.style, { left: '0', top: '0', width: '1280px', height: '118px', overflow: 'hidden', borderBottom: '3px solid var(--ink)' });
     this.bannerImg = c.el('img');
-    this.bannerImg.src = c.capture('dead-dark/home-viewport.png');
-    Object.assign(this.bannerImg.style, { width: '1280px', transformOrigin: '0 0' });
+    this.bannerImg.src = c.capture('dead-dark/home.png');
+    Object.assign(this.bannerImg.style, { width: '1800px', transformOrigin: '0 0' });
     this.banner.appendChild(this.bannerImg);
     this.cap = c.el('div', 'cap', caption(['33 hours, no verdict:', 'the Cabal dies.'], 'Run 9: Mon 07:28:12 UTC'));
     [this.label, this.clock, this.banner, this.cap].forEach((e) => root.appendChild(e));
@@ -52,7 +52,7 @@ export default {
     const b = M.sp(t - (DARK_AT + 0.1), 'ui');
     c.show(this.banner, dark);
     this.banner.style.transform = `translateY(${(1 - b) * -90}px)`;
-    this.bannerImg.style.transform = `translateY(${this.bannerY ?? -108}px) scale(${1280 / 1440})`;
+    this.bannerImg.style.transform = 'translate(-125px, -85px)';   // strip + banner of the 1440-px page at 1.25x
     const lines = this.cap.querySelectorAll('.cap__main'), small = this.cap.querySelector('.cap__small');
     [[lines[0], AT(28, 1)], [lines[1], AT(28, 3)], [small, HITS[4] + 0.4]].forEach(([e, at]) => {
       c.show(e, t >= at);

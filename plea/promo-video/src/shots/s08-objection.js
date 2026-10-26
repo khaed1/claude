@@ -38,7 +38,7 @@ export default {
     this.stands = c.el('div', 'abs mono', 'no points · the sale stands');
     Object.assign(this.stands.style, { left: '64px', top: '468px', fontSize: '24px' });
     this.shot = c.el('div', 'capture');
-    this.shot.innerHTML = `<img src="${c.capture('plea14-objected/viewport.png')}" alt="">`;
+    this.shot.innerHTML = `<img src="${c.capture('plea14-objected/objected.png')}" alt="">`;
     Object.assign(this.shot.style, { left: '64px', top: '40px', width: '1152px', height: '480px' });
     this.cap = c.el('div', 'cap', caption(['Think it got off easy?'], 'Anyone can object for 20 minutes. A fresh panel re-scores.'));
     [this.card, this.sold, this.panel, this.sustained, this.points, this.strike, this.stands, this.shot, this.slab, this.cap].forEach((e) => root.appendChild(e));
@@ -69,10 +69,13 @@ export default {
     // Bar 21: the real page after both objections (Sepolia fork capture), pushing in.
     const tc = BAR(21);
     c.show(this.shot, t >= tc);
+    if (t >= tc + 0.25) [this.sold, this.sustained, this.points, this.strike, this.stands, this.card].forEach((e) => c.show(e, false));
     const ck = M.sp(t - tc, 'ui');
     this.shot.style.transform = `translateY(${(1 - ck) * 720}px)`;
     const img = this.shot.firstElementChild;
-    img.style.transform = `scale(${0.8 + 0.03 * M.clamp((t - tc) / 2)})`;
+    img.style.width = '1152px'; img.style.transformOrigin = '0 0';
+    const pz = M.clamp((t - tc) / 2);
+    img.style.transform = `translate(${-85 - 20 * pz}px, ${-90 - 20 * pz}px) scale(${1.3 + 0.03 * pz})`;
     const k = M.sp(t - AT(19, 0.5), 'snappy');
     c.show(this.cap, t >= AT(19, 0.5));
     this.cap.style.transform = `translateX(${(1 - k) * -80}px)`;

@@ -11,10 +11,14 @@ export default {
     this.frame = c.el('div', 'capture');
     Object.assign(this.frame.style, { left: '64px', top: '36px', width: '1152px', height: '470px' });
     this.img = c.el('img');
-    this.img.src = c.capture('seasons/closed-full.png');
+    this.img.src = c.capture('seasons/a-leaderboard.png');
+    this.img2 = c.el('img');
+    this.img2.src = c.capture('seasons/b-past-season16.png');
     this.frame.appendChild(this.img);
-    this.prize = c.el('div', 'abs', zoom(stamp('approved', 'Prize paid', '79 points · 1st', 'lg'), 1.5));
-    Object.assign(this.prize.style, { left: '860px', top: '300px' });
+    this.frame.appendChild(this.img2);
+    [this.img, this.img2].forEach((i) => Object.assign(i.style, { position: 'absolute', left: '0', top: '0', width: '1152px', transformOrigin: '0 0' }));
+    this.prize = c.el('div', 'abs', zoom(stamp('approved', 'Prize paid', '79 points · 1st', 'lg'), 1.6));
+    Object.assign(this.prize.style, { left: '820px', top: '330px' });
     this.cap = c.el('div', 'cap', caption(['Every win scores. Top 25 split the pot.'], '+ 10,000,000 PLEA a season for the first six · IMD seat holders score 1.2×'));
     [this.frame, this.prize, this.cap].forEach((e) => root.appendChild(e));
   },
@@ -22,10 +26,12 @@ export default {
     const { M, AT, BAR } = c;
     const k = M.sp(t - BAR(25), 'ui');
     this.frame.style.transform = `translateY(${(1 - k) * 60}px)`;
-    // Scroll (a spring) from the top of the page to the leaderboard rows (offsets set in this.view).
-    const v = this.view || { scale: 0.4, y0: 0, y1: -600 };
+    // Before the close (block 11,986,640): push in on the leaderboard's top row. Bar 27: closed (11,986,643).
     const s = M.sp(t - AT(25, 1), 'heavy');
-    this.img.style.transform = `translateY(${M.mix(v.y0, v.y1, s)}px) scale(${v.scale})`;
+    this.img.style.transform = `translate(${-40 - 60 * s}px, ${20 - 30 * s}px) scale(${1.05 + 0.15 * s})`;
+    const closed = t >= BAR(27);
+    c.show(this.img, !closed); c.show(this.img2, closed);
+    this.img2.style.transform = `translate(-60px, 10px) scale(${1.15 + 0.03 * M.clamp((t - BAR(27)) / 2)})`;
     const st = M.stampLand(t - BAR(27), { from: 1.8, tilt: 0, tiltFrom: -11 });
     c.show(this.prize, st.visible);
     this.prize.style.transform = `rotate(${st.rot}deg) scale(${st.scale})`;

@@ -6,7 +6,7 @@ const CURSOR = `<svg viewBox="0 0 24 24"><path d="M3 2 L3 20 L8 15 L11.5 22 L14.
 
 export default {
   id: 'approved',
-  from: (c) => c.BAR(16),
+  from: () => 32.15,  // the card slides in on the drum roll; the verdict lands with the band (bar 16)
   to: (c) => c.BAR(19),
   build(root, c) {
     const p = DATA.p14;
@@ -40,7 +40,8 @@ export default {
     c.show(this.sold, s.visible);
     this.sold.style.transform = `rotate(${s.rot}deg) scale(${s.scale})`;
     const j = M.jolt(t - BAR(16) - 0.07, 8) + M.jolt(t - tSold - 0.07, 6);
-    this.card.style.transform = `translateY(${j}px)`;
+    const enter = M.sp(t - 32.15, 'heavy');
+    this.card.style.transform = `translate(${(1 - enter) * 1300}px, ${j}px)`;
     // The window opens on bar 17 and counts real seconds from 06:59.
     const u = M.sp(t - BAR(17), 'ui');
     c.show(this.urgent, t >= BAR(17));

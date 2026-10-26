@@ -98,3 +98,10 @@ After the 16:9 is approved: a ~45-s music edit on the same grid and shots 1, 2 (
 | 8 | Plea #14 | after both objections (~11,971,345) | Thu 18:50 | none |
 | 10 | Seasons | 11,986,640 | Sat 2026-10-24 22:09 | none |
 | 11 | Home / Plead, dark theme | live (dead) | now | none |
+
+## Build notes (stills, 2026-10-26)
+- Captures (`capture/harness.mjs` + `capture/capture.mjs`, run with `CAPTURE_OUT=<dir> node capture.mjs [moment…]`): anvil forks of Sepolia at each block (archive state from ethpandaops, falling back to tenderly), the site's publicnode calls answered by the fork, one empty local block stamped at the clock time so countdowns read right, a read-only injected wallet (signing refused). Used: Plead typing (268 frames, block 11,971,312), #14 after both objections (11,971,348), Season 16 leaderboard (11,986,640) and past seasons (11,986,643), the live site's dead state (dark). The site numbers seasons from 1: contract key 15 shows as "Season 16".
+- Shots 6 and 7 use the site's components with the real data (plea #1, plea #14) instead of the page captures, for legibility at video size; the captures (`plea1-denied`, `plea14-approved`, `plea14-sold`) stay available.
+- Shot 3 adds the site's own step name "Waiting for the Cabal" while the envelope travels. Shot 7's card slides in on the drum roll (from 32.15 s) so APPROVED lands on it with the band.
+- The PRIZE PAID stamp in shot 10 is the film's overlay (the site shows the paid amount as text: 0.01 imdTEST to 1 wallet).
+- Self-scores after two fix rounds: every shot 8 or more (hook, phone readability of the captions, composition, brand). Open polish: the card-to-envelope fold in shot 3 squashes to a line for a frame or two.

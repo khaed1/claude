@@ -36,7 +36,7 @@ export default {
     // Decode: from beat 1 of bar 22 to bar 24, characters flip left to right from hex to text.
     const prog = M.clamp((t - AT(22, 1)) / (BAR(24) - 0.3 - AT(22, 1)));
     const n = Math.floor(prog * this.text.length);
-    this.data.innerHTML = `<span style="font-family:var(--font-body);font-size:15px;font-weight:600;color:var(--ink)">${esc(this.text.slice(0, n))}</span><span style="color:var(--ink-2)">${this.hex.slice(n * 2, n * 2 + 2 * Math.max(0, 150 - n))}</span>`;
+    this.data.innerHTML = `<span style="font-family:var(--font-body);font-size:15px;font-weight:600;color:var(--ink)">${esc(this.text.slice(0, n))}</span><span style="color:var(--ink-2)">${this.hex.slice(n * 2)}</span>`;
     // Sent on bar 24: the card shrinks and flies right; the pending letter lands.
     const send = M.sp(t - BAR(24), 'heavy');
     this.tx.style.transform = `translate(${send * 760}px, ${(1 - k) * 40 + send * 60}px) scale(${M.mix(1, 0.3, send)}) rotate(${send * 6}deg)`;

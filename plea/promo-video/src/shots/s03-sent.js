@@ -38,6 +38,9 @@ export default {
     this.receipt = c.el('div', 'receipt', '<div class="receipt__small">Oracle fee</div><div class="receipt__big">0.5 paid</div><div class="receipt__small">to IMD · Thu 18:25 UTC</div>');
     Object.assign(this.receipt.style, { left: '930px', top: '392px', width: '290px' });
     root.appendChild(this.receipt);
+    this.wait = c.el('div', 'abs', `<div class="display" style="font-size:60px;line-height:1.05">Waiting for<br>the Cabal</div><div class="meta" style="font-size:20px;margin-top:10px">up to 20 minutes, usually 3 to 6</div>`);
+    Object.assign(this.wait.style, { left: '64px', top: '96px' });
+    root.appendChild(this.wait);
     this.cap = c.el('div', 'cap', caption(['The Cabal takes no bribes.', 'Just a 0.5 IMD fee.']));
     root.appendChild(this.cap);
   },
@@ -62,6 +65,10 @@ export default {
     // The docket stack is there from the start; it nudges when the envelope lands.
     const bump = M.jolt(t - AT(5, 3.3), 5);
     this.docket.forEach((d, i) => { d.style.transform = `translateY(${bump}px) rotate(${i ? 2 : -2}deg)`; });
+    // The site's own step name, top left, as the envelope travels.
+    const w = M.sp(t - AT(5, 2.5), 'type');
+    c.show(this.wait, t >= AT(5, 2.5));
+    this.wait.style.transform = `translateY(${(1 - w) * -60}px)`;
     // Receipt drops on bar 6, beat 1.
     const rc = M.sp(t - AT(6, 1), 'ui');
     c.show(this.receipt, t >= AT(6, 1));
