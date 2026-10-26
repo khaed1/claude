@@ -1,0 +1,8 @@
+{
+ "name": "plea-mainnet-kit",
+ "private": true,
+ "type": "module",
+ "dependencies": {
+  "viem": "2.57.7"
+ }
+}
