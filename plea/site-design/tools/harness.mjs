@@ -9,6 +9,7 @@
 //     fork: 'http://127.0.0.1:8545',            // optional: the site's Sepolia RPCs answer from this anvil fork
 //     wallet: { address: '0x…', send: true },     // optional: an injected EIP-1193 / EIP-6963 wallet
 //     clock: 1792600000,                         // optional: browser clock (unix seconds), e.g. await forkTime(fork)
+//     oracle: true,                              // optional: mock api.imd.fun /oracle/requests/<id> (fork verdicts)
 //   })
 //
 // The wallet answers eth_accounts / eth_requestAccounts with `address` (connected: false starts it
@@ -77,6 +78,19 @@ export async function openSite(browser, o = {}) {
       } catch (e) {
         return route.fulfill({ status: 502, headers: CORS, body: String(e) });
       }
+    });
+  }
+
+  // oracle: true (or {agreed, panelSize, comment}) answers api.imd.fun's /oracle/requests/<id> for any id,
+  // as a fork's verdicts have no real IMD request behind them; the list route answers empty.
+  if (o.oracle) {
+    const od = o.oracle === true ? {} : o.oracle;
+    await ctx.route(u => new URL(u).host === 'api.imd.fun', async route => {
+      const url = new URL(route.request().url());
+      const m = url.pathname.match(/^\/oracle\/requests\/([^/]+)$/);
+      const body = m ? { id: decodeURIComponent(m[1]), panelSize: od.panelSize ?? 30, agreed: od.agreed ?? 26,
+        comment: od.comment ?? 'A fork answer: the reasons read plainly.' } : { requests: [] };
+      return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: JSON.stringify(body) });
     });
   }
 
