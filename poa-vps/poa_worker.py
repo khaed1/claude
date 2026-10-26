@@ -162,13 +162,31 @@ def hosted_cycle(cfg, state):
         raise Busy('all hosted steps busy')
 
 
+def answer_key(epoch, words):
+    """Key answer attempts by epoch AND words: the site has restarted its epoch numbering, so a number alone can repeat."""
+    return f"h{epoch}:{'-'.join(w.lower() for w in words)}"
+
+
+def tries(state, epoch, words):
+    """Attempts so far for this challenge. Converts the old number-only keys once: only the current epoch's carries over."""
+    answered, akey = state['answered'], answer_key(epoch, words)
+    legacy = [k for k in answered if re.fullmatch(r'h\d+', k)]
+    if legacy:
+        answered[akey] = max(answered.get(akey, 0), answered.get(f'h{epoch}', 0))
+        for k in legacy:
+            del answered[k]
+    for k in [k for k in answered if k.startswith('h')][:-30]:   # keep the 30 most recent challenges
+        del answered[k]
+    return answered.get(akey, 0)
+
+
 def hosted_challenge(cfg, state, key, acct):
     ch = hosted_get('api/hosted/challenge', key=key)
     words = find(ch, ['words', 'required_words', 'challenge_words'])
     epoch = find(ch, ['epoch', 'current_epoch'])
     if not (isinstance(words, list) and len(words) == 3 and all(isinstance(w, str) for w in words) and epoch is not None):
         log('challenge_unreadable', response=json.dumps(ch)[:600])
-    elif state['answered'].get(f'h{epoch}', 0) >= 2:
+    elif tries(state, epoch, words) >= 2:
         log('challenge_skip', epoch=epoch, reason='already answered or tried twice this epoch')
     else:
         start, end = dt.datetime.fromisoformat(cfg['start']), dt.datetime.fromisoformat(cfg['end'])
@@ -176,17 +194,17 @@ def hosted_challenge(cfg, state, key, acct):
         if state['spent_usd'] + cfg['per_run_max_usd'] > allowed:
             log('challenge_skip', epoch=epoch, reason='budget pacing', spent_usd=round(state['spent_usd'], 4))
         else:
-            run = uuid.uuid4().hex[:12]
+            run, akey = uuid.uuid4().hex[:12], answer_key(epoch, words)
             text, cost = ask_claude(cfg, {'words': words, 'task': f'Epoch {epoch} challenge: {TASK}'},
                                     cfg['budget_usd'] - state['spent_usd'])
             state['spent_usd'] += cost
-            state['answered'][f'h{epoch}'] = state['answered'].get(f'h{epoch}', 0) + 1
+            state['answered'][akey] = state['answered'].get(akey, 0) + 1
             save_state(state)
             if not valid_answer(text, words):
                 log('answer_rejected_locally', run=run, epoch=epoch, words=words, cost_usd=round(cost, 4), text=(text or '')[:600])
             else:
                 res = hosted_get('api/hosted/answer', key=key, answer=text)
-                state['answered'][f'h{epoch}'] = 2
+                state['answered'][akey] = 2
                 log('answer_submitted', mode='hosted', run=run, epoch=epoch, words=words, cost_usd=round(cost, 4),
                     spent_usd=round(state['spent_usd'], 4), response=json.dumps(res)[:400], text=text)
 
