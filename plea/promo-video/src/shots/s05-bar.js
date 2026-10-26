@@ -9,24 +9,24 @@ export default {
   build(root, c) {
     const p = DATA.p14;
     this.label = c.el('div', 'abs display', 'Plea #14’s bar');
-    Object.assign(this.label.style, { left: '64px', top: '48px', fontSize: '52px' });
+    Object.assign(this.label.style, { left: c.pick('64px', '40px'), top: c.pick('48px', '110px'), fontSize: '52px' });
     this.facts = p.facts.map(([l, v, pts], i) => {
       const f = c.el('div', 'abs');
       const inner = c.el('div', '', fact(l, v, pts));
       Object.assign(inner.style, { width: '160px', zoom: 1.7 });
       f.appendChild(inner);
-      Object.assign(f.style, { left: `${64 + i * 292}px`, top: '128px' });
+      Object.assign(f.style, c.pick({ left: `${64 + i * 292}px`, top: '128px' }, { left: `${40 + (i % 2) * 330}px`, top: `${210 + Math.floor(i / 2) * 140}px` }));
       root.appendChild(f);
       return f;
     });
     this.sum = c.el('div', 'abs mono', `fact 36 &nbsp;→&nbsp; need = 71 − 36 = <b>35</b>`);
-    Object.assign(this.sum.style, { left: '64px', top: '290px', fontSize: '34px' });
+    Object.assign(this.sum.style, { left: c.pick('64px', '40px'), top: c.pick('290px', '500px'), fontSize: c.pick('34px', '30px') });
     this.meterWrap = c.el('div', 'abs');
-    Object.assign(this.meterWrap.style, { left: '64px', top: '372px' });
-    this.meterWrap.innerHTML = `<div class="meter meter--pending" style="width:575px;zoom:2"><div class="meter__bar"><div class="meter__fill"></div><div class="meter__need"></div></div>
+    Object.assign(this.meterWrap.style, { left: c.pick('64px', '40px'), top: c.pick('372px', '580px') });
+    this.meterWrap.innerHTML = `<div class="meter meter--pending" style="width:${c.pick(575, 320)}px;zoom:2"><div class="meter__bar"><div class="meter__fill"></div><div class="meter__need"></div></div>
       <div class="meter__scale"><span>0</span><span>45</span></div></div>`;
     this.legend = c.el('div', 'abs mono', 'judges 35 · need 35');
-    Object.assign(this.legend.style, { left: '64px', top: '470px', fontSize: '24px' });
+    Object.assign(this.legend.style, { left: c.pick('64px', '40px'), top: c.pick('470px', '680px'), fontSize: '24px' });
     this.cap = c.el('div', 'cap', caption(['The facts set your bar.'], 'what you sell · how long you held · profit or loss · the trend'));
     [this.label, this.sum, this.meterWrap, this.legend, this.cap].forEach((e) => root.appendChild(e));
   },

@@ -19,27 +19,27 @@ export default {
         <div class="meta" style="margin-top:8px">Thu 18:25 UTC · Sepolia test run 9</div>`);
       Object.assign(inner.style, { width: '280px', zoom: 1.35 });
       d.appendChild(inner);
-      Object.assign(d.style, { left: `${830 + i * 20}px`, top: `${96 + i * 30}px`, transform: `rotate(${i ? 2 : -2}deg)` });
+      Object.assign(d.style, { left: `${c.pick(830, 150) + i * 20}px`, top: `${c.pick(96, 560) + i * 30}px`, transform: `rotate(${i ? 2 : -2}deg)` });
       root.appendChild(d);
       return d;
     });
     this.card = c.el('div', 'abs');
     const inner = c.el('div', 'card', pleaCard(p));
-    Object.assign(inner.style, { width: '560px', zoom: 1.45 });
+    Object.assign(inner.style, { width: '560px', zoom: c.pick(1.45, 1.1) });
     this.card.appendChild(inner);
-    Object.assign(this.card.style, { left: '64px', top: '56px', transformOrigin: '50% 50%' });
+    Object.assign(this.card.style, { left: c.pick('64px', '52px'), top: c.pick('56px', '170px'), transformOrigin: '50% 50%' });
     root.appendChild(this.card);
     this.env = c.el('div', 'abs', ENVELOPE);
-    Object.assign(this.env.style, { left: '200px', top: '120px', transformOrigin: '50% 50%' });
+    Object.assign(this.env.style, { left: c.pick('200px', '140px'), top: c.pick('120px', '220px'), transformOrigin: '50% 50%' });
     this.envStamp = c.el('div', 'abs', stamp('pending', 'Pending', 'Plea #14', 'lg'));
     Object.assign(this.envStamp.style, { left: '120px', top: '86px' });
     this.env.appendChild(this.envStamp);
     root.appendChild(this.env);
     this.receipt = c.el('div', 'receipt', '<div class="receipt__small">Oracle fee</div><div class="receipt__big">0.5 paid</div><div class="receipt__small">to IMD · Thu 18:25 UTC</div>');
-    Object.assign(this.receipt.style, { left: '930px', top: '392px', width: '290px' });
+    Object.assign(this.receipt.style, { left: c.pick('930px', '390px'), top: c.pick('392px', '690px'), width: '290px' });
     root.appendChild(this.receipt);
     this.wait = c.el('div', 'abs', `<div class="display" style="font-size:60px;line-height:1.05">Waiting for<br>the Cabal</div><div class="meta" style="font-size:20px;margin-top:10px">up to 20 minutes, usually 3 to 6</div>`);
-    Object.assign(this.wait.style, { left: '64px', top: '96px' });
+    Object.assign(this.wait.style, { left: c.pick('64px', '40px'), top: c.pick('96px', '110px') });
     root.appendChild(this.wait);
     this.cap = c.el('div', 'cap', caption(['The Cabal takes no bribes.', 'Just a 0.5 IMD fee.']));
     root.appendChild(this.cap);
@@ -57,7 +57,7 @@ export default {
     const pop = M.sp(t - AT(5, 1.3), 'snappy');
     const slide = M.sp(t - AT(5, 2.5), 'heavy');
     c.show(this.env, t >= AT(5, 1.3));
-    const x = M.mix(0, 640, slide), y = M.mix(0, -6, slide), r = M.mix(0, 4, slide);
+    const x = M.mix(0, c.pick(640, 20), slide), y = M.mix(0, c.pick(-6, 320), slide), r = M.mix(0, 4, slide);
     this.env.style.transform = `translate(${x}px, ${y}px) rotate(${r}deg) scale(${M.mix(0.88, 1, pop) * M.mix(1, 0.78, slide)})`;
     const st = M.stampLand(t - AT(5, 3.2), { from: 1.5, tilt: 0, tiltFrom: -11 });
     c.show(this.envStamp, st.visible);
@@ -66,8 +66,9 @@ export default {
     const bump = M.jolt(t - AT(5, 3.3), 5);
     this.docket.forEach((d, i) => { d.style.transform = `translateY(${bump}px) rotate(${i ? 2 : -2}deg)`; });
     // The site's own step name, top left, as the envelope travels.
-    const w = M.sp(t - AT(5, 2.5), 'type');
-    c.show(this.wait, t >= AT(5, 2.5));
+    const tw = c.pick(AT(5, 2.5), AT(5, 3));   // vertical: after the envelope has moved down out of its way
+    const w = M.sp(t - tw, 'type');
+    c.show(this.wait, t >= tw);
     this.wait.style.transform = `translateY(${(1 - w) * -60}px)`;
     // Receipt drops on bar 6, beat 1.
     const rc = M.sp(t - AT(6, 1), 'ui');

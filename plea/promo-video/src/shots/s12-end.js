@@ -10,25 +10,26 @@ export default {
     this.root = root;
     this.free = c.el('div', 'abs display');
     // The site's own words after the death (its home page: "Selling is open forever"), with the condition stated on the same slide.
-    this.free.innerHTML = '<div style="font-size:40px;line-height:1.15;color:var(--ink-2)"><span class="mask"><span>When the Cabal dies,</span></span></div><div style="margin-top:6px"><span class="mask"><span>selling is open.</span></span><br><span class="mask"><span>Forever.</span></span></div>';
-    Object.assign(this.free.style, { left: '64px', top: '56px', fontSize: '88px', lineHeight: '1.06' });
+    const lines = c.pick(['selling is open.', 'Forever.'], ['selling', 'is open.', 'Forever.']);
+    this.free.innerHTML = `<div style="font-size:40px;line-height:1.15;color:var(--ink-2)"><span class="mask"><span>When the Cabal dies,</span></span></div><div style="margin-top:6px">${lines.map((l) => `<span class="mask"><span>${l}</span></span>`).join('<br>')}</div>`;
+    Object.assign(this.free.style, { left: c.pick('64px', '40px'), top: c.pick('56px', '120px'), fontSize: c.pick('88px', '92px'), lineHeight: '1.06' });
     const R = [['852', 'tests, both forks green'], ['8', 'swarm audit rounds'], ['5 days', 'live on Sepolia · 25 pleas · 3 objections']];
     this.receipts = R.map(([big, small], i) => {
       const e = c.el('div', 'receipt theme-light', `<div class="receipt__big">${big}</div><div class="receipt__small">${small}</div>`);
-      Object.assign(e.style, { left: `${64 + i * 384}px`, top: '350px', width: '360px', minHeight: '170px' });
-      e.querySelector('.receipt__big').style.fontSize = '72px'; e.querySelector('.receipt__small').style.fontSize = '20px';
+      Object.assign(e.style, c.pick({ left: `${64 + i * 384}px`, top: '350px', width: '360px', minHeight: '170px' }, { left: '60px', top: `${560 + i * 175}px`, width: '600px', minHeight: '140px' }));
+      e.querySelector('.receipt__big').style.fontSize = c.pick('72px', '64px'); e.querySelector('.receipt__small').style.fontSize = '20px';
       root.appendChild(e);
       return e;
     });
     this.endcard = c.el('div', 'layer');
     this.endcard.style.background = '#121212';
     this.endcard.innerHTML = `
-      <div class="abs display" style="left:64px;top:96px;font-size:96px;color:#F5F0E4" data-k="case">Make your case.</div>
-      <div class="abs display" style="left:68px;top:232px;font-size:40px;color:#FFD92E" data-k="eth">Coming to Ethereum</div>
-      <div class="abs" style="left:68px;top:300px;font-size:40px;font-weight:700;color:#F5F0E4;display:flex;gap:12px;align-items:center" data-k="x"><svg class="icon" style="width:30px;height:30px"><use href="#i-x-logo"/></svg>@Pleaimd</div>
-      <div class="abs" style="left:68px;bottom:40px;font-size:15px;color:#C9C1AE;max-width:1150px" data-k="fine">Not financial advice. Not an official IMD page. Music: “The Builder” Kevin MacLeod (incompetech.com), licensed under CC BY 4.0.</div>`;
+      <div class="abs display" style="left:${c.pick(64, 40)}px;top:${c.pick(96, 190)}px;font-size:${c.pick(96, 92)}px;color:#F5F0E4" data-k="case">${c.pick('Make your case.', 'Make your<br>case.')}</div>
+      <div class="abs display" style="left:${c.pick(68, 44)}px;top:${c.pick(232, 420)}px;font-size:40px;color:#FFD92E" data-k="eth">Coming to Ethereum</div>
+      <div class="abs" style="left:${c.pick(68, 44)}px;top:${c.pick(300, 490)}px;font-size:40px;font-weight:700;color:#F5F0E4;display:flex;gap:12px;align-items:center" data-k="x"><svg class="icon" style="width:30px;height:30px"><use href="#i-x-logo"/></svg>@Pleaimd</div>
+      <div class="abs" style="left:${c.pick(68, 44)}px;bottom:${c.pick(40, 70)}px;font-size:${c.pick(15, 17)}px;color:#C9C1AE;max-width:${c.pick(1150, 630)}px" data-k="fine">Not financial advice. Not an official IMD page. Music: “The Builder” Kevin MacLeod (incompetech.com), licensed under CC BY 4.0.</div>`;
     this.stamp = c.el('div', 'abs bigstamp', 'PLEA');
-    Object.assign(this.stamp.style, { left: '600px', top: '360px', fontSize: '130px', borderColor: '#F5F0E4' });
+    Object.assign(this.stamp.style, { left: c.pick('600px', '90px'), top: c.pick('360px', '720px'), fontSize: c.pick('130px', '124px'), borderColor: '#F5F0E4' });
     this.endcard.appendChild(this.stamp);
     root.appendChild(this.free);
     root.appendChild(this.endcard);
@@ -37,7 +38,7 @@ export default {
     const { M, AT, BAR } = c;
     const t0 = BAR(32), tEnd = BAR(36);
     const spans = this.free.querySelectorAll('.mask > span');
-    [t0 - 0.08, AT(32, 1), AT(32, 2.5)].forEach((at, i) => { spans[i].style.transform = `translateY(${(1 - M.sp(t - at, 'type')) * 125}%)`; });
+    c.pick([t0 - 0.08, AT(32, 1), AT(32, 2.5)], [t0 - 0.08, AT(32, 1), AT(32, 1.5), AT(32, 2.5)]).forEach((at, i) => { spans[i].style.transform = `translateY(${(1 - M.sp(t - at, 'type')) * 125}%)`; });
     const off = M.sp(t - tEnd, 'heavy');
     this.free.style.transform = `translateX(${-1400 * off}px)`;
     this.receipts.forEach((e, i) => {

@@ -10,17 +10,17 @@ export default {
     const p = DATA.p14;
     this.card = c.el('div', 'abs');
     const inner = c.el('div', 'card', pleaCard(p));
-    Object.assign(inner.style, { width: '560px', zoom: 1.45 });
+    Object.assign(inner.style, { width: '560px', zoom: c.pick(1.45, 1.1) });
     this.card.appendChild(inner);
-    Object.assign(this.card.style, { left: '64px', top: '44px' });
-    this.sold = c.el('div', 'abs', zoom(stamp('sold', 'Sold', '35 vs need 35'), 1.6));
-    Object.assign(this.sold.style, { left: '640px', top: '150px' });
+    Object.assign(this.card.style, { left: c.pick('64px', '52px'), top: c.pick('44px', '110px') });
+    this.sold = c.el('div', 'abs', zoom(stamp('sold', 'Sold', '35 vs need 35'), c.pick(1.6, 1.4)));
+    Object.assign(this.sold.style, { left: c.pick('640px', '170px'), top: c.pick('150px', '360px') });
     this.slab = c.el('div', 'abs display', 'OBJECTION!');
-    Object.assign(this.slab.style, { left: '120px', top: '210px', fontSize: '128px', background: 'var(--objection)', border: '6px solid var(--ink)',
+    Object.assign(this.slab.style, { left: c.pick('120px', '26px'), top: c.pick('210px', '380px'), fontSize: c.pick('128px', '64px'), background: 'var(--objection)', border: '6px solid var(--ink)',
       borderRadius: '10px', padding: '14px 36px 8px', boxShadow: '12px 12px 0 var(--ink)', transformOrigin: '50% 50%' });
     // A second panel: 30 small seats flicker, then settle on 32.
     this.panel = c.el('div', 'abs');
-    Object.assign(this.panel.style, { left: '860px', top: '320px', width: '360px', height: '200px' });
+    Object.assign(this.panel.style, { left: c.pick('860px', '180px'), top: c.pick('320px', '510px'), width: '360px', height: '200px' });
     const rand = c.M.rng(32);
     this.mini = [...Array(30)].map((_, i) => {
       const e = c.el('div', 'abs');
@@ -29,17 +29,17 @@ export default {
       this.panel.appendChild(e);
       return e;
     });
-    this.sustained = c.el('div', 'abs', zoom(stamp('objection', 'Sustained', '32 vs need 35'), 1.5));
-    Object.assign(this.sustained.style, { left: '700px', top: '330px' });
+    this.sustained = c.el('div', 'abs', zoom(stamp('objection', 'Sustained', '32 vs need 35'), c.pick(1.5, 1.3)));
+    Object.assign(this.sustained.style, { left: c.pick('700px', '150px'), top: c.pick('330px', '560px') });
     this.points = c.el('div', 'abs', '<span class="display" style="font-size:44px">+35 points</span>');
-    Object.assign(this.points.style, { left: '64px', top: '408px' });
+    Object.assign(this.points.style, { left: c.pick('64px', '40px'), top: c.pick('408px', '740px') });
     this.strike = c.el('div', 'abs');
-    Object.assign(this.strike.style, { left: '58px', top: '436px', height: '8px', width: '330px', background: 'var(--denied)', transformOrigin: '0 50%' });
+    Object.assign(this.strike.style, { left: c.pick('58px', '34px'), top: c.pick('436px', '768px'), height: '8px', width: '330px', background: 'var(--denied)', transformOrigin: '0 50%' });
     this.stands = c.el('div', 'abs mono', 'no points · the sale stands');
-    Object.assign(this.stands.style, { left: '64px', top: '468px', fontSize: '24px' });
+    Object.assign(this.stands.style, { left: c.pick('64px', '40px'), top: c.pick('468px', '800px'), fontSize: '24px' });
     this.shot = c.el('div', 'capture');
     this.shot.innerHTML = `<img src="${c.capture('plea14-objected/objected.png')}" alt="">`;
-    Object.assign(this.shot.style, { left: '64px', top: '40px', width: '1152px', height: '480px' });
+    Object.assign(this.shot.style, c.pick({ left: '64px', top: '40px', width: '1152px', height: '480px' }, { left: '24px', top: '110px', width: '672px', height: '740px' }));
     this.cap = c.el('div', 'cap', caption(['Think it got off easy?'], 'Anyone can object for 20 minutes. A fresh panel re-scores.'));
     [this.card, this.sold, this.panel, this.sustained, this.points, this.strike, this.stands, this.shot, this.slab, this.cap].forEach((e) => root.appendChild(e));
   },
@@ -73,9 +73,9 @@ export default {
     const ck = M.sp(t - tc, 'ui');
     this.shot.style.transform = `translateY(${(1 - ck) * 720}px)`;
     const img = this.shot.firstElementChild;
-    img.style.width = '1152px'; img.style.transformOrigin = '0 0';
+    img.style.width = c.pick('1152px', '1440px'); img.style.transformOrigin = '0 0';
     const pz = M.clamp((t - tc) / 2);
-    img.style.transform = `translate(${-85 - 20 * pz}px, ${-90 - 20 * pz}px) scale(${1.3 + 0.03 * pz})`;
+    img.style.transform = c.pick(`translate(${-85 - 20 * pz}px, ${-90 - 20 * pz}px) scale(${1.3 + 0.03 * pz})`, `translate(${-100 - 10 * pz}px, ${-110 - 10 * pz}px) scale(${1 + 0.03 * pz})`);
     const k = M.sp(t - AT(19, 0.5), 'snappy');
     c.show(this.cap, t >= AT(19, 0.5));
     this.cap.style.transform = `translateX(${(1 - k) * -80}px)`;

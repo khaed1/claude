@@ -6,13 +6,20 @@ import { caption, esc } from '../lib/ui.js';
 const PANEL = [['482', 35], ['721', 39], ['1842', 35], ['203', 37], ['405', 35], ['1748', 35], ['978', 34], ['1485', 35], ['572', 34],
   ['80', 33], ['1113', 30], ['1800', 38], ['158', 33], ['1285', 33], ['1978', 34], ['1039', 35], ['901', 35]];   // API order
 const NOTE = '…a light server-lunch joke make the plea well made.';
-const GX = 596, GY = 52, SW = 96, SH = 60, GAP = 12;
+const SW = 96, SH = 60, GAP = 12;
+// Per format: the seat grid's corner, where the answer lifts to, and the sorted row(s) (centre of rank r).
+const LAYOUT = {
+  '16x9': { GX: 596, GY: 52, lift: [700, 150], row: (r) => [64 + r * 68 + 31, 318, 0.64] },
+  '9x16': { GX: 42, GY: 250, lift: [360, 400], row: (r) => (r < 9 ? [40 + r * 72 + 33, 650, 0.68] : [40 + (r - 9) * 72 + 69, 702, 0.68]) },
+};
+let GX, GY;
 
 export default {
   id: 'judges',
   from: (c) => c.BAR(7),
   to: (c) => c.BAR(11),
   build(root, c) {
+    this.LY = LAYOUT[c.fmt]; ({ GX, GY } = this.LY);
     const rand = c.M.rng(14);
     const slots = [...Array(30).keys()];
     for (let i = slots.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [slots[i], slots[j]] = [slots[j], slots[i]]; }
@@ -35,14 +42,14 @@ export default {
     const order = PANEL.map((p, k) => ({ k, v: p[1] })).sort((a, b) => a.v - b.v || a.k - b.k);
     this.rank = new Map(order.map((o, r) => [o.k, r]));
     this.head = c.el('div', 'abs display', 'The Cabal');
-    Object.assign(this.head.style, { left: '64px', top: '56px', fontSize: '72px' });
+    Object.assign(this.head.style, { left: c.pick('64px', '40px'), top: c.pick('56px', '100px'), fontSize: '72px' });
     this.sub = c.el('div', 'abs meta', 'judges plea #14 · Thu 18:26 UTC · Sepolia test run 9');
-    Object.assign(this.sub.style, { left: '66px', top: '142px', fontSize: '18px' });
+    Object.assign(this.sub.style, { left: c.pick('66px', '42px'), top: c.pick('142px', '186px'), fontSize: '18px' });
     this.big = c.el('div', 'abs', `<div class="label" style="font-size:16px">the panel’s answer</div><div class="display" style="font-size:150px;line-height:1">35</div>`);
-    Object.assign(this.big.style, { left: '640px', top: '36px' });
+    Object.assign(this.big.style, c.pick({ left: '640px', top: '36px' }, { left: '270px', top: '290px' }));
     this.note = c.el('div', 'card abs', `<div class="plea__text" style="font-size:20px">“${esc(NOTE)}”</div><div class="meta" style="margin-top:6px">judge at seat 1039 · craft 9 of 12</div>`);
-    Object.assign(this.note.style, { left: `${GX}px`, top: '430px', width: '636px', padding: '14px 20px' });
-    this.cap = c.el('div', 'cap', caption(['30 judges. 17 must agree.'], 'IMD oracle panel · each scores the plea 0–45'));
+    Object.assign(this.note.style, c.pick({ left: `${GX}px`, top: '430px', width: '636px' }, { left: '40px', top: '770px', width: '640px' }), { padding: '14px 20px' });
+    this.cap = c.el('div', 'cap', caption(c.pick(['30 judges. 17 must agree.'], ['30 judges.', '17 must agree.']), 'IMD oracle panel · each scores the plea 0–45'));
     [this.head, this.sub, this.big, this.note, this.cap].forEach((e) => root.appendChild(e));
   },
   update(lt, t, c) {
@@ -62,12 +69,12 @@ export default {
         // Into one sorted row across the frame (centres), then the middle score lifts to the answer.
         const r = this.rank.get(st.k);
         const m = M.sp(t - (tSort + r * 0.02), 'ui');
-        const cx = 64 + r * 68 + 31, cy = 318;
+        const [cx, cy, rs] = this.LY.row(r);
         x = (cx - (st.x + SW / 2)) * m; y = (cy - (st.y + SH / 2)) * m;
-        s = M.mix(1, 0.64, m);
+        s = M.mix(1, rs, m);
         if (r === 8) {
           const lift = M.sp(t - tLift, 'heavy');
-          x = M.mix(x, 700 - (st.x + SW / 2), lift); y = M.mix(y, 150 - (st.y + SH / 2), lift); s = M.mix(s, 1.7, lift);
+          x = M.mix(x, this.LY.lift[0] - (st.x + SW / 2), lift); y = M.mix(y, this.LY.lift[1] - (st.y + SH / 2), lift); s = M.mix(s, 1.7, lift);
           o = t >= BAR(10) ? 0 : 1;
           st.e.style.background = lift > 0.01 ? 'var(--ink)' : ''; st.e.style.color = lift > 0.01 ? 'var(--card)' : '';
         } else if (t >= tLift) o = M.mix(1, 0.4, M.sp(t - tLift, 'ui'));

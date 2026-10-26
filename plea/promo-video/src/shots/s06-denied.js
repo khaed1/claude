@@ -12,17 +12,17 @@ export default {
     const p = DATA.p1;
     this.card = c.el('div', 'abs');
     const inner = c.el('div', 'card', pleaCard(p));
-    Object.assign(inner.style, { width: '560px', zoom: 1.45 });
+    Object.assign(inner.style, { width: '560px', zoom: c.pick(1.45, 1.1) });
     this.card.appendChild(inner);
-    Object.assign(this.card.style, { left: '64px', top: '44px' });
+    Object.assign(this.card.style, { left: c.pick('64px', '52px'), top: c.pick('44px', '110px') });
     this.meter = c.el('div', 'abs');
-    this.meter.innerHTML = `<div class="meter meter--denied" style="width:400px;zoom:2;--score:0;--need:40"><div class="meter__bar"><div class="meter__fill"></div><div class="meter__need"></div></div>
+    this.meter.innerHTML = `<div class="meter meter--denied" style="width:${c.pick(400, 320)}px;zoom:2;--score:0;--need:40"><div class="meter__bar"><div class="meter__fill"></div><div class="meter__need"></div></div>
       <div class="meter__scale"><span>0</span><span>45</span></div></div>`;
-    Object.assign(this.meter.style, { left: '64px', top: '384px' });
+    Object.assign(this.meter.style, { left: c.pick('64px', '40px'), top: c.pick('384px', '560px') });
     this.legend = c.el('div', 'abs mono', 'judges 27 · need 40 · 13 short');
-    Object.assign(this.legend.style, { left: '64px', top: '474px', fontSize: '24px', color: 'var(--denied-text)' });
-    this.stamp = c.el('div', 'abs', zoom(stamp('denied', 'Denied', '27 vs need 40'), 1.7));
-    Object.assign(this.stamp.style, { left: '716px', top: '96px' });
+    Object.assign(this.legend.style, { left: c.pick('64px', '40px'), top: c.pick('474px', '660px'), fontSize: '24px', color: 'var(--denied-text)' });
+    this.stamp = c.el('div', 'abs', zoom(stamp('denied', 'Denied', '27 vs need 40'), c.pick(1.7, 1.5)));
+    Object.assign(this.stamp.style, { left: c.pick('716px', '210px'), top: c.pick('96px', '360px') });
     this.cap = c.el('div', 'cap', caption(['Denied: wait 4 hours, one appeal.'], 'On Sepolia, 4 of 25 pleas got through.'));
     [this.card, this.meter, this.legend, this.stamp, this.cap].forEach((e) => root.appendChild(e));
   },

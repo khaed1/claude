@@ -13,21 +13,26 @@ export default {
   build(root, c) {
     this.root = root;
     this.label = c.el('div', 'abs label', 'The Cabal’s dead-man · no signed verdict for');
-    Object.assign(this.label.style, { left: '66px', top: '150px', fontSize: '22px' });
+    Object.assign(this.label.style, { left: c.pick('66px', '40px'), top: c.pick('150px', '300px'), fontSize: '22px' });
     this.clock = c.el('div', 'abs mono', SHOW[0]);
-    Object.assign(this.clock.style, { left: '58px', top: '176px', fontSize: '180px', lineHeight: '1', transformOrigin: '0 50%' });
+    Object.assign(this.clock.style, { left: c.pick('58px', '34px'), top: c.pick('176px', '330px'), fontSize: c.pick('180px', '120px'), lineHeight: '1', transformOrigin: '0 50%' });
     this.seats = [...Array(30)].map((_, i) => {
       const e = c.el('div', 'abs');
-      Object.assign(e.style, { left: `${64 + i * 38}px`, top: '392px', width: '30px', height: '30px', border: '3px solid var(--ink)', borderRadius: '6px', background: 'var(--card)' });
+      Object.assign(e.style, { left: `${c.pick(64 + i * 38, 40 + (i % 15) * 42)}px`, top: `${c.pick(392, 490 + Math.floor(i / 15) * 42)}px`, width: '30px', height: '30px', border: '3px solid var(--ink)', borderRadius: '6px', background: 'var(--card)' });
       root.appendChild(e);
       return e;
     });
     this.banner = c.el('div', 'abs');
-    Object.assign(this.banner.style, { left: '0', top: '0', width: '1280px', height: '118px', overflow: 'hidden', borderBottom: '3px solid var(--ink)' });
-    this.bannerImg = c.el('img');
-    this.bannerImg.src = c.capture('dead-dark/home.png');
-    Object.assign(this.bannerImg.style, { width: '1800px', transformOrigin: '0 0' });
-    this.banner.appendChild(this.bannerImg);
+    Object.assign(this.banner.style, { left: '0', top: '0', width: c.pick('1280px', '720px'), height: '118px', overflow: 'hidden', borderBottom: '3px solid var(--ink)' });
+    if (c.V) {   // 9:16: the capture's one-line banner is too wide to read; the site's own banner component and words, wrapped
+      Object.assign(this.banner.style, { height: 'auto', borderBottom: '0' });
+      this.banner.innerHTML = '<div class="banner" style="zoom:1.3"><div class="page" style="padding-inline:16px"><span class="live-dot live-dot--dead"></span><p>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever. Pleas and objections are closed; sell on the Buy page.</p></div></div>';
+    } else {
+      this.bannerImg = c.el('img');
+      this.bannerImg.src = c.capture('dead-dark/home.png');
+      Object.assign(this.bannerImg.style, { width: '1800px', transformOrigin: '0 0' });
+      this.banner.appendChild(this.bannerImg);
+    }
     this.cap = c.el('div', 'cap', caption(['33 hours, no verdict:', 'the Cabal dies.']));
     [this.label, this.clock, this.banner, this.cap].forEach((e) => root.appendChild(e));
   },
@@ -52,7 +57,7 @@ export default {
     const b = M.sp(t - (DARK_AT + 0.1), 'ui');
     c.show(this.banner, dark);
     this.banner.style.transform = `translateY(${(1 - b) * -90}px)`;
-    this.bannerImg.style.transform = 'translate(-125px, -85px)';   // strip + banner of the 1440-px page at 1.25x
+    if (this.bannerImg) this.bannerImg.style.transform = 'translate(-125px, -85px)';   // strip + banner of the 1440-px page at 1.25x
     const lines = this.cap.querySelectorAll('.cap__main');
     [[lines[0], AT(28, 1)], [lines[1], AT(28, 3)]].forEach(([e, at]) => {
       c.show(e, t >= at);

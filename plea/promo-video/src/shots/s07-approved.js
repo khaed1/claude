@@ -12,18 +12,18 @@ export default {
     const p = DATA.p14;
     this.card = c.el('div', 'abs');
     const inner = c.el('div', 'card', pleaCard(p));
-    Object.assign(inner.style, { width: '560px', zoom: 1.45 });
+    Object.assign(inner.style, { width: '560px', zoom: c.pick(1.45, 1.1) });
     this.card.appendChild(inner);
-    Object.assign(this.card.style, { left: '64px', top: '44px' });
-    this.approved = c.el('div', 'abs', zoom(stamp('approved', 'Approved', '35 vs need 35'), 1.6));
-    this.sold = c.el('div', 'abs', zoom(stamp('sold', 'Sold', '35 vs need 35'), 1.6));
-    [this.approved, this.sold].forEach((s) => Object.assign(s.style, { left: '640px', top: '150px' }));
+    Object.assign(this.card.style, { left: c.pick('64px', '52px'), top: c.pick('44px', '110px') });
+    this.approved = c.el('div', 'abs', zoom(stamp('approved', 'Approved', '35 vs need 35'), c.pick(1.6, 1.4)));
+    this.sold = c.el('div', 'abs', zoom(stamp('sold', 'Sold', '35 vs need 35'), c.pick(1.6, 1.4)));
+    [this.approved, this.sold].forEach((s) => Object.assign(s.style, { left: c.pick('640px', '170px'), top: c.pick('150px', '360px') }));
     // The urgent pair: the site's black sell-window box and its Sell now button.
     this.urgent = c.el('div', 'abs');
-    this.urgent.innerHTML = `<div style="zoom:1.9;display:flex;gap:12px;align-items:center">
+    this.urgent.innerHTML = `<div style="zoom:${c.pick(1.9, 1.8)};display:flex;gap:12px;align-items:${c.pick('center', 'flex-start')};flex-direction:${c.pick('row', 'column')}">
       <span class="countdown countdown--urgent"><svg class="icon"><use href="#i-timer"/></svg>Sell within <span class="countdown__time">06:59</span></span>
       <button class="btn btn--ink">Sell now<span class="btn__sub">90,000 PLEA</span></button></div>`;
-    Object.assign(this.urgent.style, { left: '64px', top: '392px' });
+    Object.assign(this.urgent.style, { left: c.pick('64px', '40px'), top: c.pick('392px', '580px') });
     this.time = this.urgent.querySelector('.countdown__time');
     this.btn = this.urgent.querySelector('.btn');
     this.cursor = c.el('div', 'cursor', CURSOR);
@@ -52,9 +52,9 @@ export default {
     const press = BAR(18);
     const g = M.sp(t - AT(17, 1.5), 'heavy');
     c.show(this.cursor, t >= AT(17, 1));
-    const bx = 64 + 520, by = 392 + 50;
-    this.cursor.style.left = `${M.mix(1150, bx, g)}px`;
-    this.cursor.style.top = `${M.mix(640, by, g)}px`;
+    const bx = c.pick(64 + 520, 40 + 150), by = c.pick(392 + 50, 580 + 140);
+    this.cursor.style.left = `${M.mix(c.pick(1150, 650), bx, g)}px`;
+    this.cursor.style.top = `${M.mix(c.pick(640, 1100), by, g)}px`;
     const down = t >= press && t < press + 0.12;
     this.btn.style.transform = down ? 'translate(4px, 4px)' : '';
     this.btn.style.boxShadow = down ? 'none' : '';

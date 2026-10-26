@@ -18,7 +18,9 @@ const place = (e, { x = 0, y = 0, s = 1, r = 0, o = 1, sx, sy } = {}) => {
 };
 const show = (e, on) => { e.style.visibility = on ? 'visible' : 'hidden'; };
 const capture = (path) => `/captures/${path}`;
-const ctx = { M, BAR, AT, barLen, beatLen, fmt, W: fmt === '9x16' ? 720 : 1280, H: fmt === '9x16' ? 1280 : 720, el, place, show, capture };
+const V = fmt === '9x16';
+const pick = (h, v) => (V ? v : h);   // a layout value per format: 16:9, then 9:16
+const ctx = { M, BAR, AT, barLen, beatLen, fmt, V, pick, W: V ? 720 : 1280, H: V ? 1280 : 720, el, place, show, capture };
 
 const shots = [];
 async function init() {

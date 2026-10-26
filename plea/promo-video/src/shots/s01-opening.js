@@ -7,11 +7,11 @@ export default {
   build(root, c) {
     const L = c.el('div', 'layer');
     root.appendChild(L);
-    const lines = [['Buying', 'is', 'open.'], ['Selling', 'needs'], ['a', 'plea.']];
-    const beats = [[0, 0.5, 1], [2, 2.5], [3, 3.5]];
+    const lines = c.pick([['Buying', 'is', 'open.'], ['Selling', 'needs'], ['a', 'plea.']], [['Buying'], ['is', 'open.'], ['Selling'], ['needs'], ['a', 'plea.']]);
+    const beats = c.pick([[0, 0.5, 1], [2, 2.5], [3, 3.5]], [[0], [0.5, 1], [2], [2.5], [3, 3.5]]);
     this.words = [];
     const head = c.el('div', 'abs display');
-    Object.assign(head.style, { left: '64px', top: '96px', fontSize: '100px', lineHeight: '1.04' });
+    Object.assign(head.style, c.pick({ left: '64px', top: '96px', fontSize: '100px', lineHeight: '1.04' }, { left: '40px', top: '170px', fontSize: '96px', lineHeight: '1.04' }));
     lines.forEach((ws, i) => {
       const line = c.el('div');
       ws.forEach((w, j) => {
@@ -24,11 +24,11 @@ export default {
     });
     L.appendChild(head);
     this.stamp = c.el('div', 'abs bigstamp', 'PLEA');
-    Object.assign(this.stamp.style, { left: '640px', top: '372px', fontSize: '150px', transformOrigin: '50% 50%' });
+    Object.assign(this.stamp.style, c.pick({ left: '640px', top: '372px', fontSize: '150px' }, { left: '96px', top: '740px', fontSize: '130px' }), { transformOrigin: '50% 50%' });
     L.appendChild(this.stamp);
     this.what = c.el('div', 'cap');
     this.what.innerHTML = '<span class="cap__small">A meme token on Uniswap v4</span>';
-    Object.assign(this.what.style, { left: '64px', bottom: '56px' });
+    Object.assign(this.what.style, c.pick({ left: '64px', bottom: '56px' }, { left: '40px', bottom: '190px' }));
     L.appendChild(this.what);
     this.L = L;
   },
