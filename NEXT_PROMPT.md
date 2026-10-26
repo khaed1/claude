@@ -1,149 +1,46 @@
-Pick up PLEA from khaed1/claude branch claude/adoring-goodall-pn3jyz. Read this prompt first. Then read HANDOFF.md from "New session: watches moved, run 8.5 waiting for Sepolia answers (2026-10-18 07:50 UTC →)" to the end (the "Site design system session" section at the end belongs to another session), and NEXT_SESSION.md (the agreed numbers, rules and versions).
+Pick up PLEA from khaed1/claude branch claude/adoring-goodall-pn3jyz. Read this prompt first. Then read HANDOFF.md from "New session: the run 9 live test (2026-10-21 13:04 UTC →)" to the end (the "Site design system session" section at the end belongs to another session), and NEXT_SESSION.md (the agreed numbers, rules and versions).
 
-Rules: agreed numbers in NEXT_SESSION never change without asking. Never ask for a mainnet key. Submit or pay IMD jobs (and One Dollar Audit jobs), and send anything from wallet A (key in env PONDPAD_TESTNET_KEY, never printed or committed), only with my go-ahead. Never the word mainnet or chain id 1 in a Sepolia job text. Explain simply; when I must choose, recommend one option. Reports and reviews I ask for go in chat; save them to a repo only if I ask. Keep HANDOFF.md, NEXT_SESSION.md and plea/hackathon-submission.md current and push after each step. Work only on branch claude/adoring-goodall-pn3jyz in the notes repo (fetch + merge before pushing; never rebase or force-push). In khaed1/plea, change `next`, then merge it into `main` and `mainnet`; `light-profile` stays as it is (it was merged into all three on 2026-10-17); never touch the pinned `testnet8` @ dc3826b, `testnet8.5` @ af57f6d and `testnet9` @ 241c05e. imd/acc (khaed1/imd-acc) is read only. Verify every audit finding against the code (and on chain or with an uncommitted scratch test when needed) before telling me, and record or fix only what I agree.
+Rules: agreed numbers in NEXT_SESSION never change without asking. Never ask for a mainnet key. Submit or pay IMD jobs (and One Dollar Audit jobs), and send anything from wallet A (key in env PONDPAD_TESTNET_KEY, never printed or committed), only with my go-ahead. Never the word mainnet or chain id 1 in a Sepolia job text. Explain simply; when I must choose, recommend one option. Reports and reviews I ask for go in chat; save them to a repo only if I ask. Keep HANDOFF.md, NEXT_SESSION.md and plea/hackathon-submission.md current and push after each step. Work only on branch claude/adoring-goodall-pn3jyz in the notes repo (fetch + merge before pushing; never rebase or force-push). In khaed1/plea, change `next`, then merge it into `main` and `mainnet`; `light-profile` stays as it is; never touch the pinned `testnet8` @ dc3826b, `testnet8.5` @ af57f6d and `testnet9` @ 241c05e. imd/acc (khaed1/imd-acc) is read only. Verify every audit finding against the code (and on chain or with an uncommitted scratch test when needed) before telling me, and record or fix only what I agree.
 
-**My go-ahead (Tue 2026-10-20):** the run 9 live test below, on Sepolia, from wallet A and test wallets, with the 50 imdTEST. Anything else (IMD jobs, Ethereum or Base transactions, mainnet) still needs my go-ahead.
+**No go-ahead is open.** Run 9 is finished. Anything new (IMD jobs, Ethereum, Base or Sepolia transactions, mainnet) needs my go-ahead.
 
-Where we stopped (Wed 2026-10-21 ~08:00 UTC):
-- **Run 9** is launch #2234 (`testnet9` @ 241c05e). It is the final code, with imdTEST as both the pool token and the oracle fee.
-  - It is live on Sepolia and **not seeded**. Addresses are in `plea/live-run9/addresses.json`. Wallet A deployed the Letterbox, Tribunal and PleaHook.
-  - START is Wed 2026-10-21 15:00 UTC. Wallet A may seed any time; anyone may seed from START through the contract (the run 9 site's seed button now shows only for wallet A).
-- **imdTEST** is `0x56bcf2a5F47710649A4091219Ef0b56e2d1B58BF`. IMD's Sepolia oracle is sold only in it, at 0.5 a question, and only the dev mints it.
-  - Wallet A holds 50 (the dev's mint, block 11,955,606).
-  - Other holders (supply 1,130): `0xff3cbe2385d56960bbad93c1d5378fef2e1f8390` (another project's oracle consumer, 1,000), `0x5d861edaf67625b8e22c4ccf9915205b63baa7ae` (50), and 10 each at `0xdea11b3a70b77134424d436f6eb455f1abbd4449`, `0x3c587eff6c96eacf7e3dcc2cff6416161386e48c` and `0xabd06aa2679444959e96a799f297f3a8e89be2aa`.
-- **The dev's concern:** he asked us not to use imdTEST as the pool token, in case outsiders buy in and use the oracles. I decided to test anyway, with little imdTEST in the pool, and to take it back out at the end.
-- **IMD's Sepolia oracle is answering:** another project's request on 2026-10-20 at 15:34 UTC got its panel's result in about 2 minutes.
-- **The run 9 site:** https://plea-test-run-9.sites.imd.fun/ (IMD's site job). The design session is fixing it: round 2 (job `cd805c00`) was delivered at 07:52 UTC on Wed and is being re-tested.
-- **khaed1/plea:** `next` @ 3e64f29 (= `testnet9` @ 241c05e + a docs-only commit: the buy record's bought-first order), `main` @ 16bf1f0 (tree = `next`), `mainnet` @ e61a832 (852/852 on the code, with both forks); `light-profile` @ 180b13b.
+Where we stopped (Mon 2026-10-26 ~10:30 UTC):
+- **Run 9 is finished** (launch #2234, `testnet9` @ 241c05e, Sepolia, imdTEST as pool token and oracle fee; records in `plea/live-run9/`, full story in HANDOFF):
+  - Seeded Wed 2026-10-21 13:09 UTC; 25 pleas and letters and 3 objections judged by IMD's real panels (verdicts in 2–4 minutes); the Cabal died Mon 2026-10-26 07:28:12 UTC. No outside wallet ever touched it.
+  - Proven live: buys and the exact fee split, cashback in plain imdTEST, the sell refusals, the seat mint, pleas, appeals, denials, four approvals sold inside the 7-minute window, raw, typed and `APPEAL` letters, settles, `expire`, Objection! sustained (twice) and overruled (once) with stakes settled both ways, the seat's 1.2× points, 22 seasons closed with rollover and bonus burns, the first live `PrizePaid` (p1, 79 points, rank 1), `NAME`, the wall (`rebalance`), and the whole end phase.
+  - Not proven live on run 9 (live on runs 3–4 and on the fork): an approved letter delivered by a runner, a `SELL` letter, an approved site auto-sell plea, `onPleaFailure` (IMD never reported a failure; it stalled instead).
+  - **Money:** of the dev's 50 imdTEST, 35.964774 are back in wallet A, 14.0 went to IMD as oracle fees (28 questions), and 0.035226 is dust left in the pool's last wall (below the 1-imdTEST rebalance threshold; nobody can withdraw pool liquidity). The test wallets' ETH was swept back to wallet A. Send the imdTEST nowhere without my go-ahead.
+  - **Scores by holding time** (hand pleas on bought PLEA): day 0 (need 37) 0 of 5; day 1 (need 35) 1 of 6; day 2 (need 35) 0 of 3; day 3 (need 33) 3 of 4; letters 0 of 5. Good pleas score 32–35 at any age. **I decided to keep the pass mark 71 and the hold ladder 0/2/4/7 as they are.**
+- **IMD:** imd.fun has been on a Namecheap `clientHold` since Fri 2026-10-23 05:45 UTC (NXDOMAIN for every imd.fun name, the run 9 site included). IMD's API answers at `https://api-imd.up.railway.app` (explorer `https://imd-explorer.up.railway.app`), and its oracle delivers on chain again. Check first whether the hold is lifted.
+- **khaed1/plea:** `next` @ 3e64f29, `main` @ 16bf1f0 (tree = `next`), `mainnet` @ e61a832; `light-profile` @ 180b13b. Run 9's eight contracts are verified on Sourcify (match, creation and runtime).
 - **Wallet A** (`0x4b91078b2374c956A65F7Af0999CaE0a935E6821`):
-  - Sepolia: 7.79 ETH, nonce 274, 50 imdTEST.
-  - Ethereum: 0.80 IMD, nonce 61 (the design session pays its site jobs from it).
-  - The imd/acc session and the design session also use wallet A, so check that nonce latest = pending before every send.
-- **Last session's check-in** `trig_01U3M24dECwSxDhMcsH4FF7t` (send_later, Wed 15:05 UTC) fires into the old session. It checks whether someone else seeded run 9.
+  - Sepolia: 7.795 ETH, 35.964774 imdTEST, nonce 302.
+  - Ethereum: 0.80 IMD, 0.0021 ETH, nonce 97.
+  - Other sessions (imd/acc, the site design) also use wallet A: check that nonce latest = pending before every send.
+- **Nothing is scheduled** (no check-ins, no watchers).
+- **Learned this week, for mainnet** (details in HANDOFF):
+  - **Uniswap routing:** our hook uses return-delta flags, so the Uniswap app and Trading API route it only after manual allowlisting (form drafted in chat on 2026-10-22; the hook is verified on Sourcify). While the Cabal lives, no router or aggregator can buy PLEA (the hook delivers the PLEA to the buyer, so routers see 0 output; aggregators cannot name the buyer); after the death, the pool routes normally once each aggregator supports the hook (Uniswap form, 0x hook form, KyberSwap and Velora pull requests). No hook change: I agreed buys go through our site.
+  - **The mainnet site's buy:** Universal Router `V4_SWAP` with `amountOutMinimum` 0 and hookData `abi.encode(buyer)`, then `BALANCE_CHECK_ERC20` on the buyer's PLEA for slippage protection. Rehearse it on a mainnet fork before the site job.
+  - **Honeypot scanners** will likely flag PLEA while the Cabal lives (sell simulations revert): explain it on the site and X, and check the scanners after launch.
+  - **The keeper bot** must also `expire` stale pleas and objections 20 minutes after they were sent (a late answer reverts `TooLate`) and `settle` stale letters.
+  - **Glamsterdam:** the mainnet Intake's callback gas (200,000) is below our measured first denial and objection ruling; the dev said he will raise it when the time comes.
+  - **The mainnet `launch.json` START placeholder** (1793016000 = 2026-10-26 12:00 UTC) has passed: set the real START with me before re-pinning.
 
 Your tasks, in order:
-1. **Delete that check-in.** Before seeding, check `PleaLaunch.opened()`. If someone else seeded first, tell me at once.
-2. **The run 9 live test** (below).
-3. **Hackathon:** help if I ask.
-4. **Later, with me:**
-   - The mainnet START and a fresh owner wallet; then re-pin `plea/job-mainnet-launch.json` and run a free check.
-   - The keeper bot.
-   - The IMD Indexer job, then the site job (the design system is in `plea/site-design/`).
-   - The promo video.
+1. **Check the state:** the imd.fun hold, IMD's API, wallet A's nonces. Tell me what changed.
+2. **Hackathon:** help if I ask.
+3. **Later, with me:**
+   - The mainnet START and a fresh owner wallet; then re-pin `plea/job-mainnet-launch.json` (the `mainnet` commit) and run a free check. The launch job only with my go-ahead.
+   - The keeper bot (deliveries, `record` after the hold, the `rebalance` rules in NEXT_SESSION task 3, expiring stale pleas and objections, settling stale letters).
+   - The IMD Indexer job, then the site job (the design system is in `plea/site-design/`; add the Universal Router buy with the balance check, the honeypot explanation, and a "close (no verdict)" button after 20 minutes).
+   - The Uniswap allowlist form (I submit it) and, after the mainnet Cabal dies, the aggregators.
+   - The promo video: I do it in another session; the moments list is in HANDOFF.
 
-## The run 9 live test
-
-**Goal:** a full live test of the final code against IMD's real Sepolia oracle.
-- Above all, the oracle parts: pleas, verdicts, appeals, letters, objections and rulings, records and season closes.
-- Also the pool and trades, more lightly: earlier runs already tested them.
-- Then take the imdTEST back out of the pool.
-
-**Limits:**
-- **imdTEST into the pool:** the owner's 2 opening buy plus at most 5 of test buys: one small buy per test wallet (my choice, so approvals and letters come days sooner than with the airdrop alone). Appeal wall shares (0.35 each) also land in the pool. Ask me before going over.
-- **Oracle fees** (0.5 a question, paid to IMD) come from each test wallet's own imdTEST, which wallet A sends. Plan for about 20 questions.
-- **Stop and tell me** if the oracle stops answering (pleas expiring), or if any wallet that isn't ours buys, pleads, objects or delivers a letter.
-
-**What I checked in the code and on chain (2026-10-20)** — plan with it:
-- **The pool:**
-  - Nobody can withdraw its liquidity, not even the owner. imdTEST leaves the pool only through PLEA sales and fees.
-  - While the Cabal lives, sells go only through approved pleas, and PLEA can't move between ordinary wallets (`CabalIsWatching`). Each test wallet gets PLEA by buying or by claiming from the distributor.
-- **Ways someone outside could get imdTEST (only two):**
-  - The 0.25 tip for delivering an approved letter goes to whoever calls `deliver` first, so deliver ours at once.
-  - Wallets that already hold imdTEST can play like anyone.
-- **Run 9's clocks:**
-  - Seasons are 5 h. A season can be closed 1 h after it ends, in order.
-  - The Cabal dies 33 h after the last plea verdict. Denials count; objection rulings don't.
-  - Sale window 7 min. Cooldown 4 h after a sale, a denial or a lapse.
-  - An appeal must come within 4 h of the denial. Objections are open for 20 min after an approval.
-  - A plea or objection with no answer can be expired after 20 min.
-  - Buys in the first 90 min pay an extra fee, falling from 70% to 0, into the wall.
-- **Approvals:**
-  - need = 71 − the fact score. Read the fact score with `gate.factScore(wallet, amount)`.
-  - The fact score adds four parts:
-    - Share of the balance: at most 20% gives 16.
-    - Holding time: 1 / 3 / 7 days give 2 / 4 / 7.
-    - Profit: at a loss gives 13 (a fresh buyer is at a loss through the fees). Received PLEA (the airdrop, prizes) follows the agreed rule of 2026-10-15: held since the seed, at profit 10.
-    - The 24h trend: flat gives 5, and our volumes keep it flat.
-  - So the need is:
-
-    | PLEA held | fresh | after 1 day | after 3 days |
-    |---|---|---|---|
-    | bought | 37 | 35 | 33 |
-    | airdrop only | 40 | 38 | 36 |
-
-  - Earlier live verdicts were 29–36; approvals came at 33–36 with a need of 33.
-  - Expect denials first, and approvals once the wallets have held for 1–3 days. Plan for 3–4 days, and keep the Cabal alive with a verdict at least every 33 h.
-- **Plea amounts:**
-  - The gate allows 1–50% of the balance, at most 2.5M PLEA.
-  - Keep a plea at most 20% of the balance and no bigger than the PLEA the wallet bought; then the "at a loss" 13 counts.
-  - A sale must fill completely from the pool's imdTEST, so keep sales small.
-- **Letters:**
-  - A letter pleads 20% of the writer's PLEA. A letter or the site's auto-sell plea must be worth at least 0.70 imdTEST.
-  - A letter pays its fee by selling the writer's PLEA into the pool: 0.5 oracle + 0.25 tip, plus 0.35 for an appeal.
-  - That takes about 0.75 imdTEST out of the pool per letter (about 130k PLEA at the opening price). An approved letter's sale takes about 0.7 more.
-- **The owner:** wallet A can't earn points or prizes and can't object. The test wallets do the court.
-- **Points:**
-  - A wallet's best 3 approved scores in a season count.
-  - A prize needs 60 points and a place in the top 25; each place gets 4.5% down to 3.5% of the pot.
-  - The first six seasons also pay a 10M PLEA bonus; if nobody qualifies, it burns.
-  - A seat gives 1.2x points. The Sepolia seat NFT has an open mint.
-- **The distributor:**
-  - Its root can be set only once, by wallet A.
-  - Anyone may claim for a listed wallet; the PLEA always goes to that wallet.
-- **Glamsterdam gas** is live on Sepolia since 2026-10-06: new storage and code cost far more (see HANDOFF, 2026-10-21). The Intake gives callbacks 1,000,000 gas on Sepolia (200,000 on mainnet), so the test is not blocked, but record the gas of every step, above all the writer's verdict transactions, to compare with the measured callbacks (approval ~174k, first denial ~296k, repeat denial ~198k, first objection ruling ~313k).
-
-**Steps.** Rehearse every new kind of step on an anvil fork of Sepolia first (`plea/tools/live85.py` with `fork-init` / `fork-answer`). Then do one live step at a time: check nonce latest = pending, use gas = estimate × 1.3, and log every tx in `plea/live-run9/`. Anvil (Foundry 1.8.3) does not apply Glamsterdam gas, even with `--hardfork amsterdam`: rehearse the logic on the fork, but take gas numbers only from live Sepolia.
-
-1. **Prep (nothing sent):**
-   - A `STATE_DIR` outside git.
-   - 4 test wallets whose keys are derived from wallet A's key (e.g. keccak256 of the key and "plea-run9-p1"), so a container restart can't strand their funds. Never print or save the keys.
-   - A Merkle tree for the distributor:
-     - about 500k–1M PLEA to each test wallet, so a letter's 20% is worth at least 0.70 imdTEST;
-     - 20M to wallet A for the end (claim that one only at the end).
-   - Check that IMD's `/requests/capabilities` still sells `oracle.request` on 11155111 for 0.5 imdTEST.
-2. **Open:**
-   - Seed from wallet A, then at once the owner's 2 imdTEST opening buy (agreed). Expect `PayoutsToPool`, and the launch fee kept for the wall.
-   - Set the distributor root, then claim for the test wallets. This tests the claim flow too.
-3. **Players and trades:**
-   - Send each test wallet Sepolia ETH for gas and about 4 imdTEST for fees; top them up later from wallet A.
-   - After the 90-minute window, each test wallet buys once, about 1.25 imdTEST (5 in total).
-   - Check the fee split: 1% to wallet A, 0.25% to the prize, 0.25% to the wall, 0.25% of the PLEA burned.
-   - Check the cashback is paid in plain imdTEST (imd/acc's Stacker can't take imdTEST), any ERC-6909 claims, and `rebalance` → the wall.
-   - By `eth_call` only, check these are refused: a buy without a recipient, an exact-output buy, a direct sell and a PLEA transfer.
-   - One test wallet mints a seat.
-4. **The court, with real verdicts.**
-   - Check `gate.factScore` and the need first.
-   - Write honest, specific texts of at most 280 bytes. Never tell the judges how to score: on an earlier live run, "Score my honesty, not my timing" got zeros. Never use the word mainnet or chain id 1.
-   - **Cases to cover:**
-     - A direct plea → denial → appeal (0.5 + 0.35 to the wall).
-     - A direct plea → approval → `executeSell` inside 7 minutes; then `record` after the 20-minute objection window.
-     - An approval left to lapse.
-     - An objection by another test wallet on an approval → ruling → Tribunal `settle` (the stake goes back if sustained or void, and to the prize pot if overruled). Then see what `record` does: no points if sustained, the lower score if overruled. If possible, a second objection from another wallet.
-     - Letters:
-       - a plain-text letter sent as a transaction's data (like Etherscan's message page), and `letter(text)`;
-       - a denied letter → `settle` (PLEA and tip back) → an `APPEAL <text>` letter;
-       - an approved letter → `deliver` at once;
-       - a `SELL` letter and `NAME <name>`;
-       - the site's auto-sell `plead` (0.35 fee to the prize pot).
-     - Failure paths when they happen: `expire` after 20 min, and `onPleaFailure`. Check text checks and cooldowns by `eth_call`.
-5. **Seasons:**
-   - `record` each approval, and close each ended season (`closeSeason`, after its end + 1 h).
-   - Check the rollover; `PrizePaid` and `BonusPaid` if a wallet reaches 60; the seat's 1.2x; an overruled stake landing in the pot.
-6. **The end — take the imdTEST back out:**
-   - Stop pleading. 33 h after the last verdict the Cabal dies and trading is free.
-   - Close the remaining seasons and call `flushToWall`.
-   - Claim wallet A's 20M. Sell every wallet's PLEA back into the pool with PoolSwapTest; `rebalance` and sell into the wall again; redeem any ERC-6909 imdTEST claims. Repeat until the pool holds (almost) no imdTEST.
-   - Gather all the imdTEST in wallet A.
-   - Tell me how much came back, how much went to IMD as oracle fees, and what is left in the pool and why. Send it nowhere else without my go-ahead.
-7. **Optional:** look at the run 9 site with the live data and note in HANDOFF what it shows wrong, for the design session. Change nothing there.
-
-Report to me in chat after each phase, simply. Use send_later check-ins for the timed steps instead of waiting.
+Report to me in chat after each step, simply. Use send_later check-ins for timed steps instead of waiting.
 
 Setup:
 - Foundry 1.8.3 in /root/.local/bin (install it from the release tarball if missing).
 - Attach khaed1/plea with add_repo (push access). Clone it with all heads into /home/user/plea, with worktrees for main and mainnet.
-- **The live helper:** `ADDRS=plea/live-run9/addresses.json STATE_DIR=<scratch> python3 -I plea/tools/live85.py help`.
-  - Run 9 has IMD = ORACLE = imdTEST, so there is no faucet; wallet A hands imdTEST out with `give`.
-  - Still to write: player keys derived from wallet A's key, the distributor tree and claims, selling with free trading, and redeeming claims.
+- **The live helper:** `ADDRS=plea/live-run9/addresses.json STATE_DIR=<scratch> python3 -I plea/tools/live85.py help`. It now has `derive-players` (keys derived from wallet A's key, never stored), `tree`, `set-root`, `claim`, `sell-free`, `flush`, `collect`, `pool`, `sweep-eth`; amounts are exact decimals. `plea/tools/watch_run9.py` is the read-only outsider watch.
 - The suite: `bash plea/tools/run_suite.sh <repo> <logdir>`. It runs test/full with FOUNDRY_PROFILE=full, lists any group without a result and exits 1 if there is one.
 - Node 22 for the x402 script, only if I ask for a One Dollar Audit job.
