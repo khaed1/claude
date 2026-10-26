@@ -493,6 +493,21 @@ def cmd_collect(*names):
             print(f"  {n} -> A {fmt(amt)} IMD")
 
 
+def cmd_sweep_eth(*names):
+    """Each player sends all its ETH, minus the gas this transfer may cost, to wallet A."""
+    max_fee = int(Decimal(GAS_PRICE.removesuffix("gwei")) * 10**9)
+    for n in names:
+        b = int(_run(["balance", addr(n), "--rpc-url", RPC]))
+        est = int(_run(["estimate", "--from", addr(n), WALLET_A, "--value", "1", "--rpc-url", RPC]))
+        gas = est * 13 // 10
+        value = b - gas * max_fee
+        if value <= 0:
+            print(f"  {n} has nothing to sweep")
+            continue
+        send(n, WALLET_A, value=str(value), gas=gas)
+        print(f"  {n} -> A {fmt(value)} ETH (left {fmt(int(_run(['balance', addr(n), '--rpc-url', RPC])))})")
+
+
 def cmd_pool(*_):
     """The pool's IMD: the market band, the wall, the hook's claims, and the PoolManager's IMD balance."""
     for f in ("imdInMarket()(uint256)", "wallImd()(uint256)", "retainClaims()(uint256)", "pleaInMarket()(uint256)"):
