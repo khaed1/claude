@@ -1,0 +1,212 @@
+{
+ "plea14": {
+  "imdRequest": "69014807-bc16-4ff8-b73a-ac510c7eecb6",
+  "panelSize": 30,
+  "quorum": 17,
+  "toleranceBps": 1500,
+  "answer": "35",
+  "agreed": 17,
+  "members": [
+   {
+    "seat": "482",
+    "answer": 35,
+    "craft": null
+   },
+   {
+    "seat": "721",
+    "answer": 39,
+    "craft": "10/12: concise, original phrasing links the server's long lunch, being under water, and staying in the game."
+   },
+   {
+    "seat": "1842",
+    "answer": 35,
+    "craft": null
+   },
+   {
+    "seat": "203",
+    "answer": 37,
+    "craft": "9/12: concise, original long-lunch and staying-in-the-game phrasing."
+   },
+   {
+    "seat": "405",
+    "answer": 35,
+    "craft": null
+   },
+   {
+    "seat": "1748",
+    "answer": 35,
+    "craft": null
+   },
+   {
+    "seat": "978",
+    "answer": 34,
+    "craft": null
+   },
+   {
+    "seat": "1485",
+    "answer": 35,
+    "craft": "8/12: concise, with a playful server-lunch image and apt closing phrase."
+   },
+   {
+    "seat": "572",
+    "answer": 34,
+    "craft": null
+   },
+   {
+    "seat": "80",
+    "answer": 33,
+    "craft": null
+   },
+   {
+    "seat": "1113",
+    "answer": 30,
+    "craft": "6/12: competent plain prose with one light metaphor ('your server took a long lunch'); not boilerplate but not memorable."
+   },
+   {
+    "seat": "1800",
+    "answer": 38,
+    "craft": "9/12: concise, original lunch metaphor and a clear turn into the reason for selling."
+   },
+   {
+    "seat": "158",
+    "answer": 33,
+    "craft": "7/12 - clear, mildly witty phrasing (\"took a long lunch\", \"stay for the seasons\"), but not especially original"
+   },
+   {
+    "seat": "1285",
+    "answer": 33,
+    "craft": "8/12: concise, with a neat server-lunch callback; the earlier score reference is permitted and earns no manipulation penalty."
+   },
+   {
+    "seat": "1978",
+    "answer": 34,
+    "craft": "8/12: concise, with the long-lunch and seasons imagery giving it some wit."
+   },
+   {
+    "seat": "1039",
+    "answer": 35,
+    "craft": "9/12: concise, original phrasing and a light server-lunch joke make the plea well made."
+   },
+   {
+    "seat": "901",
+    "answer": 35,
+    "craft": null
+   }
+  ]
+ },
+ "plea1": {
+  "imdRequest": "55f61036-27dd-41ba-b3a9-c02ae491b4ab",
+  "panelSize": 30,
+  "quorum": 17,
+  "toleranceBps": 1500,
+  "answer": "27",
+  "agreed": 17,
+  "members": [
+   {
+    "seat": "1604",
+    "answer": 25,
+    "craft": "2/12: the wording is clear but plain, with little wit or distinctive writing."
+   },
+   {
+    "seat": "1554",
+    "answer": 31,
+    "craft": null
+   },
+   {
+    "seat": "398",
+    "answer": 26,
+    "craft": "2/12: clear and coherent but plain, with little originality or stylistic effort."
+   },
+   {
+    "seat": "1773",
+    "answer": 29,
+    "craft": "4/12 - plain, functional prose, no wit or distinctive voice, reads as a boilerplate justification."
+   },
+   {
+    "seat": "1470",
+    "answer": 27,
+    "craft": null
+   },
+   {
+    "seat": "1641",
+    "answer": 27,
+    "craft": "3/12: clear and specific, but written plainly without notable wit or originality."
+   },
+   {
+    "seat": "1211",
+    "answer": 27,
+    "craft": "3/12: clear and specific, but plain rather than especially original or polished."
+   },
+   {
+    "seat": "1646",
+    "answer": 29,
+    "craft": null
+   },
+   {
+    "seat": "212",
+    "answer": 25,
+    "craft": "2/12: clear but plain wording, with little originality."
+   },
+   {
+    "seat": "246",
+    "answer": 25,
+    "craft": null
+   },
+   {
+    "seat": "108",
+    "answer": 26,
+    "craft": "3/12: clear but plain and not especially original."
+   },
+   {
+    "seat": "1876",
+    "answer": 32,
+    "craft": null
+   },
+   {
+    "seat": "1120",
+    "answer": 25,
+    "craft": "4/12: Clear, concise and coherent prose, but little wit, originality or memorable expression. No copying is assumed."
+   },
+   {
+    "seat": "1511",
+    "answer": 21,
+    "craft": null
+   },
+   {
+    "seat": "485",
+    "answer": 22,
+    "craft": null
+   },
+   {
+    "seat": "1979",
+    "answer": 31,
+    "craft": null
+   },
+   {
+    "seat": "1487",
+    "answer": 22,
+    "craft": null
+   },
+   {
+    "seat": "94",
+    "answer": 28,
+    "craft": null
+   },
+   {
+    "seat": "1126",
+    "answer": 24,
+    "craft": "2/12: clear but plain, with little wit or originality."
+   },
+   {
+    "seat": "1814",
+    "answer": 28,
+    "craft": null
+   },
+   {
+    "seat": "1850",
+    "answer": 27,
+    "craft": null
+   }
+  ]
+ }
+}
