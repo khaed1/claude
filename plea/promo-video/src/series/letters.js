@@ -126,11 +126,11 @@ export default {
 
   cues(c) {
     const T = this.T;
-    const q = [[T.ask, 'pop', 0.7], [T.hex, 'whoosh', 0.8, 0.3, 400, 2400]];
-    for (let k = 0; k < 14; k++) q.push([T.decode + k * 0.065, 'tick', 1.6, 2400 + 90 * (k % 5), 0.006]);
+    const q = [[T.ask, 'pop', 2.2], [T.hex, 'whoosh', 0.8, 0.3, 400, 2400]];
+    for (let k = 0; k < 14; k++) q.push([T.decode + k * 0.065, 'tick', 0.5, 2400 + 90 * (k % 5), 0.006]);
     q.push([T.steps[0], 'whoosh', 1.5, 0.35, 400, 2600], ...keys(c, T.type0, T.type1), [T.cmds, 'pop', 0.8], [T.send, 'tap', 1.2, 1800, 0.015],
       [T.steps[1], 'pop', 1.0, 400, 800], [T.bag, 'tap', 1.0, 900, 0.04], [T.split, 'whoosh', 0.9, 0.35, 300, 1800], [T.escrow, 'thump', 0.5, 0.5], [T.fees, 'pop', 0.9],
-      [T.steps[2], 'whoosh', 1.0, 0.35, 400, 2600], [T.flow, 'ratchet', 0.8, 6, 0.3], [T.real, 'whoosh', 1.0, 0.4, 300, 1800], [T.denied, 'thump', 1.1, 1.2], [T.back, 'pop', 1.0]);
+      [T.steps[2], 'whoosh', 1.0, 0.35, 400, 2600], [T.flow, 'ratchet', 0.8, 6, 0.3], [T.real, 'whoosh', 2.5, 0.4, 300, 1800], [T.denied, 'thump', 1.1, 1.2], [T.back, 'pop', 1.0]);
     return [...q, ...this.recap.cues()].map(([t, ...r]) => [Math.round(t * 1000) / 1000, ...r]);
   },
 };

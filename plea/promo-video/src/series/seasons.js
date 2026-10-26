@@ -106,9 +106,9 @@ export default {
 
   cues(c) {
     const T = this.T;
-    const q = [[T.ask, 'pop', 0.7], [T.row, 'whoosh', 0.8, 0.3, 400, 2400], [T.paid, 'thump', 0.35, 1.2], [T.paid + 0.04, 'bell', 0.4, 1318, 0.4],
+    const q = [[T.ask, 'pop', 2.2], [T.row, 'whoosh', 0.8, 0.3, 400, 2400], [T.paid, 'thump', 0.25, 1.2], [T.paid + 0.04, 'bell', 0.4, 1318, 0.4],
       [T.steps[0], 'whoosh', 1.5, 0.35, 400, 2600], [T.t19, 'tap', 1.2, 1000, 0.04], [T.t23, 'tap', 1.2, 1100, 0.04], [T.sum, 'thump', 0.5, 0.5],
-      [T.steps[1], 'pop', 1.0, 400, 800], [T.lb, 'whoosh', 0.8, 0.3, 300, 1800], [T.bars, 'ratchet', 1.0, 10, 0.5], [T.line, 'scratch', 1.2, 0.25],
+      [T.steps[1], 'pop', 1.0, 400, 800], [T.lb, 'whoosh', 0.8, 0.3, 300, 1800], [T.bars, 'ratchet', 2.5, 10, 0.5], [T.line, 'scratch', 1.2, 0.25],
       [T.steps[2], 'whoosh', 1.0, 0.35, 400, 2600], [T.ladder, 'ratchet', 0.9, 12, 0.45], [T.prize, 'thump', 1.4, 1.3], [T.prize + 0.04, 'bell', 0.6, 1318, 0.5], [T.bonus, 'pop', 1.0]];
     return [...q, ...this.recap.cues()].map(([t, ...r]) => [Math.round(t * 1000) / 1000, ...r]);
   },

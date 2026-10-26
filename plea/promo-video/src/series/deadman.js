@@ -130,10 +130,10 @@ export default {
 
   cues(c) {
     const T = this.T;
-    const q = [[T.ask, 'pop', 0.7], ...[T.beat0, T.beat1, T.beat2].map((b) => [b, 'tick', 3.0, 1000, 0.05, 0.5]),
-      [T.steps[0], 'whoosh', 1.5, 0.35, 400, 2600], ...T.v.map((v) => [v, 'tick', 3.0, 1000, 0.05, 0.5]), ...T.v.map((v) => [v + 0.02, 'ratchet', 0.6, 6, 0.2]),
-      [T.steps[1], 'pop', 1.0, 400, 800], [T.death, 'flatline', 1.6, 1.1, 1000], [T.adjourned, 'thump', 0.9, 1.0],
-      [T.steps[2], 'switch', 1.2], [T.sellBtn, 'pop', 0.8], [T.click, 'tap', 2.0, 1800, 0.015], [T.sold, 'thump', 1.4, 1.3], [T.sold + 0.04, 'bell', 0.6, 1318, 0.5], [T.chips, 'pop', 1.0]];
+    const q = [[T.ask, 'pop', 2.2], ...[T.beat0, T.beat1, T.beat2].map((b) => [b, 'tick', 0.35, 1000, 0.05, 0.5]),
+      [T.steps[0], 'whoosh', 1.5, 0.35, 400, 2600], ...T.v.map((v) => [v, 'tick', 0.6, 1000, 0.05, 0.5]), ...T.v.map((v) => [v + 0.02, 'ratchet', 0.25, 6, 0.2]),
+      [T.steps[1], 'pop', 1.0, 400, 800], [T.death, 'flatline', 1.6, 1.1, 1000], [T.adjourned, 'thump', 0.3, 1.0],
+      [T.steps[2], 'switch', 0.6], [T.sellBtn, 'pop', 0.8], [T.click, 'tap', 0.5, 1800, 0.015], [T.sold, 'thump', 1.4, 1.3], [T.sold + 0.04, 'bell', 0.6, 1318, 0.5], [T.chips, 'pop', 1.0]];
     return [...q, ...this.recap.cues()].map(([t, ...r]) => [Math.round(t * 1000) / 1000, ...r]);
   },
 };
