@@ -95,7 +95,7 @@ export function recap(layer, root, c, { at, sub, rows, fine }) {
     <div class="sx-card__title">${esc(cfg.title)}.</div>
     <div class="sx-card__sub">${esc(sub)}</div>
     <div class="sx-card__rows">${rows.map((r, i) => `<div class="sx-card__row"><b>${i + 1}</b><span>${esc(r)}</span></div>`).join('')}</div>
-    <div class="sx-card__foot"><span>Coming to Ethereum · @Pleaimd</span>${cfg.next ? `<span class="sx-card__next">Next: §${cfg.n + 1} ${esc(cfg.next)} →</span>` : ''}${cfg.link ? `<span class="sx-card__next" style="flex-basis:100%;margin-top:10px;text-align:center">${esc(cfg.link)}</span>` : ''}</div>`);
+    <div class="sx-card__foot"><span>${esc(cfg.foot || 'Coming to Ethereum · @Pleaimd')}</span>${cfg.next ? `<span class="sx-card__next">Next: §${cfg.n + 1} ${esc(cfg.next)} →</span>` : ''}${cfg.link ? `<span class="sx-card__next" style="flex-basis:100%;margin-top:10px;text-align:center">${esc(cfg.link)}</span>` : ''}</div>`);
   Object.assign(card.style, { left: '230px', top: '108px', width: '820px' });
   const stampEl = c.el('div', 'abs', '<div style="zoom:0.5"><span class="bigstamp">PLEA</span></div>');
   Object.assign(stampEl.style, { left: '858px', top: '64px' });
