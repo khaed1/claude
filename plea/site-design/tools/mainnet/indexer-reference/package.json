@@ -1,0 +1,3 @@
+{ "name": "plea-indexer-reference", "private": true, "type": "module",
+  "scripts": { "start": "ponder start --port 42069 --schema plea" },
+  "dependencies": { "ponder": "0.18.1", "viem": "2.57.7", "hono": "4.13.14" } }

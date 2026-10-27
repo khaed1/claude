@@ -675,7 +675,8 @@ def cmd_fork_init(*_):
 
 def _attestation(score):
     t = now()
-    rid = "0x" + os.urandom(32).hex()
+    # IMD's request ids carry the API's UUID in their first 16 bytes, right padded (the site looks it up).
+    rid = "0x" + __import__("uuid").uuid4().hex + "00" * 16
     job = "0x" + os.urandom(32).hex()
     answer = _run(["abi-encode", "f(uint256)", str(score)])
     return (f"({rid},1,{'0x' + '11' * 32},3,{answer},{score},1,2,{'0x' + '22' * 32},{job},30,17,20,{t},{t + 3600})")
