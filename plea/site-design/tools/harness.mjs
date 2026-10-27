@@ -1,5 +1,5 @@
-// Shared Playwright harness for testing the PLEA site (default: the run 9 site, https://plea-test-run-9.sites.imd.fun/).
-// SITE_URL=<url> tests another build (a local preview, a new label); RPC_HOSTS=<host,host> names the hosts
+// Shared Playwright harness for testing the PLEA site.
+// SITE_URL=<url> (required) names the build under test (a local preview, a new label); RPC_HOSTS=<host,host> names the hosts
 // whose JSON-RPC calls are answered from `fork` (default: the run 9 site's three Sepolia RPCs).
 //
 //   import { launch, openSite, forkTime, syncClock } from '<repo>/plea/site-design/tools/harness.mjs'
@@ -27,7 +27,9 @@
 // log.console / log.pageErrors / log.failed / log.requests collect what the page did.
 
 const PW = process.env.PLAYWRIGHT || '/opt/node-tools/node_modules/playwright/index.mjs';
-export const SITE = process.env.SITE_URL || 'https://plea-test-run-9.sites.imd.fun/';
+// SITE_URL is required (2026-10-27: two testers who forgot it loaded IMD's hosted run 9 site instead of their build).
+// For the hosted run 9 site set SITE_URL=https://plea-test-run-9.sites.imd.fun/ explicitly.
+export const SITE = process.env.SITE_URL || '';
 export const RPC_HOSTS = process.env.RPC_HOSTS ? process.env.RPC_HOSTS.split(',') : ['ethereum-sepolia-rpc.publicnode.com', 'rpc.sepolia.ethpandaops.io', 'sepolia.rpc.sentio.xyz'];
 const SEPOLIA = '0xaa36a7';
 
@@ -163,6 +165,7 @@ export async function openSite(browser, o = {}) {
 
   if (o.clock) { await page.clock.install({ time: new Date(o.clock * 1000) }); await page.clock.resume(); }
   if (o.route !== null) {
+    if (!SITE) throw new Error('harness: set SITE_URL to the build under test (e.g. http://127.0.0.1:<port>/)');
     await page.goto(SITE + (o.route || '#/'), { waitUntil: 'domcontentloaded', timeout: 90000 });
     await page.waitForLoadState('networkidle', { timeout: 30000 }).catch(() => {});
   }
