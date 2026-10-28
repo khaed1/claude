@@ -4,7 +4,8 @@ For Ubuntu 22.04 or later on x86_64, run as root, on the same machine as the kee
 (built by IMD's swarm, job `32c3663b`: https://github.com/identity-md-launches/launch-2652-build-read-only-ponder-indexer)
 reads PLEA's events from Ethereum into a Postgres database and answers the site's queries at
 `https://indexer.pleaimd.fun/graphql`. It holds no key and sends no transaction. It needs about
-0.5 GB of memory (Ponder ~0.26 GB, Postgres ~0.2 GB) and well under 1 GB of disk.
+0.6 GB of memory (Ponder ~0.4 GB on Node 24, Postgres ~0.2 GB; the service is capped at 1 GB)
+and well under 1 GB of disk.
 
 What you need first:
 - **An Ethereum RPC URL.** The free public `https://ethereum-rpc.publicnode.com` (no sign-up, no
@@ -15,20 +16,20 @@ What you need first:
 - **The DNS record:** at your registrar, for `pleaimd.fun`, add a record of type `A`, name
   `indexer`, value = the VPS's IP address (`curl -4 ifconfig.me` on the VPS prints it).
 
-## 1. A user and Node.js 22
+## 1. A user and Node.js 24 (the keeper's version)
 
 ```
 useradd --system --create-home --home-dir /opt/plea-indexer --shell /usr/sbin/nologin plea-indexer
 cd /opt/plea-indexer
-curl -fSLO https://nodejs.org/dist/v22.22.0/node-v22.22.0-linux-x64.tar.xz
-curl -fSLO https://nodejs.org/dist/v22.22.0/SHASUMS256.txt
-grep ' node-v22.22.0-linux-x64.tar.xz$' SHASUMS256.txt | sha256sum --check
-tar --no-same-owner -xJf node-v22.22.0-linux-x64.tar.xz && ln -s node-v22.22.0-linux-x64 node
-rm node-v22.22.0-linux-x64.tar.xz SHASUMS256.txt
+curl -fSLO https://nodejs.org/dist/v24.21.0/node-v24.21.0-linux-x64.tar.xz
+curl -fSLO https://nodejs.org/dist/v24.21.0/SHASUMS256.txt
+grep ' node-v24.21.0-linux-x64.tar.xz$' SHASUMS256.txt | sha256sum --check
+tar --no-same-owner -xJf node-v24.21.0-linux-x64.tar.xz && ln -s node-v24.21.0-linux-x64 node
+rm node-v24.21.0-linux-x64.tar.xz SHASUMS256.txt
 /opt/plea-indexer/node/bin/node --version
 ```
 
-The check must print `node-v22.22.0-linux-x64.tar.xz: OK`, and the last line `v22.22.0`.
+The check must print `node-v24.21.0-linux-x64.tar.xz: OK`, and the last line `v24.21.0`.
 
 ## 2. Postgres
 
