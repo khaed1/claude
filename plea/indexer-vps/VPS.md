@@ -7,9 +7,11 @@ reads PLEA's events from Ethereum into a Postgres database and answers the site'
 0.5 GB of memory (Ponder ~0.26 GB, Postgres ~0.2 GB) and well under 1 GB of disk.
 
 What you need first:
-- **An Ethereum RPC URL with your own key** (Alchemy, Infura, QuickNode or dRPC; a free plan is
-  enough: the indexer reads a new block every 12 seconds and makes at most 4 calls a second). It may
-  be the same URL as the keeper's `RPC_URL`.
+- **An Ethereum RPC URL.** The free public `https://ethereum-rpc.publicnode.com` (no sign-up, no
+  key) is enough: once running, the indexer only asks about new blocks (about 35,000 calls a day, at
+  most 4 a second), and its answers are kept in Postgres. Public endpoints serve only about a week
+  of old logs, so to rebuild from an *empty* database later on, use a provider with full history for
+  that once (e.g. Ankr; a rebuild costs a few thousand calls), then switch back.
 - **The DNS record:** at your registrar, for `pleaimd.fun`, add a record of type `A`, name
   `indexer`, value = the VPS's IP address (`curl -4 ifconfig.me` on the VPS prints it).
 
@@ -61,7 +63,7 @@ unset PW
 nano .env.local
 ```
 
-Put your RPC URL after `PONDER_RPC_URL_1=` and save. Keep a copy of `.env.local` somewhere safe.
+Put the RPC URL after `PONDER_RPC_URL_1=` (e.g. `PONDER_RPC_URL_1=https://ethereum-rpc.publicnode.com`) and save. Keep a copy of `.env.local` somewhere safe.
 
 ## 5. Check it
 
