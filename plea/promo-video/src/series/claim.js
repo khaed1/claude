@@ -3,14 +3,15 @@
 // and a 2% airdrop list. The owner sets the Merkle root once; then the list is final. `claim(index, account, amount,
 // proof)` is open to anyone and always pays `account`, so any wallet can send it (gas only); there is no deadline.
 // Claimed PLEA is ordinary PLEA: selling it while the Cabal lives takes a plea, scored as held since trading opened
-// at profit 10 (a 20% plea, flat price: need 69 - (16 + 0/1/2/3 + 10 + 5) = 38 / 37 / 36 / 35 on day 0 / 1 / 3 / 7).
+// at profit 10 (a 20% plea, flat price: need 69 - (16 + 0/1/2/3 + 10 + 5) = 38 / 37 / 36 / 35 on day 0 / 1 / 3 / 7;
+// with the price up over 2% on 24 h, from day 1: 33 / 32 / 31; day 0 has no 24 h price, so it scores flat).
 // The claim shown is real: Sepolia test run 9, claim #0, sent by 0x4b91…6821 on Wed 2026-10-21 13:10:25 UTC (tx
 // 0xb096654b…e817): Claimed(0, 0x6828…8F4f, 2,500,000 PLEA), the PLEA moved from the distributor to 0x6828…8F4f.
 import { chrome, headline, recap, piece, typeInto, cursor, press } from './kit.js';
 
 const ADDR = '0x6828002d07385205dB0d998a109417E25B8e8F4f';
 const SPLIT = [['82%', 'the pool', 'var(--card)', 'var(--ink)'], ['6%', 'seasons', 'var(--paper-2)', 'var(--ink)'], ['12%', 'claims', 'var(--action)', 'var(--on-action)']];
-const BARS = [['Day 0', 38], ['Day 1', 37], ['Day 3', 36], ['A week', 35]];
+const BARS = [['Day 0', 38, null], ['Day 1', 37, 33], ['Day 3', 36, 32], ['A week', 35, 31]];   // [day, need with a flat price, need with a rising one]
 
 const share = (tag, big, sub) => `<div class="card" style="width:584px;box-sizing:border-box;padding:16px 22px 18px;box-shadow:8px 8px 0 var(--shadow-color)">
   <div class="label" style="font-size:15px">${tag}</div><div class="sx-big" style="font-size:44px;margin-top:4px">${big}</div>
@@ -71,16 +72,20 @@ export default {
 
     // Step 3: claimed PLEA plays like any PLEA: selling takes a plea.
     this.h3 = headline(L, c, { n: 3, lines: [['Then', 'plead'], ['to', 'sell', 'it.']], small: 'claimed PLEA counts as held since trading opened', at: T.steps[2], out: T.end + 10 });
-    this.tableHead = piece(L, c, '<span class="label" style="font-size:15px">Your bar for a 20% plea of claimed PLEA</span>', { cls: 'abs', left: 640, top: 150, at: T.steps[2] + 0.1, out: T.end, dy: 10 });
-    this.rows = BARS.map(([day, need], i) => piece(L, c, `<div style="display:grid;grid-template-columns:110px 1fr 70px;align-items:center;gap:14px;width:584px">
+    this.tableHead = piece(L, c, '<span class="label" style="font-size:15px">Your bar (need) for a 20% plea of claimed PLEA, by price</span>', { cls: 'abs', left: 640, top: 150, at: T.steps[2] + 0.1, out: T.end, dy: 10 });
+    const COLS = 'display:grid;grid-template-columns:96px 1fr 62px 96px;align-items:center;gap:12px;width:584px';
+    this.cols = piece(L, c, `<div style="${COLS}"><span></span><span></span><span class="mono" style="font-size:13px;text-align:right;color:var(--ink-2)">flat</span>
+      <span class="mono" style="font-size:13px;text-align:center;color:var(--ink-2)">rising</span></div>`, { cls: 'abs', left: 640, top: 192, at: T.rows[0], out: T.end, dy: 10 });
+    this.rows = BARS.map(([day, need, up], i) => piece(L, c, `<div style="${COLS}">
         <span style="font-weight:700;font-size:19px">${day}</span>
         <span style="position:relative;height:36px;border:3px solid var(--ink);border-radius:8px;background:var(--card);overflow:hidden">
           <span class="sx-fill" style="position:absolute;inset:0 auto 0 0;width:${(need / 45) * 100}%;background:var(--action);border-right:3px solid var(--ink)"></span></span>
-        <span class="sx-big" style="font-size:28px;text-align:right">${need}</span></div>`,
-      { left: 640, top: 196 + i * 62, at: T.rows[i], out: T.end, dx: 60, dy: 0, kind: 'snappy' }));
-    this.note = piece(L, c, '<span class="mono" style="font-size:15px;color:var(--ink-2)">flat price · 4 lower when it rises · need = 69 − facts</span>', { cls: 'abs', left: 640, top: 452, at: T.rows[3] + 0.2, out: T.end, dy: 10 });
+        <span class="sx-big" style="font-size:28px;text-align:right">${need}</span>
+        <span class="sx-big sx-up" style="font-size:26px;text-align:center;border:3px solid var(--ink);border-radius:999px;padding:2px 0;${up ? 'background:var(--approved);color:var(--on-state)' : 'color:var(--ink-3)'}">${up ?? '–'}</span></div>`,
+      { left: 640, top: 222 + i * 60, at: T.rows[i], out: T.end, dx: 60, dy: 0, kind: 'snappy' }));
+    this.note = piece(L, c, '<span class="mono" style="font-size:14px;color:var(--ink-2)">rising = up over 2% on 24 h · day 0 has no 24 h price yet</span>', { cls: 'abs', left: 640, top: 466, at: T.rows[3] + 0.2, out: T.end, dy: 10 });
     this.seat = piece(L, c, '<span class="mono" style="font-size:17px;border:3px solid var(--ink);border-radius:999px;padding:6px 14px;background:var(--action);color:var(--on-action)">IMD seat owners: 1.2× season points</span>',
-      { cls: 'abs', left: 640, top: 510, at: T.seat, out: T.end, dy: 16, kind: 'snappy' });
+      { cls: 'abs', left: 640, top: 520, at: T.seat, out: T.end, dy: 16, kind: 'snappy' });
 
     this.recap = recap(L, root, c, {
       at: T.end, sub: '12% for the swarm and the airdrop.',
@@ -119,6 +124,7 @@ export default {
 
     this.h3.update(t);
     this.tableHead.update(t);
+    this.cols.update(t);
     this.rows.forEach((p, i) => {
       p.update(t);
       const f = p.e.querySelector('.sx-fill');
