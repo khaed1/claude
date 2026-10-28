@@ -28,5 +28,40 @@
   "jobId": 1018,
   "jobUrl": "https://onedollaraudit.com/audit/1018",
   "at": "2026-10-17T10:50:29.847Z"
+ },
+ {
+  "file": "plea/onedollaraudit/mainnet/job1-hook.txt",
+  "jobId": 1065,
+  "jobUrl": "https://onedollaraudit.com/audit/1065",
+  "at": "2026-10-28T13:32:21.171Z",
+  "status": "declined by LeftClaw's worker (declineJob, no reason given; the CLAWD refund went to the job's client, LeftClaw's own x402 wallet 0xCfB3\u202676EA, not to wallet A)"
+ },
+ {
+  "file": "plea/onedollaraudit/mainnet/job2-gate.txt",
+  "jobId": 1066,
+  "jobUrl": "https://onedollaraudit.com/audit/1066",
+  "at": "2026-10-28T13:32:23.556Z",
+  "status": "declined by LeftClaw's worker (declineJob, no reason given; the CLAWD refund went to the job's client, LeftClaw's own x402 wallet 0xCfB3\u202676EA, not to wallet A)"
+ },
+ {
+  "file": "plea/onedollaraudit/mainnet/job3-letters-launch.txt",
+  "jobId": null,
+  "jobUrl": null,
+  "at": "2026-10-28T13:32:27.782Z",
+  "note": "paid $1 (Base tx 0x5709b8b134889011f73c97653eb509d6901ad1d7dec0a8882cbe21c09295c553) but no job was created: the endpoint answered 1067, which went to job4's payment; resubmitted as 1068"
+ },
+ {
+  "file": "plea/onedollaraudit/mainnet/job4-tribunal-seasons.txt",
+  "jobId": 1067,
+  "jobUrl": "https://onedollaraudit.com/audit/1067",
+  "at": "2026-10-28T13:32:32.037Z",
+  "status": "declined by LeftClaw's worker (declineJob, no reason given; the CLAWD refund went to the job's client, LeftClaw's own x402 wallet 0xCfB3\u202676EA, not to wallet A)"
+ },
+ {
+  "file": "plea/onedollaraudit/mainnet/job3-letters-launch.txt",
+  "jobId": 1068,
+  "jobUrl": "https://onedollaraudit.com/audit/1068",
+  "at": "2026-10-28T13:36:19.986Z",
+  "status": "declined by LeftClaw's worker (declineJob, no reason given; the CLAWD refund went to the job's client, LeftClaw's own x402 wallet 0xCfB3\u202676EA, not to wallet A)"
  }
 ]
