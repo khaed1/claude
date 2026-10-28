@@ -158,6 +158,8 @@ def hosted_cycle(cfg, state):
         except Busy as e:
             busy.append(str(e)[:150])
             log('node_busy', step=step.__name__, detail=str(e)[:300], note='other steps continue; next cycle retries')
+        except RuntimeError as e:   # e.g. a refused answer (a timed-out one may have landed): still mine and read the balance
+            log('step_error', step=step.__name__, error=str(e)[:400], note='other steps continue')
     if len(busy) == 3:
         raise Busy('all hosted steps busy')
 
