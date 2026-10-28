@@ -182,6 +182,12 @@ def tries(state, epoch, words):
     return answered.get(akey, 0)
 
 
+def landed(resp):
+    """True when the site reports this epoch's answer as recorded (fields 'answered' / 'answered_txid', per poascan.io/help)."""
+    txid = find(resp, ['answered_txid'])
+    return find(resp, ['answered']) is True or (isinstance(txid, str) and bool(re.fullmatch(r'[0-9a-f]{64}', txid)))
+
+
 def hosted_challenge(cfg, state, key, acct):
     ch = hosted_get('api/hosted/challenge', key=key)
     words = find(ch, ['words', 'required_words', 'challenge_words'])
@@ -190,6 +196,10 @@ def hosted_challenge(cfg, state, key, acct):
         log('challenge_unreadable', response=json.dumps(ch)[:600])
     elif tries(state, epoch, words) >= 2:
         log('challenge_skip', epoch=epoch, reason='already answered or tried twice this epoch')
+    elif landed(ch) or (tries(state, epoch, words) == 1 and landed(hosted_get('api/hosted/me', key=key))):
+        state['answered'][answer_key(epoch, words)] = 2     # an earlier, timed-out submit did land: never resubmit
+        save_state(state)
+        log('challenge_skip', epoch=epoch, reason='the site says this epoch is already answered')
     else:
         start, end = dt.datetime.fromisoformat(cfg['start']), dt.datetime.fromisoformat(cfg['end'])
         allowed = cfg['budget_usd'] * min(1.0, (now() - start) / (end - start) + 1 / 28)
