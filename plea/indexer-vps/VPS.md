@@ -1,17 +1,17 @@
-# Running the PLEA indexer on a VPS (draft: step 3 names the delivered code after IMD's job)
+# Running the PLEA indexer on a VPS
 
 For Ubuntu 22.04 or later on x86_64, run as root, on the same machine as the keeper. The indexer
-reads PLEA's events from Ethereum into a Postgres database and answers the site's queries over
-HTTPS. It holds no key and sends no transaction. It needs about 0.5 GB of memory (Ponder ~0.3 GB,
-Postgres ~0.2 GB) and well under 1 GB of disk for years of PLEA's events.
+(built by IMD's swarm, job `32c3663b`: https://github.com/identity-md-launches/launch-2652-build-read-only-ponder-indexer)
+reads PLEA's events from Ethereum into a Postgres database and answers the site's queries at
+`https://indexer.pleaimd.fun/graphql`. It holds no key and sends no transaction. It needs about
+0.5 GB of memory (Ponder ~0.26 GB, Postgres ~0.2 GB) and well under 1 GB of disk.
 
 What you need first:
 - **An Ethereum RPC URL with your own key** (Alchemy, Infura, QuickNode or dRPC; a free plan is
-  enough with the 12-second polling below). It may be the same URL as the keeper's `RPC_URL`.
-- **A hostname for the HTTPS address.** Either a name under a domain you own (add an `A` record,
-  e.g. `indexer.yourdomain.com` → the VPS's IP address), or, without a domain, the free name
-  `<ip with dashes>.sslip.io` (for IP 203.0.113.7: `203-0-113-7.sslip.io`; it changes if the VPS's
-  IP ever changes). Find the IP with `curl -4 ifconfig.me`.
+  enough: the indexer reads a new block every 12 seconds and makes at most 4 calls a second). It may
+  be the same URL as the keeper's `RPC_URL`.
+- **The DNS record:** at your registrar, for `pleaimd.fun`, add a record of type `A`, name
+  `indexer`, value = the VPS's IP address (`curl -4 ifconfig.me` on the VPS prints it).
 
 ## 1. A user and Node.js 22
 
@@ -39,13 +39,13 @@ runuser -u postgres -- psql -qc "CREATE USER plea_indexer PASSWORD '$PW';" -c "C
 Keep this shell open for step 4 (it holds the password in `$PW`; it is never printed). Postgres
 listens only on the machine itself.
 
-## 3. The code
+## 3. The code (the checked commit)
 
 ```
 apt-get install -y git
-git clone <the delivered repository> /opt/plea-indexer/app
-cd /opt/plea-indexer/app && git checkout <the checked commit>
-PATH=/opt/plea-indexer/node/bin:$PATH npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+git clone https://github.com/identity-md-launches/launch-2652-build-read-only-ponder-indexer /opt/plea-indexer/app
+cd /opt/plea-indexer/app && git checkout 763cd34feaf31f41c3a7b42c348765e7c5c2910e
+PATH=/opt/plea-indexer/node/bin:$PATH npx -y pnpm@10.28.2 install --frozen-lockfile --prod
 chown -R plea-indexer:plea-indexer /opt/plea-indexer/app
 git config --global --add safe.directory /opt/plea-indexer/app
 ```
@@ -68,18 +68,42 @@ Put your RPC URL after `PONDER_RPC_URL_1=` and save. Keep a copy of `.env.local`
 ```
 cd /opt/plea-indexer/app
 set -a; . ./.env.local; set +a
-runuser -u plea-indexer -- /opt/plea-indexer/node/bin/node node_modules/.bin/ponder start --schema plea_v1 --hostname 127.0.0.1 --port 42069
+runuser -u plea-indexer -- /opt/plea-indexer/node/bin/node node_modules/ponder/dist/esm/bin/ponder.js start --schema plea_v1 --hostname 127.0.0.1 --port 42069
 ```
 
 Within a minute it prints `Completed backfill indexing` and `Started returning 200 responses
 endpoint=/ready`. In a second terminal, `curl -s http://127.0.0.1:42069/status` prints the last
-block it has, e.g. `{"mainnet":{"id":1,"block":{"number":26294278,…}}}`. Stop it with Ctrl+C (it
+block it has, e.g. `{"mainnet":{"id":1,"block":{"number":26294449,…}}}`. Stop it with Ctrl+C (it
 keeps what it indexed).
 
 ## 6. Run it as a service
 
 ```
-cp /opt/plea-indexer/app/<path of plea-indexer.service> /etc/systemd/system/plea-indexer.service
+cat > /etc/systemd/system/plea-indexer.service <<'EOF'
+[Unit]
+Description=PLEA indexer (Ponder)
+After=network-online.target postgresql.service
+Wants=network-online.target
+Requires=postgresql.service
+
+[Service]
+Type=simple
+User=plea-indexer
+WorkingDirectory=/opt/plea-indexer/app
+EnvironmentFile=/opt/plea-indexer/app/.env.local
+ExecStart=/opt/plea-indexer/node/bin/node node_modules/ponder/dist/esm/bin/ponder.js start --schema plea_v1 --hostname 127.0.0.1 --port 42069
+Restart=always
+RestartSec=10
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/plea-indexer/app
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target
+EOF
 systemctl daemon-reload
 systemctl enable --now plea-indexer
 journalctl -u plea-indexer -f
@@ -93,29 +117,42 @@ Ubuntu 24.04: `apt-get install -y caddy`. Ubuntu 22.04: Caddy's own package repo
 (https://caddyserver.com/docs/install, "Debian, Ubuntu, Raspbian").
 
 ```
-cp /opt/plea-indexer/app/<path of Caddyfile> /etc/caddy/Caddyfile
-nano /etc/caddy/Caddyfile          # replace indexer.example.com with your hostname
+cat > /etc/caddy/Caddyfile <<'EOF'
+indexer.pleaimd.fun {
+	request_body {
+		max_size 16KB
+	}
+	@api path /graphql /health /ready /status
+	handle @api {
+		reverse_proxy 127.0.0.1:42069
+	}
+	handle {
+		respond 404
+	}
+}
+EOF
 systemctl reload caddy
 ```
 
 Ports 80 and 443 must be open: `ufw status`; if it is active, `ufw allow 80/tcp` and
 `ufw allow 443/tcp` (and in your VPS provider's firewall, if it has one). Caddy fetches a free
-certificate and renews it by itself. The indexer's own port 42069 stays closed to the outside.
+certificate and renews it by itself. Only the four indexer paths are public; the indexer's own port
+42069 stays closed to the outside.
 
 Check from your own computer:
 
 ```
-curl -s https://<your hostname>/status
+curl -s https://indexer.pleaimd.fun/status
 ```
 
-It must print the same kind of line as in step 5. Then send the address `https://<your hostname>/graphql` to the session: it
-checks it against the chain and puts it into the site.
+It must print the same kind of line as in step 5. Then tell the session: it checks the address
+against the chain and hands it to the site.
 
-## Updating
+## Updating (only to a commit the session has checked)
 
 ```
 cd /opt/plea-indexer/app && git fetch && git checkout <new commit>
-PATH=/opt/plea-indexer/node/bin:$PATH npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+PATH=/opt/plea-indexer/node/bin:$PATH npx -y pnpm@10.28.2 install --frozen-lockfile --prod
 chown -R plea-indexer:plea-indexer /opt/plea-indexer/app
 systemctl restart plea-indexer
 ```
