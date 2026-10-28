@@ -273,6 +273,17 @@ def grade_batch(cfg, items, budget_left):
     return grades, cost
 
 
+def shape(o, depth=0):
+    """Field names and value types of a response, without its text (answers are untrusted and long)."""
+    if isinstance(o, dict):
+        return {k: shape(v, depth + 1) for k, v in list(o.items())[:30]} if depth < 4 else 'dict'
+    if isinstance(o, list):
+        return [len(o), shape(o[0], depth + 1) if o else None]
+    if isinstance(o, str):
+        return f'str[{len(o)}]'
+    return o if isinstance(o, (bool, int, float)) or o is None else type(o).__name__
+
+
 def hosted_grade(cfg, state, key, me):
     """Grade open seats (opt-in via config "grading"): at most grading_max_per_cycle answers per cycle."""
     seats = find(me, ['grading_seats_open'])
@@ -280,6 +291,9 @@ def hosted_grade(cfg, state, key, me):
     if not seats and not (seats is None and find(me, ['established']) is True):
         return
     data = hosted_get('api/hosted/assignments', key=key)
+    if cfg.get('grading_dry_run', True):      # until the owner has checked the real format: record its shape only
+        log('grading_probe', seats=seats, shape=json.dumps(shape(data))[:1500], note='dry run: nothing graded')
+        return
     done = state.setdefault('graded', [])
     todo = []
     for a in find(data, ['assignments']) or []:
