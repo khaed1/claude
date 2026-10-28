@@ -219,7 +219,7 @@ def hosted_mine(cfg, state, key, acct):
 def hosted_me(cfg, state, key, acct):
     me = hosted_get('api/hosted/me', key=key)
     log('balance', mode='hosted', address=acct.get('poa_address'),
-        **{k: find(me, [k]) for k in ('balance', 'spendable', 'locked', 'grading_seats_open') if find(me, [k]) is not None})
+        **{k: find(me, [k]) for k in ('balance', 'spendable', 'locked', 'established', 'grading_seats_open') if find(me, [k]) is not None})
     if cfg.get('grading'):
         hosted_grade(cfg, state, key, me)
 
@@ -276,7 +276,8 @@ def grade_batch(cfg, items, budget_left):
 def hosted_grade(cfg, state, key, me):
     """Grade open seats (opt-in via config "grading"): at most grading_max_per_cycle answers per cycle."""
     seats = find(me, ['grading_seats_open'])
-    if not seats:
+    # /me may not compute seats (seats None + a hint to ask /assignments): then an established account asks directly
+    if not seats and not (seats is None and find(me, ['established']) is True):
         return
     data = hosted_get('api/hosted/assignments', key=key)
     done = state.setdefault('graded', [])
