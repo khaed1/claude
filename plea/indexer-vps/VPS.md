@@ -55,16 +55,20 @@ git config --global --add safe.directory /opt/plea-indexer/app
 
 ## 4. Settings
 
+Paste these one line at a time. If `$PW` is empty (a new shell since step 2), first run
+`PW=$(openssl rand -hex 24) && runuser -u postgres -- psql -qc "ALTER USER plea_indexer PASSWORD '$PW';"`.
+
 ```
+[ -n "$PW" ] && echo "PW is set" || echo "PW is EMPTY"
 cd /opt/plea-indexer/app
-umask 077
-printf 'DATABASE_URL=postgresql://plea_indexer:%s@localhost:5432/plea_indexer\nPONDER_RPC_URL_1=\n' "$PW" > .env.local
-chown plea-indexer:plea-indexer .env.local
-unset PW
-nano .env.local
+(umask 077; printf 'DATABASE_URL=postgresql://plea_indexer:%s@localhost:5432/plea_indexer\nPONDER_RPC_URL_1=https://ethereum-rpc.publicnode.com\n' "$PW" > .env.local)
+chown plea-indexer:plea-indexer .env.local && unset PW
+ls -l .env.local; grep -c 'plea_indexer:[0-9a-f]\{48\}@' .env.local; grep PONDER_RPC .env.local
 ```
 
-Put the RPC URL after `PONDER_RPC_URL_1=` (e.g. `PONDER_RPC_URL_1=https://ethereum-rpc.publicnode.com`) and save. Keep a copy of `.env.local` somewhere safe.
+The last line must show `-rw------- 1 plea-indexer plea-indexer`, then `1` (the password is in the
+file; it is not printed), then the RPC line. To use another RPC, change that line with `nano .env.local`.
+Keep a copy of `.env.local` somewhere safe.
 
 ## 5. Check it
 
