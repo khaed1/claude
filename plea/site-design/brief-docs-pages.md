@@ -55,7 +55,8 @@ site session to build; this note says what goes in it. Not built yet.
 4. **Your bar (fact score and need).** The judges' score must reach your need = pass mark − fact
    score. The fact score is on-chain facts: how much of your PLEA you sell, how long you held, your
    profit or loss, the 24-hour price trend; PLEA you received (airdrop, prizes) counts as held since
-   trading opened at the profit table's middle. Diagram: the need meter with the four fact parts
+   trading opened at profit 9 (for a 20% plea: 39 / 38 / 37 / 36 on day 0 / 1 / 3 / 7 with a flat price,
+   34 / 33 / 32 from day 1 with a rising one). Diagram: the need meter with the four fact parts
    stacked, and a small table "need by day" for a typical seller (at a loss / small profit / big
    profit). Worked example: two pleas with the same score, one denied, one approved, because the bar
    moved (run 9's #13 and #19). Numbers: pending (above).

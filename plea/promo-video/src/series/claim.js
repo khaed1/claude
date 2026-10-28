@@ -3,15 +3,16 @@
 // and a 2% airdrop list. The owner sets the Merkle root once; then the list is final. `claim(index, account, amount,
 // proof)` is open to anyone and always pays `account`, so any wallet can send it (gas only); there is no deadline.
 // Claimed PLEA is ordinary PLEA: selling it while the Cabal lives takes a plea, scored as held since trading opened
-// at profit 10 (a 20% plea, flat price: need 69 - (16 + 0/1/2/3 + 10 + 5) = 38 / 37 / 36 / 35 on day 0 / 1 / 3 / 7;
-// with the price up over 2% on 24 h, from day 1: 33 / 32 / 31; day 0 has no 24 h price, so it scores flat).
+// at profit 9 (the owner's mainnet decision, 2026-10-28; a 20% plea, flat price: need 69 - (16 + 0/1/2/3 + 9 + 5) =
+// 39 / 38 / 37 / 36 on day 0 / 1 / 3 / 7; with the price up over 2% on 24 h, from day 1: 34 / 33 / 32; day 0 has no
+// 24 h price, so it scores flat).
 // The claim shown is real: Sepolia test run 9, claim #0, sent by 0x4b91…6821 on Wed 2026-10-21 13:10:25 UTC (tx
 // 0xb096654b…e817): Claimed(0, 0x6828…8F4f, 2,500,000 PLEA), the PLEA moved from the distributor to 0x6828…8F4f.
 import { chrome, headline, recap, piece, typeInto, cursor, press } from './kit.js';
 
 const ADDR = '0x6828002d07385205dB0d998a109417E25B8e8F4f';
 const SPLIT = [['82%', 'the pool', 'var(--card)', 'var(--ink)'], ['6%', 'seasons', 'var(--paper-2)', 'var(--ink)'], ['12%', 'claims', 'var(--action)', 'var(--on-action)']];
-const BARS = [['Day 0', 38, null], ['Day 1', 37, 33], ['Day 3', 36, 32], ['A week', 35, 31]];   // [day, need with a flat price, need with a rising one]
+const BARS = [['Day 0', 39, null], ['Day 1', 38, 34], ['Day 3', 37, 33], ['A week', 36, 32]];   // [day, need with a flat price, need with a rising one]
 
 const share = (tag, big, sub) => `<div class="card" style="width:584px;box-sizing:border-box;padding:16px 22px 18px;box-shadow:8px 8px 0 var(--shadow-color)">
   <div class="label" style="font-size:15px">${tag}</div><div class="sx-big" style="font-size:44px;margin-top:4px">${big}</div>
