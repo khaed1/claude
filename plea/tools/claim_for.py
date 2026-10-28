@@ -10,6 +10,9 @@ distributor_root.py writes (claims[] with index / account / amount / proof).
       --accounts 0xaaa,0xbbb            # or --all
   add --send to broadcast; without it the script only prints what it would do.
 The key comes from the environment (default PONDPAD_TESTNET_KEY) and is never printed.
+Fees: by default cast prices each transaction from the chain (EIP-1559); the run stops before a send
+when the base fee is above --max-base-fee (default 1gwei). --gas-price / --priority set them by hand.
+It refuses to start while the wallet has a pending transaction (other sessions share wallet A).
 """
 import argparse, json, os, subprocess, sys
 
@@ -30,8 +33,9 @@ def main():
     ap.add_argument("--all", action="store_true", help="claim for every unclaimed leaf")
     ap.add_argument("--send", action="store_true", help="broadcast (default: dry run)")
     ap.add_argument("--key-env", default="PONDPAD_TESTNET_KEY")
-    ap.add_argument("--gas-price", default="0.02gwei")
-    ap.add_argument("--priority", default="0.01gwei")
+    ap.add_argument("--gas-price", help="max fee per gas, e.g. 0.5gwei (default: priced by cast from the chain)")
+    ap.add_argument("--priority", help="priority fee per gas, e.g. 0.01gwei (default: priced by cast)")
+    ap.add_argument("--max-base-fee", default="1gwei", help="stop before a send while the base fee is above this")
     a = ap.parse_args()
 
     data = json.load(open(a.claims))
@@ -55,6 +59,16 @@ def main():
     key = os.environ.get(a.key_env) if a.send else None
     if a.send and not key:
         raise SystemExit(f"{a.key_env} is not set")
+    fees = []
+    if a.gas_price:
+        fees += ["--gas-price", a.gas_price]
+    if a.priority:
+        fees += ["--priority-gas-price", a.priority]
+    cap = int(cast("to-unit", a.max_base_fee, "wei"))
+    if a.send:
+        sender = cast("wallet", "address", "--private-key", key)
+        if cast("nonce", "--rpc-url", a.rpc, "--block", "latest", sender) != cast("nonce", "--rpc-url", a.rpc, "--block", "pending", sender):
+            raise SystemExit(f"{sender} has a pending transaction; wait for it")
 
     done = sent = 0
     for c in claims:
@@ -69,8 +83,11 @@ def main():
         if not a.send:
             print(f"would claim index {c['index']} {c['account']} {amount_plea:,.0f} PLEA")
             continue
-        out = cast("send", "--private-key", key, "--gas-price", a.gas_price,
-                   "--priority-gas-price", a.priority, *args)
+        base = int(cast("base-fee", "--rpc-url", a.rpc))
+        if base > cap:
+            print(f"base fee {base / 1e9:.3f} gwei is above --max-base-fee {cap / 1e9:.3f} gwei: stopped")
+            break
+        out = cast("send", "--private-key", key, *fees, *args)
         tx = next((l.split()[-1] for l in out.splitlines() if l.startswith("transactionHash")), "?")
         status = next((l.split(None, 1)[1] for l in out.splitlines() if l.startswith("status")), "?")
         print(f"claimed index {c['index']} {c['account']} {amount_plea:,.0f} PLEA tx {tx} {status}")
