@@ -45,9 +45,12 @@ def main():
     elif not a.all:
         raise SystemExit("give --accounts or --all")
 
+    root_file = data.get("merkleRoot") or data.get("root")  # distributor_root.py writes merkleRoot
+    if not root_file:
+        raise SystemExit("the claims file has no merkleRoot")
     root_onchain = cast("call", "--rpc-url", a.rpc, a.distributor, "merkleRoot()(bytes32)")
-    if root_onchain.lower() != data["root"].lower():
-        raise SystemExit(f"root mismatch: chain {root_onchain} file {data['root']}")
+    if root_onchain.lower() != root_file.lower():
+        raise SystemExit(f"root mismatch: chain {root_onchain} file {root_file}")
 
     key = os.environ.get(a.key_env) if a.send else None
     if a.send and not key:
