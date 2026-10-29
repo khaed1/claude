@@ -154,10 +154,10 @@ Must print `2.1.300 (Claude Code)`. If it says *“claude native binary not inst
 
 ### Wrapper and worker account
 
-The wrapper forces subscription sign-in (it clears any API-key variables), sets Sonnet as the fallback model, and turns off Claude Code's self-updater, which cannot write to this root-owned install anyway. The worker still passes its own `--model` and `--effort`, which step 5 sets.
+The wrapper forces subscription sign-in (it clears any API-key variables, but lets the long-lived subscription token from [step 4](#long-lived-sign-in-recommended) through), sets Sonnet as the fallback model, and turns off Claude Code's self-updater, which cannot write to this root-owned install anyway. The worker still passes its own `--model` and `--effort`, which step 5 sets.
 
 ```bash
-printf '%s\n' '#!/bin/sh' 'set -eu' 'unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL CLAUDE_CODE_OAUTH_TOKEN' 'export ANTHROPIC_MODEL=claude-sonnet-5' 'export DISABLE_AUTOUPDATER=1' 'exec /opt/imd-worker/runtime/bin/claude "$@"' > /opt/imd-worker/bin/claude
+printf '%s\n' '#!/bin/sh' 'set -eu' 'unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL' 'export ANTHROPIC_MODEL=claude-sonnet-5' 'export DISABLE_AUTOUPDATER=1' 'exec /opt/imd-worker/runtime/bin/claude "$@"' > /opt/imd-worker/bin/claude
 ```
 ```bash
 chmod 755 /opt/imd-worker/bin/claude
@@ -214,6 +214,43 @@ runuser -l imd-worker -c 'claude -p "Reply exactly READY." --model claude-sonnet
 Must print `claude-sonnet-5`. If your plan can't use this model, pick one it can use in both the wrapper and step 5.
 
 Your sign-in is stored in `/home/imd-worker/.claude/.credentials.json`; Claude Code's state is in `/home/imd-worker/.claude.json`. Never copy these into a Git repository or share them.
+
+### Long-lived sign-in (recommended)
+
+The sign-in above has to refresh itself, and on a server it can stop refreshing: `imd doctor` then shows *“✗ claude run  Failed to authenticate: OAuth session expired and could not be refreshed”* and the workers silently take no work. A token from `claude setup-token` lasts about a year and never needs refreshing. It uses the same subscription.
+
+```bash
+runuser -l imd-worker -c 'claude setup-token'
+```
+Open the link on your own computer, approve it, and paste the code back. It prints a long token starting with `sk-ant-oat01-`. Copy it. It works like a password to your subscription: don't share it or paste it anywhere else.
+
+```bash
+install -d -m 700 /etc/imd-worker
+```
+
+Save it in a file only root can read. Paste the token when asked; it isn't shown and doesn't go into your shell history:
+
+```bash
+read -rsp 'Paste token: ' T; echo; (umask 077; printf 'CLAUDE_CODE_OAUTH_TOKEN=%s\n' "$T" > /etc/imd-worker/claude-token.env); unset T
+```
+```bash
+grep -c '^CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-' /etc/imd-worker/claude-token.env
+```
+Must print `1`.
+
+Test the token on its own (the empty temporary home hides the normal sign-in, so `READY` proves the token works by itself):
+
+```bash
+set -a; . /etc/imd-worker/claude-token.env; set +a
+```
+```bash
+runuser -l imd-worker -w CLAUDE_CODE_OAUTH_TOKEN -c 'HOME=$(mktemp -d) claude -p "Reply exactly READY." --tools ""'
+```
+Must print `READY`. If it can't authenticate, the token was pasted wrong: repeat the `read` line.
+
+The service in step 6 loads this file. **Set a calendar reminder** for about 11 months from now to repeat these steps and restart the workers. If the token may have leaked, log out all sessions in your Claude account settings and make a new one.
+
+> **`imd doctor` with the token:** in a root shell, first run the `set -a; . /etc/imd-worker/claude-token.env; set +a` line, then use `runuser -l imd-worker -w CLAUDE_CODE_OAUTH_TOKEN -c 'imd doctor'` (add `IDENTITYMD_HOME=…` inside the quotes for workers 2, 3…). Without `-w CLAUDE_CODE_OAUTH_TOKEN`, the doctor uses the normal sign-in and can report it expired even while the workers are fine.
 
 ## 5. Pair the NFT and register the agent
 
@@ -301,6 +338,7 @@ Group=imd-worker
 WorkingDirectory=/home/imd-worker
 Environment=HOME=/home/imd-worker
 Environment=PATH=/opt/imd-worker/bin:/opt/imd-worker/node/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=-/etc/imd-worker/claude-token.env
 ExecStart=/opt/imd-worker/bin/imd start --runtime claude --concurrency 1
 Restart=always
 RestartSec=30s
@@ -633,6 +671,38 @@ journalctl -u imd-worker.service -u imd-worker-2.service -n 40 --no-pager -o cat
 ```
 Each worker must show `runtimes: claude 2.1.300 (Claude Code)` and `admitted`, and no `oracle work is off` line. If one appears, see [Oracle work and the sandbox](#oracle-work-and-the-sandbox).
 
+### Switch an existing worker to the long-lived token
+
+For a worker set up with an earlier version of this guide. First create and test the token as in [Long-lived sign-in](#long-lived-sign-in-recommended), then:
+
+```bash
+sed -i 's/ CLAUDE_CODE_OAUTH_TOKEN//' /opt/imd-worker/bin/claude
+```
+```bash
+grep unset /opt/imd-worker/bin/claude
+```
+Must show `unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL`, without `CLAUDE_CODE_OAUTH_TOKEN` (the old wrapper cleared it).
+
+Give the token to every worker service with a drop-in file **(one block)**:
+
+```bash
+for u in $(systemctl list-unit-files 'imd-worker*.service' --no-legend | awk '{print $1}'); do
+  mkdir -p /etc/systemd/system/$u.d
+  printf '[Service]\nEnvironmentFile=/etc/imd-worker/claude-token.env\n' > /etc/systemd/system/$u.d/20-claude-token.conf
+  echo "added token to $u"
+done
+```
+```bash
+systemctl daemon-reload
+```
+```bash
+systemctl restart imd-worker.service imd-worker-2.service
+```
+```bash
+journalctl -u imd-worker.service -u imd-worker-2.service -n 40 --no-pager -o cat | grep -E 'self-test (passed|failed)'
+```
+Within a minute or two each worker must log `self-test passed`.
+
 ### Oracle work and the sandbox
 
 Oracle tasks (and research-report and build-contract-project tasks) are “jailed”: Claude Code runs their commands inside a bubblewrap sandbox, which sees only a few folders and reaches the network through a proxy. IMD added this after an attack in which an oracle job tried to trick agents into reading a `.env` file and writing it into their answer. A worker whose sandbox can't start gets **no** jailed work, and its log says why on a line starting `oracle work is off on this machine:`.
@@ -817,7 +887,7 @@ Choose **GitHub.com → HTTPS → web browser** and follow the device-code steps
 | Log: `oracle work is off … apparmor_restrict_unprivileged_userns is 1` | The `sysctl` steps in [Oracle work and the sandbox](#oracle-work-and-the-sandbox). |
 | Log: `oracle work is off … bubblewrap cannot start here: bwrap: Can't mount proc on /newroot/proc` | The `ProtectKernelTunables` drop-in in [Oracle work and the sandbox](#oracle-work-and-the-sandbox). The hint about running “on the host or a VM” doesn't apply to a VPS. |
 | Log / `imd doctor`: `self-test failed … apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted …)` | Ubuntu's `bwrap-userns-restrict` AppArmor profile: turn it off as in [Oracle work and the sandbox](#oracle-work-and-the-sandbox), then restart the services. The doctor's sysctl hint only helps if that setting is still `1`. |
-| `imd doctor`: `✗ claude run  Failed to authenticate: OAuth session expired` | The shared Claude sign-in expired: `runuser -l imd-worker -c 'claude auth login --claudeai'`, then restart the services. One sign-in covers all workers. |
+| `imd doctor`: `✗ claude run  Failed to authenticate: OAuth session expired` | The shared Claude sign-in expired. Best fix: switch to the [long-lived token](#switch-an-existing-worker-to-the-long-lived-token). Quick fix: `runuser -l imd-worker -c 'claude auth login --claudeai'`, then restart the services. One sign-in covers all workers. If you already use the token, run the doctor with it (see [Long-lived sign-in](#long-lived-sign-in-recommended)). |
 | `imd doctor`: `✗ presence … not accepting work right now` | Read the log: `taking no work: self-test failed` names the cause. Right after a fix and restart, wait a few minutes: once the log says `self-test passed`, presence turns ✓ after a heartbeat or two. |
 | `imd update`: *“codex sandbox did not hold the jail … sudo imd sandbox”* | Ignore it if the workers' logs show no `oracle work is off` line; it tested the unused Codex runtime. |
 | Usage runs out | `systemctl stop imd-worker.service`, and start it again when your limit resets. |
