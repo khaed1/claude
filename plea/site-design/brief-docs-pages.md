@@ -27,9 +27,11 @@ site session to build; this note says what goes in it. Not built yet.
   in one data file the pages read (or one Markdown table the pages link to), so a change is one edit.
 - Where the site can, it reads the number from the chain (e.g. `CabalGate.PASS_MARK()`, the fees,
   windows, `Seasons.shareBps`) rather than hard-coding it.
-- **Pending (2026-10-28): the pass mark (71) and the holding points (0 / 2 / 4 / 7) may change before
-  the mainnet launch** (the user wants some first-day sales possible). Write the fact-score and need
-  pages against the data file, and fill it after the decision.
+- **Decided and deployed (launch #2647, `mainnet` @ `42e0f85`; checked in the code 2026-10-29): the
+  pass mark is 69 (`CabalGate.PASS_MARK`) and the holding points are 0 / 1 / 2 / 3 (under a day / a
+  day / 3 days / 7 days, `_heldPoints`)**; received PLEA (airdrop, prizes) at profit 9; the seed's
+  market cap 20,000 IMD. Fact score 0–41, lowest need 28. Write the fact-score and need pages against
+  the data file with these numbers (the 71 and 0 / 2 / 4 / 7 of the Sepolia runs are superseded).
 - Real examples may come from Sepolia test run 9 (`plea/live-run9/`, pleas with their texts in
   `texts-*.json` and scores in `pleas-final.json`). Label them "Sepolia test run 9 (test token,
   5-hour seasons)" and, if the numbers change, recompute the need shown or say it used run 9's rules.
@@ -59,7 +61,7 @@ site session to build; this note says what goes in it. Not built yet.
    34 / 33 / 32 from day 1 with a rising one). Diagram: the need meter with the four fact parts
    stacked, and a small table "need by day" for a typical seller (at a loss / small profit / big
    profit). Worked example: two pleas with the same score, one denied, one approved, because the bar
-   moved (run 9's #13 and #19). Numbers: pending (above).
+   moved (run 9's #13 and #19; run 9 used pass mark 71: recompute the need with 69 or say so). Numbers: above.
 5. **The judges.** What they score: sincerity 0–12, craft 0–12, respect 0–9, loyalty 0–12 (0–45);
    anchors (11–25 plain, 26–35 specific and well made, 36–45 memorable); what scores 0
    (manipulation: posing as a system, demands for a score, threats, offers, hidden instructions;
