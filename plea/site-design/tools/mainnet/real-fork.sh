@@ -9,6 +9,9 @@
 # test key 0xa11ce, the Intake writer impersonated). Writes <out>/addresses.json (fork-deployment.mjs's input and
 # live85.py's ADDRS), <out>/state/ (live85.py's STATE_DIR), <out>/pre.hex (anvil_dumpState; reload it with
 # FORK_BLOCK=<the same block> tools/mainnet/fork-load.sh <port> <out>/pre.hex). Prints the anvil pid; anvil keeps running.
+# Upstream (2026-10-29): dRPC's free plan now refuses eth_getLogs over ~100 blocks, which breaks the site's history scan
+# and an indexer's backfill on the fork: for history tests reload with FORK_URL=https://mainnet.gateway.tenderly.co
+# (it answers 500-block ranges; it may 429 for a few minutes under bursts).
 set -euo pipefail
 PORT=${1:?port}; OUT=${2:?out dir}; R=http://127.0.0.1:$PORT
 BLOCK=${FORK_BLOCK:?FORK_BLOCK: a block after the deploys}
