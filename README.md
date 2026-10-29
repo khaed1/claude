@@ -49,6 +49,20 @@ echo 'kernel.apparmor_restrict_unprivileged_userns=0' > /etc/sysctl.d/60-imd-use
 ```
 The second line keeps the setting after a reboot. Read [the security note](#security-note) before turning this on.
 ```bash
+test -e /etc/apparmor.d/bwrap-userns-restrict && echo "present" || echo "not present"
+```
+If it prints `present` (newer Ubuntu), turn that AppArmor profile off with the next three commands; otherwise skip them. It lets bubblewrap make one namespace but blocks the second one Claude's sandbox makes inside it, and the worker's self-test then fails with *“apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted …)”*.
+```bash
+mkdir -p /etc/apparmor.d/disable
+```
+```bash
+ln -sf /etc/apparmor.d/bwrap-userns-restrict /etc/apparmor.d/disable/
+```
+```bash
+apparmor_parser -R /etc/apparmor.d/bwrap-userns-restrict
+```
+The link keeps it off after a reboot.
+```bash
 useradd --create-home --shell /bin/bash imd-worker
 ```
 ```bash
@@ -647,6 +661,26 @@ sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 echo 'kernel.apparmor_restrict_unprivileged_userns=0' > /etc/sysctl.d/60-imd-userns.conf
 ```
 
+Ubuntu's own `/usr/lib/sysctl.d/10-apparmor.conf` sets it to `1`; the `60-…` file loads later and wins, so leave both.
+
+```bash
+aa-status | grep -E '^ +(bwrap|unpriv_bwrap)$'
+```
+Only if it prints `bwrap` or `unpriv_bwrap`, turn off Ubuntu's `bwrap-userns-restrict` AppArmor profile. It blocks the second namespace Claude's sandbox makes inside bubblewrap's:
+```bash
+mkdir -p /etc/apparmor.d/disable
+```
+```bash
+ln -sf /etc/apparmor.d/bwrap-userns-restrict /etc/apparmor.d/disable/
+```
+```bash
+apparmor_parser -R /etc/apparmor.d/bwrap-userns-restrict
+```
+```bash
+aa-status | grep -E '^ +(bwrap|unpriv_bwrap)$'
+```
+Must print nothing now. (`:glycin:bwrap` and `unprivileged_userns` belong to other programs and can stay.)
+
 Turn off `ProtectKernelTunables` in every worker service with a drop-in file, which leaves the service files themselves unchanged **(one block)**:
 
 ```bash
@@ -680,9 +714,10 @@ If a kernel update is waiting (`apt` printed *“Pending kernel upgrade”*), no
 
 #### Security note
 
-Two of these settings loosen Linux protections so the sandbox can run:
+These settings loosen Linux protections so the sandbox can run:
 
 - **`apparmor_restrict_unprivileged_userns=0`** lets any program on the VPS create user namespaces, which bubblewrap needs. Ubuntu blocks this by default since 23.10 because it exposes more of the kernel to unprivileged code; several past kernel bugs (for example CVE-2024-1086 and CVE-2023-0386) could only be exploited this way. The realistic risk is a chain: a malicious job gets code running in the sandbox **and** the kernel has an unpatched bug **and** the attacker uses it to become root and read the worker's sign-in and IMD keys. Keep the kernel patched (leave `unattended-upgrades` on and reboot after kernel updates) and this chain is unlikely.
+- **Turning off `bwrap-userns-restrict`** removes Ubuntu's extra limits on what runs inside bubblewrap's sandboxes, so bubblewrap behaves as it does on Debian or Ubuntu 22.04. Small added risk, of the same kind as the setting above. To undo it: `rm /etc/apparmor.d/disable/bwrap-userns-restrict && apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict` (oracle work then stops).
 - **`ProtectKernelTunables=no`** lets the worker *read* more of `/proc`. It can't change kernel settings, because it doesn't run as root. Small risk.
 
 The sandbox only hides what it doesn't open. Keep unrelated secrets (`.env` files, SSH keys, wallet keys) **off this VPS** entirely, so a tricked agent has nothing to leak. To check what the worker account can read **(one block)**:
@@ -781,6 +816,9 @@ Choose **GitHub.com → HTTPS → web browser** and follow the device-code steps
 | Log / explorer: `oracle work is off … Claude's sandbox needs bwrap and socat` | `apt-get install -y bubblewrap socat`, then restart the services. |
 | Log: `oracle work is off … apparmor_restrict_unprivileged_userns is 1` | The `sysctl` steps in [Oracle work and the sandbox](#oracle-work-and-the-sandbox). |
 | Log: `oracle work is off … bubblewrap cannot start here: bwrap: Can't mount proc on /newroot/proc` | The `ProtectKernelTunables` drop-in in [Oracle work and the sandbox](#oracle-work-and-the-sandbox). The hint about running “on the host or a VM” doesn't apply to a VPS. |
+| Log / `imd doctor`: `self-test failed … apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted …)` | Ubuntu's `bwrap-userns-restrict` AppArmor profile: turn it off as in [Oracle work and the sandbox](#oracle-work-and-the-sandbox), then restart the services. The doctor's sysctl hint only helps if that setting is still `1`. |
+| `imd doctor`: `✗ claude run  Failed to authenticate: OAuth session expired` | The shared Claude sign-in expired: `runuser -l imd-worker -c 'claude auth login --claudeai'`, then restart the services. One sign-in covers all workers. |
+| `imd doctor`: `✗ presence … not accepting work right now` | Read the log: `taking no work: self-test failed` names the cause. Right after a fix and restart, wait a few minutes: once the log says `self-test passed`, presence turns ✓ after a heartbeat or two. |
 | `imd update`: *“codex sandbox did not hold the jail … sudo imd sandbox”* | Ignore it if the workers' logs show no `oracle work is off` line; it tested the unused Codex runtime. |
 | Usage runs out | `systemctl stop imd-worker.service`, and start it again when your limit resets. |
 
