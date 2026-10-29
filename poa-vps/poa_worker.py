@@ -338,7 +338,7 @@ def hosted_grade(cfg, state, key, me):
         except RuntimeError as e:          # e.g. seat already closed: don't retry this one
             log('grade_rejected', assignment=it['txid'][:16], error=str(e)[:200]); done.append(it['txid'])
         save_state(state)
-        time.sleep(2)                       # one at a time: same-account submits must not collide
+        time.sleep(8)                       # one at a time, and the site allows 8 grades per minute
     del done[:-1000]
 
 
