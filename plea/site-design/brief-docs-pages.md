@@ -106,8 +106,8 @@ site session to build; this note says what goes in it. Not built yet.
     each verdict and the flatline.
 14. **Keepers.** Upkeep anyone can do: deliver approved letters (earns the 0.25 IMD tip), settle or
     expire unanswered ones, record points, close seasons, rebalance the wall. Every call is open to
-    anyone and gives no power. Link the keeper bot's guide (`keeper/` on the repository's `main`
-    branch, once merged after the launch job).
+    anyone and gives no power. Link the keeper bot's guide (`keeper/VPS.md` on the repository's
+    `main` branch, merged 2026-10-28).
 15. **Contracts, owner and audits.** The mainnet addresses (filled after the launch) with Etherscan
     links. No admin, no upgrades. What the owner can do (seed before START; set the distributor's
     root once; exempt a sender for good with `PLEA.allow`; receives the 1% fee) and cannot (change any
