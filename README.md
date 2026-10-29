@@ -801,6 +801,43 @@ Should print nothing, or only files the worker really needs.
 
 The worker limits Claude Code's tools per task: ordinary tasks get file editing and a few read-only shell commands, research tasks get web search and fetch, and connected coding tasks get a shell. Jailed tasks (oracle and others) run their commands in a bubblewrap sandbox; see [Oracle work and the sandbox](#oracle-work-and-the-sandbox). Claude Code can still reach anything the worker account can, so keep unrelated secrets out of `/home/imd-worker`. IMD submits work as a device-signed Git bundle; it doesn't need to push to your GitHub account.
 
+### Optional: phone warnings when a worker stops taking work
+
+A worker can stay online while taking no work (failed self-test, expired sign-in) and nothing tells you. [`scripts/imd-watch`](scripts/imd-watch) checks every 15 minutes and sends a phone notification through the free [ntfy](https://ntfy.sh) app when a worker has taken no work for 30 minutes or its service is down, reminds you every 12 hours while it lasts, and says when it's working again. Messages contain only the server name, worker name and the reason from the log; anyone who knows your random topic name can read them.
+
+Install the **ntfy** app on your phone. Then create a random topic name:
+
+```bash
+install -d -m 700 /etc/imd-worker
+```
+```bash
+echo "imd-$(head -c 12 /dev/urandom | od -An -tx1 | tr -d ' \n')" > /etc/imd-worker/ntfy-topic && cat /etc/imd-worker/ntfy-topic
+```
+In the app, tap **+** and subscribe to exactly that name.
+
+Copy [`scripts/imd-watch`](scripts/imd-watch) to `/usr/local/sbin/imd-watch` on the VPS (paste it with `cat > /usr/local/sbin/imd-watch <<'EOF'` … `EOF`), then:
+
+```bash
+chmod 755 /usr/local/sbin/imd-watch
+```
+```bash
+/usr/local/sbin/imd-watch --test
+```
+Your phone must show *“Test notification: warnings will arrive here.”*
+
+Run it every 15 minutes **(one block)**:
+
+```bash
+printf '[Unit]\nDescription=Warn when an IMD worker stops taking work\n\n[Service]\nType=oneshot\nExecStart=/usr/local/sbin/imd-watch\n' > /etc/systemd/system/imd-watch.service
+printf '[Unit]\nDescription=Run imd-watch every 15 minutes\n\n[Timer]\nOnBootSec=15min\nOnUnitActiveSec=15min\n\n[Install]\nWantedBy=timers.target\n' > /etc/systemd/system/imd-watch.timer
+systemctl daemon-reload
+systemctl enable --now imd-watch.timer
+```
+```bash
+systemctl list-timers imd-watch.timer --no-pager
+```
+Must show the timer with a time under `NEXT`. It watches every **enabled** `imd-worker*` service, so new workers are covered automatically.
+
 ### Optional: Foundry for fuzzing campaigns
 
 The log line `forge not found, so this machine will not be offered fuzzing campaigns` is informational. Fuzzing campaigns run on the CPU only and use **none** of your Claude allowance, but they share the worker's one-CPU limit with Claude tasks. Foundry installs under the worker account:

@@ -1,0 +1,54 @@
+#!/bin/bash
+# imd-watch: send a phone notification (ntfy) when an IMD worker stops taking work.
+# Runs as root from imd-watch.timer. `imd-watch --test` sends a test notification.
+set -u
+TOPIC=$(cat /etc/imd-worker/ntfy-topic)
+STATE_DIR=/var/lib/imd-watch
+REMIND=$((12 * 3600))   # repeat a warning every 12 hours while the problem lasts
+GRACE=1800              # ignore workers started less than 30 minutes ago
+host=$(hostname)
+mkdir -p "$STATE_DIR"
+
+send() {
+  curl -fsS -m 20 -H "Title: $1" -H "Tags: ${3:-warning}" -d "$2" "https://ntfy.sh/$TOPIC" >/dev/null \
+    || echo "imd-watch: could not send notification" >&2
+}
+
+if [ "${1:-}" = "--test" ]; then
+  send "IMD watch on $host" "Test notification: warnings will arrive here." "white_check_mark"
+  exit
+fi
+
+now=$(date +%s)
+for u in $(systemctl list-unit-files 'imd-worker*.service' --no-legend | awk '$2 == "enabled" {print $1}'); do
+  name=${u%.service}
+  why=""
+  if ! systemctl is-active -q "$u"; then
+    why="service is $(systemctl is-active "$u")"
+  else
+    started=$(date -d "$(systemctl show "$u" -p ActiveEnterTimestamp --value)" +%s 2>/dev/null || echo "$now")
+    if [ $((now - started)) -ge "$GRACE" ]; then
+      recent=$(journalctl -u "$u" --since "-30min" --no-pager -o cat | grep -E ' (alive|disconnected) ')
+      if ! journalctl -u "$u" --since "-10min" --no-pager -o cat | grep -q ' alive '; then
+        why="no heartbeat in the last 10 minutes"
+      elif ! grep -qvE 'taking no work|self-testing|disconnected' <<<"$recent"; then
+        why=$(tail -1 <<<"$recent" | sed 's/.* · //')
+        reason=$(journalctl -u "$u" --since "-3h" --no-pager -o cat | grep 'self-test failed' | tail -1 | cut -c26-400)
+        [ -n "$reason" ] && why="$why
+$reason"
+      fi
+    fi
+  fi
+
+  f="$STATE_DIR/$name"
+  if [ -n "$why" ]; then
+    last=$(cat "$f" 2>/dev/null || echo 0)
+    if [ $((now - last)) -ge "$REMIND" ]; then
+      send "IMD $name on $host: not taking work" "$why"
+      echo "$now" > "$f"
+    fi
+  elif [ -e "$f" ]; then
+    send "IMD $name on $host: working again" "Taking work again." "white_check_mark"
+    rm -f "$f"
+  fi
+done
