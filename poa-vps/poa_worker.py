@@ -329,7 +329,11 @@ def hosted_grade(cfg, state, key, me):
             continue
         sc, why = grades[i]
         try:
-            res = hosted_get('api/hosted/grade', key=key, assignment=it['txid'], score=sc, reasoning=why)
+            try:
+                res = hosted_get('api/hosted/grade', key=key, assignment=it['txid'], score=sc, reasoning=why)
+            except RateLimited as e:        # refused before acting: wait as told, then send this grade once more
+                time.sleep(min(max(e.retry_after, 10), 90))
+                res = hosted_get('api/hosted/grade', key=key, assignment=it['txid'], score=sc, reasoning=why)
             log('graded', assignment=it['txid'][:16], score=sc, reasoning=why, answer=str(it['answer'])[:160],
                 response=json.dumps(res)[:200])
             done.append(it['txid'])
@@ -338,7 +342,7 @@ def hosted_grade(cfg, state, key, me):
         except RuntimeError as e:          # e.g. seat already closed: don't retry this one
             log('grade_rejected', assignment=it['txid'][:16], error=str(e)[:200]); done.append(it['txid'])
         save_state(state)
-        time.sleep(8)                       # one at a time, and the site allows 8 grades per minute
+        time.sleep(9)                       # one at a time, under the site's 8 requests per minute
     del done[:-1000]
 
 
