@@ -13,6 +13,9 @@ Tested with Caddy 2.6.2 (Ubuntu's package, the VPS's version): on 2026-10-29 aga
 and on 2026-10-30 against the current version `pleaimd-0cb8.imd.site`: all 29 files arrive byte for byte
 equal to the site's own list (`imd-deployment.json`), IMD's security headers pass through, and
 `caddy validate` accepts the Caddyfile below. Without the `header_up Host` line IMD's gateway answers 403.
+IMD sends the files uncompressed (a first visit to Home is about 1.3 MB); the `encode` line makes Caddy
+compress them for the visitor: all 29 files 1,739 KB → 767 KB sent, byte for byte the same once the browser
+unpacks them (tested 2026-10-30). Repeat visits cost almost nothing (the browser checks its copy).
 
 Paste one line at a time.
 
@@ -41,6 +44,7 @@ Add the block at the end of the Caddyfile (it keeps the indexer's block above it
 cat >> /etc/caddy/Caddyfile <<'EOF'
 
 pleaimd.fun, www.pleaimd.fun {
+	encode zstd gzip
 	reverse_proxy https://pleaimd-0cb8.imd.site {
 		header_up Host pleaimd-0cb8.imd.site
 	}
