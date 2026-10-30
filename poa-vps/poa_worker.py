@@ -188,6 +188,22 @@ def landed(resp):
     return find(resp, ['answered']) is True or (isinstance(txid, str) and bool(re.fullmatch(r'[0-9a-f]{64}', txid)))
 
 
+def await_job(res, key):
+    """A busy node answers 202 {job_id, poll_url, retry_after_seconds}: accepted, not done. Poll api/job/<id> for
+    the real result (same body as an inline reply; kept ~1 h). Returns the last reply; still has poll_url if queued."""
+    for _ in range(6):
+        poll = find(res, ['poll_url'])
+        if not (isinstance(poll, str) and re.fullmatch(r'/?api/job/[0-9A-Za-z_-]{8,80}', poll)):
+            return res
+        wait = find(res, ['retry_after_seconds'])
+        time.sleep(min(max(wait if isinstance(wait, int) else 5, 2), 30))
+        try:
+            res = hosted_get(poll.lstrip('/'), key=key)
+        except Busy:
+            pass
+    return res
+
+
 def hosted_challenge(cfg, state, key, acct):
     ch = hosted_get('api/hosted/challenge', key=key)
     words = find(ch, ['words', 'required_words', 'challenge_words'])
@@ -216,9 +232,20 @@ def hosted_challenge(cfg, state, key, acct):
                 log('answer_rejected_locally', run=run, epoch=epoch, words=words, cost_usd=round(cost, 4), text=(text or '')[:600])
             else:
                 res = hosted_get('api/hosted/answer', key=key, answer=text)
-                state['answered'][akey] = 2
                 log('answer_submitted', mode='hosted', run=run, epoch=epoch, words=words, cost_usd=round(cost, 4),
                     spent_usd=round(state['spent_usd'], 4), response=json.dumps(res)[:400], text=text)
+                try:
+                    res = await_job(res, key)
+                except RuntimeError as e:           # the queued job failed: the one remaining try stays available
+                    log('answer_failed', run=run, epoch=epoch, error=str(e)[:300])
+                    return
+                if find(res, ['poll_url']):         # still queued: the next cycle's 'answered' check decides
+                    log('answer_pending', run=run, epoch=epoch)
+                elif find(res, ['ok']) is True or find(res, ['challenge_txid']):
+                    state['answered'][akey] = 2
+                    log('answer_result', run=run, epoch=epoch, response=json.dumps(res)[:400])
+                else:
+                    log('answer_failed', run=run, epoch=epoch, response=json.dumps(res)[:400])
 
 
 def hosted_mine(cfg, state, key, acct):
