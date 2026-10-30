@@ -19,6 +19,7 @@ You're picking up **PLEA** on the IMD swarm (imd.fun). **imd/acc** belongs to a 
 - **Old v10 (#1242):** CabalGate `0x758b8300c62563591950f32717be44a5140a20f9`, PLEA `0x9b8d9aae44e81b1205e227911db279bde6edead9`, hook `0x3d4CcAc329010b8beA3b14498d9a45EAB00c68Cc`; the user wants it dead: **dies Mon 2026-10-12 12:54:24 UTC**. Don't plead on it.
 
 ## Where we stopped (2026-10-15 ~11:30 UTC)
+- **Thu 2026-10-30 ~15:30 UTC: session end; the next session starts from `NEXT_PROMPT.md`.** A PLEA copy is live (IMD #2718, token `0xd87e…7b72`, hook `0x8345…e880`); ours is `0x1f15…0ab3`. Nothing scheduled.
 - **Thu 2026-10-30 15:00 UTC: PLEA LISTED on imd/acc (11 of 14 yes; block 26,306,327, tx `0xad699825…c03f`; rate 50, beneficiary the owner; challengeable from 2026-11-06 14:59 UTC). Next with the user: the keeper on the VPS (DRY_RUN=1), the seed date (then the snapshot + root just before it), the airdrop list, top-ups (owner ~0.7 IMD more for the 2 IMD opening buy; wallet A IMD/ETH for the claims).**
 - **Thu 2026-10-30 ~14:55 UTC: the imd/acc application is SENT (owner, tx `0xe608d332…7334`; oracle request `71740a16-b7d3-4c62-8492-cf32e9bbecc1`, quorum 11/15): watch for Listed / Rejected / AskCleared. Owner wallet 1.301 IMD (needs ~0.7 more for the 2 IMD opening buy), 0.0029 ETH. Wallet A: 0 IMD, 0.00056 ETH.**
 - **Thu 2026-10-29 ~00:40 UTC: the indexer guide is public: `khaed1/plea` `indexer/VPS.md` (`next` @ `389efc1`, `main` @ `89943ca`, `mainnet` @ `da9b5b8`; docs only).**
