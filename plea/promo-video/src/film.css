@@ -110,3 +110,27 @@ html, body { margin: 0; background: #000; }
 .sx-seat.is-on { border: 3px solid var(--ink); background: var(--ink); }
 .sx-seat.is-out { border: 3px dashed var(--ink-3); background: transparent; color: var(--ink-3); text-decoration: line-through; }
 .sx, .sx * { transition: none !important; animation: none !important; }
+
+/* PLEA airdrop · Contest (src/series/contest.js): X screenshots in frames, chips, the reply composer. */
+.sx-x { position: relative; box-sizing: content-box; border: 3px solid var(--ink); border-radius: 18px; overflow: hidden; box-shadow: 8px 8px 0 var(--shadow-color); }
+.sx-x__z { position: relative; }
+.sx-chip { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-weight: 700; font-size: 22px; padding: 8px 18px; border: 3px solid var(--ink);
+  border-radius: 999px; background: var(--card); color: var(--ink); box-shadow: 4px 4px 0 var(--shadow-color); }
+.sx-chip b { font-family: var(--font-display); font-stretch: 125%; font-weight: 800; }
+.sx-chip--y { background: var(--action); color: var(--on-action); }
+.sx-chip--sm { font-family: var(--font-mono); font-weight: 600; font-size: 15px; padding: 4px 12px; box-shadow: 3px 3px 0 var(--shadow-color); }
+.sx-chip--md { font-family: var(--font-mono); font-weight: 600; font-size: 18px; padding: 6px 16px; }
+.sx-chip--ok { background: var(--approved); color: var(--on-state); font-size: 19px; }
+.sx-chip--no { background: var(--denied); color: var(--on-state); font-size: 19px; }
+.sx-comp { background: #141414; border-top: 1px solid #2F3336; font-family: var(--font-body); color: #E7E9EA; }
+.sx-comp__av { position: absolute; left: 14px; top: 14px; width: 38px; height: 38px; border-radius: 50%; background: var(--action); color: #121212;
+  font-weight: 800; font-size: 11px; display: grid; place-content: center; }
+.sx-comp__to, .sx-comp__me { position: absolute; left: 62px; top: 12px; font-size: 13px; color: #71767B; }
+.sx-comp__me { font-size: 14px; }
+.sx-comp__me b { color: #E7E9EA; }
+.sx-comp__text { position: absolute; left: 62px; top: 34px; right: 16px; font-size: 15px; line-height: 1.32; }
+.sx-comp__ph { color: #71767B; font-size: 18px; }
+.sx-comp__btn { position: absolute; right: 14px; bottom: 12px; height: 32px; padding: 0 18px; border-radius: 999px; background: #1D9BF0; color: #fff;
+  font-weight: 700; font-size: 14px; display: grid; place-content: center; }
+.sx-comp__ex { position: absolute; right: 14px; top: 10px; font-family: var(--font-mono); font-weight: 600; font-size: 11px; background: var(--action); color: #121212;
+  padding: 2px 7px; border-radius: 4px; }

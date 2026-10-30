@@ -34,7 +34,7 @@ const span = (s) => [typeof s.from === 'function' ? s.from(ctx) : s.from, typeof
 async function init() {
   if (film !== 'promo') {
     const cfg = (await json('../data/clips.json'))[film];
-    const G = await json('../data/beats-clip.json');
+    const G = await json(`../data/${cfg.beats || 'beats-clip.json'}`);   // a clip may bring its own music edit
     const c = { ...base, ...makeGrid(G), HIT: G.hit, LEN: G.length, cfg };
     const root = el('section', 'shot sx theme-dark');
     stage.appendChild(root);
