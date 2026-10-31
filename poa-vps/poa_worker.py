@@ -188,19 +188,27 @@ def landed(resp):
     return find(resp, ['answered']) is True or (isinstance(txid, str) and bool(re.fullmatch(r'[0-9a-f]{64}', txid)))
 
 
+def queued(res):
+    """True while a job reply says it is not finished: it still carries a poll_url, or a state like 'queued'."""
+    st = find(res, ['state', 'status'])
+    return bool(find(res, ['poll_url'])) or (isinstance(st, str) and st.lower() in ('queued', 'pending', 'running', 'processing'))
+
+
 def await_job(res, key):
     """A busy node answers 202 {job_id, poll_url, retry_after_seconds}: accepted, not done. Poll api/job/<id> for
-    the real result (same body as an inline reply; kept ~1 h). Returns the last reply; still has poll_url if queued."""
-    for _ in range(6):
-        poll = find(res, ['poll_url'])
-        if not (isinstance(poll, str) and re.fullmatch(r'/?api/job/[0-9A-Za-z_-]{8,80}', poll)):
-            return res
+    the real result (same body as an inline reply; kept ~1 h). Returns the last reply; queued(reply) if unfinished."""
+    poll = find(res, ['poll_url'])
+    if not (isinstance(poll, str) and re.fullmatch(r'/?api/job/[0-9A-Za-z_-]{8,80}', poll)):
+        return res
+    for _ in range(8):
         wait = find(res, ['retry_after_seconds'])
         time.sleep(min(max(wait if isinstance(wait, int) else 5, 2), 30))
         try:
             res = hosted_get(poll.lstrip('/'), key=key)
         except Busy:
-            pass
+            continue
+        if not queued(res):
+            break
     return res
 
 
@@ -239,7 +247,7 @@ def hosted_challenge(cfg, state, key, acct):
                 except RuntimeError as e:           # the queued job failed: the one remaining try stays available
                     log('answer_failed', run=run, epoch=epoch, error=str(e)[:300])
                     return
-                if find(res, ['poll_url']):         # still queued: the next cycle's 'answered' check decides
+                if queued(res):                     # still queued: the next cycle's 'answered' check decides
                     log('answer_pending', run=run, epoch=epoch)
                 elif find(res, ['ok']) is True or find(res, ['challenge_txid']):
                     state['answered'][akey] = 2
