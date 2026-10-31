@@ -28,7 +28,7 @@ rulebook) at the end with the PLEA stamp on the music's closing hit. Real run 9 
 
 - Contest · Plead your case (`clip10` the plain cut, `clip11` with `"fx": true`; `src/series/contest.js`): the X contest for the
   airdrop on the owner's real X screenshots (not committed: put `profile.png`, `post.png`, `pinned.png` and the `icons/` cut from
-  pinned.png's action bar in `CAPTURES/contest/`). Its own music edit, 29.6 s: `tools/make_clips_music.py <spy.wav>
+  pinned.png's action bar in `CAPTURES/contest/`; cut them with `python3 -I tools/cut_x_icons.py <CAPTURES>/contest`). Its own music edit, 29.6 s: `tools/make_clips_music.py <spy.wav>
   data/spy-beats-original.json <dir> 10` → `data/beats-contest.json` (`"beats"` in clips.json); `"pill"`, `"kicker"`, `"top"` replace
   the series' labels. Build: `CAPTURES=<dir> node tools/cues.mjs clip11 <dir>/cues.json`, `python3 -I tools/sfx.py series <dir>/cues.json
   <dir>/clip.wav <dir>`, `CAPTURES=<dir> FILM=clip11 node tools/render.mjs <out.mp4> 16x9 0 29.64 60 <dir>/mix.wav`.
