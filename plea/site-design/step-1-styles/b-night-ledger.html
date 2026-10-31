@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>B · Night ledger</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0;background:#0A0A0A}
+a{color:#F2F2F2}a:hover{color:#A6A6A6}
+.b-board{width:1200px;height:1280px;box-sizing:border-box;padding:48px;background:#0A0A0A;color:#F2F2F2;font-family:"IBM Plex Mono",monospace;font-size:14px;line-height:1.55;font-variant-numeric:tabular-nums}
+.b-board *{box-sizing:border-box}
+.b-lab{font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:#A6A6A6}
+.b-intro{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:40px;align-items:start;margin-bottom:32px}
+.b-tag{display:inline-block;margin:0 0 12px;padding:2px 10px;border:1.5px solid #F2F2F2;border-radius:999px;font-size:11px;letter-spacing:0.06em;text-transform:uppercase}
+.b-intro h1{margin:0 0 8px;font-size:34px;line-height:1.1;font-weight:600;letter-spacing:0.02em}
+.b-mood{margin:0;font-size:15px;color:#A6A6A6;max-width:34ch}
+.b-type{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.b-spec{border:1.5px solid #3A3A3A;padding:10px 12px;background:#141414}
+.b-spec b{display:block;font-size:28px;line-height:1.15}
+.b-spec span{display:block;font-size:11px;color:#A6A6A6;line-height:1.4}
+.b-sw{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:8px}
+.b-chip{border:1.5px solid #3A3A3A;height:40px}
+.b-swl{font-size:10px;line-height:1.35;color:#A6A6A6;margin-top:4px}
+.b-screen{border:1.5px solid #F2F2F2;background:#0A0A0A}
+.b-bar{display:flex;align-items:center;gap:16px;padding:14px 20px;border-bottom:1.5px solid #F2F2F2}
+.b-logo{display:inline-flex;align-items:center;height:40px;padding:0 16px;border:1.5px solid #F2F2F2;border-radius:999px;font-weight:600;font-size:15px;letter-spacing:0.06em}
+.b-cur{display:inline-block;width:9px;height:2px;background:#F2F2F2;margin-left:2px;align-self:flex-end;margin-bottom:13px}
+.b-nav{display:flex;flex:1}
+.b-nav a{display:inline-flex;align-items:center;height:40px;padding:0 14px;border:1.5px solid #F2F2F2;margin-left:-1.5px;font-size:13px;text-decoration:none;letter-spacing:0.04em;text-transform:uppercase}
+.b-nav a:first-child{border-radius:999px 0 0 999px;margin-left:0}
+.b-nav a:last-child{border-radius:0 999px 999px 0}
+.b-nav a.on{background:#F2F2F2;color:#0A0A0A}
+.b-pill{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;border:1.5px solid #3A3A3A;border-radius:999px;font-size:12px;white-space:nowrap}
+.b-dot{width:8px;height:8px;border-radius:50%;background:#3ECF7A}
+.b-main{padding:24px;display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:24px}
+.b-card{position:relative;background:#141414;border:1.5px solid #F2F2F2;padding:22px 24px}
+.b-meta{display:flex;align-items:center;gap:12px;font-size:12px;color:#A6A6A6;margin-bottom:14px}
+.b-meta strong{color:#F2F2F2;font-weight:600}
+.b-seat{display:inline-block;padding:0 8px;border:1.5px solid #F2F2F2;border-radius:999px;color:#F2F2F2;font-size:11px;letter-spacing:0.04em}
+.b-stamp{display:inline-flex;flex-direction:column;align-items:center;padding:5px 12px 4px;border:2px solid currentColor;transform:rotate(-3deg);font-weight:600;font-size:13px;line-height:1.2;letter-spacing:0.08em;text-transform:uppercase}
+.b-stamp small{font-size:11px;letter-spacing:0.02em;text-transform:none;font-weight:500}
+.b-big{position:absolute;top:18px;right:22px;font-size:20px;padding:8px 16px 6px}
+.b-big small{font-size:12px}
+.t-ok{color:#3ECF7A}.t-no{color:#FF6B62}.t-wait{color:#F2B84B;border-style:dashed}.t-nv{color:#A6A6A6}.t-lap{color:#8C8C8C;border-style:dashed}.t-sold{color:#7AB0FF}
+.b-quote{margin:44px 0 18px;font-size:15px;line-height:1.6;max-width:56ch}
+.b-facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1.5px solid #3A3A3A;margin-bottom:14px}
+.b-fact{padding:8px 10px;border-left:1.5px solid #3A3A3A}
+.b-fact:first-child{border-left:0}
+.b-fact b{display:block;font-size:15px;font-weight:600}
+.b-fact i{font-style:normal;font-size:12px;color:#3ECF7A}
+.b-foot{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:12px}
+.b-judge{margin:12px 0 0;padding-top:12px;border-top:1px solid #2E2E2E;font-size:12px;color:#A6A6A6}
+.b-clock{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px;border:1.5px solid #F2F2F2;border-radius:999px;font-size:12px}
+.b-clock b{font-size:14px;font-weight:600}
+.b-buy h2{margin:0 0 16px;font-size:20px;font-weight:600;letter-spacing:0.04em;text-transform:uppercase}
+.b-lbl{display:flex;justify-content:space-between;margin-bottom:6px}
+.b-lbl span{font-size:11px;color:#A6A6A6}
+.b-field{display:flex;align-items:center;height:48px;border:1.5px solid #F2F2F2;border-radius:999px;padding:0 18px;margin-bottom:12px}
+.b-field input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:"IBM Plex Mono",monospace;font-size:18px;font-weight:600;color:#F2F2F2}
+.b-field b{font-size:12px;letter-spacing:0.06em}
+.b-field.ro{border-color:#3A3A3A}
+.b-rows{margin:4px 0 16px;font-size:12px}
+.b-rows div{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #2E2E2E}
+.b-rows div:last-child{border-bottom:0}
+.b-rows dt{color:#A6A6A6}
+.b-rows dd{margin:0;text-align:right}
+.b-btn{display:flex;align-items:center;justify-content:center;width:100%;height:48px;border:1.5px solid #F2F2F2;border-radius:999px;background:#F2F2F2;color:#0A0A0A;font-family:"IBM Plex Mono",monospace;font-weight:600;font-size:14px;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer}
+.b-note{margin:10px 0 0;font-size:11px;color:#A6A6A6;text-align:center}
+.b-strip{margin:0 24px;padding:16px 20px;display:flex;align-items:center;gap:24px;border:1.5px solid #3A3A3A;background:#141414}
+.b-strip p{margin:0;width:110px;line-height:1.35}
+.b-lb{margin:24px;border:1.5px solid #F2F2F2;background:#141414}
+.b-lbh{display:flex;justify-content:space-between;align-items:baseline;padding:14px 20px;border-bottom:1.5px solid #F2F2F2}
+.b-lbh h3{margin:0;font-size:15px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase}
+.b-lbh span{font-size:11px;color:#A6A6A6}
+.b-lb table{width:100%;border-collapse:collapse;font-size:13px}
+.b-lb th{text-align:left;font-weight:500;padding:8px 20px;border-bottom:1px solid #2E2E2E}
+.b-lb td{padding:10px 20px;border-bottom:1px solid #2E2E2E}
+.b-lb tr:last-child td{border-bottom:0}
+.b-lb .r{text-align:right}
+.b-you td{background:#222222}
+.b-youtag{display:inline-block;margin-left:6px;padding:0 6px;background:#F2F2F2;color:#0A0A0A;font-size:10px;font-weight:600;letter-spacing:0.06em}
+</style>
+</head>
+<body>
+<div class="b-board">
+  <header class="b-intro">
+    <div>
+      <p class="b-tag">Direction B</p>
+      <h1>Night ledger</h1>
+      <p class="b-mood">A night-shift ledger: numbers first, and the stamp is the only colour.</p>
+    </div>
+    <div>
+      <div class="b-type">
+        <div class="b-spec"><b style="font-weight:600">Aa</b><span>IBM Plex Mono 600: headlines, labels, stamps</span></div>
+        <div class="b-spec"><b style="font-weight:400">Aa</b><span>IBM Plex Mono 400: body and plea text</span></div>
+        <div class="b-spec"><b style="font-weight:500">06:12</b><span>One face for everything; mono digits line up by themselves</span></div>
+      </div>
+      <div class="b-sw">
+        <div><div class="b-chip" style="background:#0A0A0A"></div><div class="b-swl">Paper<br>#0A0A0A</div></div>
+        <div><div class="b-chip" style="background:#141414"></div><div class="b-swl">Card<br>#141414</div></div>
+        <div><div class="b-chip" style="background:#F2F2F2"></div><div class="b-swl">Ink<br>#F2F2F2</div></div>
+        <div><div class="b-chip" style="background:#A6A6A6"></div><div class="b-swl">Dim<br>#A6A6A6</div></div>
+        <div><div class="b-chip" style="background:#3ECF7A"></div><div class="b-swl">Approved<br>#3ECF7A</div></div>
+        <div><div class="b-chip" style="background:#FF6B62"></div><div class="b-swl">Denied<br>#FF6B62</div></div>
+        <div><div class="b-chip" style="background:#F2B84B"></div><div class="b-swl">Pending<br>#F2B84B</div></div>
+        <div><div class="b-chip" style="background:#A6A6A6"></div><div class="b-swl">No verdict<br>#A6A6A6</div></div>
+        <div><div class="b-chip" style="background:#141414;border:1.5px dashed #8C8C8C"></div><div class="b-swl">Lapsed<br>#8C8C8C</div></div>
+        <div><div class="b-chip" style="background:#7AB0FF"></div><div class="b-swl">Sold<br>#7AB0FF</div></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="b-screen" aria-label="Sample screen">
+    <nav class="b-bar" aria-label="Main">
+      <span class="b-logo">PLEA<span class="b-cur"></span></span>
+      <div class="b-nav">
+        <a href="#buy" class="on">Buy</a><a href="#plead">Plead</a><a href="#wall">Wall</a><a href="#seasons">Seasons</a><a href="#letters">Letters</a>
+      </div>
+      <span class="b-pill"><span class="b-dot"></span>Cabal alive · 31h 12m</span>
+      <span class="b-pill">S2 · 9d 4h · 184.20 IMD</span>
+      <span class="b-pill" style="border-color:#F2F2F2">mira_eth</span>
+    </nav>
+
+    <div class="b-main">
+      <article class="b-card" aria-label="Plea 214">
+        <div class="b-meta"><strong>PLEA #214</strong><span>by <strong>mira_eth</strong></span><span class="b-seat">SEAT ×1.2</span><span>2 min ago</span></div>
+        <div class="b-stamp b-big t-ok">Approved<small>36 vs need 33</small></div>
+        <p class="b-quote">“I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.”</p>
+        <div class="b-facts">
+          <div class="b-fact"><span class="b-lab">Share sold</span><b>20%</b><i>+16</i></div>
+          <div class="b-fact"><span class="b-lab">Held</span><b>3d 4h</b><i>+4</i></div>
+          <div class="b-fact"><span class="b-lab">Profit/loss</span><b>−18%</b><i>+13</i></div>
+          <div class="b-fact"><span class="b-lab">24h trend</span><b>flat</b><i>+5</i></div>
+        </div>
+        <div class="b-foot">
+          <span>Fact 38 → needs 33/45</span><span>·</span><span>Sells 1,240,000 PLEA ≈ 17.56 IMD</span><span>·</span><span>+43 pts</span>
+        </div>
+        <p class="b-judge">Judged by 30 · 26 agreed · 4m 10s. A judge said: “Honest about the timing, and funny about it.”</p>
+        <div class="b-foot" style="margin-top:12px">
+          <span class="b-clock" style="background:#F2F2F2;color:#0A0A0A">Sell window <b>06:12</b></span>
+          <span class="b-clock">Objections close <b>18:40</b></span>
+        </div>
+      </article>
+
+      <form class="b-card b-buy" aria-label="Buy PLEA">
+        <h2>Buy PLEA</h2>
+        <label class="b-lbl" for="b-pay"><span class="b-lab">You pay</span><span>Balance 412.50 IMD · <a href="#max">Max</a></span></label>
+        <div class="b-field"><input id="b-pay" value="100.00" inputmode="decimal"><b>IMD</b></div>
+        <label class="b-lbl" for="b-get"><span class="b-lab">You get</span></label>
+        <div class="b-field ro"><input id="b-get" value="≈ 6,881,240" readonly><b>PLEA</b></div>
+        <dl class="b-rows">
+          <div><dt>Price</dt><dd>1M PLEA = 14.16 IMD</dd></div>
+          <div><dt>Fees 2.25%</dt><dd>0.50 IMD back as staked IMD</dd></div>
+          <div><dt>Minimum (1%)</dt><dd>6,812,427 PLEA</dd></div>
+        </dl>
+        <button type="button" class="b-btn">Buy PLEA</button>
+        <p class="b-note">Buying is open. Selling needs a plea.</p>
+      </form>
+    </div>
+
+    <div class="b-strip">
+      <p class="b-lab">One stamp, six states</p>
+      <span class="b-stamp t-ok">Approved</span>
+      <span class="b-stamp t-no">Denied</span>
+      <span class="b-stamp t-wait">Pending <small>14:32</small></span>
+      <span class="b-stamp t-nv">No verdict</span>
+      <span class="b-stamp t-lap">Lapsed</span>
+      <span class="b-stamp t-sold">Sold</span>
+    </div>
+
+    <div class="b-lb">
+      <div class="b-lbh"><h3>Season 2 leaderboard</h3><span>Pot 184.20 IMD + 10,000,000 PLEA · top 25 with 60+ points</span></div>
+      <table>
+        <thead><tr><th class="b-lab">Rank</th><th class="b-lab">Player</th><th class="b-lab">Best three</th><th class="b-lab r">Points</th><th class="b-lab r">Prize</th></tr></thead>
+        <tbody>
+          <tr><td>#3</td><td>kafka_cat <span class="b-seat">SEAT ×1.2</span></td><td>45 · 44 · 43</td><td class="r"><b>132</b></td><td class="r">8.14 IMD + 442,000 PLEA</td></tr>
+          <tr class="b-you"><td>#4</td><td>mira_eth <span class="b-seat">SEAT ×1.2</span><span class="b-youtag">YOU</span></td><td>43 · 40 · 39</td><td class="r"><b>122</b></td><td class="r">8.07 IMD + 438,000 PLEA</td></tr>
+          <tr><td>#5</td><td>0x9c41…e07a</td><td>38 · 36 · 35</td><td class="r"><b>109</b></td><td class="r">7.98 IMD + 433,000 PLEA</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+</body>
+</html>

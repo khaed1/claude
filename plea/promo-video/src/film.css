@@ -1,0 +1,136 @@
+/* The film's own layer on top of the site's tokens and components. The stage is 1280 x 720 CSS px
+   (16:9) or 720 x 1280 (9:16), rendered at device scale 1.5 to 1920 x 1080 / 1080 x 1920, so the
+   site's components keep their native sizes and scale cleanly. */
+@font-face { font-family: Archivo; src: url(fonts/archivo-variable.woff2) format("woff2"); font-weight: 100 900; font-stretch: 62% 125%; }
+@font-face { font-family: "IBM Plex Mono"; src: url(fonts/ibm-plex-mono-latin-400-normal.woff2) format("woff2"); font-weight: 400; }
+@font-face { font-family: "IBM Plex Mono"; src: url(fonts/ibm-plex-mono-latin-500-normal.woff2) format("woff2"); font-weight: 500; }
+@font-face { font-family: "IBM Plex Mono"; src: url(fonts/ibm-plex-mono-latin-600-normal.woff2) format("woff2"); font-weight: 600; }
+
+html, body { margin: 0; background: #000; }
+#stage { position: relative; width: 1280px; height: 720px; overflow: hidden; background: var(--paper); color: var(--ink); }
+#stage.fmt-9x16 { width: 720px; height: 1280px; }
+.shot { position: absolute; inset: 0; overflow: hidden; background: var(--paper); }
+.shot.theme-dark { background: var(--paper); }
+.layer { position: absolute; inset: 0; transform-origin: 50% 50%; }
+.abs { position: absolute; }
+.mask { overflow: hidden; display: inline-block; vertical-align: top; }
+.mask > span { display: inline-block; will-change: auto; }
+
+/* Display type: Archivo Expanded 800, the site's headline face. */
+.display { font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: var(--display-weight); line-height: 1.02; letter-spacing: -0.01em; }
+.mono { font-family: var(--font-mono); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Captions: a docket label, left-aligned, at least 44 CSS px (66 px rendered). */
+.cap { position: absolute; left: 64px; bottom: 56px; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
+.cap__main { font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: 800; font-size: 44px; line-height: 1.08;
+  background: var(--card); color: var(--ink); border: 3px solid var(--line); border-radius: 12px; box-shadow: 6px 6px 0 var(--shadow-color);
+  padding: 12px 22px 14px; max-width: 1100px; }
+.cap__small { font-family: var(--font-body); font-weight: 600; font-size: 26px; background: var(--ink); color: var(--card);
+  border-radius: 8px; padding: 6px 14px 7px; }
+.cap__small.mono { font-family: var(--font-mono); }
+
+/* The PLEA logo stamp at film size (the site's .logo, scaled). */
+.bigstamp { display: inline-flex; align-items: center; justify-content: center; background: var(--action); color: var(--ink);
+  border: 6px solid var(--ink); border-radius: 10px; padding: 18px 40px 14px; font-family: var(--font-display);
+  font-stretch: 125%; font-weight: 800; font-size: 150px; line-height: 1; letter-spacing: 0.02em; }
+
+/* The cursor: an ink arrow with a cream outline. */
+.cursor { position: absolute; width: 34px; height: 34px; pointer-events: none; z-index: 50; }
+.cursor svg { width: 100%; height: 100%; overflow: visible; }
+
+/* Captures of the run 9 site sit in a browser-less frame: a card with the site's outline. */
+.capture { position: absolute; border: 3px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--card); box-shadow: 8px 8px 0 var(--shadow-color); }
+.capture img { display: block; width: 100%; max-width: none; height: auto; transform-origin: 0 0; }
+.shot img { max-width: none; }
+
+/* Seats (the 30 judges). */
+.seat { position: absolute; width: 92px; height: 64px; border: 3px solid var(--line); border-radius: 8px; background: var(--card);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 4px 4px 0 var(--shadow-color); }
+.seat__id { font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--ink-2); line-height: 1; }
+.seat__score { font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 28px; line-height: 1.05; }
+.seat.is-empty { background: var(--paper-2); border-style: dashed; box-shadow: none; }
+.seat.is-on { background: var(--card); }
+.seat.is-dark { background: #2c2a24; border-color: #2c2a24; box-shadow: none; }
+
+/* Receipts. */
+.receipt { position: absolute; background: var(--card); border: 3px solid var(--line); border-radius: 6px; box-shadow: 6px 6px 0 var(--shadow-color);
+  padding: 18px 24px 20px; font-family: var(--font-mono); }
+.receipt__big { font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 46px; line-height: 1.05; }
+.receipt__small { font-size: 16px; font-weight: 500; color: var(--ink-2); margin-top: 6px; }
+
+/* 9:16: captions sit above the zone where X, Reels and TikTok draw their own buttons, and wrap. */
+#stage.fmt-9x16 .cap { left: 40px; bottom: 190px; }
+#stage.fmt-9x16 .cap__main { font-size: 40px; max-width: 640px; }
+#stage.fmt-9x16 .cap__small { font-size: 24px; max-width: 640px; }
+#stage.fmt-9x16 .cap__main, #stage.fmt-9x16 .cap__small { text-wrap: balance; }
+
+/* ── The explainer series ("How PLEA works · §N"): the site's dark theme, a § numeral, a step tracker,
+   step headlines on the left, the mechanic on the right, a recap card at the end. ── */
+.sx { background: var(--paper); color: var(--ink); }
+.sx-mark { position: absolute; right: -36px; bottom: -150px; font-family: var(--font-display); font-stretch: 125%; font-weight: 800;
+  font-size: 600px; line-height: 1; letter-spacing: -0.04em; color: var(--paper-2); }
+.sx-tag { position: absolute; left: 56px; top: 40px; display: flex; align-items: center; gap: 14px; }
+.sx-tag__pill { background: var(--action); color: var(--on-action); font-family: var(--font-display); font-stretch: 125%; font-weight: 800;
+  font-size: 15px; letter-spacing: 0.06em; text-transform: uppercase; padding: 7px 12px 6px; border-radius: 6px; }
+.sx-tag__title { font-family: var(--font-mono); font-weight: 600; font-size: 18px; }
+.sx-steps { position: absolute; right: 56px; top: 38px; display: flex; align-items: center; }
+.sx-step { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; color: var(--ink-3); }
+.sx-step__dot { width: 34px; height: 34px; box-sizing: border-box; border-radius: 50%; border: 3px dashed var(--ink-3); display: grid; place-content: center;
+  font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 15px; }
+.sx-step.is-on, .sx-step.is-done { color: var(--ink); }
+.sx-step.is-on .sx-step__dot { background: var(--action); color: var(--on-action); border: 3px solid var(--ink); }
+.sx-step.is-done .sx-step__dot { background: var(--ink); color: var(--paper); border: 3px solid var(--ink); }
+.sx-step__line { position: relative; width: 40px; height: 3px; margin: 0 12px; background: var(--line-soft); overflow: hidden; }
+.sx-step__line > span { position: absolute; inset: 0; background: var(--ink); transform-origin: 0 50%; }
+.sx-head { position: absolute; left: 56px; top: 150px; width: 540px; }
+.sx-head__n { width: 64px; height: 64px; box-sizing: border-box; border-radius: 50%; background: var(--action); color: var(--on-action); border: 3px solid var(--ink);
+  display: grid; place-content: center; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 32px; box-shadow: 4px 4px 0 var(--shadow-color); }
+.sx-head__lines { margin-top: 26px; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 62px; line-height: 1.06; letter-spacing: -0.01em; }
+.sx-head__lines .mask { display: block; padding-bottom: 4px; }
+.sx-head__lines .mask > span { margin-right: 0.24em; }
+.sx-head__small { margin-top: 22px; font-family: var(--font-mono); font-weight: 600; font-size: 19px; line-height: 1.45; color: var(--ink-2);
+  border-left: 5px solid var(--action); padding-left: 14px; }
+.sx-big { font-family: var(--font-display); font-stretch: 125%; font-weight: 800; line-height: 1.02; letter-spacing: -0.01em; }
+/* The recap card: a light island on the dark ground, like an index card from the rulebook. */
+.sx-card { position: absolute; box-sizing: border-box; background: var(--paper); color: var(--ink); border: 4px solid var(--ink); border-radius: 14px;
+  box-shadow: 10px 10px 0 #000; padding: 30px 40px 28px; }
+.sx-card__top { display: flex; justify-content: space-between; font-family: var(--font-mono); font-weight: 600; font-size: 16px; color: var(--ink-2); }
+.sx-card__title { margin-top: 10px; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 64px; line-height: 1; }
+.sx-card__sub { margin-top: 8px; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 24px; color: var(--ink-2); }
+.sx-card__rows { margin-top: 22px; border-top: 3px solid var(--ink); padding-top: 18px; display: grid; gap: 14px; }
+.sx-card__row { display: flex; align-items: center; gap: 16px; font-weight: 700; font-size: 23px; line-height: 1.25; }
+.sx-card__row b { flex: none; width: 36px; height: 36px; box-sizing: border-box; border-radius: 50%; background: var(--action); border: 3px solid var(--ink);
+  display: grid; place-content: center; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 16px; }
+.sx-card__foot { margin-top: 24px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; font-weight: 700; font-size: 20px; }
+.sx-card__next { font-family: var(--font-mono); font-weight: 600; font-size: 18px; background: var(--ink); color: var(--paper); padding: 7px 12px; border-radius: 8px; }
+.sx-fine { position: absolute; left: 0; right: 0; bottom: 22px; text-align: center; font-size: 13px; color: var(--ink-3); }
+/* Judges in a ring. */
+.sx-seat { position: absolute; width: 42px; height: 42px; margin: -21px 0 0 -21px; box-sizing: border-box; border-radius: 50%; border: 3px dashed var(--ink-3);
+  display: grid; place-content: center; font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 17px; color: var(--on-action); }
+.sx-seat.is-on { border: 3px solid var(--ink); background: var(--ink); }
+.sx-seat.is-out { border: 3px dashed var(--ink-3); background: transparent; color: var(--ink-3); text-decoration: line-through; }
+.sx, .sx * { transition: none !important; animation: none !important; }
+
+/* PLEA airdrop · Contest (src/series/contest.js): X screenshots in frames, chips, the reply composer. */
+.sx-x { position: relative; box-sizing: content-box; border: 3px solid var(--ink); border-radius: 18px; overflow: hidden; box-shadow: 8px 8px 0 var(--shadow-color); }
+.sx-x__z { position: relative; }
+.sx-chip { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; font-weight: 700; font-size: 22px; padding: 8px 18px; border: 3px solid var(--ink);
+  border-radius: 999px; background: var(--card); color: var(--ink); box-shadow: 4px 4px 0 var(--shadow-color); }
+.sx-chip b { font-family: var(--font-display); font-stretch: 125%; font-weight: 800; }
+.sx-chip--y { background: var(--action); color: var(--on-action); }
+.sx-chip--sm { font-family: var(--font-mono); font-weight: 600; font-size: 15px; padding: 4px 12px; box-shadow: 3px 3px 0 var(--shadow-color); }
+.sx-chip--md { font-family: var(--font-mono); font-weight: 600; font-size: 18px; padding: 6px 16px; }
+.sx-chip--ok { background: var(--approved); color: var(--on-state); font-size: 19px; }
+.sx-chip--no { background: var(--denied); color: var(--on-state); font-size: 19px; }
+.sx-comp { background: #141414; border-top: 1px solid #2F3336; font-family: var(--font-body); color: #E7E9EA; }
+.sx-comp__av { position: absolute; left: 14px; top: 14px; width: 38px; height: 38px; border-radius: 50%; background: var(--action); color: #121212;
+  font-weight: 800; font-size: 11px; display: grid; place-content: center; }
+.sx-comp__to, .sx-comp__me { position: absolute; left: 62px; top: 12px; font-size: 13px; color: #71767B; }
+.sx-comp__me { font-size: 14px; }
+.sx-comp__me b { color: #E7E9EA; }
+.sx-comp__text { position: absolute; left: 62px; top: 34px; right: 16px; font-size: 15px; line-height: 1.32; }
+.sx-comp__ph { color: #71767B; font-size: 18px; }
+.sx-comp__btn { position: absolute; right: 14px; bottom: 12px; height: 32px; padding: 0 18px; border-radius: 999px; background: #1D9BF0; color: #fff;
+  font-weight: 700; font-size: 14px; display: grid; place-content: center; }
+.sx-comp__ex { position: absolute; right: 14px; top: 10px; font-family: var(--font-mono); font-weight: 600; font-size: 11px; background: var(--action); color: #121212;
+  padding: 2px 7px; border-radius: 4px; }
