@@ -1,0 +1,87 @@
+Thanks! You're right, and we hit exactly that today on Sepolia. Here's a concrete proposal, then a few smaller things.
+
+**1. Tell the contract when there's no answer**
+
+Today `complete()` calls the callback only when `status == 0`. On a refusal (1) or a split panel or failure (2), the writer records the outcome in the `Completed` event, but the contract that paid never hears about it. Contracts can't read events, so the request just stays open forever on their side.
+
+We hit both cases:
+- **Plea #1 (split):** tx `0x77214bc7…f7775`. The panel split 17 of 28, the writer completed it in `0x84dcf9b2…229d`, and our Gate still shows the plea as Pending. The seller waits out a 2h timeout we had to guess, though the plane knew within ~4 minutes.
+- **12 calibration requests (refused):** all `testnet_only` (e.g. `0x0cd687e4…dde`), completed on-chain with nothing delivered.
+
+**Proposal: an opt-in failure hook, named in the body** (a sibling of `deliver`):
+
+```json
+{ "v": 1, "question": "…", "chainId": 1, "window": { "hours": 1 },
+  "answerType": "bool", "evidence": "panel", "panelSize": 30, "quorum": 16,
+  "validForSeconds": 3600, "definitions": { … },
+  "consumer": { "chainId": 11155111, "verifyingContract": "0xGate" },
+  "onFailure": "0x…selector" }
+```
+
+On every completion with status 1 or 2, `complete()` calls the same callback `target` with that selector:
+
+```solidity
+struct OracleFailure {
+    bytes32 requestId;  // the intake id that request() returned (same as the success callback's first arg)
+    uint8   status;     // 1 = refused, 2 = no answer (disagreed or failed)
+    bytes32 reason;     // short code, right-padded: "disagreed", "failed", "testnet_only",
+                        // "body_invalid", "short_payment", "quorum_unreachable", …
+    uint16  agreed;     // largest group of matching answers (0 if no panel ran)
+    uint16  answered;   // members who answered (0 if no panel ran)
+    uint16  quorum;     // matching answers that were needed
+}
+
+interface IOracleFailureReceiver {
+    function onOracleFailure(OracleFailure calldata f) external;
+}
+```
+
+Examples from today:
+- plea #1: `{0xcc4e…6a8d, 2, "disagreed", 17, 28, 20}`
+- a refused request: `{0x7e14…4ca6, 1, "testnet_only", 0, 0, 8}`
+
+**How it behaves:**
+- **Same rules as the success callback:** called once, 200k gas, inside a try. A revert can't block the write; `Completed` records `delivered: false`.
+- **No signature needed:** only the writer can call `complete`, and the call carries no answer to forge. A consumer checks `msg.sender == Intake` and that `requestId` is one it made. The worst a bad call could do is make a contract stop waiting early.
+- **Opt-in:** no `onFailure` in the body, no call. Existing consumers are untouched.
+- **Kept out of `questionHash`,** like `consumer`, so it doesn't change what judges see or what gets signed.
+- **Refused upfront:** `onFailure` without a callback (or `deliver`) is refused at check/quote time, before anyone pays.
+- **Cross-chain:** with `deliver`, IntakeDelivery makes the same call on the destination chain. Today a failure "is completed on the paying chain only", so cross-chain consumers are the most blind.
+- **Why a struct:** you can add fields later (a URL to the record, a retry hint) without changing the selector.
+- **One gap:** if the body isn't valid JSON, the plane can't read `onFailure`. That's rare, and a free full-body check catches it (see 2). To cover it anyway, you could call `onOracleFailure` on any callback target that returns true for `supportsInterface(type(IOracleFailureReceiver).interfaceId)` (ERC-165), with no body field needed.
+
+**What we'd do with it:** the Gate frees the seller's slot right away and the Wall shows "the Cabal was split 17–11". No timeout, no relayer.
+
+**2. A free check of the full body before paying.** The quote now needs a request token, and `/requests/check` only takes the short input. So an on-chain payer can't test a complete body (consumer, definitions, guards) without paying, and the `testnet_only` rule isn't in the docs either. A free endpoint that runs every refusal rule on the exact body would stop spent payments.
+
+**3. Link the attestation to the intake request.** The attestation carries the oracle's request UUID, not the intake `requestId`. So a public `submit` fallback (as the docs suggest) can't tell its own paid request from one anyone else paid with the same public body, and a seller could re-ask until they get a yes. Putting the intake `requestId` (or the payer and body hash) into the signed attestation would close that.
+
+**4. Panels split on judgment calls.** Both of our real tests ended "disagreed" (17/13 and 17/28) on a yes/no close to a threshold. An option to sign a `uint256` answer as the panel *median* (with a minimum number of answers) would help: the contract compares the number to its own threshold.
+
+**5. `evm_contracts` launches:**
+- **Hook addresses:** a Uniswap v4 hook needs a mined CREATE2 salt; supporting a salt (like `univ4_hook` does) would save us mining on-chain in a constructor.
+- **Gas preflight:** the Sepolia preflight estimated 23.7M gas for a deploy that really uses 3.08M, and parked the launch.
+- **Verifier memory:** the verifier ran out of memory compiling v4-core's PoolManager (exit 137).
+
+**6. Small one:** let the payer buy a higher callback gas limit than 200k, for consumers that need to do real work in the callback.
+
+**7. Chain mode can't sign transaction-level checks (tested 2026-10-10 on Sepolia).** We asked, in chain mode, "did wallet W buy token T from pair P, and was the pair's liquidity pulled afterwards?" about a real Ethereum rug. All 13 answering members said **true**, with correct notes (tx.from, Swap amounts, Burn vs prior Sync reserve), but nothing was signed: each member had to pick a stand-in recipe from the catalogue (8 used `balanceOf`, 4 `getReserves`, 1 `token0`, with different thresholds), so only 2 matched. The same facts asked in **panel mode** were signed 12/12 with the right answer. Requests: oracle `aebb2ae2-1250-4cb4-8451-0049491ec872` (chain, disagreed) and `e8e13011-0901-430d-8f4b-4467e48a4897` (panel, attested). Suggestions, most useful first:
+- **A transaction recipe:** given a tx hash, check `from`, `status`, `blockNumber` and decoded logs (e.g. "emitted Transfer of T from P to W"). One receipt read, fully deterministic.
+- **Historical calls and comparisons:** a call at a given block (not only the closing block), and comparing two reads (reserve after Burn ≤ 1% of reserve before).
+- **AND of recipes:** let one bool answer be the conjunction of several recipes, so multi-step checks can be rerun.
+- **Agree on the answer when recipes differ:** if every member gives the same answer but no single recipe reaches quorum, fall back to a panel-style signature (marked as such) instead of "disagreed", or let the requester opt in with something like `evidence: "chain-or-panel"`.
+- **Publish the recipe catalogue** (in the docs or `/requests/capabilities`), so requesters can word chain questions to fit an existing recipe.
+
+**8. The verifier's out-of-memory is probably forge's linter, not solc (found 2026-10-10).** A clean `forge build` of our PLEA repo was killed at 13.6 GB. solc itself peaked at 2.4 GB; the process that grew was forge's lint-on-build, on our Uniswap v4 hook file. With `[lint] lint_on_build = false` in `foundry.toml` the same clean build and all tests finish in about 5 minutes. Our two failed builds (exit 137) were likely this. Suggest the verifier builds with lint off, or runs lint as a separate step with a memory cap.
+
+**9. `SignatureChecker` and EIP-7702.** The consumer example verifies with OpenZeppelin's `SignatureChecker.isValidSignatureNow`, which uses ERC-1271 whenever the signer address has code and never tries the plain ECDSA signature. An EOA with an EIP-7702 delegation has code, so if the oracle signer key ever delegates, every consumer built from the example rejects every attestation. We hit this on Sepolia with a test key that has a 7702 delegation. Our fix: try `ECDSA.tryRecover` first, then ERC-1271. Worth changing `OracleAttestation.sol`, or keeping the signer key free of delegations.
+
+**10. Sepolia callback gas:** the Sepolia Intake gives callbacks 1,000,000 gas, mainnet 200,000. A consumer tested only on Sepolia can pass there and fail on mainnet; matching mainnet's value would make Sepolia tests faithful.
+
+Happy to test any of this on Sepolia; it's free there now, which is great.
+
+11. **Site job blocked by member-site hosting (2026-10-10). RESOLVED: our prompt's fault.** The dev: hosting works; our objective said "Host on IPFS with the label plea-test", so the agent tried to publish from its own machine. They're adding a check for it. Lesson: set hosting only with the `ipfs` field, never ask for it in the text. Job `11d73554-601d-40cd-b72f-f0adbea42095` (`job.continue` of `3593725e`, `ipfs: "plea-test"`): `build_website` built and exported the site (334,696 bytes), then tried `imd site publish dist --name plea-test`, which returned `503 member_sites_closed`. The node is now `needs_input`: "Can the hosting-plane operator enable member-site publication…". A job that asks for `ipfs` hosting shouldn't go through the closed member-site path, or `/requests/check` should refuse it before payment. Please publish the existing export, or tell us how to retry without paying again. No site source was delivered (`delivery.commit` is null).
+
+12. **Bind the paid question to the signed answer (2026-10-11).** Today a consumer on the asking chain accepts an answer only through the Intake, only for a request it created and hasn't settled, and each oracle request id only once (PLEA does all three). What it can't check cheaply is that the signed answer is about *its own* question: the writer supplies the callback arguments, and your docs list "pair one with the wrong request" among the writer's powers. Anyone can pay for a question that names our CabalGate as consumer (e.g. "reply 45"), get a valid signed answer for our domain, and a misbehaving or compromised writer could hand it to someone's pending plea, approving a sale and a perfect season score the panel never gave. A consumer can close this by rebuilding the canonical question document on chain and comparing `questionHash` (a mainnet prediction-market adapter does exactly this), but that's a lot of code and gas, and it breaks every honest verdict if one byte of the canonical format differs. Suggestion: let the Intake record `keccak256(body)` at `request` time and refuse in `complete` (status 0) an attestation whose `questionHash` doesn't match the question built from that body, or expose the paid body hash in the signed attestation. Every consumer would then get the binding for free, with no on-chain JSON rebuilding. Related: once failures are signed, the same binding would make `onFailure` trustworthy too.
+
+13. **Adapt write-up vs. the bundle (run 7, job `5ce54b31`, 2026-10-15).** The adapt step's `ADAPTATION.md` says "deploys it unchanged: no file under `src/` … was modified. Only this file changed", but its bundle (`fc43fc29…`) also rewrote `src/CabalGate.sol` (a size refactor: OpenZeppelin `Strings` replaced by two assembly helpers, checks moved into helpers; the gate shrank 24,493 → 23,742 bytes). We checked it ourselves: no behaviour change, the committed Letterbox/Tribunal hashes unchanged, the new helpers fuzz-equal to `Strings`. A verifier check that `changedPaths` agrees with what the write-up claims would catch this.

@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Wall · PLEA</title>
+<meta name="description" content="Buying is open. Selling needs a plea.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;family=IBM+Plex+Mono:wght@400;500;600&amp;display=swap">
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../components.css">
+<script src="../text-check.js"></script>
+<script src="../site.js"></script>
+<script src="../icons.js" defer></script>
+<style>
+  /* Wall only. Tokens only. */
+  /* Filters: the verdict chips (the only counts), then "More filters" (the rarer filters and the sort)
+     as a disclosure, then the count line beside it. Open, the disclosure takes the whole row and the
+     count line moves under it; the summary itself never moves. */
+  .wall-tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3) var(--space-4); }
+  .main .wall-tools { margin-top: var(--space-5); margin-bottom: var(--space-5); }
+  .wall-tools > .chips { flex-basis: 100%; }
+  .wall-tools__more[open] { flex-basis: 100%; }
+  .wall-tools__more > summary { gap: var(--space-1); }
+  .wall-tools__more > summary::-webkit-details-marker { display: none; }
+  .wall-tools__more[open] > summary .icon { transform: rotate(180deg); }
+  .wall-tools__panel { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-6); margin-top: var(--space-3); }
+  .wall-tools__panel > div { display: grid; gap: var(--space-2); }
+  /* "Load older pleas" sits centred under the grid with its count. */
+  .wall-more { display: grid; justify-items: center; gap: var(--space-2); text-align: center; }
+  .wall-grid + .wall-more { margin-top: var(--space-6); }
+  /* In the reference band the kit stretches a panel to its row; the busy and end-of-Wall panels keep
+     their few lines together in the middle instead of spreading them out. */
+  .panel.wall-more { align-content: center; }
+  /* Loading shows one row of cards: three, but two where the grid has two columns (no lone card). */
+  @media (min-width: 768px) and (max-width: 1279px) { .wall-grid--loading > :nth-child(3) { display: none; } }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="page nav">
+    <a class="logo" href="index.html" aria-label="PLEA home">PLEA</a>
+    <nav class="nav__primary" aria-label="Main">
+    <ul class="nav__links">
+      <li><a href="buy.html">Buy</a></li>
+      <li><a href="plead.html">Plead</a></li>
+      <li><a href="wall.html" aria-current="page">Wall</a></li>
+      <li><a href="seasons.html">Seasons</a></li>
+      <li><a href="letters.html">Letters</a></li>
+      <li><a href="objections.html">Objections</a></li>
+      <li><a href="claim.html">Claim</a></li>
+    </ul>
+    </nav>
+    <div class="nav__end">
+      <button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button>
+      <a class="wallet-btn" href="profile.html"><span class="seat-dot" aria-hidden="true"></span><span class="wallet-btn__name">mira_eth</span><span class="sr-only">: your profile (holds an IMD seat)</span></a>
+      <button class="icon-btn menu-btn" type="button" data-menu-toggle aria-expanded="false" aria-controls="drawer" aria-label="Menu"><svg class="icon" aria-hidden="true"><use href="#i-list"/></svg></button>
+    </div>
+  </div>
+  <nav class="drawer" id="drawer" aria-label="Pages" hidden>
+    <div class="page">
+      <ul>
+        <li><a href="buy.html">Buy</a></li>
+        <li><a href="plead.html">Plead</a></li>
+        <li><a href="wall.html" aria-current="page">Wall</a></li>
+        <li><a href="seasons.html">Seasons</a></li>
+        <li><a href="letters.html">Letters</a></li>
+        <li><a href="objections.html">Objections</a></li>
+        <li><a href="claim.html">Claim</a></li>
+        <li><a href="index.html#how">How it works</a></li>
+      </ul>
+      <div class="theme-row"><span>Theme</span><button class="icon-btn" type="button" data-theme-toggle aria-pressed="false" aria-label="Dark theme"><svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg></button></div>
+    </div>
+  </nav>
+  <div class="status-strip">
+    <div class="page">
+      <span class="status-item"><span class="live-dot" aria-hidden="true"></span><b>Cabal alive</b> · dies in <span class="mono">32h 59m</span> without a&nbsp;verdict</span>
+      <span class="status-item"><b>Season 2</b> · <span class="num">9d 4h</span> left · pot <span class="num">184.20</span>&nbsp;IMD + 10,000,000&nbsp;PLEA</span>
+      <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+    </div>
+  </div>
+</header>
+
+<!-- After the Cabal dies, the status strip and a banner read (the same on every page):
+  <div class="status-strip"><div class="page">
+    <span class="status-item"><span class="live-dot live-dot--dead" aria-hidden="true"></span><b>Cabal dead</b> · no verdict for 33&nbsp;hours</span>
+    <span class="status-item"><b>Season 2</b> ended with the Cabal · close it from 17:59&nbsp;UTC</span>
+    <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+  </div></div>
+  <div class="banner" role="status"><div class="page"><span class="live-dot live-dot--dead" aria-hidden="true"></span><span>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever. Pleas and objections are closed; sell on the Buy page.</span></div></div>
+-->
+<main id="main" class="page main">
+  <div>
+    <div class="page-title"><h1>The Wall</h1></div>
+    <p class="lead">Every plea and its verdict, newest first; times are when each plea was sent. Open a card for its facts and the judges' note.</p>
+  </div>
+
+  <section aria-labelledby="pleas-title">
+    <h2 class="sr-only" id="pleas-title">Pleas</h2>
+    <div class="wall-tools">
+      <div class="chips" role="group" aria-label="Show pleas by verdict">
+        <button class="chip" type="button" aria-pressed="true">All<span class="chip__count">215</span></button>
+        <button class="chip" type="button" aria-pressed="false">Approved<span class="chip__count">140</span></button>
+        <button class="chip" type="button" aria-pressed="false">Denied<span class="chip__count">55</span></button>
+        <button class="chip" type="button" aria-pressed="false">Pending<span class="chip__count">1</span></button>
+        <button class="chip" type="button" aria-pressed="false">No verdict<span class="chip__count">19</span></button>
+      </div>
+      <details class="wall-tools__more">
+        <summary class="chip">More filters<svg class="icon" aria-hidden="true"><use href="#i-caret-down"/></svg></summary>
+        <div class="panel wall-tools__panel">
+          <div>
+            <p class="label" id="f-only">Show only</p>
+            <div class="chips" role="group" aria-labelledby="f-only">
+              <button class="chip" type="button" aria-pressed="false">Sold</button>
+              <button class="chip" type="button" aria-pressed="false">Appeals</button>
+              <button class="chip" type="button" aria-pressed="false">By letter</button>
+              <button class="chip" type="button" aria-pressed="false">Objected</button>
+            </div>
+          </div>
+          <div>
+            <p class="label" id="f-sort">Sort</p>
+            <div class="chips" role="group" aria-labelledby="f-sort">
+              <button class="chip" type="button" aria-pressed="true">Newest</button>
+              <button class="chip" type="button" aria-pressed="false">Highest score</button>
+            </div>
+          </div>
+        </div>
+      </details>
+      <p class="meta" aria-live="polite">Showing <b>#215</b> to <b>#204</b>: 12 of 215, newest first · 71.8% of judged pleas approved</p>
+    </div>
+
+    <div class="wall-grid">
+      <a class="wall-card" href="plea.html?id=215" aria-labelledby="w215-i w215-s" aria-describedby="w215-a w215-t w215-n w215-w">
+        <div class="wall-card__top"><span class="stamp stamp--pending" id="w215-s">Pending<span class="stamp__sub">17:30 left</span></span><span class="wall-card__id"><span id="w215-i"><span class="sr-only">Plea </span>#215</span> · <span id="w215-a">2 min ago</span></span></div>
+        <p class="wall-card__text" id="w215-t">“Second try, shorter this time. I held through two days of silence from the chart and from my wife. One fifth out to buy flowers; the rest stays in the monastery.”</p>
+        <div class="wall-card__nums" id="w215-n"><span><b>960,000</b> PLEA</span><span>need <b>36</b></span><span>expires <b>08:17</b> UTC</span></div>
+        <div class="wall-card__who" id="w215-w"><span class="strong">deg_monk</span></div>
+      </a>
+
+      <a class="wall-card" href="plea.html?id=214" aria-labelledby="w214-i w214-s" aria-describedby="w214-a w214-t w214-n w214-w">
+        <div class="wall-card__top"><span class="stamp stamp--approved" id="w214-s">Approved<span class="stamp__sub">36 vs need 33</span></span><span class="wall-card__id"><span id="w214-i"><span class="sr-only">Plea </span>#214</span> · <span id="w214-a">4 min ago</span></span></div>
+        <p class="wall-card__text" id="w214-t">“I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.”</p>
+        <div class="wall-card__nums" id="w214-n"><span><b>1,240,000</b> PLEA</span><span><b>+43</b> points held</span><span>sell by <b>08:06</b> UTC</span></div>
+        <div class="wall-card__who" id="w214-w"><span class="strong">mira_eth</span><span class="badge badge--seat">SEAT ×1.2</span><span class="badge badge--you">YOU</span></div>
+      </a>
+
+      <a class="wall-card" href="plea.html?id=213" aria-labelledby="w213-i w213-s" aria-describedby="w213-a w213-t w213-n w213-w">
+        <div class="wall-card__top"><span class="stamp stamp--denied" id="w213-s">Denied<span class="stamp__sub">31 vs need 36</span></span><span class="wall-card__id"><span id="w213-i"><span class="sr-only">Plea </span>#213</span> · <span id="w213-a">11 min ago</span></span></div>
+        <p class="wall-card__text" id="w213-t">“Dear Cabal, my cat walked across the keyboard and bought PLEA. He is up 12% and now demands tuna. I am only his accountant. Release a fifth so he can eat like a whale.”</p>
+        <div class="wall-card__nums" id="w213-n"><span><b>1,490,000</b> PLEA</span><span>no points</span><span>appeal until <b>11:53</b> UTC</span></div>
+        <div class="wall-card__who" id="w213-w"><span class="strong">kafka_cat</span><span class="badge badge--seat">SEAT ×1.2</span><span class="badge badge--letter"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg>BY LETTER</span></div>
+      </a>
+
+      <a class="wall-card" href="plea.html?id=212" aria-labelledby="w212-i w212-s" aria-describedby="w212-a w212-t w212-n w212-w">
+        <div class="wall-card__top"><span class="stamp stamp--sold" id="w212-s">Sold<span class="stamp__sub">37 vs need 30</span></span><span class="wall-card__id"><span id="w212-i"><span class="sr-only">Plea </span>#212</span> · <span id="w212-a">16 min ago</span></span></div>
+        <p class="wall-card__text" id="w212-t">“Eight days ago I promised my sister I would stop trading memes. She found out. I am keeping four fifths as proof I can hold; let one fifth go so I can buy her dinner and an apology.”</p>
+        <div class="wall-card__nums" id="w212-n"><span><b>1,880,000</b> PLEA</span><span><b>+37</b> points held</span><span>sold for <b>25.98</b> IMD</span></div>
+        <div class="wall-card__who" id="w212-w"><span class="strong">lettersonly</span><span class="badge badge--letter"><svg class="icon" aria-hidden="true"><use href="#i-envelope-simple"/></svg>BY LETTER</span></div>
+      </a>
+
+      <a class="wall-card" href="plea.html?id=211" aria-labelledby="w211-i w211-s" aria-describedby="w211-a w211-t w211-o w211-n w211-w">
+        <div class="wall-card__top"><span class="stamp stamp--sold" id="w211-s">Sold<span class="stamp__sub">37 vs need 36</span></span><span class="wall-card__id"><span id="w211-i"><span class="sr-only">Plea </span>#211</span> · <span id="w211-a">17 min ago</span></span></div>
+        <p class="wall-card__text" id="w211-t">“Bought yesterday, already regret it. Not a loss, not a gain, just a lesson. Ten percent out, the rest stays to learn the second half of the lesson.”</p>
+        <p class="cluster cluster--sm small" id="w211-o"><span class="stamp stamp--sm stamp--objection">Objection #9</span><span>pending</span></p>
+        <div class="wall-card__nums" id="w211-n"><span><b>310,000</b> PLEA</span><span><b>+37</b> points held</span><span>sold for <b>4.28</b> IMD</span></div>
+        <div class="wall-card__who" id="w211-w"><span class="mono strong">0x51ab…7c3e</span></div>
+      </a>
+
+      <a class="wall-card" href="plea.html?id=210" aria-labelledby="w210-i w210-s" aria-describedby="w210-a w210-t w210-n w210-w">
+        <div class="wall-card__top"><span class="stamp stamp--noverdict" id="w210-s">No verdict<span class="stamp__sub">panel split 14/29</span></span><span class="wall-card__id"><span id="w210-i"><span class="sr-only">Plea </span>#210</span> · <span id="w210-a">58 min ago</span></span></div>
+        <p class="wall-card__text" id="w210-t">“Meditated on this chart for 52 hours. The chart did not meditate back. Thirty percent out; the other seventy stay in the monastery.”</p>
+        <div class="wall-card__nums" id="w210-n"><span><b>1,440,000</b> PLEA</span><span>no points</span><span>no cooldown</span></div>
+        <div class="wall-card__who" id="w210-w"><span class="strong">deg_monk</span></div>
+      </a>
+
+      <a class="wall-card" href="plea.html?id=209" aria-labelledby="w209-i w209-s" aria-describedby="w209-a w209-t w209-o w209-n w209-w">
+        <div class="wall-card__top"><span class="stamp stamp--sold" id="w209-s">Sold<span class="stamp__sub">34 vs need 33</span></span><span class="wall-card__id"><span id="w209-i"><span class="sr-only">Plea </span>#209</span> · <span id="w209-a">2 h ago</span></span></div>
+        <p class="wall-card__text" id="w209-t">“My grandmother says a man who cannot sell a meme coin is not a man but a bag. I would like to prove her wrong by selling 15% and keeping the rest as a bag of honour.”</p>
+        <p class="cluster cluster--sm small" id="w209-o"><span class="stamp stamp--sm stamp--objection">Sustained</span><span>#8: 29 vs need 33</span></p>
+        <div class="wall-card__nums" id="w209-n"><span><b>780,000</b> PLEA</span><span>no points</span><span>sold for <b>10.78</b> IMD</span></div>
+        <div class="wall-card__who" id="w209-w"><span class="mono strong">0x9c41…e07a</span></div>
+      </a>
+
+      <a class="wall-card" href="plea.html?id=208" aria-labelledby="w208-i w208-s" aria-describedby="w208-a w208-t w208-n w208-w">
+        <div class="wall-card__top"><span class="stamp stamp--lapsed" id="w208-s">Lapsed<span class="stamp__sub">35 vs need 33</span></span><span class="wall-card__id"><span id="w208-i"><span class="sr-only">Plea </span>#208</span> · <span id="w208-a">3 h ago</span></span></div>
+        <p class="wall-card__text" id="w208-t">“Goblin law says never sell. Goblin landlord says pay rent. Goblin compromise: one fifth, and I keep the hoard warm for the other four.”</p>
+        <div class="wall-card__nums" id="w208-n"><span><b>1,600,000</b> PLEA</span><span><b>+35</b> points</span><span>not sold in 7 min</span></div>
+        <div class="wall-card__who" id="w208-w"><span class="strong">hodl_goblin</span></div>
+      </a>
+
+      <a class="wall-card" href="plea.html?id=207" aria-labelledby="w207-i w207-s" aria-describedby="w207-a w207-t w207-n w207-w">
+        <div class="wall-card__top"><span class="stamp stamp--approved" id="w207-s">Overturned<span class="stamp__sub">34 vs need 33</span></span><span class="wall-card__id"><span id="w207-i"><span class="sr-only">Plea </span>#207</span> · <span id="w207-a">4 h ago</span></span></div>
+        <p class="wall-card__text" id="w207-t">“My first plea scored 30 against a need of 33, and that was fair: I wrote it in a hurry. Here is the real reason. My daughter starts school on Monday and needs shoes; I keep 80% and my word.”</p>
+        <div class="wall-card__nums" id="w207-n"><span><b>1,120,000</b> PLEA</span><span><b>+40</b> points</span><span>sold for <b>15.48</b> IMD</span></div>
+        <div class="wall-card__who" id="w207-w"><span class="strong">oath_keeper</span><span class="badge badge--seat">SEAT ×1.2</span><span class="badge">APPEAL OF #205</span></div>
+      </a>
+
+      <a class="wall-card" href="plea.html?id=206" aria-labelledby="w206-i w206-s" aria-describedby="w206-a w206-t w206-o w206-n w206-w">
+        <div class="wall-card__top"><span class="stamp stamp--sold" id="w206-s">Sold<span class="stamp__sub">34 vs need 33</span></span><span class="wall-card__id"><span id="w206-i"><span class="sr-only">Plea </span>#206</span> · <span id="w206-a">5 h ago</span></span></div>
+        <p class="wall-card__text" id="w206-t">“Four days of holding taught me patience, humility and that I should not check the chart at 3 a.m. I would like to sell 15% and sleep.”</p>
+        <p class="cluster cluster--sm small" id="w206-o"><span class="stamp stamp--sm stamp--objection">Overruled</span><span>#7: 33 vs need 33 · counts 39 points</span></p>
+        <div class="wall-card__nums" id="w206-n"><span><b>300,000</b> PLEA</span><span><b>+39</b> points</span><span>sold for <b>4.15</b> IMD</span></div>
+        <div class="wall-card__who" id="w206-w"><span class="strong">brine_oracle</span><span class="badge badge--seat">SEAT ×1.2</span></div>
+      </a>
+
+      <a class="wall-card" href="plea.html?id=205" aria-labelledby="w205-i w205-s" aria-describedby="w205-a w205-t w205-n w205-w">
+        <div class="wall-card__top"><span class="stamp stamp--denied" id="w205-s">Denied<span class="stamp__sub">30 vs need 33</span></span><span class="wall-card__id"><span id="w205-i"><span class="sr-only">Plea </span>#205</span> · <span id="w205-a">6 h ago</span></span></div>
+        <p class="wall-card__text" id="w205-t">“Need to sell some, life costs money. Thanks.”</p>
+        <div class="wall-card__nums" id="w205-n"><span><b>1,120,000</b> PLEA</span><span>no points</span><span>appealed in <b>#207</b></span></div>
+        <div class="wall-card__who" id="w205-w"><span class="strong">oath_keeper</span><span class="badge badge--seat">SEAT ×1.2</span></div>
+      </a>
+
+      <a class="wall-card" href="plea.html?id=204" aria-labelledby="w204-i w204-s" aria-describedby="w204-a w204-t w204-n w204-w">
+        <div class="wall-card__top"><span class="stamp stamp--sold" id="w204-s">Sold<span class="stamp__sub">33 vs need 30</span></span><span class="wall-card__id"><span id="w204-i"><span class="sr-only">Plea </span>#204</span> · <span id="w204-a">7 h ago</span></span></div>
+        <p class="wall-card__text" id="w204-t">“I am a shrimp among whales. My whole bag is two million PLEA and my whole dinner budget is zero. Twenty percent out, eighty percent swimming on.”</p>
+        <div class="wall-card__nums" id="w204-n"><span><b>400,000</b> PLEA</span><span><b>+33</b> points</span><span>sold for <b>5.18</b> IMD</span></div>
+        <div class="wall-card__who" id="w204-w"><span class="strong">shrimp_lord</span><span class="badge badge--auto">AUTO-SELL</span></div>
+      </a>
+    </div>
+
+    <div class="wall-more">
+      <button class="btn" type="button">Load older pleas</button>
+      <p class="meta">Next: #203 to #192</p>
+    </div>
+  </section>
+</main>
+
+<!-- Mockups only: other states of this page, clearly marked as design reference, not site content. -->
+<section class="ref" aria-labelledby="ref-title">
+  <div class="page">
+    <p class="ref__label" id="ref-title">Design reference · other states</p>
+    <div class="ref__grid">
+      <div class="ref__item ref__item--wide">
+        <p class="ref__caption">More filters open, with By letter on (the summary counts the filters that are on; the count line names the filter)</p>
+        <div class="wall-tools">
+          <details class="wall-tools__more" open>
+            <summary class="chip">More filters · 1 on<svg class="icon" aria-hidden="true"><use href="#i-caret-down"/></svg></summary>
+            <div class="panel wall-tools__panel">
+              <div>
+                <p class="label" id="rf-only">Show only</p>
+                <div class="chips" role="group" aria-labelledby="rf-only">
+                  <button class="chip" type="button" aria-pressed="false">Sold</button>
+                  <button class="chip" type="button" aria-pressed="false">Appeals</button>
+                  <button class="chip" type="button" aria-pressed="true">By letter</button>
+                  <button class="chip" type="button" aria-pressed="false">Objected</button>
+                </div>
+              </div>
+              <div>
+                <p class="label" id="rf-sort">Sort</p>
+                <div class="chips" role="group" aria-labelledby="rf-sort">
+                  <button class="chip" type="button" aria-pressed="true">Newest</button>
+                  <button class="chip" type="button" aria-pressed="false">Highest score</button>
+                </div>
+              </div>
+            </div>
+          </details>
+          <p class="meta">Showing pleas sent by letter, newest first</p>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Empty filter: Objected, before the first objection</p>
+        <div class="empty"><svg class="icon" aria-hidden="true"><use href="#i-gavel"/></svg><p class="empty__title">No objections yet</p><p>Every approval so far went unchallenged. Suspicious.</p><button class="btn btn--sm" type="button">Show all pleas</button></div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Read error (the public RPC did not answer)</p>
+        <div class="error-box" role="alert"><p class="error-box__title"><svg class="icon" aria-hidden="true"><use href="#i-plugs"/></svg>Can't read the Wall</p><p class="small">The public RPC did not answer while reading pleas. The site tries the next one by itself; your funds and pleas are not affected.</p><div class="btn-row"><button class="btn btn--sm" type="button"><svg class="icon" aria-hidden="true"><use href="#i-arrow-clockwise"/></svg>Try again</button></div></div>
+      </div>
+
+      <div class="ref__item ref__item--wide">
+        <p class="ref__caption">Loading (first read: still skeleton cards, no shimmer; three, or two where the grid has two columns)</p>
+        <div class="stack stack--sm" aria-busy="true">
+          <p class="loading-label"><svg class="icon" aria-hidden="true"><use href="#i-hourglass"/></svg>Reading pleas from the chain…</p>
+          <div class="wall-grid wall-grid--loading">
+            <div class="panel skeleton"><div class="skeleton__line skeleton__line--short"></div><div class="skeleton__line"></div><div class="skeleton__line"></div><div class="skeleton__line skeleton__line--mid"></div><div class="skeleton__line skeleton__line--short"></div></div>
+            <div class="panel skeleton"><div class="skeleton__line skeleton__line--short"></div><div class="skeleton__line"></div><div class="skeleton__line"></div><div class="skeleton__line skeleton__line--mid"></div><div class="skeleton__line skeleton__line--short"></div></div>
+            <div class="panel skeleton"><div class="skeleton__line skeleton__line--short"></div><div class="skeleton__line"></div><div class="skeleton__line"></div><div class="skeleton__line skeleton__line--mid"></div><div class="skeleton__line skeleton__line--short"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Loading older pleas (busy)</p>
+        <div class="panel wall-more">
+          <button class="btn" type="button" aria-busy="true">Reading #203 to #192…</button>
+          <p class="meta">The 12 cards above stay put.</p>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">The end of the Wall (plea #1 is on screen)</p>
+        <div class="panel wall-more">
+          <p class="strong">That is every plea, back to #1.</p>
+          <p class="meta">Yours would be #216.</p>
+          <a class="btn btn--sm" href="plead.html">Write a plea</a>
+        </div>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">Not connected: the Wall reads without a wallet; only the YOU badge goes</p>
+        <a class="wall-card" href="plea.html?id=214" aria-labelledby="rn214-i rn214-s" aria-describedby="rn214-a rn214-t rn214-n rn214-w">
+          <div class="wall-card__top"><span class="stamp stamp--approved" id="rn214-s">Approved<span class="stamp__sub">36 vs need 33</span></span><span class="wall-card__id"><span id="rn214-i"><span class="sr-only">Plea </span>#214</span> · <span id="rn214-a">4 min ago</span></span></div>
+          <p class="wall-card__text" id="rn214-t">“I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.”</p>
+          <div class="wall-card__nums" id="rn214-n"><span><b>1,240,000</b> PLEA</span><span><b>+43</b> points held</span><span>sell by <b>08:06</b> UTC</span></div>
+          <div class="wall-card__who" id="rn214-w"><span class="strong">mira_eth</span><span class="badge badge--seat">SEAT ×1.2</span></div>
+        </a>
+      </div>
+
+      <div class="ref__item">
+        <p class="ref__caption">A verdict arrives live: the stamp lands once (with reduced motion it just appears)</p>
+        <div class="stack stack--sm">
+          <a class="wall-card" href="plea.html?id=214" aria-labelledby="rl214-i land-214" aria-describedby="rl214-a rl214-t rl214-n rl214-w">
+            <div class="wall-card__top"><span class="stamp stamp--approved stamp--land" id="land-214">Approved<span class="stamp__sub">36 vs need 33</span></span><span class="wall-card__id"><span id="rl214-i"><span class="sr-only">Plea </span>#214</span> · <span id="rl214-a">4 min ago</span></span></div>
+            <p class="wall-card__text" id="rl214-t">“I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.”</p>
+            <div class="wall-card__nums" id="rl214-n"><span><b>1,240,000</b> PLEA</span><span><b>+43</b> points held</span><span>sell by <b>08:06</b> UTC</span></div>
+            <div class="wall-card__who" id="rl214-w"><span class="strong">mira_eth</span><span class="badge badge--seat">SEAT ×1.2</span><span class="badge badge--you">YOU</span></div>
+          </a>
+          <div class="btn-row"><button class="btn btn--sm" type="button" data-replay-stamp="land-214">Replay the landing</button></div>
+        </div>
+      </div>
+
+      <div class="ref__item ref__item--wide">
+        <p class="ref__caption">After the Cabal dies: the strip and banner from the shell's commented block (the same on every page), then the Wall's own line above the filters; the end of the Wall loses Write&nbsp;a&nbsp;plea</p>
+        <div class="panel panel--flush">
+          <div class="status-strip"><div class="page">
+            <span class="status-item"><span class="live-dot live-dot--dead" aria-hidden="true"></span><b>Cabal dead</b> · no verdict for 33&nbsp;hours</span>
+            <span class="status-item"><b>Season 2</b> ended with the Cabal · close it from 17:59&nbsp;UTC</span>
+            <span class="status-item">1M PLEA = <span class="num">14.16</span> IMD</span>
+          </div></div>
+          <div class="banner" role="status"><div class="page"><span class="live-dot live-dot--dead" aria-hidden="true"></span><span>The Cabal is dead: no verdict for 33 hours. PLEA trades freely forever. Pleas and objections are closed; sell on the Buy page.</span></div></div>
+          <div class="panel__body">
+            <div class="notice notice--info"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><div><p class="notice__title">The Wall is the record now.</p><p>Every plea and verdict stays here and opens as before. Nothing new is judged, so the end of the Wall shows no Write a plea button.</p></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="page">
+    <div class="stack stack--sm">
+      <p class="fine">PLEA is a meme token on Uniswap v4. Buying is open; selling needs a plea while the Cabal lives. Not financial advice, and not an official IMD page. Any PLEA traded before launch day isn't ours. Inspired by CabalCoin by TokenWorks (2025).</p>
+    </div>
+    <nav aria-label="Footer">
+      <ul>
+        <li><a href="index.html#how">How it works</a></li>
+        <li><a href="index.html#contracts">Contracts</a></li>
+        <li><a href="profile.html">Profile</a></li>
+        <li><a href="https://x.com/Pleaimd">@Pleaimd on X</a></li>
+        <li><a href="https://github.com/khaed1/plea">Code</a></li>
+      </ul>
+    </nav>
+  </div>
+</footer>
+</body>
+</html>

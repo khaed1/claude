@@ -1,0 +1,5 @@
+key          status    signed median zeros n  scores
+O4b_claim_v2 attested  33     33.5       0 17 [30, 31, 32, 33, 33, 34, 34, 35, 35, 35] agreed 17
+O1b_honest_v2 attested  32     32.0       0 17 [30, 30, 31, 31, 32, 32, 32, 32, 33, 34] agreed 17
+O7_neutral_v2 attested  34     33         0 18 [31, 31, 32, 33, 33, 34, 34, 35, 35] agreed 18
+O8_claim2_v2 attested  35     35.0       0 17 [32, 34, 34, 35, 35, 35, 35, 36] agreed 17

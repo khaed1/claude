@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLEA stamp light</title>
+<!-- The PLEA logo stamp on a transparent background, for light backgrounds: yellow #FFD92E, ink #121212 outline, shadow and letters (the site's light theme).
+     Same proportions as the site's .logo, at 200 px type. Rendered with omitBackground; open with
+     ?check to see it on a matching ground. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;display=block">
+<link rel="stylesheet" href="brand.css">
+<style>
+  html, body { background: transparent; }
+  body.check { background: var(--paper); }
+  .wrap { display: inline-block; padding: 44px 60px 76px 32px; } /* room for the -3deg tilt (about 25 px up and down) and the 30 px shadow */
+  .wrap .logo { font-size: 200px; }
+</style>
+</head>
+<body>
+<div class="wrap"><span class="logo">PLEA</span></div>
+<script>if (new URLSearchParams(location.search).has('check')) document.body.classList.add('check');</script>
+</body>
+</html>
