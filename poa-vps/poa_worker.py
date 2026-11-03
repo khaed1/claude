@@ -91,7 +91,9 @@ def ask_claude(cfg, ch, budget_left):
     prompt = (f"Write the answer to this task and output ONLY the answer text, nothing else.\n\n"
               f"Task: {ch['task']}\n\n"
               f"Hard requirements: between 200 and 550 characters (the hard limit is 600, so stay well under it); plain prose on one paragraph; it must contain each of "
-              f"these words exactly as written: {', '.join(words)}; original, specific and coherent.")
+              f"these words exactly as written: {', '.join(words)}; original, specific and coherent. Weave each word naturally into "
+              f"the mechanism's own content (as a literal noun, verb or metaphor that fits), never by naming or labelling "
+              f"parts of the mechanism after the words (no 'call the X the <word>'); graders mark forced words down.")
     claude = shutil.which('claude', path=PATH)
     if not claude:
         raise RuntimeError('claude not found in /opt/reset-claude/bin')
