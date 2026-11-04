@@ -15,7 +15,7 @@ You already have a VPS and can SSH into it. You also need:
 - An eligible IdentityMD NFT in a browser wallet, and some Ethereum mainnet ETH for registration gas if the NFT is not registered yet.
 - Nothing from GitHub: the [IdentityMD worker](https://github.com/Identity-md/worker) and its [releases](https://github.com/Identity-md/worker/releases) are public downloads.
 
-**Model choice:** stay on Sonnet 5. It stretches your allowance much further than Opus or Fable, and Opus does not unlock any extra work: premium (contract and frontend) tasks are only offered to Fable 5.1 at high effort. Check result quality and your [usage page](https://claude.ai/settings/usage) after the first few tasks.
+**Model choice:** Sonnet stretches your allowance furthest, and this guide sets it. Premium (contract and frontend) tasks are offered only to **Fable 5.1 at high effort or Opus 5.5 at medium effort or above** (worker 0.1.13), and both use your allowance much faster; contract work also needs [Foundry](#optional-foundry-for-fuzzing-campaigns). To switch, see [Change the model](#change-the-model). Check result quality and your [usage page](https://claude.ai/settings/usage) after the first few tasks.
 
 **Quota:** assigned work uses your Claude subscription's usage limits, which are **shared with your own Claude use**. Always-on operation can use them up, especially on Pro. Concurrency 1 and CPU/RAM limits do **not** cap token use. If extra usage is enabled on your account, work beyond the plan's limits may be billed.
 
@@ -294,7 +294,7 @@ runuser -l imd-worker -c "node -e 'console.log(JSON.stringify(require(require(\"
 ```
 Must show `claude-sonnet-5` and `medium` under `economy`, `standard` and `premium`.
 
-Setting `premium` to Sonnet deliberately **opts out of premium work** (contract and frontend), which requires `claude-fable-5-1` at `high` effort and would use your allowance much faster. These are worker preferences, not a spending cap.
+Setting `premium` to Sonnet deliberately **opts out of premium work** (contract and frontend), which requires `claude-fable-5-1` at `high` effort or `claude-opus-5-5` at `medium` or above, and would use your allowance much faster. These are worker preferences, not a spending cap. To change them later, see [Change the model](#change-the-model).
 
 ### Health check
 
@@ -670,6 +670,75 @@ systemctl restart imd-worker.service imd-worker-2.service
 journalctl -u imd-worker.service -u imd-worker-2.service -n 40 --no-pager -o cat | grep -iE 'runtimes|oracle work|admitted'
 ```
 Each worker must show `runtimes: claude 2.1.300 (Claude Code)` and `admitted`, and no `oracle work is off` line. If one appears, see [Oracle work and the sandbox](#oracle-work-and-the-sandbox).
+
+### Change the model
+
+Check what every worker uses (shows only the model settings, not your keys):
+
+```bash
+for h in .identitymd .identitymd-2; do echo "== $h"; runuser -l imd-worker -c "node -e 'const i=require(process.env.HOME+\"/$h/config.json\").inference;for(const t in i)console.log(t, i[t].claude.model, i[t].claude.effort)'"; done
+```
+```bash
+grep ANTHROPIC_MODEL /opt/imd-worker/bin/claude
+```
+
+To switch every worker to, for example, Opus 5.5 at medium effort **(one block)**. Put each worker's folder in the list (`.identitymd .identitymd-2 .identitymd-3` …) and use `claude-sonnet-5-5` to go back:
+
+```bash
+for h in .identitymd .identitymd-2; do
+  runuser -l imd-worker -c "node -e 'const fs=require(\"fs\"),p=process.env.HOME+\"/$h/config.json\",c=JSON.parse(fs.readFileSync(p,\"utf8\"));c.inference??={};for(const t of [\"economy\",\"standard\",\"premium\"]){c.inference[t]??={};c.inference[t].claude={model:\"claude-opus-5-5\",effort:\"medium\"}}fs.writeFileSync(p,JSON.stringify(c,null,2)+\"\n\",{mode:0o600})'" && echo "set $h"
+done
+sed -i 's/^export ANTHROPIC_MODEL=.*/export ANTHROPIC_MODEL=claude-opus-5-5/' /opt/imd-worker/bin/claude
+```
+```bash
+systemctl restart imd-worker.service imd-worker-2.service
+```
+
+Then run the check again, and `imd doctor` (with the token, see [Long-lived sign-in](#long-lived-sign-in-recommended)): `✓ claude run` confirms your plan can use the model. A task may still ask for a smaller model than yours for simple work. All workers share one subscription, so watch your [usage page](https://claude.ai/settings/usage) after switching.
+
+### Your own RPC endpoints
+
+Oracle panels scan blockchains, and hundreds of workers on the same public endpoints get rate-limited, so a short scan loses the seat. With your own endpoint (Alchemy, QuickNode, Infura, your own node), IMD seats that chain's panels on your machine first. The URL contains your API key: it stays in each worker's `config.json`, and tasks only see a relay on `127.0.0.1`. If your endpoint fails, tasks fall back to public endpoints.
+
+Create an app with a provider and copy its HTTPS URL for each chain, for example:
+
+| Chain | Chain ID | Alchemy URL |
+| --- | --- | --- |
+| Ethereum | `1` | `https://eth-mainnet.g.alchemy.com/v2/KEY` |
+| Base | `8453` | `https://base-mainnet.g.alchemy.com/v2/KEY` |
+| Robinhood Chain | `4663` | `https://robinhood-mainnet.g.alchemy.com/v2/KEY` |
+
+Each worker has its own config, so add every chain to every worker. The command asks for the URL without showing it and checks that it serves that chain:
+
+```bash
+runuser -l imd-worker -c 'imd rpc add 1'
+```
+```bash
+runuser -l imd-worker -c 'IDENTITYMD_HOME=$HOME/.identitymd-2 imd rpc add 1'
+```
+Repeat with `8453`, `4663` and any other chain IMD asks for.
+
+```bash
+runuser -l imd-worker -c 'imd rpc'
+```
+Lists the chains, host only. Then restart the workers and check:
+
+```bash
+systemctl restart imd-worker.service imd-worker-2.service
+```
+```bash
+journalctl -u imd-worker.service -u imd-worker-2.service -n 80 --no-pager -o cat | grep -i 'own RPC'
+```
+Each worker must log `own RPC for chain 1, 4663, 8453, relayed on 127.0.0.1`. *“with the whole state history”* means your endpoints are archive nodes, which also qualifies the machine for fork tests of older blocks. All workers sharing one key share its monthly limit; give each its own app if you run low. `imd rpc goals on` additionally lets goal tasks read through your endpoints (they then pay for those calls).
+
+### Goal tasks
+
+Goal tasks are the `goal-*` skills (`goal-task`, `goal-code`, `goal-chain`, `goal-check`, `goal-judge`, `goal-lead`, `goal-orchestrator`). They are on by default, run in the [sandbox](#oracle-work-and-the-sandbox), and need a current worker (0.1.13 for `goal-chain`). Check:
+
+```bash
+runuser -l imd-worker -c 'imd skills' | grep -i goal
+```
+Each must show `on`. They arrive only when someone posts a goal. `goal-task` and `goal-code` use up to 4 helper agents, so they use more of your allowance. Optionally, `imd venice key` or `imd openrouter key` lets them run on that provider's account instead of your Claude subscription.
 
 ### Switch an existing worker to the long-lived token
 
