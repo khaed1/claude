@@ -538,13 +538,30 @@ MURMURATION_MAX_GAS_GWEI=3
     <tr><td>Threshold disclosure keys</td><td>Threshold signing, not threshold decryption</td><td><span class="pill hi">Do not use</span> for key shares; the jury can only enforce the policy</td></tr>
     <tr><td>Pool funds</td><td>Custody Safe or budget escrow</td><td><span class="pill hi">Never</span>: pool value stays in the immutable pool contract only</td></tr>
   </table></div>
-  <h3>Questions to settle before building on it</h3>
-  <ol>
-    <li><strong>Who selects the jury and the Safe owners.</strong> If api.imd.fun assigns the 150, the ASP's curator is IMD's operator and the single-ASP problem has moved, not gone. Selection must be derivable from the on-chain registry.</li>
-    <li><strong>Which checks are on-chain.</strong> Escrow, Safe execution and the epoch Merkle root look on-chain; mandate simulation looks like control-plane work. For an ASP, anyone must be able to recompute the mandate check from the criteria file.</li>
-    <li><strong>Cost and liveness at 100 of 150.</strong> Safe verifies each signature on-chain, so a root costs roughly 0.6 to 0.9 M gas; acceptable at today's gas, but a drop in the online rate stalls roots. The ring buffer of historical roots covers short stalls.</li>
-    <li><strong>Release state.</strong> Payroll was still "manually allocated via multisig wallets" as of late October 2026 and a single wallet held the hook contract's admin rights. Treat Goals as phase 1 input, not a phase 0 dependency.</li>
-  </ol>
+  <h3>On the jury size</h3>
+  <p>The 100-of-150 figure is the demo's jury, not a Murmuration choice. A Safe verifies every signature on-chain, so cost scales with the signer count. Gas is cheap today; the real cost of a large jury is liveness, because ASP roots must refresh daily. A large jury suits rare treasury actions like the demo's buyback. A daily root wants a small panel of distinct holder wallets, rotated per epoch. If the Safe uses an aggregated threshold signature, the size question disappears.</p>
+  <div class="tbl"><table>
+    <tr><th>Panel</th><th>Signatures verified on-chain</th><th>Rough gas per root</th></tr>
+    <tr><td>100 of 150 (demo)</td><td class="n">100</td><td class="n">0.6 to 0.9 M</td></tr>
+    <tr><td>10 of 15</td><td class="n">10</td><td class="n">60 to 90 k</td></tr>
+    <tr><td>7 of 10 (this spec)</td><td class="n">7</td><td class="n">45 to 65 k</td></tr>
+  </table></div>
+  <h3>Questions sent to the developer</h3>
+  <p>Ordered by how much the answer changes the design. Answers are recorded here as the docs or the developer provide them. Questions 1, 3 and 4 decide whether the Panel ASP can be a goal or stays a standalone contract.</p>
+  <div class="tbl"><table>
+    <tr><th>#</th><th>Question</th><th>Why it matters</th><th>Answer</th></tr>
+    <tr><td class="n">1</td><td>Who picks a goal's jury and the Safe owners? Is membership derived from the seat registry on-chain, so anyone can verify who could sign, or assigned by the control plane per goal?</td><td>Control-plane selection makes IMD's operator the ASP curator; the single-ASP problem moves rather than disappears</td><td><span class="pill">Pending</span></td></tr>
+    <tr><td class="n">2</td><td>Is there one custody Safe for the protocol, or can each goal have its own Safe and budget escrow? Can an outside wallet create a goal with its own mandate?</td><td>Decides whether Murmuration panels are separate goals or sub-mandates of one treasury</td><td><span class="pill">Pending</span></td></tr>
+    <tr><td class="n">3</td><td>Where do the mandate check and the simulation run? Can a third party recompute "outside the mandate" from the mandate document alone, without the control plane?</td><td>An ASP's screening must be reproducible by anyone, or it is a trusted list</td><td><span class="pill">Pending</span></td></tr>
+    <tr><td class="n">4</td><td>How are jury signatures verified on-chain: Safe's per-signer check, or an aggregated threshold signature? Is 100 of 150 fixed or configurable per goal?</td><td>Sets the gas and liveness cost of a daily root</td><td><span class="pill">Pending</span></td></tr>
+    <tr><td class="n">5</td><td>Can a mandate scope be restricted to a single target function on a contract we deploy, with everything else forbidden, and can a goal hold an ENS name?</td><td>Needed for a panel that can only call <code>submitRoot</code>, and for frontend custody</td><td><span class="pill">Pending</span></td></tr>
+    <tr><td class="n">6</td><td>Can "watch and wake" be defined as a custom condition on an outside contract's state, or only from the built-in keeper recipes?</td><td>Stewardship wake conditions are on Railgun and Privacy Pools state, not IMD state</td><td><span class="pill">Pending</span></td></tr>
+    <tr><td class="n">7</td><td>For the epoch payroll: can an outside goal fund its own budget escrow and pay seats per accepted item, and what does the 72-hour challenge check against?</td><td>Decides whether public roles are paid through the epoch document or through in-pool notes</td><td><span class="pill">Pending</span></td></tr>
+    <tr><td class="n">8</td><td>Can a goal deploy a contract from the Safe so that no EOA ever holds the deployer key, and will the deployment be reproducible from a published build?</td><td>Layer 0 deployment with no single key is the strongest legal posture available</td><td><span class="pill">Pending</span></td></tr>
+    <tr><td class="n">9</td><td>What is the rollout timeline, and will the custody Safe address, the mandate schema and the jury rules be published before goals go live?</td><td>Sets whether Goals is a phase 1 input or later</td><td><span class="pill">Pending</span></td></tr>
+    <tr><td class="n">10</td><td>Are the Safe, Roles and escrow contracts the canonical audited deployments, and will anything IMD-specific in the path (escrow, judge, epoch verifier) be audited before it holds funds?</td><td>Pool funds never touch these contracts either way; payroll and bonds might</td><td><span class="pill">Pending</span></td></tr>
+  </table></div>
+  <p>Release state for context: as of late October 2026 agent payroll was still "manually allocated via multisig wallets" and a single wallet held the hook contract's admin rights. Treat Goals as phase 1 input, not a phase 0 dependency.</p>
 </section>
 
 <section id="roadmap">
