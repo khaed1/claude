@@ -673,7 +673,7 @@ Each worker must show `runtimes: claude 2.1.300 (Claude Code)` and `admitted`, a
 
 ### Switch an existing worker to the long-lived token
 
-For a worker set up with an earlier version of this guide. First create and test the token as in [Long-lived sign-in](#long-lived-sign-in-recommended), then:
+For a worker set up with an earlier version of this guide. **Fix the wrapper first:** the old one clears the token, so the token test would fail with *“Not logged in · Please run /login”*.
 
 ```bash
 sed -i 's/ CLAUDE_CODE_OAUTH_TOKEN//' /opt/imd-worker/bin/claude
@@ -681,7 +681,9 @@ sed -i 's/ CLAUDE_CODE_OAUTH_TOKEN//' /opt/imd-worker/bin/claude
 ```bash
 grep unset /opt/imd-worker/bin/claude
 ```
-Must show `unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL`, without `CLAUDE_CODE_OAUTH_TOKEN` (the old wrapper cleared it).
+Must show `unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL`, without `CLAUDE_CODE_OAUTH_TOKEN`.
+
+Now create, save and test the token as in [Long-lived sign-in](#long-lived-sign-in-recommended), then continue here.
 
 Give the token to every worker service with a drop-in file **(one block)**:
 
@@ -924,6 +926,8 @@ Choose **GitHub.com → HTTPS → web browser** and follow the device-code steps
 | Log: `oracle work is off … apparmor_restrict_unprivileged_userns is 1` | The `sysctl` steps in [Oracle work and the sandbox](#oracle-work-and-the-sandbox). |
 | Log: `oracle work is off … bubblewrap cannot start here: bwrap: Can't mount proc on /newroot/proc` | The `ProtectKernelTunables` drop-in in [Oracle work and the sandbox](#oracle-work-and-the-sandbox). The hint about running “on the host or a VM” doesn't apply to a VPS. |
 | Log / `imd doctor`: `self-test failed … apply-seccomp: write /proc/self/setgroups (nested userns is capability-restricted …)` | Ubuntu's `bwrap-userns-restrict` AppArmor profile: turn it off as in [Oracle work and the sandbox](#oracle-work-and-the-sandbox), then restart the services. The doctor's sysctl hint only helps if that setting is still `1`. |
+| Browser: *“Invalid OAuth request”* during `claude setup-token` or `claude auth login` | The long link wrapped over several lines and broke when copied. Press `c` on that screen to copy it whole, or widen the terminal until it fits on one line and select it holding Shift. Use the link from the latest run only. |
+| Token test: *“Not logged in · Please run /login”* | The wrapper still clears the token: run the `sed` line from [Switch an existing worker](#switch-an-existing-worker-to-the-long-lived-token). If it still fails, the token was cut off when pasted: repeat the `read -rsp` line. |
 | `imd doctor`: `✗ claude run  Failed to authenticate: OAuth session expired` | The shared Claude sign-in expired. Best fix: switch to the [long-lived token](#switch-an-existing-worker-to-the-long-lived-token). Quick fix: `runuser -l imd-worker -c 'claude auth login --claudeai'`, then restart the services. One sign-in covers all workers. If you already use the token, run the doctor with it (see [Long-lived sign-in](#long-lived-sign-in-recommended)). |
 | `imd doctor`: `✗ presence … not accepting work right now` | Read the log: `taking no work: self-test failed` names the cause. Right after a fix and restart, wait a few minutes: once the log says `self-test passed`, presence turns ✓ after a heartbeat or two. |
 | `imd update`: *“codex sandbox did not hold the jail … sudo imd sandbox”* | Ignore it if the workers' logs show no `oracle work is off` line; it tested the unused Codex runtime. |
