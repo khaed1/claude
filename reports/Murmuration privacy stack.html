@@ -1,0 +1,601 @@
+<title>Murmuration Privacy Stack</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: engineering spec. Sticky section index on the left at desktop width, one column on phones.
+   Ink-on-paper neutrals with a cool bias; one indigo accent for structure, amber only for cautions. */
+:root{
+  --bg:#f3f4f7; --surface:#ffffff; --fg:#161a22; --muted:#5b6474; --line:#d6dae3;
+  --accent:#3b3fa8; --accent-soft:#e6e7f7; --warn:#9a5b00; --warn-soft:#fff3dc; --ok:#1f6f4a; --ok-soft:#e2f3ea;
+  --code-bg:#1d2130; --code-fg:#e4e7ef;
+  --display:"IBM Plex Sans Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1218; --surface:#171b24; --fg:#e8eaf0; --muted:#9aa3b5; --line:#2a3040;
+  --accent:#9ea2ff; --accent-soft:#232648; --warn:#f0b35a; --warn-soft:#3a2a10; --ok:#6fd1a0; --ok-soft:#153626;
+  --code-bg:#0b0e14; --code-fg:#dfe3ec; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0f1218; --surface:#171b24; --fg:#e8eaf0; --muted:#9aa3b5; --line:#2a3040;
+  --accent:#9ea2ff; --accent-soft:#232648; --warn:#f0b35a; --warn-soft:#3a2a10; --ok:#6fd1a0; --ok-soft:#153626;
+  --code-bg:#0b0e14; --code-fg:#dfe3ec; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 64px}
+.wrap{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:230px minmax(0,1fr);gap:40px}
+@media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr);gap:0}}
+
+header.hero{grid-column:1/-1;padding-block:40px 28px;border-bottom:1px solid var(--line)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(34px,6vw,58px);line-height:1;margin:8px 0 14px;letter-spacing:-.01em;text-wrap:balance}
+.lede{font-size:18px;max-width:62ch;color:var(--fg);margin:0 0 22px}
+.facts{display:flex;flex-wrap:wrap;gap:10px 28px;font-variant-numeric:tabular-nums}
+.facts div{display:flex;flex-direction:column}
+.facts b{font-family:var(--display);font-size:26px;font-weight:600;line-height:1.1}
+.facts span{font-size:13px;color:var(--muted)}
+
+nav.toc{position:sticky;top:env(safe-area-inset-top,0px);align-self:start;padding-block:28px;font-size:13.5px}
+nav.toc .eyebrow{margin-bottom:10px}
+nav.toc a{display:block;color:var(--muted);text-decoration:none;padding:4px 0 4px 10px;border-left:2px solid var(--line)}
+nav.toc a:hover,nav.toc a:focus-visible{color:var(--fg);border-left-color:var(--accent);outline:none}
+nav.toc a.sub{padding-left:22px;font-size:12.5px}
+@media (max-width:860px){nav.toc{position:static;padding-block:20px 8px;border-bottom:1px solid var(--line)}
+  nav.toc .links{display:flex;flex-wrap:wrap;gap:6px 14px} nav.toc a{border-left:0;padding:2px 0} nav.toc a.sub{display:none}}
+
+main{min-width:0;padding-block:28px}
+section{padding-block:12px 36px;scroll-margin-top:16px}
+h2{font-family:var(--display);font-weight:700;font-size:30px;line-height:1.1;margin:18px 0 10px;text-wrap:balance}
+h3{font-family:var(--display);font-weight:600;font-size:21px;margin:26px 0 8px;text-wrap:balance}
+h4{font-family:var(--body);font-weight:600;font-size:15px;margin:18px 0 6px;color:var(--fg)}
+p{max-width:68ch;margin:0 0 12px}
+ul,ol{max-width:68ch;padding-left:22px;margin:0 0 12px}
+li{margin-bottom:5px}
+a{color:var(--accent)}
+.num{font-family:var(--mono);font-size:12px;color:var(--accent);letter-spacing:.06em;text-transform:uppercase;display:block;margin-bottom:2px}
+
+.svc{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:18px 20px;margin:14px 0}
+.svc h3{margin-top:0}
+.svc .meta{display:grid;grid-template-columns:140px minmax(0,1fr);gap:4px 14px;font-size:14px;margin:10px 0 0;max-width:none}
+.svc .meta dt{color:var(--muted)} .svc .meta dd{margin:0}
+@media (max-width:520px){.svc .meta{grid-template-columns:minmax(0,1fr)} .svc .meta dt{margin-top:6px}}
+
+.callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:12px 16px;border-radius:0 6px 6px 0;margin:14px 0;max-width:72ch}
+.callout.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.callout.ok{border-left-color:var(--ok);background:var(--ok-soft)}
+.callout p:last-child{margin-bottom:0}
+
+pre{background:var(--code-bg);color:var(--code-fg);font-family:var(--mono);font-size:12.5px;line-height:1.5;padding:14px 16px;border-radius:6px;overflow-x:auto;margin:10px 0 16px;max-width:100%}
+code{font-family:var(--mono);font-size:.92em}
+p code,li code,td code{background:var(--accent-soft);padding:1px 5px;border-radius:3px}
+pre.mermaid{background:var(--surface);color:var(--fg);border:1px solid var(--line);padding:10px;overflow-x:auto}
+
+.tbl{overflow-x:auto;margin:10px 0 18px;max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{text-align:left;vertical-align:top;padding:8px 10px;border-bottom:1px solid var(--line)}
+th{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500}
+td.n{font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;font-family:var(--mono);font-size:11px;padding:2px 7px;border-radius:999px;border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.pill.hi{color:var(--warn);border-color:var(--warn)}
+.pill.ok{color:var(--ok);border-color:var(--ok)}
+
+.phase{display:grid;grid-template-columns:120px minmax(0,1fr);gap:8px 20px;border-top:1px solid var(--line);padding:18px 0}
+.phase .when{font-family:var(--display);font-weight:600;font-size:20px;line-height:1.15}
+.phase .when small{display:block;font-family:var(--mono);font-size:11.5px;color:var(--muted);font-weight:400;margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
+.phase h3{margin-top:0}
+@media (max-width:600px){.phase{grid-template-columns:minmax(0,1fr)}}
+
+.check{list-style:none;padding:0;max-width:72ch}
+.check li{padding-left:26px;position:relative}
+.check li::before{content:"";position:absolute;left:0;top:7px;width:14px;height:14px;border:1.5px solid var(--accent);border-radius:3px}
+
+footer{grid-column:1/-1;border-top:1px solid var(--line);padding-block:20px;font-size:13px;color:var(--muted);max-width:none}
+footer p{max-width:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+</style>
+
+<div class="wrap">
+<header class="hero">
+  <div class="eyebrow">Proposal · Ethereum mainnet · built on IMD seats · status as of 4 Nov 2026</div>
+  <h1>Murmuration: a swarm-operated privacy stack</h1>
+  <p class="lede">Ethereum already has the cryptography for private transfers. What it lacks is a way to relay, screen, prove and read without a single operator who can be subpoenaed, captured or prosecuted. IMD's ~1,100 independently owned, on-chain-identified agents are that missing operator layer. Murmuration turns them into six services for the pools that already exist, and only then into a pool of its own.</p>
+  <div class="facts">
+    <div><b>1,136</b><span>IMD seats registered (3 Nov 2026)</span></div>
+    <div><b>~921</b><span>online at the same snapshot</span></div>
+    <div><b>6 + 1</b><span>services, then one immutable pool</span></div>
+    <div><b>3</b><span>phases over ~24 months</span></div>
+    <div><b>0</b><span>components operated by the developers</span></div>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Sections">
+  <div class="eyebrow">Contents</div>
+  <div class="links">
+    <a href="#thesis">Thesis</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#services">The six services</a>
+    <a class="sub" href="#s1">1 Broadcaster mesh</a>
+    <a class="sub" href="#s2">2 Panel ASP</a>
+    <a class="sub" href="#s3">3 Collaborative proving</a>
+    <a class="sub" href="#s4">4 Private read layer</a>
+    <a class="sub" href="#s5">5 Stewardship agents</a>
+    <a class="sub" href="#s6">6 Threshold disclosure</a>
+    <a class="sub" href="#l0">Layer 0 pool</a>
+    <a href="#specs">Specs and implementation</a>
+    <a class="sub" href="#spec-identity">Identity and registry</a>
+    <a class="sub" href="#spec-mesh">Mesh protocol</a>
+    <a class="sub" href="#spec-asp">ASP contract and circuit</a>
+    <a class="sub" href="#spec-coprove">Co-proving</a>
+    <a class="sub" href="#spec-read">Read layer API</a>
+    <a class="sub" href="#spec-steward">Stewardship</a>
+    <a class="sub" href="#spec-disclose">Disclosure</a>
+    <a class="sub" href="#spec-pool">Pool design</a>
+    <a class="sub" href="#spec-worker">Worker integration</a>
+    <a class="sub" href="#spec-fees">Fees and gas</a>
+    <a class="sub" href="#spec-legal">Legal gate</a>
+    <a href="#roadmap">Roadmap</a>
+    <a href="#risks">Risks</a>
+    <a href="#open">Open questions</a>
+  </div>
+</nav>
+
+<main>
+
+<section id="thesis">
+  <h2>Thesis: services first, pool second</h2>
+  <p>Three findings drive the shape of the project. First, anonymity sets are the scarcest resource on Ethereum. Privacy Pools v2 launched on seven chains in October 2026 and holds 470 deposits on mainnet; a new pool on day one inherits that problem. Second, every compromise and every prosecution of Tornado Cash came from the mutable periphery (governance, frontend hash, relayer whitelist, fee token), never from the immutable pools. Third, every live privacy product still has a single operator somewhere: 0xbow runs the only Association Set Provider and the only relayer, Fluidkey holds a viewing node, zk.money's enclave co-signs every send.</p>
+  <p>IMD gives a privacy project something no earlier one had: around a thousand machines whose owners are structurally not the developers of what they run, each bound to an Ethereum NFT, an ERC-8004 agent id and a device key. Murmuration uses only that identity layer and the idle operator pool. It never routes privacy work through IMD's closed control plane, never puts funds in IMD's unaudited contracts, and never pays anyone in IMD's token.</p>
+  <div class="callout">
+    <p><strong>Design rule.</strong> Everything in Layer 1 must be usable by Railgun and Privacy Pools today, so the project thickens existing anonymity sets before it adds one. The Layer 0 pool is a phase 2 deliverable gated on evidence that the services worked.</p>
+  </div>
+</section>
+
+<section id="architecture">
+  <h2>Architecture</h2>
+  <p>Wallets talk to swarm services. Services talk to pools. Seats are admitted by the IMD identity chain, not by anyone's whitelist.</p>
+  <pre class="mermaid">
+flowchart TB
+  subgraph W[Wallets]
+    K[Kohaku-style wallet modules\nAmbire, Railway, others]
+  end
+  subgraph L1[Layer 1 · services run by IMD seats]
+    S1[1 Broadcaster mesh]
+    S2[2 Panel ASP]
+    S3[3 Collaborative proving]
+    S4[4 Private read layer]
+    S5[5 Stewardship agents]
+    S6[6 Threshold disclosure]
+  end
+  subgraph P[Pools]
+    R[Railgun]
+    PP[Privacy Pools]
+    T[Tornado]
+    L0[Layer 0 pool · phase 2]
+  end
+  subgraph I[IMD identity chain]
+    NFT[identity.md seat NFT] --> E8[ERC-8004 agent id] --> DK[Ed25519 device key]
+  end
+  K --> S1
+  K --> S3
+  K --> S4
+  K --> S5
+  K --> S6
+  S1 --> R
+  S1 --> PP
+  S1 --> T
+  S1 --> L0
+  S2 --> PP
+  S2 --> L0
+  S5 -. pool-health roots .-> K
+  DK --> L1
+  </pre>
+  <h3>A relayed withdrawal, end to end</h3>
+  <pre class="mermaid">
+sequenceDiagram
+  participant U as Wallet
+  participant RL as Read layer (3 seats)
+  participant ST as Steward
+  participant B as Broadcaster seat
+  participant ETH as Ethereum
+  U->>RL: Merkle path, ASP root, nullifier check (split across seats, with chaff)
+  U->>U: Build witness; bind recipient, fee, relayer into public inputs
+  U->>ST: Advisory: amount band, timing, address links
+  ST-->>U: "3 matches in last 24h; exit in epoch E+1"
+  U->>B: Encrypted tx over Waku via Tor or Nym exit
+  B->>ETH: Submit withdrawal, pay gas
+  ETH-->>B: Fee note minted to broadcaster's shielded address
+  ETH-->>U: Recipient receives funds
+  </pre>
+</section>
+
+<section id="services">
+  <h2>The six services</h2>
+
+  <div class="svc" id="s1">
+    <span class="num">Service 1</span>
+    <h3>Broadcaster mesh</h3>
+    <p>Each participating seat runs a Railgun-style broadcaster. It subscribes to a Waku pubsub topic gated by RLN membership, publishes a signed fee quote per epoch, accepts an encrypted transaction whose recipient, fee and relayer address are bound into the ZK proof, pays gas, and is reimbursed with a note inside the pool. A broadcaster can delay a transaction; it can never redirect it or steal the fee.</p>
+    <p>Selection is client-side. The wallet reads the on-chain mesh registry, draws three candidates from distinct holder wallets with a locally seeded weighted draw, sends to the first and falls back after a block timeout. No on-chain per-transaction assignment exists, because that would itself publish a timing record.</p>
+    <dl class="meta">
+      <dt>Solves</dt><dd>Relayer chokepoint: the component that is both the metadata leak and the legal exposure in Tornado and Privacy Pools</dd>
+      <dt>Borrows from</dt><dd>Railgun broadcasters over Waku; Tornado's proof-bound recipient, fee and relayer; Nym dApp mode for transport</dd>
+      <dt>Needs from IMD</dt><dd>Seat ownership and ERC-8004 id reads; a worker tool declaration so a seat can advertise the role</dd>
+      <dt>Phase</dt><dd>0 for Railgun relaying; 1 for the registry and Privacy Pools</dd>
+    </dl>
+  </div>
+
+  <div class="svc" id="s2">
+    <span class="num">Service 2</span>
+    <h3>Panel ASP</h3>
+    <p>A panel of n seats from distinct holder wallets independently screens every deposit against a published criteria file (pinned to IPFS, hash on-chain) using only public data: the Chainalysis sanctions oracle, the lists Railgun's Private Proofs of Innocence already consume, deposit age and hop-count rules. Each panelist signs the approved-label Merkle root. The contract accepts a root only with t-of-n signatures, keeps a ring buffer of historical roots, and records dissent.</p>
+    <p>IMD's own oracle rule is unanimity. That is wrong here: one adversarial panelist could freeze inclusion. The ASP uses a 2/3 threshold with a public dissent log. Several panels with different criteria become several ASPs, and a withdrawal proves membership in a user-chosen set: the union of two lenient panels for a DEX, the intersection of strict ones for an exchange.</p>
+    <dl class="meta">
+      <dt>Solves</dt><dd>The single-operator ASP; no multi-party ASP exists anywhere as of November 2026</dd>
+      <dt>Borrows from</dt><dd>Privacy Pools' label and root scheme; Railgun PPOI list providers; IMD's EIP-712-signed oracle panels</dd>
+      <dt>Needs from IMD</dt><dd>Nothing at runtime; panels are selected from the registry, not by api.imd.fun</dd>
+      <dt>Phase</dt><dd>0 as a proof-of-association overlay; 1 as a contract</dd>
+    </dl>
+  </div>
+
+  <div class="svc" id="s3">
+    <span class="num">Service 3</span>
+    <h3>Collaborative delegated proving</h3>
+    <p>A phone generates the witness locally, which is cheap, secret-shares it three ways, and sends each share to three seats from distinct wallets. The seats run a collaborative SNARK (coCircom or coNoir) and jointly produce the proof without any one of them learning the witness. Security is honest-majority among the three; an attacker must control two of the three seats the client picked at random.</p>
+    <p>TEE attestation is defence-in-depth only. Provers may run inside TDX confidential VMs and post an attestation once per epoch, but a forged quote has already passed a production verifier for about $1,000 of hardware, so attestation proves measurement, never custody.</p>
+    <dl class="meta">
+      <dt>Solves</dt><dd>Memory-bound mobile proving, recursive PPOI proofs, multi-note spends</dd>
+      <dt>Borrows from</dt><dd>TACEO collaborative SNARKs (3-party honest-majority, distinct providers); dstack and Automata DCAP for optional attestation</dd>
+      <dt>Needs from IMD</dt><dd>A premium hardware tier: proving needs about 8 GB of memory per party</dd>
+      <dt>Phase</dt><dd>1</dd>
+    </dl>
+  </div>
+
+  <div class="svc" id="s4">
+    <span class="num">Service 4</span>
+    <h3>Private read layer</h3>
+    <p>Each participating seat runs a Helios light client, so an endpoint can refuse but cannot lie, plus an oblivious <code>eth_call</code> endpoint (TEE with ORAM now, PIR later), reachable over Waku or Nym. A "PIR-lite" mode splits a wallet's note discovery and nullifier queries across k random seats with chaff queries so no endpoint sees the full access pattern. This is a behavioural mitigation; real PIR is not expected in the next few hard forks.</p>
+    <dl class="meta">
+      <dt>Solves</dt><dd>RPC metadata leaks: default RPC providers log IP and address and can time sign-in against withdrawals</dd>
+      <dt>Borrows from</dt><dd>Kohaku's Helios plus TEE-ORAM design; Nym's Helios-over-mixnet fork; Penumbra fuzzy message detection later</dd>
+      <dt>Needs from IMD</dt><dd>Workers already run local RPC relays on 127.0.0.1; this adds an outward-facing role</dd>
+      <dt>Phase</dt><dd>1, merged with the broadcaster binary</dd>
+    </dl>
+  </div>
+
+  <div class="svc" id="s5">
+    <span class="num">Service 5</span>
+    <h3>Anonymity-set stewardship agents</h3>
+    <p>A standing panel re-runs the published linkage heuristics (address reuse, FIFO timing, amount correlation, wallet fingerprints) against every supported pool daily, publishes a signed pool-health root, and exposes a pre-transaction advisory API that wallets call before shielding or unshielding. A second function schedules withdrawals: the wallet hands a steward a proof, never a secret, and the steward submits it in a randomized window that flattens FIFO ordering.</p>
+    <p>Honest self-churn (decoy flows that thicken thin amount bands) is the third function and the most delicate. It runs only from a shielded budget, only where stewardship measures a thin band, and only after legal review, because a stream of agent round-trips can be read as structuring by the very vendors the project wants to satisfy.</p>
+    <dl class="meta">
+      <dt>Solves</dt><dd>The 5 to 35 percent of withdrawals that heuristics link, almost all of it user behaviour</dd>
+      <dt>Borrows from</dt><dd>Tutela, FIFO and cross-chain linkage studies; IMD's research-report and oracle skills</dd>
+      <dt>Needs from IMD</dt><dd>Existing skills only; paid at 0.5 IMD per request through Intake as any customer</dd>
+      <dt>Phase</dt><dd>0</dd>
+    </dl>
+  </div>
+
+  <div class="svc" id="s6">
+    <span class="num">Service 6</span>
+    <h3>Threshold selective disclosure</h3>
+    <p>For each transaction the wallet encrypts a disclosure record (amount, counterparty commitment, time) to an epoch public key whose private key is threshold-shared across a disclosure panel. An on-chain policy registry records per user who may request decryption: the user alone by default, optionally a named auditor, optionally a court order attested by a named panel. The user can change or revoke the policy at any time. Because epoch keys rotate and the panel refuses out-of-policy requests, disclosure is per-transaction, time-bounded and revocable, which a Zcash viewing key is not.</p>
+    <div class="callout warn"><p>Strictly opt-in and default-off. Any decryption authority is a first-class risk in L2BEAT's privacy ratings and is what Aztec markets against. Position it as a user tool for the EU CASP interface after 10 July 2027, never as a network property.</p></div>
+    <dl class="meta">
+      <dt>Solves</dt><dd>No shipped per-transaction, revocable disclosure exists on Ethereum</dd>
+      <dt>Borrows from</dt><dd>Zcash viewing keys (what to improve on); Labyrinth's threshold revoker keys (testnet); Panther's forensic escrow (what to avoid)</dd>
+      <dt>Phase</dt><dd>2</dd>
+    </dl>
+  </div>
+
+  <div class="svc" id="l0">
+    <span class="num">Layer 0 · phase 2</span>
+    <h3>The immutable pool</h3>
+    <p>A Railgun-style shielded ledger with one Merkle tree across all assets so small assets inherit the large set, arbitrary amounts, free internal transfers, atomic unshield-call-reshield, no fee switch, no admin key, deployed from a throwaway key with ownership renounced. Exits are batched per epoch with keyed nullifiers so simultaneous withdrawals do not collide. Each asset has a turnstile and a supply-audit path so a soundness bug is bounded to one asset's verified deposits. Freezable stablecoins live in their own subtree so an issuer freeze cannot trap ETH depositors. Note commitments are hash-based, with a post-quantum KEM option for note encryption where gas allows.</p>
+  </div>
+</section>
+
+<section id="specs">
+  <h2>Specs and technical implementation</h2>
+  <p>Interfaces below are proposed, not deployed. Solidity is illustrative and omits events, errors and access detail. Everything in Layer 1 is written so that the project team can publish the code and run none of it.</p>
+
+  <h3 id="spec-identity">Identity and the mesh registry</h3>
+  <p>Admission is derived, never granted. A seat is eligible if the identity.md NFT (<code>0x0000ec93…ec1d</code>) is owned by the registering wallet and bound to an ERC-8004 agent id through IMD's adapter. The registry stores the device key the wallet authorizes, an availability commitment per epoch and an append-only reputation that anyone can recompute from events. Weighting is by holder wallet, not by seat, because the explorer already shows wallets holding around ten agents.</p>
+<pre><code>// MeshRegistry.sol  (immutable; no owner)
+interface IMeshRegistry {
+    enum Role { Broadcaster, Reader, Prover, Panelist, Steward, Discloser }
+
+    struct Seat {
+        uint256 seatId;        // identity.md tokenId
+        uint256 agentId;       // ERC-8004 IdentityRegistry id (read via IMD adapter)
+        address holder;        // ownerOf(seatId) at registration; re-checked each epoch
+        bytes32 deviceX25519;  // derived from the Ed25519 device key (birational map)
+        uint8   roles;         // bitmask of Role
+        uint256 bondWei;       // ETH bond; 0.05 ETH min for Broadcaster/Reader, 0.5 ETH for Panelist
+    }
+
+    function register(uint256 seatId, bytes32 deviceX25519, uint8 roles, bytes calldata eip712WorkerAuth)
+        external payable;                                   // proves seat ownership + device binding
+    function commitAvailability(uint64 epoch, bytes32 commitment) external;   // H(seatId, epoch, salt)
+    function revealAvailability(uint64 epoch, bytes32 salt, bytes calldata endpointHint) external;
+    function reportOutcome(uint256 seatId, uint64 epoch, bool ok, bytes32 jobHash) external; // client-signed receipts
+    function reputation(uint256 seatId) external view returns (uint32 ok, uint32 failed, uint64 lastSeen);
+    function activeSet(uint64 epoch, Role r) external view returns (uint256[] memory seatIds);
+    function withdrawBond(uint256 seatId) external;         // 7-day delay; blocked while slashable
+}</code></pre>
+  <ul>
+    <li><strong>Epoch</strong>: 7,200 blocks (about one day). Availability is commit-reveal so the active set for epoch E is fixed before E begins, but per-transaction selection stays client-side.</li>
+    <li><strong>Probation</strong>: mirrors IMD's own rule. Two failed receipts in the last three put a seat last in client weighting for 24 hours. No seat is ever banned by the contract.</li>
+    <li><strong>Sybil cost</strong>: a seat trades near 0.8 ETH (floor, Oct 2026) plus the ETH bond; every panel, proving triple and selection draw requires distinct <code>holder</code> values.</li>
+  </ul>
+
+  <h3 id="spec-mesh">Broadcaster mesh protocol</h3>
+  <h4>Transport</h4>
+  <ul>
+    <li>Waku relay, content topic <code>/murmuration/1/relay-&lt;chainId&gt;/proto</code>, RLN membership per seat (one message per second per publisher).</li>
+    <li>Clients reach Waku through Tor or the Nym mixnet. Broadcasters never see a client IP; they see a mixnet exit.</li>
+    <li>Fee quotes are published to <code>/murmuration/1/quotes-&lt;chainId&gt;/proto</code> once per epoch and signed with the device key.</li>
+  </ul>
+  <h4>Messages</h4>
+<pre><code>// FeeQuote (signed by device Ed25519 key; published per epoch)
+{ "seatId": 1042, "epoch": 20781, "chainId": 1,
+  "feeBps": 12, "minFeeWei": "30000000000000", "feeTokens": ["ETH","DAI","USDC"],
+  "maxGasPriceGwei": 3, "pools": ["railgun-v2", "privacy-pools-v2"], "sig": "0x…" }
+
+// RelayRequest (encrypted to the chosen seat's X25519 key; sealed box, ephemeral sender key)
+{ "pool": "railgun-v2", "chainId": 1,
+  "tx": { "to": "0xPool…", "data": "0x…", "value": "0" },       // proof + public inputs inside data
+  "binding": { "recipient": "0x…", "feeWei": "…", "relayer": "0xSeatPayout…" },  // must match public inputs
+  "deadlineBlock": 23456789, "clientNonce": "0x…" }
+
+// RelayReceipt (signed by seat; returned over the same topic; used for reputation reports)
+{ "jobHash": "0x…", "txHash": "0x…", "block": 23456790, "seatId": 1042, "sig": "0x…" }</code></pre>
+  <h4>Client selection algorithm</h4>
+<pre><code>candidates = activeSet(epoch, Broadcaster)
+             .filter(seat => quote(seat).pools includes pool && quote(seat).feeBps <= maxFee)
+groupByHolder(candidates)                    // one entry per holder wallet
+weights = 1 + log(1 + ok) - 2*failedLast3    // mild, so new seats still get traffic
+seed    = H(clientSecret, nullifier)         // deterministic per transaction, invisible on-chain
+picks   = weightedSampleWithoutReplacement(groups, k = 3, seed)
+send(picks[0]); if no receipt in 8 blocks → send(picks[1]); then picks[2]</code></pre>
+  <h4>Guarantees</h4>
+  <ul>
+    <li>Recipient, fee and relayer payout address are public inputs of the withdrawal proof, so a copied transaction cannot redirect funds or the fee.</li>
+    <li>The broadcaster's fee is minted as a note to its shielded address inside the pool, so broadcaster income never appears as a public payment linked to a client.</li>
+    <li>Broadcasters run Railgun's PPOI check or the panel ASP check before relaying, which is where screening is enforced for the pools that use it.</li>
+  </ul>
+
+  <h3 id="spec-asp">Panel ASP: contract, criteria and circuit</h3>
+<pre><code>// PanelASP.sol  (one deployment per panel; immutable parameters)
+interface IPanelASP {
+    struct Root { bytes32 root; uint64 epoch; bytes32 criteriaHash; uint32 labelCount; }
+
+    function panel() external view returns (uint256[] memory seatIds, uint8 threshold);   // e.g. 7 of 10
+    function criteriaHash() external view returns (bytes32);          // keccak of IPFS-pinned criteria.json
+    function submitRoot(Root calldata r, bytes[] calldata eip712Sigs) external;   // >= threshold distinct panelists
+    function dissent(uint64 epoch, bytes32 altRoot, bytes calldata sig) external;  // public, append-only
+    function isKnownRoot(bytes32 root) external view returns (bool);  // ring buffer of last 64 roots
+    function slash(uint256 seatId, bytes calldata proof) external;    // two objective conditions only
+}</code></pre>
+  <h4>Objective slashing conditions</h4>
+  <ol>
+    <li><strong>Equivocation</strong>: two valid signatures by the same seat on different roots for the same epoch and criteria hash.</li>
+    <li><strong>Criteria violation</strong>: a signed root that includes a label whose deposit address appeared on a list named in <code>criteria.json</code> at the root's epoch, proven with a Merkle inclusion against the list's own published root. Anything that needs judgment is not slashable; it goes to the dissent log and to user choice of panel.</li>
+  </ol>
+  <h4>Criteria file</h4>
+<pre><code>{ "panel": "strict-eu", "version": 3,
+  "lists": [ { "name": "chainalysis-sanctions-oracle", "source": "onchain:0x40C57923924B5c5c5455c48D93317139ADDaC8fb" },
+             { "name": "ofac-sdn",  "source": "ipfs://…", "refresh": "daily" } ],
+  "rules":  [ { "deny": "listed(depositor)" },
+              { "deny": "hopsFromListed(depositor) <= 2 && age(deposit) < 7d" },
+              { "allow": "default" } ],
+  "evidence": "chain" }</code></pre>
+  <h4>Withdrawal circuit additions</h4>
+<pre><code>public inputs : aspRoot, poolRoot, nullifierHash, recipient, feeWei, relayer, chainId
+private inputs: label, labelPath[], noteSecret, notePath[], value
+constraints   : MerkleVerify(poolRoot, commit(noteSecret, value), notePath)
+                MerkleVerify(aspRoot,  label, labelPath)            // membership in chosen panel's set
+                nullifierHash == H(noteSecret, keyedNonce)
+                isKnownRoot(aspRoot) checked by the contract, not the circuit</code></pre>
+  <p>Union and intersection of panels are handled off-chain by publishing combined roots: a "union" panel signs the merge of two approved sets, and a wallet simply chooses which root to prove against.</p>
+
+  <h3 id="spec-coprove">Collaborative proving</h3>
+  <ol>
+    <li>Wallet runs witness generation locally (about 2 GB peak on the reference circuits) and produces the full witness vector <code>w</code>.</li>
+    <li>Wallet Shamir-shares <code>w</code> over the proof system's scalar field into three shares, picks three Prover seats from distinct holders with the selection algorithm above, and sends share i to seat i as a sealed box over Waku.</li>
+    <li>Seats run coCircom (Groth16) or coNoir (UltraHonk) in a 3-party honest-majority protocol and return the proof plus a job receipt. Memory per party is about 8 GB; latency is comparable to local snarkjs plus network round trips.</li>
+    <li>Wallet verifies the proof locally before use. Payment is a micro-note to each prover inside the transaction the proof authorizes.</li>
+  </ol>
+  <p>Optional attestation: a prover inside a TDX confidential VM posts an Automata DCAP attestation to the registry once per epoch (about 0.43 to 0.57 M gas in SNARK-compressed form). The client may prefer attested provers but must never require them as the only guarantee.</p>
+
+  <h3 id="spec-read">Private read layer API</h3>
+<pre><code>// Served over Waku request-response or a Nym service provider; no HTTP endpoint identity
+GET  /v1/proof?block=latest&amp;slot=&lt;keccak(tree,index)&gt;   → Merkle path verified against Helios header
+POST /v1/ocall   { "to": "0x…", "data": "0x…", "block": "latest" }   → oblivious eth_call (TEE+ORAM)
+POST /v1/notes   { "tags": ["0x…", "0x…", …], "from": 23400000 }    → note hints for tagged commitments
+GET  /v1/nullifier?h=0x…                                              → spent? with header proof</code></pre>
+  <ul>
+    <li><strong>PIR-lite</strong>: the wallet splits a discovery pass across k = 3 readers, pads each request with chaff tags so every reader sees a constant-size batch, and rotates readers per epoch.</li>
+    <li><strong>Verification</strong>: every answer carries a Helios-verified header and a Merkle path; a reader can withhold but cannot forge.</li>
+    <li><strong>Later</strong>: fuzzy message detection lets readers pre-filter notes with a tunable false-positive rate, so the reader learns only a superset.</li>
+  </ul>
+
+  <h3 id="spec-steward">Stewardship jobs and advisory</h3>
+<pre><code>// PoolHealth root, published daily by a 5-seat panel through an EIP-712 signed oracle answer
+{ "pool": "railgun-v2", "chainId": 1, "asOf": 23456000,
+  "bands": [ { "asset": "ETH", "range": "1-10", "effectiveSet24h": 318, "fifoMatchable": 0.21, "whaleShare": 0.33 } ],
+  "heuristics": ["address-reuse", "fifo", "multi-denom", "fingerprint-v2"],
+  "root": "0x…", "sigs": ["0x…"] }
+
+// Advisory (wallet calls before building the transaction; stateless, no account)
+POST /v1/advise { "pool":"railgun-v2", "action":"unshield", "asset":"ETH", "amount":"2.5", "recipientHash":"0x…" }
+→ { "risk":"medium", "reasons":["amount matches 3 shields in 24h","recipient has history with a deposit address"],
+    "suggest":{ "amount":"2.4731", "epoch":"E+1", "split":2 } }
+
+// Scheduling: steward holds a complete, bound proof and a deadline; never a note secret
+POST /v1/schedule { "proofTx":"0x…", "earliestBlock":…, "latestBlock":…, "jitter":"epoch" }</code></pre>
+
+  <h3 id="spec-disclose">Threshold disclosure</h3>
+<pre><code>// DisclosurePolicy.sol (user-owned entries; immutable contract)
+struct Policy { address user; bytes32 panelId; address[] requesters; uint64 validUntil; bool revoked; }
+function setPolicy(Policy calldata p) external;     // only user; emits event; replaces prior
+function revoke() external;                        // immediate; panel must refuse afterwards
+
+// Per-transaction record, encrypted to the panel's epoch public key (threshold ElGamal, FROST-style DKG)
+{ "epoch": 20781, "txCommitment": "0x…", "amount": "…", "counterpartyCommitment": "0x…", "ts": … }
+// Decryption: requester submits (record, policy proof) to >= t of n panelists; each returns a partial;
+// requester combines. Epoch keys rotate daily; old shares are deleted after rotation + 30 days.</code></pre>
+
+  <h3 id="spec-pool">Layer 0 pool design</h3>
+  <div class="tbl"><table>
+    <tr><th>Element</th><th>Choice</th><th>Reason</th></tr>
+    <tr><td>Note</td><td><code>commit = Poseidon(asset, value, pubkey, rand)</code></td><td>Hash-based commitment; no pairing-based hiding to break later</td></tr>
+    <tr><td>Tree</td><td>One append-only tree, depth 32, all assets</td><td>Small assets inherit the large set (Railgun: 147 tokens in one tree)</td></tr>
+    <tr><td>Nullifier</td><td><code>H(noteSecret, keyedNonce)</code>, nonce keyed per epoch</td><td>Simultaneous epoch exits do not collide; FIFO stream becomes an unordered batch</td></tr>
+    <tr><td>Exits</td><td>Batched per epoch, settled in one transaction by any broadcaster</td><td>Timing linkage removed without an encrypted mempool</td></tr>
+    <tr><td>Turnstile</td><td>Per-asset shielded supply counter; unshield cannot exceed verified deposits</td><td>Bounds a soundness bug to one asset (Zcash Ironwood pattern)</td></tr>
+    <tr><td>Stablecoins</td><td>Separate subtree and separate vault address per freezable asset</td><td>An issuer freeze cannot trap ETH depositors</td></tr>
+    <tr><td>Verifier</td><td>Universal or transparent setup preferred; Groth16 acceptable at launch with a public ceremony</td><td>Avoid a circuit-specific trusted setup as the only option</td></tr>
+    <tr><td>Swaps</td><td>Per-epoch batch at a public clearing price</td><td>Penumbra model; no new L1 feature needed</td></tr>
+    <tr><td>Admin</td><td>None. No pause, no fee switch, no upgrade. Deployer renounces.</td><td>Only immutable contracts received Van Loon protection</td></tr>
+    <tr><td>Launch caps</td><td>Per-asset caps for the first 90 days; formal verification before caps lift</td><td>Three critical circuit bugs shipped in other systems in 2026</td></tr>
+  </table></div>
+
+  <h3 id="spec-worker">Worker integration</h3>
+  <p>One binary, several roles. A seat operator installs <code>murmuration-agent</code> beside the IMD worker and declares it as a tool, the same way media tools are declared today. The agent reads only the seat's device key for signing and keeps its own X25519 key for sealed boxes.</p>
+<pre><code># ~/.identitymd/tools.env  (declares the role so the seat can advertise it)
+MURMURATION_ROLES=broadcaster,reader
+MURMURATION_CHAIN=1
+MURMURATION_TRANSPORT=nym          # or tor
+MURMURATION_MAX_GAS_GWEI=3
+
+# hardware tiers
+# broadcaster + reader : 2 vCPU, 4 GB, Helios light client, no archive node
+# prover               : 4 vCPU, 8 GB+ (coSNARK memory ~5x witness)
+# panelist / steward   : 2 vCPU, 4 GB, needs the chain-evidence recipes IMD already ships</code></pre>
+  <ul>
+    <li>Systemd hardening from the existing VPS manual applies unchanged: unprivileged user, <code>MemoryMax</code>, read-only <code>/opt</code>, no inbound ports.</li>
+    <li>Logs are off by default. A broadcaster keeps only the receipt it signed and the fee note it received.</li>
+    <li>Nothing in the agent calls api.imd.fun. Role advertisement is on-chain; job intake is over Waku.</li>
+  </ul>
+
+  <h3 id="spec-fees">Fees and gas</h3>
+  <p>Every agent is paid in-pool and in-asset. Nothing flows to the developers and nothing flows through the IMD token. ETH is the unit for bonds because the seat floor already denominates sybil cost in ETH.</p>
+  <div class="tbl"><table>
+    <tr><th>Role</th><th>Paid how</th><th>Indicative rate</th></tr>
+    <tr><td>Broadcaster</td><td>Fee note minted to its shielded address in the relayed transaction</td><td class="n">Quote-driven; Railgun's 0.25% in and out is the market reference</td></tr>
+    <tr><td>Panelist</td><td>Pro-rata share of a per-withdrawal fee note across signers of the root used</td><td class="n">1 to 3 bps of withdrawal</td></tr>
+    <tr><td>Prover</td><td>Micro-note per proof, paid inside the transaction the proof authorizes</td><td class="n">Fixed per circuit size</td></tr>
+    <tr><td>Reader</td><td>Micro-note per batch, or free for Helios-only proofs</td><td class="n">Near zero</td></tr>
+    <tr><td>Steward</td><td>Project pays IMD 0.5 IMD per research or oracle request through Intake, as any customer</td><td class="n">0.5 IMD per request</td></tr>
+  </table></div>
+  <div class="tbl"><table>
+    <tr><th>On-chain action</th><th>Gas</th><th>Cost at 0.3 gwei</th><th>Cost at 2 gwei</th></tr>
+    <tr><td>Groth16 withdrawal (about 7 public inputs)</td><td class="n">~260,000</td><td class="n">0.000078 ETH</td><td class="n">0.00052 ETH</td></tr>
+    <tr><td>UltraHonk withdrawal</td><td class="n">0.72 to 2.4 M</td><td class="n">0.0002 to 0.0007 ETH</td><td class="n">0.0014 to 0.0048 ETH</td></tr>
+    <tr><td>ASP root submission (7 sigs)</td><td class="n">~120,000</td><td class="n">0.000036 ETH</td><td class="n">0.00024 ETH</td></tr>
+    <tr><td>DCAP attestation, SNARK-compressed, per seat per epoch</td><td class="n">0.43 to 0.57 M</td><td class="n">0.00013 to 0.00017 ETH</td><td class="n">0.0009 to 0.0011 ETH</td></tr>
+    <tr><td>Epoch batch settlement, 50 exits</td><td class="n">~2.5 M</td><td class="n">0.00075 ETH</td><td class="n">0.005 ETH</td></tr>
+  </table></div>
+  <p>Mainnet gas sat near 0.1 to 0.3 gwei on 3 November 2026, with daily averages of 0.5 to 1.9 gwei through August and September. Gas is not the binding constraint; operator labour and opsec are, which is why an idle seat pool is the right operator base.</p>
+
+  <h3 id="spec-legal">Legal gate: requirements every component must pass</h3>
+  <p>The record is consistent. The Fifth Circuit protected only immutable contracts. Storm was convicted on relayer, frontend and fee facts. Samourai's founders ran a coordinator and collected fees. The DOJ's 2025 statements are discretionary and name front ends, upgrades, oracles and gateways as risk. The statutory safe harbour failed Senate cloture 49 to 50 in September 2026.</p>
+  <ul class="check">
+    <li>Core contracts are immutable: no admin, pause, upgrade or fee switch.</li>
+    <li>The project team writes software and operates nothing: no relayer, frontend, panel, reader or discloser.</li>
+    <li>No developer fee of any kind, in any token.</li>
+    <li>Frontend is built reproducibly, pinned to IPFS and named under ENS; the ENS name is held by a time-locked multi-party process.</li>
+    <li>Screening is real, published and executed by independent panels, with objective slashing only.</li>
+    <li>No component is brokered through IMD's control plane; admission is derived from on-chain ownership.</li>
+    <li>Disclosure is user-held, opt-in and revocable; there is no network viewing key.</li>
+    <li>Operators are jurisdictionally diverse and keep no logs beyond signed receipts.</li>
+  </ul>
+</section>
+
+<section id="roadmap">
+  <h2>Roadmap</h2>
+  <p>Each phase has a gate. Phase 2 does not start without evidence from phase 1 that the services thickened existing sets.</p>
+
+  <div class="phase">
+    <div class="when">Phase 0<small>now to 3 months</small></div>
+    <div>
+      <h3>Services on existing pools, no new contracts</h3>
+      <ul>
+        <li><strong>Stewardship job set</strong>: daily pool-health roots for Railgun, Privacy Pools and Tornado using IMD's <code>research-report</code> and <code>oracle</code> skills, signed by a panel and recorded through IMD's daily Merkle-root path.</li>
+        <li><strong>Broadcaster package</strong>: wraps Railgun's open broadcaster client for the IMD worker runtime with Tor or Nym transport. Railgun's broadcaster set is permissionless and already enforces PPOI.</li>
+        <li><strong>Proof-of-association overlay</strong>: an oracle panel signs multi-provider inclusion roots for legacy Tornado notes and Privacy Pools labels.</li>
+        <li><strong>Frontend</strong>: reproducible build deployed to IPFS under ENS through <code>build-website</code>.</li>
+        <li><strong>Private IMD specification</strong>: stealth payouts (ERC-5564) from the swarm-share distributor, briefs encrypted to assigned device keys, oracle answers encrypted to the requester. This depends on IMD's operator shipping it.</li>
+      </ul>
+      <p><span class="pill">Dependencies</span> IMD worker tool declaration · 0.5 IMD per request · Railgun 0.25% on any decoy flow<br><span class="pill ok">Gate</span> 30 distinct-wallet broadcasters relaying on Railgun; first published health root</p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="when">Phase 1<small>3 to 9 months</small></div>
+    <div>
+      <h3>On-chain registries, the panel ASP, proving and reads</h3>
+      <ul>
+        <li>Deploy <code>MeshRegistry</code> and the first three <code>PanelASP</code> contracts with published criteria.</li>
+        <li>Ship the co-proving coordinator on coCircom and coNoir; recruit a premium hardware tier among seat operators.</li>
+        <li>Stand up the Helios plus TEE-ORAM reader role, with optional DCAP attestation posted once per epoch.</li>
+        <li>Integrate as a Kohaku-style wallet module beside Railgun and Privacy Pools so wallets select Murmuration broadcasters, readers and ASPs.</li>
+        <li>Privacy Pools integration: panel roots accepted as alternative ASP roots where the pool contract allows it.</li>
+      </ul>
+      <p><span class="pill">Dependencies</span> Kohaku release cadence (no public date) · coNoir maturity for UltraHonk · 8 GB operators<br><span class="pill ok">Gate</span> 100 distinct-wallet broadcasters · 3 panels with published criteria · measured growth in existing sets</p>
+    </div>
+  </div>
+
+  <div class="phase">
+    <div class="when">Phase 2<small>9 to 24 months</small></div>
+    <div>
+      <h3>The immutable pool, slashing and disclosure</h3>
+      <ul>
+        <li>Deploy the Layer 0 pool with a multi-asset tree, epoch exits with keyed nullifiers, turnstiles, stablecoin isolation and no admin.</li>
+        <li>Register panelists and broadcasters into an EigenLayer or Symbiotic operator set with the two objective ASP slashing conditions.</li>
+        <li>Ship threshold selective disclosure as an opt-in wallet feature.</li>
+        <li>Begin the post-quantum path: hash-based commitments from day one, STARK verifier once gas allows.</li>
+      </ul>
+      <p><span class="pill">Dependencies</span> Universal-setup verifier at acceptable gas after Glamsterdam repricing (expected Q4 2026, unconfirmed) · restaking slashing tooling with a real track record<br><span class="pill ok">Gate</span> One year of phase 1 operation with no developer touching a frontend, relayer or list</p>
+    </div>
+  </div>
+</section>
+
+<section id="risks">
+  <h2>Risks</h2>
+  <div class="tbl"><table>
+    <tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr>
+    <tr><td>IMD control plane is closed and centrally operated</td><td><span class="pill hi">High</span></td><td>Use only the seat to ERC-8004 to device-key chain; never route relay or ASP work through api.imd.fun</td></tr>
+    <tr><td>IMD contracts are unaudited and unverified</td><td><span class="pill hi">High</span></td><td>Read seat ownership only; hold no funds in any IMD contract</td></tr>
+    <tr><td>Sybil via seat accumulation (792 owners of 1,999 seats; some wallets hold ~10)</td><td><span class="pill hi">High</span></td><td>Weight by holder wallet; distinct holders in every panel and triple; ETH bonds; concentration in health roots</td></tr>
+    <tr><td>Collusion: 2 of 3 provers, t of n panelists</td><td><span class="pill hi">Med-High</span></td><td>Client-side random selection; 7 of 10 panels; public dissent; competing panels</td></tr>
+    <tr><td>TEE breaks (forged quote passed a verifier for ~$1,000)</td><td><span class="pill">Medium</span></td><td>MPC is the privacy guarantee; attestation is never the sole root</td></tr>
+    <tr><td>Regulatory reversal (Storm retrial Apr 2027; EU Art. 79 from Jul 2027)</td><td><span class="pill hi">High</span></td><td>Design for the worst case: no custody, control, fees or operation by the team</td></tr>
+    <tr><td>Operator legal exposure as fee-earning relayers</td><td><span class="pill">Medium</span></td><td>Ciphertext-only visibility; screening enforced at the broadcaster; no logs; jurisdiction diversity</td></tr>
+    <tr><td>Soundness bug in pool circuits</td><td><span class="pill hi">High</span></td><td>Turnstiles, launch caps, formal verification before caps lift</td></tr>
+    <tr><td>New pool is thin</td><td><span class="pill hi">High</span></td><td>Services first; pool only with phase 1 evidence</td></tr>
+    <tr><td>Self-churn read as structuring</td><td><span class="pill">Medium</span></td><td>Shielded budget only, thin bands only, after legal review</td></tr>
+    <tr><td>Harvest now, decrypt later</td><td><span class="pill">Medium</span></td><td>Hash-based commitments; PQ-KEM note option; no on-chain note backups</td></tr>
+    <tr><td>Operator attrition</td><td><span class="pill">Medium</span></td><td>In-pool fees must cover cost; one binary, several roles; idle-seat economics</td></tr>
+  </table></div>
+</section>
+
+<section id="open">
+  <h2>Open questions</h2>
+  <ol>
+    <li>Will IMD's operator add a tool declaration for an outward-facing role, and ship encrypted briefs and stealth payouts? Without the first, phase 0 broadcasters run beside the worker rather than through it; without the second, "private IMD" stays a specification.</li>
+    <li>Can Privacy Pools' contract accept an alternative ASP root, or does the panel ASP first ship as an overlay that only wallets and exchanges consume?</li>
+    <li>Which premium model tier do seat operators actually run? Co-proving needs memory, not model quality, so a separate hardware census is needed.</li>
+    <li>Does the EBA's definition of "anonymity-enhancing" under AMLR Article 79 recognise user-held, revocable disclosure? This decides whether service 6 is a compliance bridge or a liability.</li>
+    <li>How does Judge Failla's Rule 29 ruling and the April 2027 retrial narrow or widen the "operated service" theory that the legal gate is built around?</li>
+  </ol>
+</section>
+
+</main>
+
+<footer>
+  <p>Derived from the research report "IMD swarm privacy project design" (4 Nov 2026). Figures are dated in that report; contract interfaces, message formats and gas estimates on this page are proposals for review, not deployed code.</p>
+</footer>
+</div>
