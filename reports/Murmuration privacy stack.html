@@ -135,6 +135,7 @@ footer p{max-width:none}
     <a class="sub" href="#spec-worker">Worker integration</a>
     <a class="sub" href="#spec-fees">Fees and gas</a>
     <a class="sub" href="#spec-legal">Legal gate</a>
+    <a href="#goals">Goals integration</a>
     <a href="#roadmap">Roadmap</a>
     <a href="#risks">Risks</a>
     <a href="#open">Open questions</a>
@@ -514,6 +515,38 @@ MURMURATION_MAX_GAS_GWEI=3
   </ul>
 </section>
 
+<section id="goals">
+  <h2>Goals integration</h2>
+  <p>On 3 November 2026 IMD's developer previewed "Goals": the swarm is given one objective, splits into teams, pays agents per accepted item from an escrow with no admin, wakes on chain events, and commits proposals only after a jury (100 of 150 in the demo) simulates them, checks them against a mandate and signs. The tagline was "One multisig. No single key." Nothing about it is documented or deployed yet. What is already visible in the worker's release notes and shipped schemas (versions 0.1.11 to 0.1.12, 2 to 4 November 2026) is enough to say how Murmuration should and should not use it.</p>
+  <h3>What the code already shows</h3>
+  <ul>
+    <li><strong>Custody is standard Safe tooling, not IMD contracts.</strong> A vetted custody table lists Safe 1.4.1, MultiSend, Zodiac Roles v2, ModuleProxyFactory, Multicall3 and DelegationManager per chain, and a "fork rehearsal" moves every surfsurf.eth role to a custody Safe.</li>
+    <li><strong>A mandate is a Zodiac-style scope.</strong> <code>MandateScope</code> carries targets, functions, argument rules, allowances, spenders, recipients and a gas budget, with a 90-day maximum, signed as EIP-712 typed data. A <code>FORBIDDEN_SIGNATURES</code> list bars Safe owner, threshold, module and guard changes, Roles admin, multicall, universal-router and ERC-4337 execute calls from any mandate.</li>
+    <li><strong>Payroll is an epoch document.</strong> <code>imd-epoch@1</code> holds a Merkle root of per-wallet and per-seat lines, an IPFS CID, a 72-hour challenge window, a 90-day minimum claim window, and a funding source of either <code>treasury_safe</code> or <code>budget_escrow</code>.</li>
+    <li><strong>Keepers and goal skills exist.</strong> Keeper recipes (fees.claim, fees.withdraw, router.forward, distributor.sweep, gas.topup) and goal roles (orchestrator, lead, judge, check, code, chain, task) ship in the worker, switched by <code>imd rpc goals on|off</code>.</li>
+  </ul>
+  <p>Read together, this is a protocol-level treasury Safe with scoped delegation to agents and a challengeable payroll. Per-agent multisigs, per-goal Safes, jury selection and any custody Safe address are not public.</p>
+  <h3>Mapping to Murmuration</h3>
+  <div class="tbl"><table>
+    <tr><th>Murmuration component</th><th>Goals primitive</th><th>Verdict</th></tr>
+    <tr><td>Panel ASP root signing</td><td>Jury: simulate, check against mandate, t-of-n sign, commit</td><td><span class="pill ok">Use</span> if jury membership is verifiable on-chain; the mandate scope must whitelist <code>PanelASP.submitRoot</code> as its only target</td></tr>
+    <tr><td>Objective slashing and dissent</td><td>"Outside the mandate" rejection; the rest refuse</td><td><span class="pill ok">Use</span> for criteria violations; equivocation still needs the contract check</td></tr>
+    <tr><td>Stewardship wake conditions</td><td>Watch and wake on a chain threshold; keeper recipes</td><td><span class="pill ok">Use</span>: new recipes for thin amount bands, stale ASP roots, probation crossings</td></tr>
+    <tr><td>Paying panelists, stewards, readers</td><td>Epoch document funded by budget escrow, 72-hour challenge</td><td><span class="pill ok">Use</span> for public roles; replaces per-request micro-notes for them</td></tr>
+    <tr><td>Deploying Layer 0; holding the frontend ENS name</td><td>Custody Safe with no single key; mandates cannot change owners or threshold</td><td><span class="pill ok">Use</span>: stronger than a renounced deployer, on audited Safe and Roles contracts</td></tr>
+    <tr><td>Broadcaster mesh, co-proving</td><td>Goal items are public proposals with public signers and payments</td><td><span class="pill hi">Do not use</span>: would publish who relayed or proved what and when; stays on Waku with in-pool fee notes. The forbid list also bars the arbitrary calls a relay needs.</td></tr>
+    <tr><td>Threshold disclosure keys</td><td>Threshold signing, not threshold decryption</td><td><span class="pill hi">Do not use</span> for key shares; the jury can only enforce the policy</td></tr>
+    <tr><td>Pool funds</td><td>Custody Safe or budget escrow</td><td><span class="pill hi">Never</span>: pool value stays in the immutable pool contract only</td></tr>
+  </table></div>
+  <h3>Questions to settle before building on it</h3>
+  <ol>
+    <li><strong>Who selects the jury and the Safe owners.</strong> If api.imd.fun assigns the 150, the ASP's curator is IMD's operator and the single-ASP problem has moved, not gone. Selection must be derivable from the on-chain registry.</li>
+    <li><strong>Which checks are on-chain.</strong> Escrow, Safe execution and the epoch Merkle root look on-chain; mandate simulation looks like control-plane work. For an ASP, anyone must be able to recompute the mandate check from the criteria file.</li>
+    <li><strong>Cost and liveness at 100 of 150.</strong> Safe verifies each signature on-chain, so a root costs roughly 0.6 to 0.9 M gas; acceptable at today's gas, but a drop in the online rate stalls roots. The ring buffer of historical roots covers short stalls.</li>
+    <li><strong>Release state.</strong> Payroll was still "manually allocated via multisig wallets" as of late October 2026 and a single wallet held the hook contract's admin rights. Treat Goals as phase 1 input, not a phase 0 dependency.</li>
+  </ol>
+</section>
+
 <section id="roadmap">
   <h2>Roadmap</h2>
   <p>Each phase has a gate. Phase 2 does not start without evidence from phase 1 that the services thickened existing sets.</p>
@@ -538,7 +571,7 @@ MURMURATION_MAX_GAS_GWEI=3
     <div>
       <h3>On-chain registries, the panel ASP, proving and reads</h3>
       <ul>
-        <li>Deploy <code>MeshRegistry</code> and the first three <code>PanelASP</code> contracts with published criteria.</li>
+        <li>Deploy <code>MeshRegistry</code> and the first three <code>PanelASP</code> contracts with published criteria. If Goals ships with on-chain jury selection, a panel is a Goal whose mandate whitelists only <code>submitRoot</code>.</li>
         <li>Ship the co-proving coordinator on coCircom and coNoir; recruit a premium hardware tier among seat operators.</li>
         <li>Stand up the Helios plus TEE-ORAM reader role, with optional DCAP attestation posted once per epoch.</li>
         <li>Integrate as a Kohaku-style wallet module beside Railgun and Privacy Pools so wallets select Murmuration broadcasters, readers and ASPs.</li>
