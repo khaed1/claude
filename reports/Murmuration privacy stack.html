@@ -135,6 +135,7 @@ footer p{max-width:none}
     <a class="sub" href="#spec-worker">Worker integration</a>
     <a class="sub" href="#spec-fees">Fees and gas</a>
     <a class="sub" href="#spec-legal">Legal gate</a>
+    <a href="#compat">Upgrade compatibility</a>
     <a href="#goals">Goals integration</a>
     <a href="#roadmap">Roadmap</a>
     <a href="#risks">Risks</a>
@@ -293,7 +294,7 @@ sequenceDiagram
   <div class="svc" id="l0">
     <span class="num">Layer 0 · phase 2</span>
     <h3>The immutable pool</h3>
-    <p>A Railgun-style shielded ledger with one Merkle tree across all assets so small assets inherit the large set, arbitrary amounts, free internal transfers, atomic unshield-call-reshield, no fee switch, no admin key, deployed from a throwaway key with ownership renounced. Exits are batched per epoch with keyed nullifiers so simultaneous withdrawals do not collide. Each asset has a turnstile and a supply-audit path so a soundness bug is bounded to one asset's verified deposits. Freezable stablecoins live in their own subtree so an issuer freeze cannot trap ETH depositors. Note commitments are hash-based, with a post-quantum KEM option for note encryption where gas allows.</p>
+    <p>A Railgun-style shielded ledger with one Merkle tree across all assets so small assets inherit the large set, arbitrary amounts, free internal transfers, atomic unshield-call-reshield, no fee switch, no admin key, deployed from a throwaway key with ownership renounced. Exits are batched per epoch under one aggregated proof, and once Hegotá's keyed nonces ship the pool itself can submit concurrent exits without nonce collisions. Each asset has a turnstile and a supply-audit path so a soundness bug is bounded to one asset's verified deposits. Freezable stablecoins live in their own subtree so an issuer freeze cannot trap ETH depositors. Note commitments are hash-based, with a post-quantum KEM option for note encryption where gas allows.</p>
   </div>
 </section>
 
@@ -312,12 +313,14 @@ interface IMeshRegistry {
         uint256 agentId;       // ERC-8004 IdentityRegistry id (read via IMD adapter)
         address holder;        // ownerOf(seatId) at registration; re-checked each epoch
         bytes32 deviceX25519;  // derived from the Ed25519 device key (birational map)
+        bytes   blsPubkey;     // optional BLS12-381 G1 key for aggregated panel signatures (EIP-2537)
         uint8   roles;         // bitmask of Role
         uint256 bondWei;       // ETH bond; 0.05 ETH min for Broadcaster/Reader, 0.5 ETH for Panelist
     }
 
     function register(uint256 seatId, bytes32 deviceX25519, uint8 roles, bytes calldata eip712WorkerAuth)
-        external payable;                                   // proves seat ownership + device binding
+        external payable;                                   // proves seat ownership + device binding;
+                                                            // verifies via ERC-1271 when holder has code (EIP-8151-safe)
     function commitAvailability(uint64 epoch, bytes32 commitment) external;   // H(seatId, epoch, salt)
     function revealAvailability(uint64 epoch, bytes32 salt, bytes calldata endpointHint) external;
     function reportOutcome(uint256 seatId, uint64 epoch, bool ok, bytes32 jobHash) external; // client-signed receipts
@@ -375,6 +378,8 @@ interface IPanelASP {
     function panel() external view returns (uint256[] memory seatIds, uint8 threshold);   // e.g. 7 of 10
     function criteriaHash() external view returns (bytes32);          // keccak of IPFS-pinned criteria.json
     function submitRoot(Root calldata r, bytes[] calldata eip712Sigs) external;   // >= threshold distinct panelists
+    function submitRootAggregated(Root calldata r, bytes calldata blsAggSig, uint256 signerBitmap) external;
+                                                                      // one BLS12-381 pairing check (EIP-2537) for any panel size
     function dissent(uint64 epoch, bytes32 altRoot, bytes calldata sig) external;  // public, append-only
     function isKnownRoot(bytes32 root) external view returns (bool);  // ring buffer of last 64 roots
     function slash(uint256 seatId, bytes calldata proof) external;    // two objective conditions only
@@ -397,7 +402,7 @@ interface IPanelASP {
 private inputs: label, labelPath[], noteSecret, notePath[], value
 constraints   : MerkleVerify(poolRoot, commit(noteSecret, value), notePath)
                 MerkleVerify(aspRoot,  label, labelPath)            // membership in chosen panel's set
-                nullifierHash == H(noteSecret, keyedNonce)
+                nullifierHash == Poseidon2(noteSecret, leafIndex)
                 isKnownRoot(aspRoot) checked by the contract, not the circuit</code></pre>
   <p>Union and intersection of panels are handled off-chain by publishing combined roots: a "union" panel signs the merge of two approved sets, and a wallet simply chooses which root to prove against.</p>
 
@@ -419,6 +424,7 @@ GET  /v1/nullifier?h=0x…                                              → spen
   <ul>
     <li><strong>PIR-lite</strong>: the wallet splits a discovery pass across k = 3 readers, pads each request with chaff tags so every reader sees a constant-size batch, and rotates readers per epoch.</li>
     <li><strong>Verification</strong>: every answer carries a Helios-verified header and a Merkle path; a reader can withhold but cannot forge.</li>
+    <li><strong>Archive duty</strong>: readers keep the full commitment and ciphertext log of every supported pool from its genesis and pin a per-epoch snapshot to IPFS beside the stewardship root. Full nodes already drop pre-merge history, and the roadmap points toward shorter retention, so note discovery must never depend on a node serving old logs.</li>
     <li><strong>Later</strong>: fuzzy message detection lets readers pre-filter notes with a tunable false-positive rate, so the reader learns only a superset.</li>
   </ul>
 
@@ -452,14 +458,18 @@ function revoke() external;                        // immediate; panel must refu
   <div class="tbl"><table>
     <tr><th>Element</th><th>Choice</th><th>Reason</th></tr>
     <tr><td>Note</td><td><code>commit = Poseidon(asset, value, pubkey, rand)</code></td><td>Hash-based commitment; no pairing-based hiding to break later</td></tr>
-    <tr><td>Tree</td><td>One append-only tree, depth 32, all assets</td><td>Small assets inherit the large set (Railgun: 147 tokens in one tree)</td></tr>
-    <tr><td>Nullifier</td><td><code>H(noteSecret, keyedNonce)</code>, nonce keyed per epoch</td><td>Simultaneous epoch exits do not collide; FIFO stream becomes an unordered batch</td></tr>
-    <tr><td>Exits</td><td>Batched per epoch, settled in one transaction by any broadcaster</td><td>Timing linkage removed without an encrypted mempool</td></tr>
+    <tr><td>Tree</td><td>One append-only tree, depth 32, all assets. Commitments are emitted as events; the contract stores only the root, updated per epoch by a ZK proof of the batch insertion. No hashing on-chain.</td><td>Small assets inherit the large set (Railgun: 147 tokens in one tree). Poseidon was dropped from L1 plans in August 2026, so on-chain Poseidon stays expensive; proving the insertion costs one root write (an overwrite) instead of dozens of fresh slots at ~98k state gas each under EIP-8037.</td></tr>
+    <tr><td>Nullifier</td><td><code>Poseidon2(noteSecret, leafIndex)</code>, one storage slot each</td><td>Standard double-spend guard. Each new slot costs ~22k gas today and ~98k state gas plus 10k write under Glamsterdam; budgeted, not avoided. A per-epoch nullifier accumulator is the fallback if CPSB rises further.</td></tr>
+    <tr><td>Exits</td><td>Batched per epoch under one recursive proof; one L1 verification per batch; batch sized to stay under the 16,777,216 execution-gas transaction cap</td><td>Timing linkage removed without an encrypted mempool; FIFO stream becomes an unordered batch</td></tr>
+    <tr><td>Concurrency</td><td>Today: distinct broadcaster EOAs. After Hegotá: the pool as sender with EIP-8250 nonce keys derived from nullifiers</td><td>Keyed nonces were motivated by exactly this case, many users sharing one sender</td></tr>
+    <tr><td>Relayer-free path</td><td>Withdraw is split into validate (verify proof, spend nullifier), pay (fee note) and execute (transfer) so it maps onto an EIP-8141 frame transaction</td><td>When frames ship the pool pays its own gas and the broadcaster mesh becomes optional for L1 exits</td></tr>
     <tr><td>Turnstile</td><td>Per-asset shielded supply counter; unshield cannot exceed verified deposits</td><td>Bounds a soundness bug to one asset (Zcash Ironwood pattern)</td></tr>
     <tr><td>Stablecoins</td><td>Separate subtree and separate vault address per freezable asset</td><td>An issuer freeze cannot trap ETH depositors</td></tr>
-    <tr><td>Verifier</td><td>Universal or transparent setup preferred; Groth16 acceptable at launch with a public ceremony</td><td>Avoid a circuit-specific trusted setup as the only option</td></tr>
+    <tr><td>Verifier</td><td>Inner proofs (UltraHonk or STARK) aggregated off-chain; a ~256-byte Groth16 wrapper verified on L1. Universal-setup inner system, public ceremony for the wrapper only.</td><td>Glamsterdam raises the calldata floor to 64 gas per byte, so a 16 KB UltraHonk proof would pay ~1M gas in calldata alone. Avoid a circuit-specific setup as the only trust root.</td></tr>
+    <tr><td>Signatures</td><td>Every signature check accepts ERC-1271; nothing assumes the signer is an EOA</td><td>Hegotá's EIP-8151 makes <code>ecrecover</code> return empty for accounts with code</td></tr>
+    <tr><td>Gas assumptions</td><td>No <code>gasleft()</code> stipends, no fixed gas forwarded to external calls, no reliance on refunds, no hardcoded sizes</td><td>EIP-8037/8038 reprice state non-uniformly and EIP-7778 stops refunds counting toward block gas; these are the invariants the Hoodi fork was paused over</td></tr>
     <tr><td>Swaps</td><td>Per-epoch batch at a public clearing price</td><td>Penumbra model; no new L1 feature needed</td></tr>
-    <tr><td>Admin</td><td>None. No pause, no fee switch, no upgrade. Deployer renounces.</td><td>Only immutable contracts received Van Loon protection</td></tr>
+    <tr><td>Admin</td><td>None. No pause, no fee switch, no upgrade. Deployed through the canonical CREATE2 factory (EIP-7997) from a Goal Safe or a throwaway key.</td><td>Only immutable contracts received Van Loon protection; a canonical factory makes the address reproducible by anyone from the published build</td></tr>
     <tr><td>Launch caps</td><td>Per-asset caps for the first 90 days; formal verification before caps lift</td><td>Three critical circuit bugs shipped in other systems in 2026</td></tr>
   </table></div>
 
@@ -499,7 +509,7 @@ MURMURATION_MAX_GAS_GWEI=3
     <tr><td>DCAP attestation, SNARK-compressed, per seat per epoch</td><td class="n">0.43 to 0.57 M</td><td class="n">0.00013 to 0.00017 ETH</td><td class="n">0.0009 to 0.0011 ETH</td></tr>
     <tr><td>Epoch batch settlement, 50 exits</td><td class="n">~2.5 M</td><td class="n">0.00075 ETH</td><td class="n">0.005 ETH</td></tr>
   </table></div>
-  <p>Mainnet gas sat near 0.1 to 0.3 gwei on 3 November 2026, with daily averages of 0.5 to 1.9 gwei through August and September. Gas is not the binding constraint; operator labour and opsec are, which is why an idle seat pool is the right operator base.</p>
+  <p>Mainnet gas sat near 0.1 to 0.3 gwei on 3 November 2026, with daily averages of 0.5 to 1.9 gwei through August and September. Gas is not the binding constraint; operator labour and opsec are, which is why an idle seat pool is the right operator base. Under Glamsterdam's repricing a withdrawal that spends one nullifier adds about 98k state gas and the storage write rises from 2.8k to 10k, so a Groth16 exit lands near 370k gas total; at 0.3 gwei that is still about 0.0001 ETH.</p>
 
   <h3 id="spec-legal">Legal gate: requirements every component must pass</h3>
   <p>The record is consistent. The Fifth Circuit protected only immutable contracts. Storm was convicted on relayer, frontend and fee facts. Samourai's founders ran a coordinator and collected fees. The DOJ's 2025 statements are discretionary and name front ends, upgrades, oracles and gateways as risk. The statutory safe harbour failed Senate cloture 49 to 50 in September 2026.</p>
@@ -513,6 +523,45 @@ MURMURATION_MAX_GAS_GWEI=3
     <li>Disclosure is user-held, opt-in and revocable; there is no network viewing key.</li>
     <li>Operators are jurisdictionally diverse and keep no logs beyond signed receipts.</li>
   </ul>
+</section>
+
+<section id="compat">
+  <h2>Upgrade compatibility</h2>
+  <p>Status as of 8 November 2026. Fusaka is live. Glamsterdam has 18 scheduled EIPs but no mainnet date: the Hoodi testnet fork was postponed on 22 October and on 6 November the Foundation said it will not fork until eight gas invariants broken by EIP-8037 and EIP-8038 are resolved, so Q1 2027 or later is the realistic expectation. Hegotá is planned for Q2 2027, unconfirmed. The post-quantum milestones run to about 2029. The specs above have been amended to the rules in the last column; the invariants that matter most are listed after the table.</p>
+  <div class="tbl"><table>
+    <tr><th>Fork</th><th>Change</th><th>Status</th><th>What it does to Murmuration</th><th>Design rule</th></tr>
+    <tr><td>Fusaka</td><td>EIP-7825 transaction gas cap</td><td><span class="pill ok">Live</span></td><td>No transaction above 16,777,216 execution gas, whatever the block limit</td><td>Epoch exit batches settle under one recursive proof; if exits are verified individually, chunk at about 40 per transaction</td></tr>
+    <tr><td>Fusaka</td><td>EIP-7951 secp256r1 precompile at 0x100, 6,900 gas</td><td><span class="pill ok">Live</span></td><td>Passkey-signed accounts become cheap on L1</td><td>User wallets may use passkeys; agent device keys stay Ed25519 off-chain and ECDSA or BLS on-chain</td></tr>
+    <tr><td>Fusaka</td><td>EIP-7883 ModExp repricing; EIP-7594 PeerDAS and BPO blob schedule</td><td><span class="pill ok">Live</span></td><td>No effect on BN254 or BLS12-381 verifiers; blobs are ephemeral</td><td>Note ciphertexts go in logs, not blobs, because discovery needs them for years</td></tr>
+    <tr><td>Glamsterdam</td><td>EIP-8037 state creation gas: new slot 97,920, new account 183,600, 1,530 per code byte</td><td><span class="pill">SFI, under review</span></td><td>Every nullifier and every fresh tree slot becomes about four times dearer; a 64 KiB verifier deploy costs ~100M state gas</td><td>Tree updates proven in-circuit with one root overwrite; nullifiers budgeted at ~110k; deploy once through the canonical factory</td></tr>
+    <tr><td>Glamsterdam</td><td>EIP-8038 state access: storage write 10,000, cold account 3,000, create access 12,000</td><td><span class="pill">SFI, under review</span></td><td>Overwrites and account touches cost more; refund for clearing drops</td><td>Ring buffers for roots and epochs reuse slots; no refund-dependent logic</td></tr>
+    <tr><td>Glamsterdam</td><td>EIP-7976 calldata floor 64/64; EIP-7981 access-list bytes priced</td><td><span class="pill">SFI</span></td><td>Large proofs and large ciphertexts pay more per byte</td><td>Groth16 wrapper on L1; ciphertexts kept to a tag plus two field elements</td></tr>
+    <tr><td>Glamsterdam</td><td>EIP-7778 block gas without refunds; EIP-2780 resource-based intrinsic gas</td><td><span class="pill">SFI</span></td><td>Refunds stop offsetting block gas; new accounts and 7702 delegations pay runtime charges</td><td>No fee logic depends on refunds or on a fixed 21,000 intrinsic cost</td></tr>
+    <tr><td>Glamsterdam</td><td>EIP-7732 ePBS; EIP-7928 block-level access lists</td><td><span class="pill">SFI</span></td><td>Builders and proposers separate at protocol level; inclusion timing shifts by a slot or two under censoring builders</td><td>Epoch exits tolerate multi-slot delay; nothing assumes same-slot inclusion</td></tr>
+    <tr><td>Glamsterdam</td><td>EIP-7708 ETH transfers emit logs</td><td><span class="pill">SFI</span></td><td>Every ETH value transfer, including unshields to recipients, appears as a Transfer-style log</td><td>Broadcasters paid in-pool, never by public ETH transfer; stewardship heuristics add the new log source</td></tr>
+    <tr><td>Glamsterdam</td><td>EIP-7954 contract size 64 KiB; EIP-7997 canonical CREATE2 factory; EIP-7843 SLOTNUM</td><td><span class="pill">SFI</span></td><td>Monolithic verifiers fit; reproducible deployments; slot-based epochs</td><td>Deploy via the canonical factory; epochs may key on slot number once live</td></tr>
+    <tr><td>Hegotá</td><td>EIP-7805 FOCIL inclusion lists</td><td><span class="pill">SFI, ~Q2 2027</span></td><td>Censorship becomes delay-only at protocol level</td><td>Mesh remains for metadata and for pools on other chains; nothing to change</td></tr>
+    <tr><td>Hegotá</td><td>EIP-8141 frame transactions (type 0x06, entry point 0xaa, up to 64 frames); EIP-7701 withdrawn</td><td><span class="pill">SFI, ~Q2 2027</span></td><td>Native account abstraction: a contract can validate a ZK proof and pay its own gas</td><td>Withdraw is already split validate / pay / execute; add the frame adapter when the spec freezes</td></tr>
+    <tr><td>Hegotá</td><td>EIP-8250 keyed nonces (NONCE_MANAGER, up to 16 keys); EIP-8272 recent roots</td><td><span class="pill">CFI, A-tier</span></td><td>Many users share one sender without blocking each other; recent state roots verifiable on-chain</td><td>Pool-as-sender exits use nullifier-derived nonce keys; readers can anchor proofs to recent roots</td></tr>
+    <tr><td>Hegotá</td><td>EIP-8151 ecrecover returns empty for accounts with code</td><td><span class="pill">CFI, A-tier</span></td><td>Breaks any contract that recovers a signer address that has code</td><td>ERC-1271 everywhere, already specified</td></tr>
+    <tr><td>Hegotá</td><td>EIP-8182 private ETH and ERC-20 transfers; EIP-8105 encrypted mempool</td><td><span class="pill hi">Declined / Draft</span></td><td>No L1 privacy enshrinement and no encrypted mempool on the schedule</td><td>Murmuration stays necessary; never depend on an encrypted mempool</td></tr>
+    <tr><td>Long term</td><td>History expiry (EIP-4444 direction; pre-merge history droppable since July 2025)</td><td><span class="pill">Partial</span></td><td>Old logs may stop being served by full nodes</td><td>Read layer archives every pool's log from genesis and pins epoch snapshots</td></tr>
+    <tr><td>Long term</td><td>Binary state tree (EIP-7864, hash undecided); Poseidon dropped from L1</td><td><span class="pill">Draft</span></td><td>No cheap ZK-friendly hash on L1</td><td>All Poseidon2 work happens in-circuit; contracts store roots and verify proofs only</td></tr>
+    <tr><td>Long term</td><td>Post-quantum milestones: PQ key registry, PQ signature precompiles, leanXMSS consensus, by ~2029</td><td><span class="pill">Planned</span></td><td>ECDSA and BLS keys will need migration; pairing-based proofs will need replacement</td><td>Hash-based commitments now; STARK inner proofs so only the wrapper is pairing-based; PQ-KEM option for note encryption; key rotation built into the registry</td></tr>
+    <tr><td>Live</td><td>EIP-2537 BLS12-381 precompiles (G1ADD 375, pairing 32,600 per pair + 37,700)</td><td><span class="pill ok">Live</span></td><td>Aggregated panel signatures cost one pairing check</td><td>Optional BLS key per seat; aggregated root submission for large juries</td></tr>
+    <tr><td>Live</td><td>EIP-7702 set-code delegation</td><td><span class="pill ok">Live</span></td><td>Stealth smart accounts possible, but roughly half of all delegations have been tagged malicious</td><td>Use 7702 only with audited delegate targets; wallets should expect warnings</td></tr>
+  </table></div>
+  <h3>Invariants the contracts must not assume</h3>
+  <ul>
+    <li>That a new storage slot costs about 22k gas, or that any opcode's price is fixed. Budget state and execution gas separately.</li>
+    <li>That refunds reduce the cost of a transaction or free block space.</li>
+    <li>That a fixed gas stipend forwarded to an external call is enough.</li>
+    <li>That <code>ecrecover</code> returns an address for every signer.</li>
+    <li>That a single transaction can carry more than 16,777,216 execution gas.</li>
+    <li>That full nodes serve logs from years ago.</li>
+    <li>That the mempool, builders or proposers will include a transaction in the next slot.</li>
+  </ul>
+  <p>Before any mainnet deployment the contracts should be run against the Foundation's published gas-invariant checks for Glamsterdam, and the EIP-8037 and EIP-8038 parameters should be re-read, since the Foundation has said spec changes are being evaluated.</p>
 </section>
 
 <section id="goals">
@@ -542,10 +591,12 @@ MURMURATION_MAX_GAS_GWEI=3
   <p>The 100-of-150 figure is the demo's jury, not a Murmuration choice. A Safe verifies every signature on-chain, so cost scales with the signer count. Gas is cheap today; the real cost of a large jury is liveness, because ASP roots must refresh daily. A large jury suits rare treasury actions like the demo's buyback. A daily root wants a small panel of distinct holder wallets, rotated per epoch. If the Safe uses an aggregated threshold signature, the size question disappears.</p>
   <div class="tbl"><table>
     <tr><th>Panel</th><th>Signatures verified on-chain</th><th>Rough gas per root</th></tr>
-    <tr><td>100 of 150 (demo)</td><td class="n">100</td><td class="n">0.6 to 0.9 M</td></tr>
-    <tr><td>10 of 15</td><td class="n">10</td><td class="n">60 to 90 k</td></tr>
-    <tr><td>7 of 10 (this spec)</td><td class="n">7</td><td class="n">45 to 65 k</td></tr>
+    <tr><td>100 of 150 (demo), ECDSA on a Safe</td><td class="n">100</td><td class="n">0.6 to 0.9 M</td></tr>
+    <tr><td>100 of 150, aggregated BLS12-381 (EIP-2537)</td><td class="n">1 pairing + 100 G1 adds</td><td class="n">~160 k</td></tr>
+    <tr><td>10 of 15, ECDSA</td><td class="n">10</td><td class="n">60 to 90 k</td></tr>
+    <tr><td>7 of 10 (this spec), ECDSA</td><td class="n">7</td><td class="n">45 to 65 k</td></tr>
   </table></div>
+  <p>With BLS keys registered per seat, the large jury costs about what a small ECDSA panel does, so the remaining argument against it is liveness, not gas. The registry carries an optional BLS key for this reason.</p>
   <h3>Questions sent to the developer</h3>
   <p>Ordered by how much the answer changes the design. Answers are recorded here as the docs or the developer provide them. Questions 1, 3 and 4 decide whether the Panel ASP can be a goal or stays a standalone contract.</p>
   <div class="tbl"><table>
@@ -603,7 +654,7 @@ MURMURATION_MAX_GAS_GWEI=3
     <div>
       <h3>The immutable pool, slashing and disclosure</h3>
       <ul>
-        <li>Deploy the Layer 0 pool with a multi-asset tree, epoch exits with keyed nullifiers, turnstiles, stablecoin isolation and no admin.</li>
+        <li>Deploy the Layer 0 pool with a multi-asset tree, recursive epoch exit batches, turnstiles, stablecoin isolation and no admin; add the frame-transaction adapter and keyed-nonce exits once Hegotá's specs freeze.</li>
         <li>Register panelists and broadcasters into an EigenLayer or Symbiotic operator set with the two objective ASP slashing conditions.</li>
         <li>Ship threshold selective disclosure as an opt-in wallet feature.</li>
         <li>Begin the post-quantum path: hash-based commitments from day one, STARK verifier once gas allows.</li>
