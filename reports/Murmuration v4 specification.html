@@ -311,6 +311,7 @@ SetAttestation {
   <h3>The public pool</h3>
   <ul>
     <li>At launch the distribution contract places 25% of supply as one-sided liquidity in a Uniswap pool against IMD. Buyers bring IMD and the price rises as they buy. There is no ETH pair.</li>
+    <li>The range starts at a valuation of 48,000 IMD for the whole supply, about $127,000 with IMD at $2.64, and extends far above it so the pool never runs out of tokens to buy. Once half of the 25% has been bought, the pool holds about 12,000 IMD and the price is four times the start. These figures are arithmetic for a standard range position. They have not been tested, and the dollar values move with IMD.</li>
     <li>A one-sided pool starts with no IMD in it, so sellers can only sell into what buyers have paid. To deepen it, 20% of every fee the privacy pool collects goes into this market for good. Once a day the distributor sells that share for IMD in a descending-price auction open to anyone, then adds the IMD as buy-side liquidity that can never be withdrawn. No price feed and no key is involved.</li>
     <li>That mechanism is more logic in contracts that can never be patched. It is kept to those two steps, and it is covered by the same proofs and canary as the rest.</li>
     <li>The liquidity position is held by the contract and can never be withdrawn. Trading fees it earns go to the fee distributor, not to any wallet.</li>
@@ -543,6 +544,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td>Founder vesting</td><td class="n">2 years</td><td>Linear, with nothing in the first month</td></tr>
     <tr><td>Swarm lock</td><td class="n">up to 1 year</td><td>Builders and auditors</td></tr>
     <tr><td>Public pool</td><td class="n">25% of supply</td><td>One-sided against IMD only, placed at launch, position locked for good</td></tr>
+    <tr><td>Starting valuation</td><td class="n">48,000 IMD</td><td>For the whole supply. About 12,000 IMD sits in the pool once half of the 25% is bought</td></tr>
     <tr><td>Circuits</td><td class="n">3, Groth16</td><td>Deposit, two-in two-out transfer, withdraw</td></tr>
     <tr><td>Note encryption</td><td class="n">X25519 + ML-KEM-768</td><td>Hybrid, about 1.1 KB more per output note</td></tr>
   </table></div>
