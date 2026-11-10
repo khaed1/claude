@@ -6,7 +6,7 @@
   <div class="tbl"><table>
     <tr><th>Item</th><th>Definition</th></tr>
     <tr><td>Field</td><td>The BN254 scalar field. Every hashed value is less than its modulus <code>p</code>, and the contracts reject inputs that are not</td></tr>
-    <tr><td>Hash</td><td>Poseidon with circomlib's parameters. <code>H2</code>, <code>H3</code> and <code>H4</code> take two, three and four inputs. On-chain they are three stateless bytecode contracts generated from the same parameters, checked against the circuit with shared test vectors</td></tr>
+    <tr><td>Hash</td><td>Poseidon with circomlib's parameters. <code>H2</code>, <code>H3</code> and <code>H4</code> take two, three and four inputs. On-chain they are the three poseidon-solidity contracts already deployed on mainnet, pinned by code hash and checked against the circuit with shared test vectors</td></tr>
     <tr><td>Domain tags</td><td>Every hash that is not a tree node or a leaf bundle takes a small constant tag as its first input: <code>TAG_SPK</code>, <code>TAG_NK</code>, <code>TAG_PK</code>, <code>TAG_OC</code>, <code>TAG_NF</code>. A note's packed word carries <code>TAG_NOTE</code> in its top byte</td></tr>
     <tr><td>Amounts</td><td>Unsigned, at most 96 bits, in the asset's smallest unit. Range-checked in the circuit wherever they are added</td></tr>
     <tr><td>Asset id</td><td>8 bits. The list and each asset's weight are constants in the circuit and the pool <span class="pill">param</span></td></tr>
@@ -32,7 +32,7 @@ nullifier   = H4(TAG_NF, nk, pos, rho)     // one per note position; published w
 // Short form: ownerPk and keccak256(key). The key is announced once through Pool.announce and read from the public snapshots.</code></pre>
   <ul>
     <li><strong>accrued</strong> is reward already earned and not yet turned into tokens. It travels with the note. <strong>index</strong> is the value of <code>G</code> when the note was created.</li>
-    <li><strong>Encryption.</strong> Output 0 is encrypted to the recipient with HPKE over the X-Wing hybrid of X25519 and ML-KEM-768: 1,120 bytes of key encapsulation, an 80-byte payload and a 16-byte tag, 1,216 bytes in all. Output 1 is the sender's change, sealed with the sender's own symmetric key: 96 bytes. The relayer's fee note is opened to the relayer off-chain. The reward note is derived by its owner. Every spend therefore publishes the same 1,312 bytes of ciphertext whatever it does.</li>
+    <li><strong>Encryption.</strong> Output 0 is encrypted to the recipient with HPKE over the X-Wing hybrid of X25519 and ML-KEM-768: 1,120 bytes of key encapsulation, an 80-byte payload and a 16-byte tag, 1,216 bytes in all. X-Wing is an IETF draft, not yet an RFC. The build pins draft 11 of 23 September 2026 and its test vectors, with HPKE identifier 0x647A. Output 1 is the sender's change, sealed with the sender's own symmetric key: 96 bytes. The relayer's fee note is opened to the relayer off-chain. The reward note is derived by its owner. Every spend therefore publishes the same 1,312 bytes of ciphertext whatever it does.</li>
     <li><strong>The pool does not check ciphertexts.</strong> A sender who posts garbage loses the payment for the recipient and gains nothing. This is the same in every shielded pool.</li>
     <li><strong>Not post-quantum:</strong> the Groth16 proof. Ownership and nullifiers rest on hashes only.</li>
   </ul>

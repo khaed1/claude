@@ -39,12 +39,35 @@ stateDiagram-v2
   <p>Padding inputs are never in the tree and go straight to Spent. A note whose ciphertext was posted wrongly is Created for ever and nobody can spend it. Reward stops growing for everyone when emissions end, and a note keeps what it has accrued.</p>
 
   <h3 id="b-gas">Size, gas and state pricing</h3>
-<!--GAS-->
+  <p>Figures are a model built from measured parts, not measurements of this code, which does not exist yet. The Glamsterdam column uses EIP-8037, EIP-8038 and EIP-7976 as they stand in Last Call on 10 November 2026. Their authors have said the numbers may still be revised after the audit reports due on 13 November and the developer call of 19 November. Dollar figures are at 0.2 gwei and ETH at $2,130. The working is in <code>gas_model_and_pq_cost_v3.md</code>.</p>
+  <div class="tbl"><table>
+    <tr><th>Transaction</th><th>Gas today</th><th>Under Glamsterdam</th><th>Cost today and after</th><th>State it creates</th></tr>
+    <tr><td>Deposit</td><td class="n">80,305</td><td class="n">189,925</td><td class="n">$0.03, $0.08</td><td>One slot, cleared again at activation or refund</td></tr>
+    <tr><td>Activate</td><td class="n">749,604</td><td class="n">786,588</td><td class="n">$0.32, $0.34</td><td>None that lasts. Tree writes overwrite existing slots</td></tr>
+    <tr><td>Spend (transfer or withdrawal)</td><td class="n">1,081,224</td><td class="n">1,300,864</td><td class="n">$0.46, $0.55</td><td>Two slots, one per nullifier. 195,840 of the Glamsterdam figure is state gas</td></tr>
+  </table></div>
+  <div class="tbl"><table>
+    <tr><th>Part</th><th>Gas</th><th>Source</th></tr>
+    <tr><td>One tree insert: 32 <code>H2</code> calls and one <code>H4</code></td><td class="n">about 650,000</td><td>poseidon-solidity: 18,624 per <code>H2</code>, 35,117 per <code>H3</code>, 51,826 per <code>H4</code> on a warm call, confirmed by simulation against the contracts already on mainnet</td></tr>
+    <tr><td>Groth16 verification, 11 public inputs</td><td class="n">about 255,000</td><td>182,441 plus 6,626 per input, extrapolated from deployed snarkjs verifiers with 4 and 8 inputs</td></tr>
+    <tr><td>A new storage slot</td><td class="n">22,100, then 110,020</td><td>EIP-8037: 97,920 state gas on top of the write</td></tr>
+    <tr><td>Overwriting a cold slot</td><td class="n">5,000, then 12,100</td><td>EIP-8038</td></tr>
+    <tr><td>The 1,312 bytes of ciphertext in a spend</td><td class="n">about 31,500, both</td><td>16 gas per byte as calldata and 8 per byte in the log. The calldata floor of EIP-7623 and EIP-7976 applies only to transactions that do little besides carry data, and a spend is not one</td></tr>
+    <tr><td>Deploying 24 KiB of code</td><td class="n">5.36M, then 38.21M</td><td>EIP-8037 charges 1,530 state gas per byte. It fits one transaction and one 60M block. The transaction must set a gas limit above 2<sup>24</sup> so the state gas has room</td></tr>
+  </table></div>
+  <ul>
+    <li><strong>Version 4 overstated the cost of post-quantum encryption.</strong> It priced each note at about 70,000 gas "at the calldata floor". A spend pays the ordinary rate, and the design now publishes one recipient ciphertext per spend, so the whole encryption overhead is about 31,500 gas, under 3% of a spend, today and under Glamsterdam.</li>
+    <li><strong>The hash contracts.</strong> The pool calls the three poseidon-solidity contracts that already exist on mainnet, pinned by code hash, so it deploys none. They are 23,478, 14,189 and 19,260 bytes. Their README says they are unaudited, so the build checks them against the circuit with shared test vectors and the audit reads the generator.</li>
+    <li><strong>Size limit.</strong> The build fails if any contract's deployed code exceeds 24,576 bytes. Estimates: Pool 16 to 20 KiB, ScreenerRegistry 12 to 16, FeeDistributor 10 to 13, Distribution 7 to 9, Verifier about 4, Token under 3.</li>
+    <li><strong>Transaction limit.</strong> The build fails if any call can exceed 16,777,216 execution gas. The heaviest calls are a spend at about 1.3M, and <code>apply</code> with a full 96-word batch, which writes 96 new slots: about 2.1M today and 10.6M under Glamsterdam, of which 1.2M is execution gas.</li>
+    <li><strong>No refunds are relied on.</strong> Clearing a deposit record earns a refund under both rule sets. No limit or estimate in the code depends on it.</li>
+    <li><strong>Deployment.</strong> About 60 KiB of new code in six transactions: roughly 13M gas today and 95M under Glamsterdam, under $50 either way at 0.2 gwei.</li>
+  </ul>
 
   <h3 id="b-deploy">Deployment and the canary</h3>
   <ol>
-    <li><strong>Build.</strong> One reproducible build produces the creation code of the three hash contracts and the six contracts, the circuit, and a parameter file. The ceremony runs on that circuit, and the verifier's code is generated from its output.</li>
-    <li><strong>Deployer.</strong> A small contract is created through the deterministic deployment proxy at <code>0x4e59…956C</code>. Its constructor fixes the nine creation-code hashes in order. Its only function, <code>deploy(i, code)</code>, creates contract <code>i</code> if <code>code</code> matches hash <code>i</code> and every earlier one exists. Addresses follow from the deployer's address and a counter, so each constructor receives the others' addresses before they exist. Anyone can send these transactions, and nobody can deploy anything else through it.</li>
+    <li><strong>Build.</strong> One reproducible build produces the creation code of the six contracts, the circuit, and a parameter file. The ceremony runs on that circuit, and the verifier's code is generated from its output.</li>
+    <li><strong>Deployer.</strong> A small contract is created through the deterministic deployment proxy at <code>0x4e59…956C</code>. Its constructor fixes the six creation-code hashes in order. Its only function, <code>deploy(i, code)</code>, creates contract <code>i</code> if <code>code</code> matches hash <code>i</code> and every earlier one exists. Addresses follow from the deployer's address and a counter, so each constructor receives the others' addresses before they exist. Anyone can send these transactions, and nobody can deploy anything else through it.</li>
     <li><strong>One contract per transaction.</strong> Under Glamsterdam pricing the six do not fit in one transaction or one block.</li>
     <li><strong>Launch.</strong> Anyone calls <code>Distribution.launch()</code>. Screeners who register in the first week count from epoch 7, so the first deposits can be activated about eight days after deployment.</li>
   </ol>
