@@ -103,14 +103,14 @@ table.wide{min-width:820px}
 
 <div class="wrap">
 <header class="hero">
-  <div class="eyebrow">Proposal · Ethereum mainnet · built on IMD seats · revision 2 · status as of 10 Nov 2026</div>
+  <div class="eyebrow">Proposal · Ethereum mainnet · built on IMD seats · revision 3 · status as of 10 Nov 2026</div>
   <h1>Murmuration: a swarm-operated privacy stack</h1>
-  <p class="lede">Ethereum already has the cryptography for private transfers. What it lacks is independence at the edges. Railgun's main wallet trusts four broadcasters, Privacy Pools has one screening operator, and both pools keep an upgrade key. The holders of IMD's 1,999 seats can widen those edges with software that already exists. Revision 2 reduces the design to one node with three duties and a wallet-side policy, and it deploys no contract unless a later, gated pool option is exercised.</p>
+  <p class="lede">Ethereum already has the cryptography for private transfers. What it lacks is independence at the edges. Railgun's main wallet trusts four broadcasters, Privacy Pools has one screening operator, and both pools keep an upgrade key. The holders of IMD's 1,999 seats can widen those edges with software that already exists. Revision 3 keeps that lean periphery and puts a pool of its own at the centre: fully immutable, screened, with fixed-size exits, a 0.2% withdrawal fee and a token that pays the people who run it.</p>
   <div class="facts">
     <div><b>1,149</b><span>IMD agents registered (10 Nov 2026)</span></div>
     <div><b>795</b><span>wallets hold the 1,999 seats</span></div>
     <div><b>~286</b><span>Railgun spends a day on mainnet</span></div>
-    <div><b>0</b><span>new contracts in the plan of record</span></div>
+    <div><b>6</b><span>immutable contracts at pool launch, no admin</span></div>
     <div><b>0</b><span>components operated by the developers</span></div>
   </div>
 </header>
@@ -140,6 +140,7 @@ table.wide{min-width:820px}
     <a class="sub" href="#spec-worker">Worker integration</a>
     <a class="sub" href="#spec-fees">Fees and gas</a>
     <a class="sub" href="#spec-legal">Legal gate</a>
+    <a href="#token">Token and fee</a>
     <a href="#compat">Upgrade compatibility</a>
     <a href="#goals">Goals integration</a>
     <a href="#roadmap">Roadmap</a>
@@ -154,16 +155,17 @@ table.wide{min-width:820px}
 <main>
 
 <section id="thesis">
-  <h2>Thesis: services first, pool only as an option</h2>
+  <h2>Thesis: services first, then a pool of its own</h2>
   <p>Three findings from the first version stand. Anonymity sets are the scarcest resource on Ethereum: Privacy Pools v2 holds 583 deposits on mainnet three weeks after launch. Every compromise of Tornado Cash came through its mutable periphery (governance, frontend, relayer registry, fee token), the US prosecution leaned on the same parts, and the immutable pools were the only part a court protected. Every live privacy product still concentrates some role in one operator.</p>
   <p>The adversarial re-review of 9 and 10 November 2026 added a fourth finding, and it changes what should be built. Operator capacity is not what Ethereum privacy is short of. Over the three days to 10 November, Railgun on mainnet carried about 286 spends a day, one every five minutes. Seven sending addresses carried 80% of them, and every broadcaster on the network together earned a margin of roughly $480 a month at current gas prices. What is short is independence and distribution. Since version 5.26.1 (5 October 2026) Railway Wallet only selects broadcasters on a four-address allowlist in its remote configuration. Privacy Pools' contracts accept only the latest root from 0xbow's own postman. A thousand idle machines change nothing until a wallet is willing to choose them.</p>
-  <p>So Murmuration ships three things. An admission rule that a wallet can verify by itself: seat ownership plus a delegation signed by the seat holder. A selection policy that does not hand all traffic to the cheapest quote. And public data (pool snapshots, screening sets, pool-health figures) built so that any two independent nodes produce the same bytes. IMD supplies the operators and a cost per identity. Nothing runs through IMD's control plane, no funds touch IMD's contracts, and nobody is paid in IMD's token.</p>
+  <p>So Murmuration ships three things. An admission rule that a wallet can verify by itself: seat ownership plus a delegation signed by the seat holder. A selection policy that does not hand all traffic to the cheapest quote. And public data (pool snapshots, screening sets, pool-health figures) built so that any two independent nodes produce the same bytes. IMD supplies the operators and a cost per identity. No running part of the protocol goes through IMD's control plane, no user funds touch IMD's contracts, and no operator is paid in IMD's token. IMD's agents are used in the ordinary way, as paid builders and reviewers of open-source code.</p>
   <div class="callout">
-    <p><strong>Design rule 1.</strong> Nothing a seat produces is load-bearing for funds or for privacy. Every output is either checked against the chain by the wallet (relays, snapshots) or advisory (screening attestations, health data). A seat costs about 0.70 ETH and can be resold, so a seat signature is a quality filter and never a security root. This rule is what lets the design drop bonds, slashing and registries.</p>
+    <p><strong>Design rule 1.</strong> Nothing a seat produces is load-bearing for funds or for privacy. Every output is either checked against the chain by the wallet (relays, snapshots) or advisory (screening attestations, health data). A seat costs about 0.70 ETH and can be resold, so a seat signature is a quality filter and never a security root. This rule is what lets the periphery work without bonds, slashing or registries. In the pool, screeners stake and their roots are accepted on-chain, and even there a captured panel can approve a bad deposit and cannot move funds.</p>
   </div>
   <div class="callout">
-    <p><strong>Design rule 2.</strong> Everything must work with Railgun and Privacy Pools as they are deployed today. A pool of Murmuration's own is an option with a written gate, built only from already-audited code. It is not a roadmap deliverable.</p>
+    <p><strong>Design rule 2.</strong> Everything in the periphery must work with Railgun and Privacy Pools as they are deployed today. That is how the project earns wallet distribution before its own pool exists.</p>
   </div>
+  <p><strong>Revision 3</strong> records the owner's decision of 10 November 2026 to make a pool of the project's own the main product again. The reason is positioning. Tornado Cash is immutable and unscreened, so its exits are treated as tainted. Railgun and Privacy Pools are screened and keep admin keys. No pool is both immutable and screened. The Murmuration pool is designed to be that, and to add two things neither has: fixed-size exits on top of a private ledger, and note encryption that a future quantum computer cannot open. It launches with no users, and that is its largest weakness. The <a href="#spec-pool">comparison</a> states both sides.</p>
 </section>
 
 <section id="architecture">
@@ -184,7 +186,7 @@ flowchart TB
   subgraph PL[Pools, unchanged]
     RG[Railgun]
     PP[Privacy Pools v1 and v2]
-    L0[Layer 0 option\nnot on the roadmap]
+    L0[Murmuration pool\nimmutable, phase 2]
   end
   subgraph ID[Identity, no registry]
     NFT[Seat NFT ownerOf] --> DEL[Holder-signed delegation] --> OP[Operational key]
@@ -192,6 +194,8 @@ flowchart TB
   P --> R
   R --> RG
   R --> PP
+  R --> L0
+  A --> L0
   M -. same files for every user .-> V
   A -. signed and recomputable .-> V
   OP --> N
@@ -214,7 +218,7 @@ sequenceDiagram
   ETH-->>B: Fee note lands at the broadcaster's 0zk address
   ETH-->>U: Transfer or unshield settles
   </pre>
-  <p>Compared with the first version, the registry contract, the reader API, the steward API, the proving coordinator and the disclosure panel are gone. The wallet does more locally and trusts less.</p>
+  <p>Compared with the first version, the registry contract, the reader API, the steward API, the proving coordinator and the disclosure panel are gone. The wallet does more locally and trusts less. In revision 3 the same node and wallet module become the periphery of the project's own pool when it launches.</p>
 </section>
 
 <section id="services">
@@ -309,22 +313,29 @@ sequenceDiagram
   </div>
 
   <div class="svc" id="l0">
-    <span class="num">Layer 0 · option, not scheduled</span>
+    <span class="num">Layer 0 · the main product, phase 2</span>
     <h3>The immutable pool</h3>
-    <p class="status"><span class="pill hi">Re-scoped</span><span class="pill">Fork and freeze of audited code</span><span class="pill">Gated</span></p>
-    <p>Without a pool of its own, everything Murmuration improves still sits beside an admin key. Railgun's contracts are upgradeable by token vote and were last upgraded on 29 July 2026. Privacy Pools v2 can be paused and upgraded by a two-of-four Safe with no delay. That is the one guarantee a services-only project cannot give, and it is the only reason the option stays.</p>
-    <p>The first version specified a new multi-asset shielded ledger with recursive batch exits, new circuits and a new verifier. That is the most expensive and most dangerous thing in the document: an immutable pool cannot be patched, and 2026 saw soundness bugs in Zcash Orchard, two Aztec releases, Intmax, Firo and Beam, plus a $2.1M drain of the ownerless Aztec Connect contracts. Revision 2 allows only one shape. Take Privacy Pools v1 (Apache-2.0, audited, pools and verifiers already immutable, a withdrawal circuit under 40,000 constraints), keep the pool and circuits byte-for-byte, and replace its upgradeable entrypoint with an ownerless one. If that cannot be done at decision time, no pool is built.</p>
+    <p class="status"><span class="pill ok">Core product in revision 3</span><span class="pill">Fully immutable</span><span class="pill">New circuits</span></p>
+    <p>A shielded ledger with one tree for all supported assets. Balances are private notes, transfers inside the pool are private and free, and nothing has an owner, a pause or an upgrade path. Four features define it.</p>
+    <ul>
+      <li><strong>Immutable and screened.</strong> A deposit can be spent privately only after a published-criteria screening set approves it, and never sooner than about a day. A refused depositor can always take the deposit back publicly. Screening can stop a thief from using the pool. It cannot touch anyone's funds.</li>
+      <li><strong>Fixed-size exits.</strong> Inside the pool amounts are arbitrary. Leaving it, funds come out only in standard sizes, as in Tornado Cash. Matching a deposit to a withdrawal by amount stops working.</li>
+      <li><strong>Quantum-resistant note encryption.</strong> Encrypted notes sit on-chain forever. They are encrypted with a hybrid of X25519 and ML-KEM, so recording them now and decrypting them later does not work.</li>
+      <li><strong>Private rewards.</strong> Notes earn the project token for time spent shielded, collected inside the proof when a note is spent. There is no claim transaction to observe.</li>
+    </ul>
+    <p>Revision 2 limited the pool to a fork of Privacy Pools v1 with no new circuits. Revision 3 gives that up: internal transfers, fixed exits and rewards need circuits that do not exist yet. That brings back the largest risk in the document, a soundness bug that nobody can patch, and most of the audit cost. The containment measures are in <a href="#spec-pool">the pool design</a>.</p>
     <dl class="meta">
-      <dt>Gives up</dt><dd>One tree across assets, internal transfers, batched exits, in-pool swaps. Privacy Pools v1 has none of them</dd>
-      <dt>Cannot reuse</dt><dd>Railgun's contracts (source marked UNLICENSED) or Privacy Pools v2 (BUSL-1.1 until October 2030)</dd>
-      <dt>Gate</dt><dd>Six conditions in the <a href="#roadmap">roadmap</a>. None is a date</dd>
+      <dt>Written by</dt><dd>The swarm, as public IMD build and review jobs. Railgun's source is unlicensed and cannot be copied. Privacy Pools v1 (Apache-2.0) can be studied and adapted</dd>
+      <dt>Fee</dt><dd>0.2% on public withdrawals, fixed in code, to an immutable distributor. See <a href="#token">Token and fee</a></dd>
+      <dt>Biggest weakness</dt><dd>It starts empty. Privacy comes from the crowd, and Railgun and Tornado already have one</dd>
+      <dt>Phase</dt><dd>Specified in phase 0, on testnet in phase 1, on mainnet in phase 2 behind a launch gate</dd>
     </dl>
   </div>
 </section>
 
 <section id="specs">
   <h2>Specs and technical implementation</h2>
-  <p>Formats below are proposed, not deployed. In revision 2 they are almost all off-chain data formats and client-side rules, because the plan of record deploys no contract. Everything is written so the project team can publish code and run none of it.</p>
+  <p>Formats below are proposed, not deployed. The periphery is off-chain data formats and client-side rules. The pool, the token and the fee distributor are the only contracts. Everything is written so the project team can publish code and run none of it.</p>
 
   <h3 id="spec-identity">Identity without a registry</h3>
   <p>Admission is derived, never granted, and it is checked by whoever relies on it. A seat is the <code>identity.md</code> NFT at <code>0x0000ec93…ec1d</code>. Its source is verified, it is not a proxy, and its <code>owner()</code> is the CREATE2 deployment proxy it was created through, so its owner-only functions have no key behind them. The holder signs one delegation from the wallet that holds the seat. The node then works with a separate operational key, so the wallet holding the NFT never sits on a server.</p>
@@ -400,7 +411,7 @@ on refusal or timeout:
   <p><code>relay()</code> has no allowlist in v1 or v2. The fee is bound into the proof's context and paid by a public transfer to a fee recipient: basis points of the withdrawal in v1 with a 10% cap for ETH, a nominal amount in v2. L2BEAT counts six active relayers on v1 and three on v2 over 30 days. Volume is small: 8,190 deposits on v1 since March 2025 and 583 on v2. As with Railgun, a relayer only gets traffic from a wallet or SDK configured to use it.</p>
 
   <h3 id="spec-asp">Panel ASP: attestations, criteria and the overlay proof</h3>
-  <p>Nothing here is a contract. The first version's <code>PanelASP.sol</code> is removed.</p>
+  <p>Nothing here is a contract. The first version's <code>PanelASP.sol</code> is removed. In the Murmuration pool the same attestation format is what the screening registry accepts on-chain.</p>
 <pre><code>// Output of the deterministic screener, signed by each attesting node's opKey (EIP-712)
 SetAttestation {
   bytes32 criteriaHash;   // keccak256 of the criteria file below
@@ -491,23 +502,40 @@ DisclosureReceipt {
 }</code></pre>
   <p>The recipient recomputes each commitment from its opening, checks it sits in the pool's tree, and checks the nullifier on-chain. There is precedent: Tornado Cash's compliance tool produces a per-note report, and Railgun already has user-held viewing keys. A receipt is narrower than a viewing key because it covers one transaction. It can be forwarded like any document, and it cannot be produced without the user.</p>
 
-  <h3 id="spec-pool">Layer 0 option: fork and freeze</h3>
-  <p>This table describes the only pool shape revision 2 permits. It is not scheduled.</p>
-  <div class="tbl"><table>
-    <tr><th>Element</th><th>Revision 2</th><th>First version, and why it changed</th></tr>
-    <tr><td>Pool and circuits</td><td>Privacy Pools v1 <code>PrivacyPool</code>, withdrawal and ragequit circuits, and verifiers, unchanged. Apache-2.0, audited by Oxorio in February and March 2025.</td><td>A new multi-asset ledger with new circuits. New circuits in an immutable pool are a permanent bet that they hold no soundness bug.</td></tr>
-    <tr><td>Entrypoint</td><td>New and ownerless: no upgrade, pause, fee setter or wind-down. Vetting fee fixed at zero. A few hundred lines, and the only new Solidity.</td><td>None existed. v1's own entrypoint is a UUPS proxy whose owner Safe sets fees and upgrades.</td></tr>
-    <tr><td>Root acceptance</td><td>Decided at the gate, between two rules. Panel rule: a root is accepted with signatures from t distinct seat holders, so capturing it costs t seats. On-chain rule: a label is approved after a fixed delay unless the sanctions oracle lists the depositor, which needs no panel and applies no judgment. One year of overlay record informs the choice.</td><td><code>PanelASP.sol</code> with a 64-root ring buffer, which would keep a delisted label spendable for about 64 days.</td></tr>
-    <tr><td>Fund safety</td><td>Never depends on seats. The original depositor can always ragequit to the deposit address.</td><td>Same intent, not stated.</td></tr>
-    <tr><td>Exits</td><td>One withdrawal, one transaction, as in v1.</td><td>Epoch batches under one recursive proof. Someone has to prove every batch, which is a sequencer by another name, and transfers would settle once a day.</td></tr>
-    <tr><td>Relaying</td><td>Permissionless <code>relay()</code> as in v1, fee paid publicly.</td><td>Pool as sender with EIP-8250 nonce keys. EIP-8250 is not scheduled, keeps the one-pending-transaction rule in the mempool, and adds about 110,000 gas per first-use key.</td></tr>
-    <tr><td>Assets</td><td>ETH first. No freezable stablecoin at launch.</td><td>A separate subtree per freezable asset. That split the anonymity set and bought nothing: an issuer freeze only ever traps the frozen asset.</td></tr>
-    <tr><td>Caps</td><td>An immutable schedule in code, for example a per-asset ceiling that doubles every 90 days.</td><td>"Formal verification before caps lift", which needs a key that "no admin" forbids.</td></tr>
-    <tr><td>Verifier and setup</td><td>The v1 Groth16 verifier, with the provenance of its trusted setup confirmed first. If it cannot be confirmed, run a new public ceremony for the same circuit.</td><td>A Groth16 wrapper over UltraHonk or STARK inner proofs, with a 64 KiB verifier.</td></tr>
-    <tr><td>Deployment</td><td>Through the deterministic deployment proxy at <code>0x4e59…956C</code>, by anyone, from the published build. Each contract stays under 24 KiB.</td><td>"From a Goal Safe or a throwaway key". With a deterministic factory and no owner, who sends the deployment transaction does not matter.</td></tr>
-    <tr><td>Post-quantum</td><td>Commitments are Poseidon hashes already. Nothing else is claimed.</td><td>STARK inner proofs and a PQ-KEM option, both unpriced.</td></tr>
-    <tr><td>Signatures and gas</td><td>ERC-1271 accepted everywhere. No gas stipends, no reliance on refunds, no hard-coded sizes.</td><td>Unchanged.</td></tr>
+  <h3 id="spec-pool">Pool design</h3>
+  <h4>How it compares</h4>
+  <div class="tbl"><table class="wide">
+    <tr><th></th><th>Tornado Cash</th><th>Railgun</th><th>Privacy Pools v2</th><th>Murmuration pool</th></tr>
+    <tr><td>Admin key</td><td>None on the pools</td><td>Upgradeable by token vote</td><td>Two-of-four Safe, upgrade and pause, no delay</td><td>None</td></tr>
+    <tr><td>Screening</td><td>None</td><td>One required list, fixed in the software</td><td>One operator, criteria unpublished</td><td>Several staked screeners, published criteria, recomputable</td></tr>
+    <tr><td>Amounts at exit</td><td>Fixed sizes</td><td>Any amount, visible</td><td>Any amount, visible</td><td>Fixed sizes</td></tr>
+    <tr><td>Private transfers inside</td><td>No</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
+    <tr><td>Relayers</td><td>Token-staked registry</td><td>Four allowlisted in the main wallet</td><td>Three active in 30 days</td><td>Permissionless, picked at random by the wallet</td></tr>
+    <tr><td>Notes against a future quantum computer</td><td>No notes on-chain</td><td>Elliptic-curve encryption</td><td>Elliptic-curve encryption</td><td>Hybrid with ML-KEM</td></tr>
+    <tr><td>Protocol fee</td><td>None</td><td>0.25% in and 0.25% out</td><td>None now; settable up to 99.99%</td><td>0.2% out, fixed forever</td></tr>
+    <tr><td>Crowd today</td><td>About $780M</td><td>$106M, about 390 transactions a day</td><td>$0.65M, 583 deposits</td><td>None. Starts at zero</td></tr>
+    <tr><td>Time in production</td><td>Since 2019</td><td>Since 2021</td><td>Since October 2026</td><td>None. New circuits</td></tr>
   </table></div>
+  <p>The first seven rows are design. The last two decide how private a user is in practice, and on those the pool is behind on launch day by a wide margin. It becomes better than the others only if it gets used.</p>
+  <h4>Design</h4>
+  <div class="tbl"><table>
+    <tr><th>Element</th><th>Choice</th><th>Why</th></tr>
+    <tr><td>Notes</td><td><code>Poseidon(asset, value, owner, randomness, indexAtCreation)</code>, one append-only tree for all assets</td><td>Small assets hide in the same set as large ones. The last field is what rewards and the minimum age are computed from</td></tr>
+    <tr><td>Circuits</td><td>Three: deposit, a two-in two-out transfer, and withdraw. Groth16, each sized to prove on a mid-range phone in a few seconds</td><td>Every circuit is permanent. Fewer and smaller circuits are easier to audit and to verify formally</td></tr>
+    <tr><td>Screening</td><td>A deposit carries a public label. Its first spend must prove the label is in an accepted screening root that is at least 7,200 blocks newer than the deposit. Later notes carry no label</td><td>Screeners get about a day to exclude stolen funds, and quick in-and-out use is impossible. Screening at entry avoids carrying labels through every private transfer</td></tr>
+    <tr><td>Ragequit</td><td>The original depositor can always withdraw an unspent deposit publicly to the depositing address</td><td>Screening failure or capture can never trap funds</td></tr>
+    <tr><td>Root acceptance</td><td>A root is accepted with signatures from two thirds of registered screeners. A screener holds an IMD seat and stakes tokens. If no root is accepted for seven days, a fallback rule approves any deposit whose sender is not on the sanctions oracle</td><td>No single curator, and the pool keeps working if screeners disappear. Capturing two thirds of screeners lets a bad deposit through. It never moves anyone's funds</td></tr>
+    <tr><td>Exits</td><td>Public withdrawals only in a 1, 2, 5 series per asset (0.1, 0.2, 0.5, 1, 2, 5, 10 ETH and so on)</td><td>Removes amount matching at the edge, the signal automated analysis relies on most</td></tr>
+    <tr><td>Note encryption</td><td>Hybrid X25519 and ML-KEM-768. About 1.1 KB more per output note, roughly 70,000 gas each at the Glamsterdam calldata floor</td><td>Ciphertexts are public forever. This is the part of the quantum threat that cannot be fixed later</td></tr>
+    <tr><td>Proof system</td><td>Groth16 on BN254 with a new public ceremony. It is not quantum-safe</td><td>Quantum-safe proofs cost too much to verify on Ethereum today. The deposit window below limits the exposure</td></tr>
+    <tr><td>Deposit window</td><td>Deposits stop at a block fixed at deployment, about four years out. Withdrawals never stop</td><td>Funds move to a successor pool without any key, before proof forgery becomes realistic</td></tr>
+    <tr><td>Per-asset limits</td><td>Each asset has its own counter: withdrawals cannot exceed deposits plus rewards released so far</td><td>A bug in one asset's accounting, or in the reward logic, cannot drain another asset</td></tr>
+    <tr><td>Caps</td><td>A per-asset ceiling that starts low and doubles every 90 days, in code</td><td>Limits loss while the circuits are young, with no admin to raise it</td></tr>
+    <tr><td>Assets</td><td>A list fixed at deployment: ETH and a few major tokens. A freezable stablecoin can be listed; an issuer freeze traps only that asset</td><td>An immutable pool cannot add assets later. New ones wait for the successor</td></tr>
+    <tr><td>Relaying</td><td>Permissionless, with the relayer's fee bound into the proof. Seat broadcasters serve it with the wallet policy from service 1</td><td>Frame transactions could remove the relayer, but the specification is not frozen. That is for the successor pool</td></tr>
+    <tr><td>Deployment</td><td>Through the deterministic deployment proxy at <code>0x4e59…956C</code>, by anyone, from a reproducible build. Every contract under 24 KiB</td><td>No deployer privilege exists, so it does not matter who sends the transaction</td></tr>
+  </table></div>
+  <p>Planning figure for gas: a transfer should cost about what a Railgun spend does, 1.17M gas or roughly $0.50 at 0.2 gwei, plus the larger ciphertexts. This is a reference, not a measurement.</p>
 
   <h3 id="spec-worker">Node integration</h3>
   <p>The node runs beside the IMD worker, not through it. IMD's tool declaration is a local MCP server for media jobs that only IMD's router reads, so the first version's plan to advertise a role through <code>tools.env</code> could not work.</p>
@@ -530,14 +558,15 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
   <p>The seats bring machines, operators and a cost per identity. Their language models are not used by any duty: relaying, mirroring and screening are ordinary deterministic programs.</p>
 
   <h3 id="spec-fees">Fees and gas</h3>
-  <p>One duty is paid, by the host pool's own mechanism. Nothing flows to the developers, to IMD, or through any token.</p>
+  <p>On Railgun and Privacy Pools one duty is paid, by the host pool's own mechanism. The Murmuration pool adds its own fixed fee and a token, specified in <a href="#token">Token and fee</a>. No fee goes to a team address.</p>
   <div class="tbl"><table>
     <tr><th>Duty</th><th>Paid how</th><th>Rate</th></tr>
     <tr><td>Relay, Railgun</td><td>Railgun's existing fee note to the broadcaster's 0zk address</td><td>About 1.10 times estimated gas cost. On a median spend at the median gas price that is roughly $0.02 of margin on $0.19 of gas</td></tr>
     <tr><td>Relay, Privacy Pools</td><td>The pool's public transfer to the fee recipient named in the proof</td><td>Basis points of the withdrawal in v1, a nominal amount in v2</td></tr>
     <tr><td>Mirror</td><td>Unpaid</td><td>A by-product of the sync a broadcaster already does</td></tr>
-    <tr><td>Attest</td><td>Unpaid, and never paid per use</td><td>None</td></tr>
+    <tr><td>Attest</td><td>Unpaid on Railgun and Privacy Pools. In the pool, a share of the fee</td><td>Per day of agreement with the accepted root, never per use</td></tr>
     <tr><td>Railgun's 0.25% on shield and unshield</td><td>To Railgun's treasury</td><td>Not Murmuration's, and not the broadcasters'</td></tr>
+    <tr><td>Murmuration pool fee (phase 2)</td><td>0.2% of each public withdrawal, in the withdrawn asset, to the immutable distributor</td><td>Half to token stakers, half to the screeners who signed that day's accepted root. Nothing on deposits or transfers</td></tr>
   </table></div>
   <p>Relaying is not a business at today's gas prices. Thirty nodes would share a market margin of about $480 a month with the incumbents, while hosting alone costs them $135 to $270 a month in total. Operators relay on a machine they already pay for, for a small return or none. The roadmap's targets are sized to that: a few dozen independent broadcasters cover the demand many times over.</p>
   <div class="tbl"><table>
@@ -553,42 +582,87 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
   <h3 id="spec-legal">Legal gate: requirements every component must pass</h3>
   <p>The record, stated carefully. The Fifth Circuit's Van Loon ruling protects only immutable contracts and is a sanctions ruling, not a criminal one. Roman Storm was convicted on one count, conspiracy to operate an unlicensed money transmitting business, under a theory that turns on knowledge. The verdict was general, the Rule 29 motion is still pending and a retrial on the hung counts is set for 26 April 2027. Prosecutors' account of his conduct included paying to host the website, maintaining the relayer network and profiting from it. The Dutch court in Pertsev's case held that Tornado Cash itself did the concealing. The DOJ's 2025 statements are discretionary. The statutory safe harbour failed cloture 49 to 50 on 15 September 2026 and lapses with this Congress on 3 January 2027.</p>
   <ul class="check">
-    <li>The plan of record deploys no contract. If the pool option is exercised, its contracts are immutable: no admin, pause, upgrade or fee switch.</li>
-    <li>The project team writes software and operates nothing: no node, relayer, mirror, panel or hosted frontend. There is no hosted frontend at all. The software ships as a node package and a wallet module.</li>
-    <li>The team does not recruit, pay or coordinate operators. Roadmap gates are observations read from the chain, not targets the team works to hit.</li>
-    <li>No developer fee of any kind, in any token. No project token.</li>
-    <li>Screening is real, published and executed by independent operators: PPOI enforcement at every seat broadcaster from the first day, and reproducible panel attestations on top.</li>
-    <li>Nothing is brokered through IMD's control plane, and the project buys no IMD jobs. Admission is derived from on-chain seat ownership.</li>
+    <li>The pool, the token and the fee distributor are immutable: no admin, pause, upgrade, fee switch or mint function.</li>
+    <li>The project team writes software and operates nothing: no node, relayer, mirror, screener or hosted frontend. The software ships as a node package and a wallet module.</li>
+    <li>The team does not recruit, pay or coordinate operators. Roadmap gates are observations read from the chain.</li>
+    <li><strong>Changed in revision 3.</strong> A fixed 0.2% withdrawal fee and a token exist. No fee goes to a team address and no tokens are sold. The founder holds 5% of the token, vested in code, at one public address.</li>
+    <li>Screening is real, published and executed by independent screeners. The pool contract enforces it at a deposit's first spend, and seat broadcasters enforce PPOI on Railgun.</li>
+    <li>No running part is brokered through IMD's control plane. IMD jobs are bought only to build and review open-source code. Admission is derived from on-chain seat ownership.</li>
     <li>Disclosure is user-held, opt-in and scoped to one transaction. No key share exists anywhere outside the user's wallet.</li>
     <li>No support channel through which the team learns about specific flows.</li>
   </ul>
   <div class="callout warn">
+    <p><strong>Two standing rules are reversed by the owner's decision of 10 November 2026:</strong> "no developer fee in any token" and "no project token". The review advised against both, and against combining a founder allocation with pseudonymity. Immutability decides whether anyone controls the code. It does not decide who profits from it, and profit is what enforcement has looked at. The reasoning and the mitigations are in <a href="#token">Token and fee</a>.</p>
+  </div>
+  <div class="callout warn">
     <p><strong>Operators carry the exposure the developers avoid.</strong> No guidance or ruling found says whether a fee-earning relayer is a money transmitter. FinCEN's 2019 guidance separates anonymizing software providers, who are not, from anonymizing services providers, who are, and never mentions relayers. At the Rule 29 hearing on 9 April 2026 the government called relayers "part of the cohort operating Tornado Cash... for a profit". Each operator needs advice under their own law. The first version listed "no logs" and "jurisdictional diversity" as mitigations. Both are removed, because they read as planning to avoid enforcement.</p>
   </div>
-  <p>Two rules were tested against new evidence and kept. Immutability has a cost, shown when the ownerless Aztec Connect contracts were drained with no way to stop it, and the plan answers that by reusing the longest-lived audited circuit and immutable caps. Against that cost, on 7 October 2026 the EU's AML authority told the Commission that "effective control" over a DeFi arrangement may arise from "the ability to pause or modify smart contracts". The rule stays.</p>
+  <p>Two rules were tested against new evidence and kept. Immutability has a cost, shown when the ownerless Aztec Connect contracts were drained with no way to stop it, and the plan answers that with three small circuits, formal verification, per-asset limits, immutable caps and a fixed deposit window. Against that cost, on 7 October 2026 the EU's AML authority told the Commission that "effective control" over a DeFi arrangement may arise from "the ability to pause or modify smart contracts". The rule stays.</p>
+</section>
+
+<section id="token">
+  <h2>Token and fee</h2>
+  <p>The first two versions of this spec forbade a protocol fee and a token. On 10 November 2026 the owner decided to add both, to keep the pool fully immutable, and to keep the project decentralized. This section gives them the only shape that fits those three decisions, and says plainly what they change.</p>
+  <h3>The fee</h3>
+  <ul>
+    <li>0.2% of each public withdrawal, taken in the asset withdrawn. Nothing on deposits or on transfers inside the pool.</li>
+    <li>The rate and the destination are fixed in code. Nobody can raise, lower or redirect it.</li>
+    <li>It goes to an immutable distributor: half to token stakers in proportion to stake, half split equally among the screeners whose signatures are on that day's accepted root.</li>
+    <li>Screeners are paid per day of agreement with the accepted root, never per withdrawal. Paying per use would reward approving more.</li>
+  </ul>
+  <h3>The token</h3>
+  <div class="tbl"><table>
+    <tr><th>It does</th><th>It does not</th></tr>
+    <tr><td>Give stakers a share of the pool's fee</td><td>Govern anything. Nothing in the protocol can be changed</td></tr>
+    <tr><td>Serve as the stake a screener posts, alongside an IMD seat</td><td>Gate use of the pool. Users pay fees in the asset they withdraw</td></tr>
+    <tr><td>Reward users for time spent shielded</td><td>Reward the act of depositing, or act as a relayer bond</td></tr>
+  </table></div>
+  <p>Supply is fixed and minted once at deployment. The token contract has no mint function and no owner. No tokens are sold, and there is no treasury and no multisig.</p>
+  <div class="tbl"><table>
+    <tr><th>Share</th><th>To</th><th>How</th></tr>
+    <tr><td class="n">60%</td><td>Users</td><td>Private rewards for shielded time, over four years, halving each year</td></tr>
+    <tr><td class="n">20%</td><td>Screeners</td><td>Per accepted root, over four years</td></tr>
+    <tr><td class="n">15%</td><td>Builders</td><td>A list fixed at deployment and computed from public build and review records, vested over one year</td></tr>
+    <tr><td class="n">5%</td><td>Founder</td><td>One pseudonymous address fixed at deployment, vested over four years with nothing in the first year</td></tr>
+  </table></div>
+  <h3>How private rewards work</h3>
+  <ol>
+    <li>For each asset the pool keeps one public number, a reward index, which grows every day by that day's emission divided by the total amount shielded.</li>
+    <li>A note records, hidden inside its commitment, the index value on the day it was created. The proof that creates the note shows this value matches the public one.</li>
+    <li>When the note is spent, the same proof shows what it earned: its value multiplied by how far the index has moved. The pool adds the reward as a new shielded note for the same owner.</li>
+    <li>Nobody sees the amount, the age or the owner, and there is no separate claim to observe. Tornado's reward scheme leaked deposit age at exactly that step.</li>
+  </ol>
+  <p>A reward follows value multiplied by time, so splitting a deposit gains nothing. Each asset's share of emissions is fixed at deployment, because an immutable pool has no price oracle. The token has its own withdrawal limit inside the pool, so a mistake in the reward logic can at worst drain the reward budget and never another asset.</p>
+  <p>Rewards exist to gather a first crowd and to spread the token to real users. They do not keep users. The evidence is that people who come for yield leave when it ends, so emissions taper and the product has to earn the rest.</p>
+  <h3>What this changes</h3>
+  <div class="callout warn">
+    <p><strong>Legal position.</strong> A fee and a token make the project look like a business to financial-crime and securities enforcement. In the Tornado Cash and Samourai prosecutions, the money the developers made was part of the case. Railgun and 0xbow charge fees and have not been charged; both pair the fee with real screening. This design pairs it with screening enforced by the contract, sells no tokens and sends no fee to a team address. Those choices reduce the exposure. They do not remove it.</p>
+    <p><strong>Founder allocation and pseudonymity.</strong> The founder's 5% sits at a public address for four years, and that address is the first thing anyone will trace. Using a fresh wallet does not make its owner anonymous: how it is funded and where its tokens are eventually sold can both be followed. The review recommended choosing one of two options, pseudonymity with no special allocation or an allocation held openly. The owner chose a pseudonymous allocation. It is recorded here as a decision, not as a recommendation, and it should be put to a lawyer before any deployment.</p>
+  </div>
+  <p>Cost. Three more small contracts (token, distributor with staking, vesting and builder distribution) add roughly $30,000 to $60,000 of audit, included in the <a href="#cost">cost table</a>. A token is worth little until the pool has volume: Railgun's 0.25% brings in about $312,000 a month at $106M, and a pool the size of Privacy Pools v2 would bring in a few thousand.</p>
 </section>
 
 <section id="compat">
   <h2>Upgrade compatibility</h2>
   <p>Status as of 10 November 2026. Fusaka is live. Glamsterdam has been live on Sepolia since 6 October. Its Hoodi fork was cancelled on 22 October with no new date, and mainnet has no date either; the client developers' own call summary reads "December 2026 fork now very unlikely; 2027 expected". EIP-8037 and EIP-8038 are in Last Call with parameters unchanged since October. The eight gas invariants they break are still unresolved, and two open pull requests change which gas pool pays, not any price. The next developer calls are on 12 and 19 November. Hegotá is still listed for Q2 2027, unconfirmed, and its scheduled set grew to three EIPs on 29 October.</p>
-  <p>Revision 2 deploys no contract, so most of this table now matters in two places only: the gas estimates a broadcaster quotes from, and the pool option.</p>
+  <p>This table matters in two places: the gas estimates a broadcaster quotes from, and the pool's own contracts.</p>
   <div class="tbl"><table class="wide">
     <tr><th>Fork</th><th>Change</th><th>Status</th><th>What it does to revision 2</th><th>Rule</th></tr>
-    <tr><td>Fusaka</td><td>EIP-7825 transaction cap of 16,777,216, on execution gas</td><td><span class="pill ok">Live</span></td><td>A Railgun spend uses about 1.17M gas. Nothing in the plan comes near the cap</td><td>Pool option: one withdrawal per transaction, no batches</td></tr>
+    <tr><td>Fusaka</td><td>EIP-7825 transaction cap of 16,777,216, on execution gas</td><td><span class="pill ok">Live</span></td><td>A Railgun spend uses about 1.17M gas. Nothing in the plan comes near the cap</td><td>Pool: one withdrawal per transaction, no batches</td></tr>
     <tr><td>Glamsterdam</td><td>EIP-8037 state creation: new slot 97,920 state gas, new account 183,600, 1,530 per code byte</td><td><span class="pill">Last Call, unscheduled</span></td><td>A fresh slot goes from 22,100 to 110,020 gas, five times dearer. Railgun spends write several fresh slots, so their gas rises on fork day and a broadcaster quoting from old estimates relays at a loss</td><td>The node pins its gas estimation to the active fork and never hard-codes a gas figure</td></tr>
-    <tr><td>Glamsterdam</td><td>EIP-8037 state gas as a second dimension. The cap applies to execution gas; a reservoir exists only above 2<sup>24</sup> of <code>tx.gas</code></td><td><span class="pill">Last Call, unscheduled</span></td><td>A 24 KiB deployment costs 38.2M gas in all. A 64 KiB one would cost 101.5M and cannot be included under the current 60M block limit. The first version's 64 KiB verifier could not have been deployed</td><td>Pool option: every contract at or under 24 KiB</td></tr>
+    <tr><td>Glamsterdam</td><td>EIP-8037 state gas as a second dimension. The cap applies to execution gas; a reservoir exists only above 2<sup>24</sup> of <code>tx.gas</code></td><td><span class="pill">Last Call, unscheduled</span></td><td>A 24 KiB deployment costs 38.2M gas in all. A 64 KiB one would cost 101.5M and cannot be included under the current 60M block limit. The first version's 64 KiB verifier could not have been deployed</td><td>Pool: every contract at or under 24 KiB</td></tr>
     <tr><td>Glamsterdam</td><td>EIP-8038 state access: storage write 10,000, cold account 3,000, account write 9,000, create access 12,000; clearing refund rises to 11,616</td><td><span class="pill">Last Call, unscheduled</span></td><td>Overwrites cost 12,100 cold instead of 5,000. The first version said the clearing refund drops; it rises</td><td>No logic that depends on refunds</td></tr>
     <tr><td>Glamsterdam</td><td>EIP-7976 calldata floor of 64 gas per byte</td><td><span class="pill">SFI</span></td><td>Groth16 proofs are small. Snapshots and attestations never touch calldata</td><td>On-chain payloads stay at hashes and signatures</td></tr>
     <tr><td>Glamsterdam</td><td>EIP-7708 logs for ETH transfers</td><td><span class="pill">SFI</span></td><td>Every ETH unshield and every Privacy Pools relay fee becomes a log. Relay fees there are public already</td><td>The health dataset adds the new log source</td></tr>
     <tr><td>Glamsterdam</td><td>EIP-7732 ePBS, EIP-7928 block access lists</td><td><span class="pill">SFI</span></td><td>Inclusion can slip a slot or two</td><td>Broadcaster quotes stay valid across several slots</td></tr>
-    <tr><td>Glamsterdam</td><td>EIP-7997 deterministic factory</td><td><span class="pill">Last Call</span></td><td>It names the existing deployment proxy at <code>0x4e59…956C</code>, not a new predeploy</td><td>Pool option deploys through that address</td></tr>
+    <tr><td>Glamsterdam</td><td>EIP-7997 deterministic factory</td><td><span class="pill">Last Call</span></td><td>It names the existing deployment proxy at <code>0x4e59…956C</code>, not a new predeploy</td><td>The pool deploys through that address</td></tr>
     <tr><td>Hegotá</td><td>EIP-7805 FOCIL</td><td><span class="pill">SFI, ~Q2 2027</span></td><td>Censorship becomes delay. It pays nobody's gas and hides nobody's IP</td><td>Relaying is still needed after it ships</td></tr>
     <tr><td>Hegotá</td><td>EIP-8141 frame transactions</td><td><span class="pill">Draft, SFI</span></td><td>A contract can validate a proof and pay its own gas, which removes the relayer for pools that adopt it. Railgun is upgradeable and could. An immutable pool, including a v1 fork, cannot</td><td>Treat relaying as a need for 2026 and 2027. Build nothing on frames until the spec freezes</td></tr>
     <tr><td>Hegotá</td><td>EIP-8250 keyed nonces</td><td><span class="pill">Draft, CFI</span></td><td>Not scheduled. No part of the plan depends on it any more</td><td>None</td></tr>
     <tr><td>Hegotá</td><td>EIP-8151 <code>ecrecover</code> for accounts with code</td><td><span class="pill">CFI</span></td><td>Would break address recovery for holders that are contracts or 7702 accounts</td><td>Delegation checks already use ERC-1271 when the holder has code</td></tr>
     <tr><td>Hegotá</td><td>EIP-8182 private transfers; EIP-8105 encrypted mempool</td><td><span class="pill hi">Declined; withdrawn</span></td><td>No enshrined privacy and no encrypted mempool on the schedule</td><td>Depend on neither</td></tr>
     <tr><td>Long term</td><td>History expiry</td><td><span class="pill">Partial</span></td><td>Full nodes may stop serving old logs</td><td>Snapshots carry each pool's log from its first block</td></tr>
-    <tr><td>Long term</td><td>Post-quantum milestones to about 2029</td><td><span class="pill">Planned</span></td><td>The host pools' Groth16 proofs are not post-quantum. Murmuration adds no cryptography of its own</td><td>Delegations expire within 90 days, so a key migration is a re-signing</td></tr>
+    <tr><td>Long term</td><td>Post-quantum milestones to about 2029</td><td><span class="pill">Planned</span></td><td>Groth16 proofs are not post-quantum, in the host pools or in the Murmuration pool. The pool's note encryption is</td><td>Delegations expire within 90 days. The pool's fixed deposit window moves funds to a successor</td></tr>
     <tr><td>Live</td><td>EIP-7702 set-code delegation</td><td><span class="pill ok">Live</span></td><td>A seat holder may be a delegated account</td><td>Covered by the ERC-1271 path</td></tr>
   </table></div>
   <h3>What the node and wallet must not assume</h3>
@@ -598,7 +672,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <li>That <code>ecrecover</code> returns an address for every signer.</li>
     <li>That full nodes serve logs from years ago.</li>
     <li>That a quote made in one slot is included in the next.</li>
-    <li>For the pool option: that any contract above 24 KiB can be deployed, or that any single transaction can carry more than 16,777,216 execution gas.</li>
+    <li>For the pool: that any contract above 24 KiB can be deployed, or that any single transaction can carry more than 16,777,216 execution gas.</li>
   </ul>
 </section>
 
@@ -640,7 +714,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
 
 <section id="roadmap">
   <h2>Roadmap</h2>
-  <p>Each phase has a gate. A gate is something anyone can read from the chain or from published files. It is not a recruitment target, and the team does nothing to reach it except publish software. Phase 2 is a decision, not a build.</p>
+  <p>Each phase has a gate. A gate is something anyone can read from the chain or from published files. It is not a recruitment target, and the team does nothing to reach it except publish software. Phase 2 builds and launches the pool.</p>
 
   <div class="phase">
     <div class="when">Phase 0<small>now to 3 months</small></div>
@@ -652,6 +726,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
         <li><strong>Wallet policy</strong>: a patch to Railgun's <code>waku-broadcaster-client</code> (MIT) that fills the trusted-signer list from seat delegations, uses a median band and picks at random. Shipped with a reference command-line wallet.</li>
         <li><strong>Snapshot and health builders</strong>, deterministic, with the verifier for wallets.</li>
         <li><strong>Baseline</strong>: the measurement script behind this page's Railgun figures, published so anyone can rerun it.</li>
+        <li><strong>Pool specification</strong>: the three circuits, the contracts, the token and the reward index written out in full, as public build and review jobs.</li>
       </ul>
       <p><span class="pill">Dependencies</span> A wallet that adopts the policy. Railway's allowlist is Railway's decision and this plan asks nothing of it<br><span class="pill ok">Gate</span> 10 seats with distinct holders hold valid delegations and have each relayed at least one real transaction through a wallet using the policy · two independent mirrors publish identical snapshot identifiers for 14 days running</p>
     </div>
@@ -668,6 +743,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
         <li><strong>Disclosure receipts</strong> for Railgun and Privacy Pools v1.</li>
         <li><strong>Transport</strong>: Waku and IPFS through an <code>anon-rpc</code> worker in the wallet module. A relayer list for Kohaku's Privacy Pools plugin once Kohaku has a stable release. Its Railgun package is still a stub.</li>
         <li><strong>External review</strong> of the wallet policy, verifiers and builders: one to two team-weeks.</li>
+        <li><strong>Pool on testnet</strong>: circuits and contracts running on Sepolia, where the Glamsterdam gas rules are already live, with the wallet module and seat screeners.</li>
       </ul>
       <p><span class="pill">Dependencies</span> Kohaku's release state (alpha, no stable release) · PPOI node access for operators (no public default was found)<br><span class="pill ok">Gate</span> 30 distinct holders relaying · three criteria sets each attested daily by five or more distinct holders for 90 days with no unexplained disagreement · the seat broadcasters' share of Railgun spends, read from chain</p>
     </div>
@@ -676,25 +752,30 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
   <div class="phase">
     <div class="when">Phase 2<small>12 to 24 months</small></div>
     <div>
-      <h3>Decide on the pool option; adapt to Hegotá</h3>
-      <p>The pool is built only if all six conditions hold on the day of the decision:</p>
+      <h3>Audit, ceremony and launch of the pool</h3>
+      <ul>
+        <li>Two independent audits of the contracts and of the circuits, and formal verification of the transfer circuit.</li>
+        <li>A public trusted-setup ceremony for the three circuits.</li>
+        <li>Deployment of the six contracts (pool, verifier, screening registry, fee distributor, token, vesting and distribution) through the deterministic deployment proxy.</li>
+        <li>The wallet module ships the pool beside Railgun and Privacy Pools.</li>
+      </ul>
+      <p>The pool launches only when all six conditions hold. There is no date.</p>
       <ol>
-        <li>Twelve months of phase 1 operation with no developer operating anything.</li>
-        <li>Seat broadcasters carried at least 20% of Railgun spends for three consecutive months, which shows a wallet channel exists.</li>
-        <li>An admin action on Railgun or Privacy Pools (a pause, an upgrade without notice, a fee increase) has harmed users, or wallets with real usage commit to a no-admin pool by default.</li>
-        <li>The security budget for the change is raised in ETH, with no token.</li>
-        <li>Legal opinions for the deployers' and first operators' jurisdictions are in hand.</li>
-        <li>Privacy Pools v1's licence still permits the fork and the provenance of its trusted setup is confirmed, or a new ceremony is funded.</li>
+        <li>Both audits are complete with no open critical or high finding.</li>
+        <li>The transfer circuit has a machine-checked proof that it cannot create value or spend a note twice.</li>
+        <li>Three months on testnet under a public bug bounty.</li>
+        <li>At least 15 screeners with distinct seats have produced matching roots on testnet for 30 days.</li>
+        <li>A wallet with real users ships the pool. An immutable pool that nobody can reach protects nobody.</li>
+        <li>The audit budget is paid in full, and a lawyer has reviewed the fee, the token and the founder allocation.</li>
       </ol>
-      <p>If frame transactions ship in Hegotá and Railgun adopts them, relaying shrinks to the pools that cannot. The node's other two duties are unaffected.</p>
-      <p><span class="pill">Dependencies</span> Glamsterdam and Hegotá dates, both unconfirmed · the outcome of the Storm retrial in April 2027 and the EU rules that apply from 10 July 2027<br><span class="pill ok">Gate</span> The six conditions above. If any fails, the project stays services-only</p>
+      <p><span class="pill">Dependencies</span> Audit funding, which has no confirmed source · Glamsterdam and Hegotá dates · the Storm retrial in April 2027 and the EU rules that apply from 10 July 2027<br><span class="pill ok">Gate</span> The six conditions above</p>
     </div>
   </div>
 </section>
 
 <section id="cost">
   <h2>Infrastructure cost</h2>
-  <p>The first version's budget was $0.75M to $1.5M over 24 months, more than 95% of it audits and formal verification of contracts and circuits the project would write. Revision 2 writes none of those in its plan of record, so the committed budget falls to between $43,000 and $121,000. The pool option, if its gate is ever passed, adds $248,000 to $617,000, because it reuses audited code where the first version specified new code.</p>
+  <p>The first version budgeted $0.75M to $1.5M over 24 months, almost all of it audits and formal verification. Revision 2 cut that to between $43,000 and $121,000 by deploying no contract. Revision 3 puts a pool with new circuits back, so the budget rises again, to between $0.68M and $1.64M plus a bug bounty that is paid only if a bug is found. The services half still costs what revision 2 said.</p>
   <p>Prices are from 10 November 2026: ETH at $2,130 (it was $2,225 on 8 November), IMD at $2.64, the seat floor at 0.70 ETH. Tables use 0.2 gwei, the seven-day mean base fee, as the planning rate, 0.42 gwei, the 30-day mean, as a second column, and 2 gwei as the stress case. The first version used 0.3 and 2 gwei.</p>
 
   <h3>What a seat operator pays</h3>
@@ -711,24 +792,15 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
 
   <h3>What the project pays once</h3>
   <div class="tbl"><table class="wide">
-    <tr><th>Phase</th><th>Item</th><th class="was">First version</th><th>Revision 2</th><th>Basis</th></tr>
-    <tr><td>0</td><td>Deployment gas, ENS name, frontend pinning</td><td class="n was">$0 plus $5 a year</td><td class="n">$0</td><td>No contracts and no hosted frontend</td></tr>
-    <tr><td>1</td><td>Deploy registry, three ASP contracts, coordinator</td><td class="n was">~$3</td><td class="n">$0</td><td>None exist</td></tr>
-    <tr><td>1</td><td>Solidity audit of 5 to 10 contracts</td><td class="n was">$100k to $200k</td><td class="n">$0</td><td>None exist</td></tr>
-    <tr><td>1</td><td>Review of wallet policy, verifiers and deterministic builders</td><td class="n was">not planned</td><td class="n">$33k to $96k</td><td>One to two team-weeks at $32.5k to $48k (Spearbit and Cantina rates). Sherlock's February 2026 pricing guide puts most audits at $25k to $100k</td></tr>
-    <tr><td>1</td><td>Bug bounty</td><td class="n was">$50k to $150k</td><td class="n">$10k to $25k</td><td>No funds sit in any project contract. A bug degrades privacy or service, not custody</td></tr>
-    <tr><td>2, option</td><td>Deploy pool, verifier and entrypoint</td><td class="n was">~$30</td><td class="n">~$16</td><td>24 KiB of code, 38.2M gas under Glamsterdam, at 0.2 gwei</td></tr>
-    <tr><td>2, option</td><td>Circuit audit</td><td class="n was">$200k to $480k</td><td class="n">$0 to $25k</td><td>Circuits reused unchanged. Pay only to confirm the build matches the audited one and, if needed, for a ceremony</td></tr>
-    <tr><td>2, option</td><td>Formal verification</td><td class="n was">$300k to $500k</td><td class="n">$50k to $150k</td><td>The target is one entrypoint of a few hundred lines</td></tr>
-    <tr><td>2, option</td><td>Solidity audits</td><td class="n was">$100k to $200k plus ~$5k</td><td class="n">$98k to $192k</td><td>Two independent reviews, three to four team-weeks in total</td></tr>
-    <tr><td>2, option</td><td>Bug bounty for a live pool</td><td class="n was">$1M cap</td><td class="n">$100k to $250k cap</td><td>Ten percent of funds at risk under the immutable launch caps</td></tr>
-    <tr><td>All</td><td>Legal review</td><td class="n was">not priced</td><td class="n">not priced</td><td>Still required before phase 1, and for operators individually</td></tr>
-  </table></div>
-  <div class="tbl"><table>
-    <tr><th>Total over 24 months</th><th class="was">First version</th><th>Revision 2</th></tr>
-    <tr><td>Phases 0 and 1</td><td class="n was">$150k to $350k</td><td class="n">$43k to $121k</td></tr>
-    <tr><td>Phase 2</td><td class="n was">$600k to $1.2M, scheduled</td><td class="n">$0 as planned; $248k to $617k if the option is exercised</td></tr>
-    <tr><td>All phases</td><td class="n was">$0.75M to $1.5M</td><td class="n">$43k to $121k; $0.29M to $0.74M with the option</td></tr>
+    <tr><th>Item</th><th class="was">First version</th><th class="was">Revision 2</th><th>Revision 3</th><th>Basis for revision 3</th></tr>
+    <tr><td>Services: review of wallet policy, verifiers and builders, plus a small bounty</td><td class="n was">$150k to $350k</td><td class="n was">$43k to $121k</td><td class="n">$43k to $121k</td><td>One to two team-weeks at $32.5k to $48k, and a $10k to $25k bounty</td></tr>
+    <tr><td>Solidity audits: pool, screening registry, distributor, token, vesting</td><td class="n was">$100k to $200k</td><td class="n was">$98k to $192k, option</td><td class="n">$195k to $384k</td><td>Two independent reviews, six to eight team-weeks in total</td></tr>
+    <tr><td>Circuit audits: deposit, transfer, withdraw</td><td class="n was">$200k to $480k</td><td class="n was">$0 to $25k, option</td><td class="n">$234k to $634k</td><td>Four to six team-weeks. Circuit work is quoted at 80% to 120% above the Solidity rate</td></tr>
+    <tr><td>Formal verification</td><td class="n was">$300k to $500k</td><td class="n was">$50k to $150k, option</td><td class="n">$200k to $500k</td><td>Three small circuits and the pool's accounting invariants</td></tr>
+    <tr><td>Ceremony and deployment</td><td class="n was">~$5k</td><td class="n was">~$16</td><td class="n">~$5k</td><td>Cloud for the ceremony. Deployment gas is under $100 even under Glamsterdam</td></tr>
+    <tr><td><strong>Total</strong></td><td class="n was">$0.75M to $1.5M</td><td class="n was">$43k to $121k; $0.29M to $0.74M with the option</td><td class="n"><strong>$0.68M to $1.64M</strong></td><td>Sum of the rows above</td></tr>
+    <tr><td>Bug bounty for the live pool, paid only on a finding</td><td class="n was">$1M cap</td><td class="n was">$100k to $250k cap</td><td class="n">$250k to $1M cap</td><td>Ten percent of funds at risk under the doubling caps</td></tr>
+    <tr><td>Legal review</td><td class="n was">not priced</td><td class="n was">not priced</td><td class="n">not priced</td><td>Required before launch, now also for the fee, token and allocation</td></tr>
   </table></div>
 
   <h3>What the protocol pays every month</h3>
@@ -751,43 +823,51 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td>Gas at 2 gwei</td><td class="n">$4.99</td><td class="n">$1.39, or $1.78 under Glamsterdam</td></tr>
     <tr><td>Relay fee</td><td>About 10% on top of gas, as a shielded note</td><td>Basis points of the withdrawal (v1) or a nominal amount (v2), paid publicly</td></tr>
     <tr><td>Pool's own fee</td><td>0.25% on shield and unshield, to Railgun's treasury</td><td>Vetting fee: 50 basis points on v1 ETH, zero on v2, set by 0xbow's Safe</td></tr>
-    <tr><td>Murmuration</td><td colspan="2">Nothing</td></tr>
+    <tr><td>Murmuration</td><td colspan="2">Nothing on Railgun or Privacy Pools. In its own pool: 0.2% of each withdrawal, nothing on deposits or transfers</td></tr>
   </table></div>
 
   <h3>Funding the security budget</h3>
-  <p>The committed budget is now grant-sized, and it buys a review of client-side code. The no-developer-fee rule still means it cannot come from protocol revenue.</p>
+  <p>This is the plan's largest unsolved problem. The audit bill comes before the pool earns anything, no tokens are sold, there is no treasury, and a pseudonymous founder is harder to fund. The launch gate requires the budget to be paid in full, so without a source the pool does not launch.</p>
   <ul>
-    <li><strong>Grants first.</strong> Candidates are the Ethereum Foundation's ecosystem support, the protocols whose users gain independent relayers, and the transport projects whose networks the wallet module uses. Nothing has been requested from any of them.</li>
+    <li><strong>Grants first.</strong> Some programmes fund pseudonymous teams. Candidates are the Ethereum Foundation's ecosystem support, the protocols whose users gain independent relayers, and the transport projects whose networks the wallet module uses. Nothing has been requested from any of them.</li>
     <li><strong>An audit-fund Goal is not possible as IMD ships today.</strong> Its escrow pays seats only, from one payer, and no mechanism raises funds from outside contributors. The first version's preferred route is withdrawn.</li>
     <li><strong>IMD audits remain a useful continuous layer</strong> at 0.5 IMD (about $1.32) a request, run on every change and recorded publicly. They do not replace a named firm's review. The briefs are public, which suits open-source code.</li>
   </ul>
   <h3>Should there be a token?</h3>
-  <p>No. The first version's reasons stand and the smaller budget strengthens them. A token sold by an identifiable team to fund a privacy project stacks the two patterns enforcement pursues. Any utility that gives it a price (fee rights, bonds, governance) is a control surface the design has just removed. And the amount is now $43,000 to $121,000, less than a tenth of the liquidity in IMD's own main pool (about $1.27M). If the pool option is ever exercised its budget is raised in ETH, which is condition four of the gate.</p>
+  <p>The first two versions said no. Revision 3 adds one by the owner's decision, in the shape set out in <a href="#token">Token and fee</a>: fixed supply, nothing sold, nothing governed. It does not pay for audits. If audit firms will accept part of the builders' allocation, that is one more funding route, and few do.</p>
 </section>
 
 <section id="risks">
   <h2>Risks</h2>
   <div class="tbl"><table>
     <tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr>
+    <tr><td>A soundness bug in new circuits, in a pool nobody can patch</td><td><span class="pill hi">High</span></td><td>Three small circuits. Two audits and formal verification. Per-asset limits, doubling caps, a fixed deposit window, and ragequit for unspent deposits</td></tr>
+    <tr><td>A fee, a token and a pseudonymous founder allocation together are the pattern enforcement has pursued. The allocation address is public and traceable</td><td><span class="pill hi">High</span></td><td>No sale, no team fee address, screening enforced by the contract, vesting in code. These reduce the risk and do not remove it. A lawyer reviews it before launch</td></tr>
+    <tr><td>The audit budget of $0.68M to $1.64M has no confirmed source</td><td><span class="pill hi">High</span></td><td>The launch gate requires it paid in full. Without it the pool does not launch</td></tr>
+    <tr><td>The pool starts with no users, and privacy comes from the crowd</td><td><span class="pill hi">High</span></td><td>Services first, to earn a wallet channel. Rewards for shielded time. No fee on deposits. Fixed-size exits make a small crowd go further</td></tr>
+    <tr><td>Reward seekers leave when emissions taper</td><td><span class="pill">Medium</span></td><td>Rewards follow time held and halve each year. The product has to keep users by itself</td></tr>
+    <tr><td>Two thirds of screeners are bought</td><td><span class="pill">Medium</span></td><td>The result is a bad deposit approved, never lost funds. Each screener needs a seat and a stake, and anyone can recompute the root and see it</td></tr>
     <tr><td>No wallet adopts the policy, so seat broadcasters get no traffic. Railway Wallet selects from four allowlisted signers</td><td><span class="pill hi">High</span></td><td>Ship the policy as a small patch to Railgun's own client library with a reference wallet. The phase 0 gate measures real relays, not installed nodes</td></tr>
     <tr><td>Relaying does not pay: about $480 a month for the whole mainnet market at current gas</td><td><span class="pill hi">High</span></td><td>One node on a machine the operator already runs. Targets of 10 and 30 operators, not hundreds. No promise of income anywhere in the software or docs</td></tr>
     <tr><td>Operator legal exposure as fee-earning relayers. Prosecutors have called relayers part of the operating cohort</td><td><span class="pill hi">High</span></td><td>PPOI enforced by default. Operators take their own advice. The team does not recruit, pay or coordinate them</td></tr>
     <tr><td>Cheap identities: a seat is about 0.70 ETH and resalable. Ten seats cost about 7 ETH</td><td><span class="pill hi">High</span></td><td>Design rule 1: no seat output guards funds or privacy. Random selection caps an attacker at its share of seats. Optional 30-day holding filter</td></tr>
     <tr><td>A hostile broadcaster sees transactions first and can censor, delay or trade ahead of a relayed swap</td><td><span class="pill">Medium</span></td><td>Random choice among many. Tight minimum-output limits. Local memory of refusals. Retry through another seat</td></tr>
-    <tr><td>Host pools keep admin keys: Railgun upgrades by token vote, Privacy Pools v2 by a two-of-four Safe with no delay</td><td><span class="pill hi">High</span></td><td>Not fixable by services. This is what the pool option exists for, and condition three of its gate watches for it</td></tr>
-    <tr><td>Regulatory change: Storm retrial on 26 April 2027; EU Article 79 applies from 10 July 2027 and its definition of anonymity-enhancing coins includes optional privacy</td><td><span class="pill hi">High</span></td><td>No custody, no control, no fees, nothing operated and nothing deployed by the team. Disclosure receipts for users who must answer a provider's questions</td></tr>
+    <tr><td>Host pools keep admin keys: Railgun upgrades by token vote, Privacy Pools v2 by a two-of-four Safe with no delay</td><td><span class="pill hi">High</span></td><td>Not fixable by services. The Murmuration pool is the answer, and it has no admin key at all</td></tr>
+    <tr><td>Regulatory change: Storm retrial on 26 April 2027; EU Article 79 applies from 10 July 2027 and its definition of anonymity-enhancing coins includes optional privacy</td><td><span class="pill hi">High</span></td><td>No custody, no control, no team fee address and nothing operated by the team. Disclosure receipts for users who must answer a provider's questions</td></tr>
     <tr><td>IMD dependency: single developer, unaudited contracts, closed control plane</td><td><span class="pill">Medium</span></td><td>Only <code>ownerOf</code> on the seat NFT is read. That contract is verified, is not a proxy, and has no key behind its owner functions. Nothing else of IMD's is in any path</td></tr>
-    <tr><td>Screening attestations are ignored, or a panel is bought</td><td><span class="pill">Medium</span></td><td>They are advisory, recomputable by anyone, and nobody is paid for them</td></tr>
-    <tr><td>Pool option: a soundness bug in an immutable pool cannot be patched</td><td><span class="pill hi">High, if exercised</span></td><td>No new circuits. The oldest audited circuit available. Immutable caps. Ragequit for every depositor</td></tr>
-    <tr><td>Pool option: a new pool starts with an empty anonymity set</td><td><span class="pill hi">High, if exercised</span></td><td>Conditions two and three of the gate</td></tr>
+    <tr><td>Screening attestations are ignored, or a panel is bought</td><td><span class="pill">Medium</span></td><td>On Railgun and Privacy Pools they are advisory and unpaid. In the pool, see the row on bought screeners</td></tr>
     <tr><td>Operators lose interest</td><td><span class="pill">Medium</span></td><td>The mirror and attest duties are reproducible by anyone, so the data survives any one operator. Relaying falls back to the incumbents</td></tr>
-    <tr><td>Harvest now, decrypt later</td><td><span class="pill">Medium</span></td><td>Inherited from the host pools. Murmuration adds no encryption of its own and stores nothing about users</td></tr>
+    <tr><td>Harvest now, decrypt later</td><td><span class="pill">Medium</span></td><td>Inherited on Railgun and Privacy Pools. The Murmuration pool encrypts notes with a post-quantum hybrid</td></tr>
   </table></div>
 </section>
 
 <section id="open">
   <h2>Open questions</h2>
   <ol>
+    <li>Who pays for the audits? No tokens are sold and the founder is pseudonymous, so the usual routes are narrower.</li>
+    <li>Which wallet will ship the pool? Nobody has been asked.</li>
+    <li>Parameters to settle before the ceremony, because they can never change: exit sizes per asset, the minimum age, each asset's share of emissions, the screener stake, and the cap schedule.</li>
+    <li>Will exchanges accept screening at entry, as Railgun does it, or expect screening at exit, as Privacy Pools does it?</li>
     <li>Will any wallet with real users fill its trusted-signer list from seat delegations? Until one does, the mesh relays only for the reference wallet.</li>
     <li>Can an independent operator reach a PPOI node? The broadcaster has no default URL, and no public aggregator open to third parties was found.</li>
     <li>Do Railway's iOS and Android builds enforce the allowlist? The web and desktop minimum version does. The mobile minimum predates the change.</li>
@@ -820,6 +900,20 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
 
 <section id="changelog">
   <h2>Changelog</h2>
+  <p><strong>Revision 3, 10 November 2026.</strong> Changes made after the owner reviewed revision 2. Most are the owner's decisions. Where the review advised otherwise, the entry says so.</p>
+  <div class="tbl"><table class="wide">
+    <tr><th>#</th><th>Change</th><th>Reason</th><th>Basis</th></tr>
+    <tr><td class="n">R3.1</td><td>The pool is the main product again, fully immutable, with new circuits. It is no longer limited to a fork of Privacy Pools v1</td><td>Owner's decision. No existing pool is both immutable and screened</td><td><a href="#spec-pool">Comparison table</a>; <code>railgun_broadcaster_kohaku_v2.md</code>; <code>privacy_pools_asp_interface_v2.md</code></td></tr>
+    <tr><td class="n">R3.2</td><td>Fixed-size exits, screening at entry with a minimum age, hybrid post-quantum note encryption, a fixed deposit window, per-asset limits and doubling caps added</td><td>To be better on design than Tornado Cash and Railgun, and to contain a bug nobody can patch</td><td><code>tornado_cash.md</code>; <code>privacy_problems.md</code>; <code>aztec_zkmoney.md</code> (Connect drain)</td></tr>
+    <tr><td class="n">R3.3</td><td>A fixed 0.2% withdrawal fee to an immutable distributor</td><td>Owner's decision. Reverses the rule "no developer fee in any token". The review advised launching with no fee</td><td><a href="#token">Token and fee</a></td></tr>
+    <tr><td class="n">R3.4</td><td>A token with fixed supply: 60% to users through private shielded-time rewards, 20% screeners, 15% builders, 5% founder. No sale</td><td>Owner's decision. Reverses the rule "no project token". The reward design avoids what failed elsewhere</td><td><code>tornado_cash.md</code> (reward scheme leaked deposit age); <code>privacy_coins.md</code> (Namada)</td></tr>
+    <tr><td class="n">R3.5</td><td>The founder's 5% goes to one pseudonymous address, vested over four years</td><td>Owner's decision, against the review's recommendation to choose either pseudonymity or an allocation</td><td><a href="#token">Token and fee</a></td></tr>
+    <tr><td class="n">R3.6</td><td>Screeners stake tokens and hold a seat. Roots are accepted on-chain at two thirds, with a fallback rule</td><td>A pool that consumes screening roots needs an acceptance rule and a way to keep working if screeners leave</td><td><a href="#spec-pool">Pool design</a></td></tr>
+    <tr><td class="n">R3.7</td><td>Budget from $43k to $121k up to $0.68M to $1.64M, plus a pay-on-finding bounty</td><td>New circuits and six contracts need audits and formal verification again</td><td><code>cost_inputs.md</code>; <code>reuse_components_and_proving_v2.md</code>, part 3</td></tr>
+    <tr><td class="n">R3.8</td><td>Roadmap phase 2 is a build and launch behind a six-condition launch gate. The pool is specified in phase 0 and runs on testnet in phase 1</td><td>The earlier gate asked whether to build a pool. That is now decided</td><td><a href="#roadmap">Roadmap</a></td></tr>
+    <tr><td class="n">R3.9</td><td>IMD build and review jobs are used to write the open-source code. The thesis sentence that nobody is paid in IMD's token is corrected</td><td>"Built by the swarm" means paying IMD for software work, which is IMD's ordinary use</td><td><a href="#thesis">Thesis</a></td></tr>
+    <tr><td class="n">R3.10</td><td>Unchanged from revision 2: the cuts to services 3 and 6, the replacements for services 4 and 5, identity without a registry, and every re-verified fact</td><td>The evidence behind them did not change</td><td><a href="#review">Review findings</a></td></tr>
+  </table></div>
   <p><strong>Revision 2, 10 November 2026.</strong> Every change from the version of 4 to 8 November, with the reason and a source. Dates in the source column are fetch dates unless stated. File names refer to research notes in the project repository.</p>
   <h3>Design</h3>
   <div class="tbl"><table class="wide">
@@ -888,6 +982,6 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
 </main>
 
 <footer>
-  <p>Revision 2, 10 November 2026. This page replaces the version of 4 to 8 November 2026 at the same address; the <a href="#changelog">changelog</a> lists what changed and why. Derived from the research report "IMD swarm privacy project design" (4 Nov 2026) and the re-review notes of 9 and 10 November. Data formats, client rules and gas estimates on this page are proposals for review, not deployed code. No audit, deployment or transaction was made for this revision, and nothing was sent to IMD, its developer or any third party.</p>
+  <p>Revision 3, 10 November 2026. This page replaces the version of 4 to 8 November 2026 and revision 2 at the same address; the <a href="#changelog">changelog</a> lists what changed and why. Derived from the research report "IMD swarm privacy project design" (4 Nov 2026) and the re-review notes of 9 and 10 November. Data formats, client rules and gas estimates on this page are proposals for review, not deployed code. No audit, deployment or transaction was made for this revision, and nothing was sent to IMD, its developer or any third party.</p>
 </footer>
 </div>

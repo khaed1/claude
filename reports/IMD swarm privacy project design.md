@@ -213,3 +213,7 @@ A re-review on 9 and 10 November 2026 re-verified the time-sensitive facts and a
 - The mesh registry, bonds, slashing, restaking and the panel ASP contract are removed. Seat-backed admission is checked by the wallet from `ownerOf` and a holder-signed delegation.
 - The Layer 0 pool is no longer a phase 2 deliverable. It is a gated option limited to a fork and freeze of Privacy Pools v1 with an ownerless entrypoint.
 - The budget falls from $0.75M to $1.5M to between $43,000 and $121,000 for the plan of record, or $0.29M to $0.74M if the pool option is exercised.
+
+**Revision 3, later on 10 November 2026**
+
+After reviewing revision 2 the owner decided to make a pool of the project's own the main product again. Revision 3 of the spec therefore reverses three points above: the pool is a phase 2 build with new circuits and a launch gate, not a gated fork of Privacy Pools v1; a fixed 0.2% withdrawal fee and a fixed-supply token are added, which reverses this report's "no developer fee" and "no token" requirements; and the budget is $0.68M to $1.64M plus a pay-on-finding bounty. The review's recommendations against a fee, against a token, and against combining a founder allocation with pseudonymity are recorded in the spec's "Token and fee" section. The cuts to collaborative proving and threshold disclosure, the replacements for the read layer and stewardship, and every re-verified fact are unchanged.
