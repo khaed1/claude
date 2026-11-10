@@ -627,6 +627,18 @@ systemctl status imd-worker.service imd-worker-2.service --no-pager
 ```
 Each worker must show `active (running)`, `release 0.1.0+…, the latest` with the new build, and `admitted`. Refresh the explorer and the old-worker notice goes away. Model settings, pairing and sign-in are untouched by updates.
 
+#### When `imd update` says *“GitHub returned HTTP 403 for the release history”*
+
+`imd update` asks GitHub's API, which allows only 60 requests an hour per IP address without a login. On a VPS that limit is often used up, by the workers' own checks or by other customers sharing the IP: `curl -s https://api.github.com/rate_limit | grep -A4 '"core"'` then shows `"remaining": 0`. [`scripts/imd-manual-update`](scripts/imd-manual-update) does the same update through the plain download link, which isn't limited: it downloads the latest release, checks its SHA-256, installs it only if it's newer, and restarts every enabled worker. Copy it to `/usr/local/sbin/imd-manual-update` on the VPS (paste it with `cat > /usr/local/sbin/imd-manual-update <<'EOF'` … `EOF`), then:
+
+```bash
+chmod 755 /usr/local/sbin/imd-manual-update
+```
+```bash
+imd-manual-update
+```
+Prints `installing … (was …)`, the installed build, the Claude Code version (must be 2.1.299 or newer) and the restarted services, or `already on …, nothing to do`.
+
 ### Updating Claude Code
 
 Do this when the explorer says *“N of your agents … take no oracle work: its Claude Code is older than 2.1.299. Run claude update on their machines, then restart the worker”*, or when you want a newer Claude Code.

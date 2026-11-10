@@ -1,0 +1,32 @@
+#!/bin/bash
+# imd-manual-update: update the IMD worker without GitHub's rate-limited API.
+# Downloads the latest release from github.com, checks its SHA-256, installs it
+# into /opt/imd-worker/runtime and restarts every enabled imd-worker service.
+set -euo pipefail
+export PATH="/opt/imd-worker/bin:/opt/imd-worker/node/bin:$PATH"
+runtime=/opt/imd-worker/runtime
+build="$runtime/lib/node_modules/@identitymd/worker/build.json"
+base=https://github.com/Identity-md/worker/releases/latest/download
+
+d="$(mktemp -d /opt/imd-worker/downloads/release.XXXXXX)"
+trap 'rm -rf "$d"' EXIT
+curl -fsSL "$base/identitymd-worker.tgz" -o "$d/identitymd-worker.tgz"
+curl -fsSL "$base/SHA256SUMS" -o "$d/SHA256SUMS"
+(cd "$d" && sha256sum --check --quiet SHA256SUMS) || { echo "checksum FAILED, nothing installed" >&2; exit 1; }
+
+old=$(grep -o '"daemonVersion": *"[^"]*"' "$build" | cut -d'"' -f4)
+new=$(tar -xzOf "$d/identitymd-worker.tgz" package/build.json | grep -o '"daemonVersion": *"[^"]*"' | cut -d'"' -f4)
+if [ "$old" = "$new" ] && [ "${1:-}" != "--force" ]; then
+  echo "already on $old, nothing to do"
+  exit 0
+fi
+
+echo "installing $new (was $old)"
+npm install --global --prefix "$runtime" --ignore-scripts --no-audit --no-fund "$d/identitymd-worker.tgz" >/dev/null
+chmod -R a+rX "$runtime"
+echo "installed: $(grep -o '"daemonVersion": *"[^"]*"' "$build" | cut -d'"' -f4)"
+echo "claude:    $(runuser -l imd-worker -c 'claude --version')"
+
+units=$(systemctl list-unit-files 'imd-worker*.service' --no-legend | awk '$2 == "enabled" {print $1}')
+echo "restarting: $units"
+systemctl restart $units
