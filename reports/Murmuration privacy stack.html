@@ -577,7 +577,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td>Mirror</td><td>Unpaid</td><td>A by-product of the sync a broadcaster already does</td></tr>
     <tr><td>Attest</td><td>Unpaid on Railgun and Privacy Pools. In the pool, a share of the fee</td><td>Per day of agreement with the accepted root, never per use</td></tr>
     <tr><td>Railgun's 0.25% on shield and unshield</td><td>To Railgun's treasury</td><td>Not Murmuration's, and not the broadcasters'</td></tr>
-    <tr><td>Murmuration pool fee (phase 2)</td><td>0.2% of each approved deposit and 0.2% of each public withdrawal, in the asset itself, to the immutable distributor</td><td>Half to token stakers, half to the screeners who signed that day's accepted root. Nothing on transfers inside the pool</td></tr>
+    <tr><td>Murmuration pool fee (phase 2)</td><td>0.2% of each approved deposit and 0.2% of each public withdrawal, in the asset itself, to the immutable distributor</td><td>40% to token stakers, 40% to the screeners who signed that day's accepted root, 20% to permanent liquidity. Nothing on transfers inside the pool</td></tr>
   </table></div>
   <p>Relaying is not a business at today's gas prices. Thirty nodes would share a market margin of about $480 a month with the incumbents, while hosting alone costs them $135 to $270 a month in total. Operators relay on a machine they already pay for, for a small return or none. The roadmap's targets are sized to that: a few dozen independent broadcasters cover the demand many times over.</p>
   <div class="tbl"><table>
@@ -597,7 +597,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <li>The project team writes software and operates nothing: no node, relayer, mirror, screener or hosted frontend. The software ships as a node package and a wallet module.</li>
     <li>The team does not recruit, pay or coordinate operators. Roadmap gates are observations read from the chain.</li>
     <li><strong>Changed in revision 3.</strong> A fixed fee of 0.2% in and 0.2% out and a token exist. No fee goes to a team address. The founder holds 5% of the token, vested in code over two years, at one public address.</li>
-    <li><strong>Changed in revision 4.</strong> 15% of the token is offered to the public through a locked pool paired with IMD. No external audit firm reviews the code. Assurance comes from IMD audit panels, machine-checked proofs, a canary and very low caps.</li>
+    <li><strong>Changed in revision 4.</strong> 25% of the token is offered to the public through a locked pool paired with IMD. No external audit firm reviews the code. Assurance comes from IMD audit panels, machine-checked proofs, a canary and very low caps.</li>
     <li>Screening is real, published and executed by independent screeners. The pool contract enforces it at a deposit's first spend, and seat broadcasters enforce PPOI on Railgun.</li>
     <li>No running part is brokered through IMD's control plane. IMD jobs are bought only to build and review open-source code. Admission is derived from on-chain seat ownership.</li>
     <li>Disclosure is user-held, opt-in and scoped to one transaction. No key share exists anywhere outside the user's wallet.</li>
@@ -620,7 +620,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <li>0.2% on the way in and 0.2% on the way out, taken in the asset itself. Together that is 0.4%, against Railgun's 0.5%. Transfers inside the pool are free.</li>
     <li>The entry fee is taken when a deposit is approved and first spent, so a refused deposit is returned in full.</li>
     <li>The rate and the destination are fixed in code. Nobody can raise, lower or redirect it.</li>
-    <li>It goes to an immutable distributor: half to token stakers in proportion to stake, half split equally among the screeners whose signatures are on that day's accepted root.</li>
+    <li>It goes to an immutable distributor: 40% to token stakers in proportion to stake, 40% split equally among the screeners whose signatures are on that day's accepted root, and 20% into the token's own liquidity for good.</li>
     <li>Screeners are paid per day of agreement with the accepted root, never per withdrawal. Paying per use would reward approving more.</li>
   </ul>
   <h3>The token</h3>
@@ -630,18 +630,20 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td>Serve as the stake a screener posts, alongside an IMD seat</td><td>Gate use of the pool. Users pay fees in the asset they withdraw</td></tr>
     <tr><td>Reward users for time spent shielded</td><td>Reward the act of depositing, or act as a relayer bond</td></tr>
   </table></div>
-  <p>Supply is fixed and minted once at deployment. The token contract has no mint function and no owner. There is no treasury and no multisig. No tokens are sold directly. 15% is placed in a public pool, which is a sale in substance and is treated as one below.</p>
+  <p>Supply is fixed and minted once at deployment. The token contract has no mint function and no owner. There is no treasury and no multisig. No tokens are sold directly. 25% is placed in a public pool, which is a sale in substance and is treated as one below.</p>
   <div class="tbl"><table>
     <tr><th>Share</th><th>To</th><th>How</th></tr>
-    <tr><td class="n">50%</td><td>Users</td><td>Private rewards for shielded time, over two years, released in step with the caps</td></tr>
-    <tr><td class="n">20%</td><td>Screeners</td><td>Per accepted root, over two years</td></tr>
-    <tr><td class="n">15%</td><td>Public pool</td><td>One-sided liquidity paired with IMD, placed at launch. The position is locked for good</td></tr>
+    <tr><td class="n">45%</td><td>Users</td><td>Private rewards for shielded time, over two years, released in step with the caps</td></tr>
+    <tr><td class="n">25%</td><td>Public pool</td><td>One-sided liquidity paired with IMD, placed at launch. The position is locked for good</td></tr>
+    <tr><td class="n">15%</td><td>Screeners</td><td>Per accepted root, over two years</td></tr>
     <tr><td class="n">10%</td><td>The swarm</td><td>Builders and auditors, from a list fixed at deployment and computed from public job records, locked for up to one year</td></tr>
     <tr><td class="n">5%</td><td>Founder</td><td>One pseudonymous address fixed at deployment, vested over two years with nothing in the first month</td></tr>
   </table></div>
   <h3>The public pool</h3>
   <ul>
-    <li>At launch the distribution contract places 15% of supply as one-sided liquidity in a Uniswap pool against IMD. Buyers bring IMD and the price rises as they buy.</li>
+    <li>At launch the distribution contract places 25% of supply as one-sided liquidity in a Uniswap pool against IMD. Buyers bring IMD and the price rises as they buy. There is no ETH pair.</li>
+    <li>A one-sided pool starts with no IMD in it, so sellers can only sell into what buyers have paid. To deepen it, 20% of every fee the privacy pool collects goes into this market for good. Once a day the distributor sells that share for IMD in a descending-price auction open to anyone, then adds the IMD as buy-side liquidity that can never be withdrawn. No price feed and no key is involved.</li>
+    <li>That mechanism is more logic in contracts that can never be patched. It is kept to those two steps, and it is covered by the same proofs and canary as the rest.</li>
     <li>The liquidity position is held by the contract and can never be withdrawn. Trading fees it earns go to the fee distributor, not to any wallet.</li>
     <li>It is a market and a tie to IMD. It raises no money for the project: what buyers pay stays in the pool.</li>
     <li>It is priced in IMD, a thin and volatile token (about $1.27M in its main pool, and an 18% move in two days this week). If IMD fails, this liquidity fails with it.</li>
@@ -655,10 +657,10 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <li>Nobody sees the amount, the age or the owner, and there is no separate claim to observe. Tornado's reward scheme leaked deposit age at exactly that step.</li>
   </ol>
   <p>A reward follows value multiplied by time, so splitting a deposit gains nothing. Each asset's share of emissions is fixed at deployment, because an immutable pool has no price oracle. The token has its own withdrawal limit inside the pool, so a mistake in the reward logic can at worst drain the reward budget and never another asset.</p>
-  <p>Rewards exist to gather a first crowd and to spread the token to real users. They do not keep users. The evidence is that people who come for yield leave when it ends, so the product has to earn the rest. Emissions run two years and grow in step with the caps. Otherwise half the supply would go to whoever filled a 25 ETH pool in its first months.</p>
+  <p>Rewards exist to gather a first crowd and to spread the token to real users. They do not keep users. The evidence is that people who come for yield leave when it ends, so the product has to earn the rest. Emissions run two years and grow in step with the caps. Otherwise most of the users' share would go to whoever filled a 25 ETH pool in its first months.</p>
   <h3>What this changes</h3>
   <div class="callout warn">
-    <p><strong>Legal position.</strong> A fee and a token make the project look like a business to financial-crime and securities enforcement. In the Tornado Cash and Samourai prosecutions, the money the developers made was part of the case. Railgun and 0xbow charge fees and have not been charged; both pair the fee with real screening. This design pairs it with screening enforced by the contract and sends no fee to a team address. It does offer 15% of the token to the public through a pool, and offering tokens to the public is the step regulators target most directly. Those choices reduce the exposure. They do not remove it.</p>
+    <p><strong>Legal position.</strong> A fee and a token make the project look like a business to financial-crime and securities enforcement. In the Tornado Cash and Samourai prosecutions, the money the developers made was part of the case. Railgun and 0xbow charge fees and have not been charged; both pair the fee with real screening. This design pairs it with screening enforced by the contract and sends no fee to a team address. It does offer 25% of the token to the public through a pool, and offering tokens to the public is the step regulators target most directly. Those choices reduce the exposure. They do not remove it.</p>
     <p><strong>Founder allocation and pseudonymity.</strong> The founder's 5% sits at a public address for two years, and that address is the first thing anyone will trace. Using a fresh wallet does not make its owner anonymous: how it is funded and where its tokens are eventually sold can both be followed. The review recommended choosing one of two options, pseudonymity with no special allocation or an allocation held openly. The owner chose a pseudonymous allocation. It is recorded here as a decision, not as a recommendation, and it should be put to a lawyer before any deployment.</p>
   </div>
   <p>Cost. Three more small contracts (token, distributor with staking, vesting and builder distribution) go through the same IMD review, proofs and canary as the pool. A token is worth little until the pool has volume: Railgun's 0.25% brings in about $312,000 a month at $106M, and a pool the size of Privacy Pools v2 would bring in a few thousand.</p>
@@ -854,7 +856,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
   <h3>Funding</h3>
   <p>With no external audit there is little to fund. Nothing is raised before launch: the public pool opens at launch and what buyers pay stays in it. The founder or other contributors cover the IMD jobs, the ceremony, the lawyer and the canary deposit. No money exists for an outside contest, so the canary is the only reward on offer to outside researchers. Raising it raises the quality of the test.</p>
   <h3>Should there be a token?</h3>
-  <p>The first two versions said no. Revisions 3 and 4 add one by the owner's decision, in the shape set out in <a href="#token">Token and fee</a>: fixed supply, nothing governed, 15% offered through a locked public pool.</p>
+  <p>The first two versions said no. Revisions 3 and 4 add one by the owner's decision, in the shape set out in <a href="#token">Token and fee</a>: fixed supply, nothing governed, 25% offered through a locked public pool.</p>
 </section>
 
 <section id="risks">
@@ -868,6 +870,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td>The pool starts with no users, and privacy comes from the crowd</td><td><span class="pill hi">High</span></td><td>Services first, to earn a wallet channel. Rewards for shielded time. A total fee below Railgun's. Fixed-size exits make a small crowd go further</td></tr>
     <tr><td>Reward seekers leave when emissions taper</td><td><span class="pill">Medium</span></td><td>Rewards follow time held and halve each year. The product has to keep users by itself</td></tr>
     <tr><td>Two thirds of screeners are bought</td><td><span class="pill">Medium</span></td><td>The result is a bad deposit approved, never lost funds. Each screener needs a seat and a stake, and anyone can recompute the root and see it</td></tr>
+    <tr><td>The token's market is thin. 70% of supply unlocks over two years against 25% in a pool priced only in IMD</td><td><span class="pill hi">High</span></td><td>20% of every pool fee is turned into locked liquidity. User rewards start small and grow with the caps. There is no ETH pair, by the owner's decision, so trading to ETH takes two steps</td></tr>
     <tr><td>No wallet adopts the policy, so seat broadcasters get no traffic. Railway Wallet selects from four allowlisted signers</td><td><span class="pill hi">High</span></td><td>Ship the policy as a small patch to Railgun's own client library with a reference wallet. The phase 0 gate measures real relays, not installed nodes</td></tr>
     <tr><td>Relaying does not pay: about $480 a month for the whole mainnet market at current gas</td><td><span class="pill hi">High</span></td><td>One node on a machine the operator already runs. Targets of 10 and 30 operators, not hundreds. No promise of income anywhere in the software or docs</td></tr>
     <tr><td>Operator legal exposure as fee-earning relayers. Prosecutors have called relayers part of the operating cohort</td><td><span class="pill hi">High</span></td><td>PPOI enforced by default. Operators take their own advice. The team does not recruit, pay or coordinate them</td></tr>
@@ -933,6 +936,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td class="n">R4.6</td><td>Cash budget from $0.68M to $1.64M down to about $10k to $20k, plus a returnable canary deposit</td><td>No external firm is paid</td><td><a href="#cost">Infrastructure cost</a></td></tr>
     <tr><td class="n">R4.7</td><td>Launch gate rewritten: public IMD findings closed, checked proofs, an unbroken canary, testnet record, a wallet, a lawyer's review</td><td>The earlier gate required external audits and their budget</td><td><a href="#roadmap">Roadmap</a></td></tr>
     <tr><td class="n">R4.8</td><td>The pool fee is 0.2% on the way in and 0.2% on the way out. The entry fee is taken at a deposit's first spend, so a refused deposit is returned in full</td><td>Owner's decision. The review had suggested no fee on deposits as a cheap incentive to enter. The total stays below Railgun's 0.5%</td><td><a href="#token">Token and fee</a></td></tr>
+    <tr><td class="n">R4.10</td><td>Allocation is now 45% users, 25% public pool against IMD only, 15% screeners, 10% the swarm, 5% founder. Fees split 40% stakers, 40% screeners, 20% into locked liquidity through a daily auction for IMD. No treasury</td><td>Owner's decision, after the review pointed out that a 15% one-sided pool would be thin against 85% of supply unlocking. The review had also suggested an ETH pair, which the owner declined</td><td><a href="#token">Token and fee</a></td></tr>
     <tr><td class="n">R4.9</td><td>A standalone version 4 specification is published separately, and the founder's cliff is one month</td><td>Owner's request</td><td>claude.ai/artifact/4BpAYUhRLVR3vv4u9RfsaB</td></tr>
   </table></div>
   <p><strong>Revision 3, 10 November 2026.</strong> Changes made after the owner reviewed revision 2. Most are the owner's decisions. Where the review advised otherwise, the entry says so.</p>
