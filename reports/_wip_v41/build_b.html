@@ -114,7 +114,7 @@ Batch {
       <tr><td><code>notify(asset, amount)</code></td><td>The pool</td><td>Adds 40% to the asset's staker stream, restarted to pay evenly over the next 50,400 blocks. Sends 40% to the registry with <code>fund</code>. Adds 20% to the basket. For the reward token the 20% is burned. With nothing staked, the stakers' share goes to the basket</td></tr>
       <tr><td><code>stake(amount)</code>, <code>unstake(amount)</code>, <code>claim(assets)</code></td><td>Anyone</td><td>Standard reward-per-token accounting, one stream per asset. No lock</td></tr>
       <tr><td><code>buy(assets, to, saleId, deadline, maxPay)</code></td><td>Anyone</td><td>The price falls in a straight line from the starting price to a floor over one day and stays at the floor until someone buys. The buyer pays that price in IMD and receives the basket balance of each asset named. The next starting price is twice the price paid, and never under a minimum <span class="pill">param</span>. <code>saleId</code>, <code>deadline</code> and <code>maxPay</code> protect the buyer from a stale transaction</td></tr>
-      <tr><td><code>buyback()</code></td><td>Anyone, at most once per 25 blocks</td><td>Swaps IMD for the token in the locked pool. The amount is the smaller of the IMD held and the pool's fee rate times its IMD-side reserves at the current price. The bought tokens go to the burn address</td></tr>
+      <tr><td><code>buyback()</code></td><td>Anyone, at most once per 25 blocks</td><td>Swaps IMD for the token in the locked pool. The amount is the smaller of the IMD held and half of the pool's fee rate times its IMD-side reserves at the current price. The bought tokens go to the burn address</td></tr>
     </table></div>
     <p><strong>Events.</strong> <code>Notified(asset, toStakers, toScreeners, toBasket)</code>, <code>Staked</code>, <code>Unstaked</code>, <code>Claimed</code>, <code>BasketSold(saleId, buyer, price)</code>, <code>Buyback(imdIn, tokensBurned)</code>.</p>
     <p><strong>Invariants.</strong></p>
@@ -123,7 +123,7 @@ Batch {
       <li>For each asset, the balance is at least the unpaid stream plus everything owed plus the basket.</li>
       <li>Staked tokens return only to the staker who staked them.</li>
       <li>IMD leaves only through a swap in the locked pool. No function sends it to an address.</li>
-      <li>A buyback step never exceeds the pool's fee rate times its IMD-side reserves, and at most one step runs per 25 blocks.</li>
+      <li>A buyback step never exceeds half of the pool's fee rate times its IMD-side reserves, and at most one step runs per 25 blocks.</li>
       <li>A basket asset whose transfer fails cannot block the sale of the others.</li>
     </ol>
   </div>
