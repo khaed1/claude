@@ -188,7 +188,7 @@ table.wide{min-width:820px}
     <li><strong>Caps counted on activated value</strong>, with a recommended stop at 800 ETH per asset.</li>
     <li><strong>A canary that runs the whole system</strong> on a compressed clock, described as a rehearsal.</li>
   </ul>
-  <p>The reasons are in <a href="#review">Review of the new parts</a>. Ten values still need the owner's confirmation and are listed in <a href="#decisions">Defaults to confirm</a>. The work is broken into 50 jobs in the <a href="#plan">build plan</a>.</p>
+  <p>The reasons are in <a href="#review">Review of the new parts</a>. Nine values still need the owner's confirmation and are listed in <a href="#decisions">Defaults to confirm</a>. The work is broken into 50 jobs in the <a href="#plan">build plan</a>.</p>
 </section>
 
 <section id="lifecycle">
@@ -246,7 +246,7 @@ sequenceDiagram
     <tr><td>Screening</td><td>A deposit can be activated once a screening batch covers it without refusing it and it is at least 7,200 blocks old. Later notes carry no label</td><td>Screeners get one to two days to refuse stolen funds, and quick in-and-out use is impossible. Screening at entry avoids carrying labels through every private transfer</td></tr>
     <tr><td>Refund</td><td>The depositor can take back an unactivated deposit at any time, to the depositing address, in full</td><td>Screening failure or capture can never trap funds</td></tr>
     <tr><td>Batch acceptance</td><td>Two thirds of the active screeners, by commit and reveal, with at least seven active. A screener holds an IMD seat and stakes tokens. With no accepted batch, new deposits wait or are refunded. There is no fallback rule</td><td>No single curator. Capturing two thirds lets a bad deposit through and never moves anyone's funds. One third can delay deposits and cannot switch screening off</td></tr>
-    <tr><td>Exits</td><td>Public withdrawals only in a 1, 2, 5 series per asset, from 0.001 to 1,000 ETH and from 1 to 1,000,000 units of a stablecoin. Every exit of a size pays out the same amount</td><td>Removes exact amount matching at the edge. It does not hide a total sent to one address</td></tr>
+    <tr><td>Exits</td><td>Public withdrawals only in a 1, 2, 5 series per asset, from 0.005 to 1,000 ETH and from 1 to 1,000,000 units of a stablecoin. Every exit of a size pays out the same amount</td><td>Removes exact amount matching at the edge. It does not hide a total sent to one address</td></tr>
     <tr><td>Note encryption</td><td>HPKE over X-Wing, the hybrid of X25519 and ML-KEM-768. 1,312 bytes of ciphertext per spend</td><td>Ciphertexts are public forever. This is the part of the quantum threat that cannot be fixed later</td></tr>
     <tr><td>Proof system</td><td>Groth16 on BN254 with a new public ceremony. It is not quantum-safe</td><td>Quantum-safe proofs cost too much to verify on Ethereum today. The deposit window below limits the exposure</td></tr>
     <tr><td>Deposit window</td><td>Deposits stop at a block fixed at deployment, about four years out. Activation, refunds and withdrawals never stop</td><td>New money goes to a successor pool before proof forgery becomes realistic. Funds left inside after that stay exposed, and the wallet says so</td></tr>
@@ -417,7 +417,7 @@ Batch {
     <h4>Fixed-size exits: change, dust, and a large withdrawal</h4>
     <ul>
       <li><strong>Change</strong> stays inside as a new note. That part works.</li>
-      <li><strong>Dust</strong> below the smallest size can never leave by itself. Once deposits close it can never be topped up either. The smallest size therefore has to be small: 0.001 ETH and 1 unit of a stablecoin.</li>
+      <li><strong>Dust</strong> below the smallest size can never leave by itself. Once deposits close it can never be topped up either. The owner has set the smallest size at 0.005 ETH, about $11, and it is 1 unit for a stablecoin. A remainder under that can leave only after it is merged with another note.</li>
       <li><strong>Arbitrary deposits undo part of the benefit.</strong> A deposit of 7.3134 ETH followed by exits of 5, 2, 0.2 and 0.1 to one address shows the total to anyone who adds them up. Fixed sizes stop exact matching of a single withdrawal. They do not hide a total sent to one place. The wallet should deposit in standard sizes by default and warn before sending several exits to one address.</li>
       <li><strong>A large withdrawal</strong> is a visible run of the largest size. Ten exits of 100 ETH in a week in a pool capped at 800 ETH are one actor, whatever the proofs hide.</li>
       <li><strong>A public relay fee would mark each exit.</strong> If the relayer's fee came out of the withdrawn amount, payouts of the same size would differ by the fee quoted. The build specification pays relayers with a shielded note, so every exit of a given size pays out the same amount to the wei.</li>
@@ -1086,7 +1086,7 @@ RPC_URL=…   POI_NODE_URL=…   IPFS_API=…
     <tr><td>Public pool</td><td class="n">25% of supply</td><td><span class="pill ok">decided</span></td><td>One-sided against IMD only, from a valuation of 48,000 IMD, position locked for good</td></tr>
     <tr><td>Screener requirement</td><td class="n">1 seat + stake</td><td><span class="pill ok">decided</span></td><td>One IMD seat and a token stake</td></tr>
     <tr><td>Minimum age before activation</td><td class="n">7,200 blocks</td><td><span class="pill hi">to confirm</span></td><td>About one day. The screening cycle makes the real wait one to two days</td></tr>
-    <tr><td>Exit sizes</td><td class="n">1, 2, 5 series</td><td><span class="pill hi">to confirm</span></td><td>0.001 to 1,000 ETH. 1 to 1,000,000 USDC or DAI. 1,000 to 100,000,000 of the token</td></tr>
+    <tr><td>Exit sizes</td><td class="n">1, 2, 5 series</td><td><span class="pill ok">decided</span></td><td>0.005 to 1,000 ETH, by the owner on 10 November 2026. Still to confirm: 1 to 1,000,000 USDC or DAI, and 1,000 to 100,000,000 of the token</td></tr>
     <tr><td>Caps</td><td class="n">25 ETH, 50,000 USDC, 50,000 DAI</td><td><span class="pill hi">to confirm</span></td><td>On activated value. Doubling every 648,000 blocks. Recommended stop after five doublings, at 800 ETH and 1,600,000 of each stablecoin</td></tr>
     <tr><td>Deposit window</td><td class="n">10,512,000 blocks</td><td><span class="pill hi">to confirm</span></td><td>About four years from genesis. Activation, refunds and withdrawals never stop</td></tr>
     <tr><td>Screening threshold</td><td class="n">two thirds of active</td><td><span class="pill hi">to confirm</span></td><td>At least seven active. No fallback rule</td></tr>
@@ -1107,10 +1107,10 @@ RPC_URL=…   POI_NODE_URL=…   IPFS_API=…
 
 <section id="decisions">
   <h2>Defaults to confirm</h2>
-  <p>The previous session chose these values and the owner has not confirmed them. None is settled. Each row gives the value in the first version 4, what this revision recommends, and why. The build specification is written to the recommended value and marks it as a parameter, so a different choice changes a constant and not the design, except where the last column says otherwise.</p>
+  <p>The previous session chose these values and the owner had not confirmed them. One has since been decided and is marked. The rest are not settled. Each row gives the value in the first version 4, what this revision recommends, and why. The build specification is written to the recommended value and marks it as a parameter, so a different choice changes a constant and not the design, except where the last column says otherwise.</p>
   <div class="tbl"><table class="wide">
     <tr><th>Default</th><th>First version 4</th><th>Recommendation</th><th>Why</th><th>If the owner chooses otherwise</th></tr>
-    <tr><td>Exit sizes</td><td>1, 2, 5 series, starting at 0.1 ETH</td><td><strong>Keep the 1, 2, 5 series.</strong> Run it from 0.001 to 1,000 ETH and from 1 to 1,000,000 units of each stablecoin</td><td>Three sizes per decade keep a full exit under about 18 transactions. The smallest size must be small, because anything below it can never leave once deposits close</td><td>A constant per asset</td></tr>
+    <tr><td>Exit sizes</td><td>1, 2, 5 series, starting at 0.1 ETH</td><td><strong>Decided by the owner on 10 November 2026: the 1, 2, 5 series from 0.005 to 1,000 ETH.</strong> Still to confirm: 1 to 1,000,000 units of each stablecoin</td><td>Seventeen sizes. A full exit of any amount under 1,000 ETH takes at most 16 withdrawals. A remainder under 0.005 ETH, about $11, cannot leave by itself, and once deposits close it cannot be topped up</td><td>A constant per asset</td></tr>
     <tr><td>Minimum age</td><td>7,200 blocks</td><td><strong>Keep 7,200 blocks</strong> as the floor in the contract. Let the published criteria hold large or freshly funded deposits longer</td><td>The floor binds even a captured registry. Longer waits belong in the criteria, which screeners can tighten without a new pool</td><td>A constant</td></tr>
     <tr><td>Caps</td><td>About 25 ETH per asset, doubling every 90 days, no stated end</td><td><strong>Keep the start and the pace. Stop at 800 ETH per asset</strong>, reached on day 450. Count the cap on activated value only</td><td>Without a stop, three assets hold about $41M after two years in code no outside firm has read, and the doubling goes on. With the stop the most at risk is about $5.1M. A larger pool is a decision for a successor, made with two years of evidence</td><td>A constant for the stop. Emissions follow the caps, so the reward schedule moves with it</td></tr>
     <tr><td>Deposit window</td><td>About four years</td><td><strong>Keep four years</strong>, written as an exact block number</td><td>It leaves time to build a successor. It stops new deposits only: funds left inside after it stay exposed to whatever breaks Groth16, and the wallet should say so from year three</td><td>A constant</td></tr>
@@ -1384,7 +1384,7 @@ RPC_URL=…   POI_NODE_URL=…   IPFS_API=…
 <section id="open">
   <h2>Open questions</h2>
   <ol>
-    <li>Will the owner confirm the ten values in <a href="#decisions">Defaults to confirm</a>? Three of them change the design: the fallback, the stop on the caps, and the asset list.</li>
+    <li>Will the owner confirm the nine remaining values in <a href="#decisions">Defaults to confirm</a>? Three of them change the design: the fallback, the stop on the caps, and the asset list.</li>
     <li>Can agents produce proofs of this circuit that stand up? The tooling and one precedent exist. Nothing in the research shows IMD has done it. This launch is the test.</li>
     <li>Who signs off the formal statements? The plan gives that to the owner after a panel review. It is the one step that cannot be delegated to the checker.</li>
     <li>Who coordinates the trusted-setup ceremony, given that the team operates nothing?</li>

@@ -26,7 +26,7 @@ contract. If the specification is ambiguous, stop and report the ambiguity inste
 ## Acceptance tests
 
 1. The end-to-end scenario of B60 is driven entirely through this module against a local chain.
-2. plan.ts splits every amount from 0.001 to 1,000 ETH into at most 18 standard sizes and never leaves dust above the smallest size.
+2. plan.ts splits every multiple of 0.005 ETH below 1,000 ETH into at most 16 standard sizes and never leaves a remainder of 0.005 ETH or more.
 3. A wallet restored from its seed alone recovers every note and its accrued reward from chain data.
 4. A spend built against the previous checkpoint is rebuilt automatically when it would be stale.
 5. The module warns when a planned set of exits to one address sums to within 1% of a single deposit by the same wallet.
