@@ -1,0 +1,24 @@
+<section id="plan">
+  <h2>Build plan</h2>
+  <p>The work is broken into 50 job briefs for the IMD swarm, saved in the repository under <code>reports/build_plan/</code>. None has been submitted. Each fits one IMD request under the limits IMD publishes: an objective of at most 8,000 characters, at most six steps, at most eight acceptance tests per step, at most 16 writable paths. A script in the same folder regenerates the briefs and fails if one breaks a limit.</p>
+  <div class="tbl"><table>
+    <tr><th>Group</th><th>Briefs</th><th>What they produce</th><th>How acceptance is checked</th></tr>
+    <tr><td>Contracts</td><td class="n">B00 to B60, 18</td><td>The six contracts in small pieces, the deployer, the verifier wrapper and end-to-end tests</td><td>Foundry tests written into each brief. IMD's verifier runs them</td></tr>
+    <tr><td>Fuzzing</td><td class="n">F01 to F04, 4</td><td>One invariant harness per stateful contract, a million calls each</td><td>The same</td></tr>
+    <tr><td>Circuit</td><td class="n">C00 to C07, 8</td><td>The frozen formal statements, the circuit in Lean, an independent Circom copy, proof fixtures, the wallet's cryptography</td><td>A named <code>make</code> target. IMD checks only that the files exist, so a review job re-runs each</td></tr>
+    <tr><td>Proofs</td><td class="n">P01 to P05, 5</td><td>Machine-checked proofs of every gadget and of the five properties, and public analyser runs</td><td>The Lean checker, a list of permitted axioms, and a comparison against the frozen statements so that a proof cannot quietly change what it proves</td></tr>
+    <tr><td>Reviews</td><td class="n">R01 to R05, 5</td><td>Whether the formal statements say the right thing, the circuit and contract boundary, a circuit checklist, the ceremony output, and the token market on a fork</td><td>Panel verdicts with a reproduction for every finding</td></tr>
+    <tr><td>Audits</td><td class="n">A01 to A05, 5</td><td>IMD's four-specialist audit of each contract</td><td>The judge's coverage record. No high or critical finding open</td></tr>
+    <tr><td>Node and wallet</td><td class="n">S01 to S03, 3</td><td>The deterministic screening program, the screener duty, the wallet's pool module</td><td>Replay tests and a simulated ten-node network</td></tr>
+    <tr><td>Canary and ceremony</td><td class="n">L01, L02</td><td>The canary's script and record, and the ceremony tooling</td><td>A full rehearsal on a fork</td></tr>
+  </table></div>
+  <h3>Order</h3>
+  <ol>
+    <li><strong>Statements first.</strong> B00, then C00 and R01. The owner reads R01 and signs off the frozen statements. Every proof is worth exactly as much as the statement it proves, and the known failures of agent-written proofs are added assumptions, weakened inputs and statements that are true of anything.</li>
+    <li><strong>Contracts and circuit in parallel.</strong> B10 to B41 and C01 to C07.</li>
+    <li><strong>Proofs, reviews and audits.</strong> P01 to P05, R02, R03, A01 to A05. Fixes go back through IMD's fix job and the changed contract is audited again.</li>
+    <li><strong>Assembly.</strong> B50, B51, B60, S01 to S03, R05.</li>
+    <li><strong>Canary and ceremony.</strong> L01 and L02, then R04 on the real ceremony output. The lawyer's review comes before the canary runs.</li>
+  </ol>
+  <p>Fifty requests cost 25 IMD, about $66. Rejected attempts, fix rounds and second audits will multiply that. A working figure is 300 to 600 requests, 150 to 300 IMD.</p>
+</section>

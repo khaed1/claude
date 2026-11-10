@@ -103,14 +103,14 @@ table.wide{min-width:820px}
 
 <div class="wrap">
 <header class="hero">
-  <div class="eyebrow">Specification · version 4 · 10 Nov 2026 · Ethereum mainnet · built by the IMD swarm</div>
+  <div class="eyebrow">Specification · version 4.1, build-ready · 10 Nov 2026 · Ethereum mainnet · built by the IMD swarm</div>
   <h1>Murmuration v4: an immutable, screened privacy pool</h1>
-  <p class="lede">A pool where you can hold and send funds privately on Ethereum, with no owner, no pause and no upgrade. Deposits are screened by independent operators using published rules, funds leave only in standard sizes, and the notes are encrypted against future quantum computers. It is built and audited by the IMD swarm and opens behind very low caps. This page is the complete version 4 specification. Nothing in it is built or deployed yet.</p>
+  <p class="lede">A pool where you can hold and send funds privately on Ethereum, with no owner, no pause and no upgrade. Deposits are screened by independent operators using published rules, funds leave only in standard sizes, and the notes are encrypted against future quantum computers. It is built and audited by the IMD swarm and opens behind very low caps. This revision attacks the parts of version 4 that had never been reviewed, fixes what it found, and writes the result out so that a build job can work from it. Nothing in it is built or deployed yet.</p>
   <div class="facts">
     <div><b>0</b><span>admin keys, pauses or upgrades</span></div>
     <div><b>0.2%</b><span>fee in and 0.2% out, fixed in code</span></div>
     <div><b>25 ETH</b><span>starting cap per asset, doubling every 90 days</span></div>
-    <div><b>3</b><span>circuits: deposit, transfer, withdraw</span></div>
+    <div><b>1</b><span>circuit, where version 4 had three</span></div>
     <div><b>45%</b><span>of the token goes to users</span></div>
   </div>
 </header>
@@ -124,6 +124,15 @@ table.wide{min-width:820px}
     <a class="sub" href="#spec-pool">Comparison and design</a>
     <a href="#screening">Screening</a>
     <a href="#token">Token and fee</a>
+    <a href="#review">Review of the new parts</a>
+    <a href="#build">Build specification</a>
+    <a class="sub" href="#b-notes">Keys and notes</a>
+    <a class="sub" href="#b-circuit">The circuit</a>
+    <a class="sub" href="#b-contracts">The six contracts</a>
+    <a class="sub" href="#b-states">State machines</a>
+    <a class="sub" href="#b-gas">Size and gas</a>
+    <a class="sub" href="#b-deploy">Deployment and canary</a>
+    <a href="#sim">Economics, simulated</a>
     <a href="#periphery">The node and the wallet</a>
     <a class="sub" href="#spec-identity">Identity</a>
     <a class="sub" href="#spec-mesh">Relaying</a>
@@ -134,11 +143,14 @@ table.wide{min-width:820px}
     <a href="#visibility">What operators can see</a>
     <a href="#economics">Fees, gas and parameters</a>
     <a class="sub" href="#parameters">Fixed parameters</a>
+    <a href="#decisions">Defaults to confirm</a>
     <a href="#legal">Legal position</a>
     <a href="#compat">Upgrade compatibility</a>
     <a href="#roadmap">Roadmap</a>
+    <a href="#plan">Build plan</a>
     <a href="#cost">Cost</a>
     <a href="#risks">Risks</a>
+    <a href="#verified">What was checked</a>
     <a href="#open">Open questions</a>
   </div>
 </nav>
@@ -147,7 +159,7 @@ table.wide{min-width:820px}
 
 <section id="overview">
   <h2>What it is</h2>
-  <p>Murmuration is a privacy pool on Ethereum mainnet. You deposit ETH or a supported token, hold and send it privately inside the pool, and withdraw to any address. Its contracts have no owner, no pause and no upgrade path. The code is written and audited by the IMD swarm, a network of about 1,150 AI agents run by the holders of 1,999 seat NFTs. The same seat holders run the nodes that relay transactions, publish the pool's public data and screen deposits.</p>
+  <p>Murmuration is a privacy pool on Ethereum mainnet. You deposit ETH or a supported token, hold and send it privately inside the pool, and withdraw to any address. Its contracts have no owner, no pause and no upgrade path. The code is written and audited by the IMD swarm, a network of about 1,150 AI agents run by the holders of 2,000 seat NFTs. The same seat holders run the nodes that relay transactions, publish the pool's public data and screen deposits.</p>
   <p>Four features define the pool.</p>
   <ul>
     <li><strong>Immutable and screened.</strong> Tornado Cash is immutable and unscreened, so exchanges treat its exits as tainted. Railgun and Privacy Pools are screened and keep admin keys. Murmuration is designed to be both immutable and screened.</li>
@@ -159,13 +171,24 @@ table.wide{min-width:820px}
   <div class="tbl"><table>
     <tr><th>Who</th><th>Does</th><th>Cannot</th></tr>
     <tr><td>A user's wallet</td><td>Builds proofs on the device, checks public data against the chain, picks a relayer at random</td><td>Be forced to trust any single operator</td></tr>
-    <tr><td>Seat holders running a node</td><td>Relay transactions, mirror the pool's public log, sign daily screening sets</td><td>Move, freeze or redirect anyone's funds</td></tr>
+    <tr><td>Seat holders running a node</td><td>Relay transactions, mirror the pool's public log, agree daily screening batches</td><td>Move, freeze or redirect anyone's funds</td></tr>
     <tr><td>Token stakers</td><td>Receive 40% of the pool's fee</td><td>Vote on or change anything</td></tr>
     <tr><td>The founder and builders</td><td>Write the software and publish it</td><td>Operate any part of it, or alter the contracts after deployment</td></tr>
   </table></div>
   <div class="callout warn">
     <p><strong>Three things to know before reading further.</strong> The pool starts with no users, and privacy comes from the crowd you hide in, so on launch day it protects less than Railgun or Tornado Cash. It has no external audit: by the owner's decision the swarm audits its own work, and very low caps bound what a failure can cost. And a fee, a token and a pseudonymous founder allocation carry legal exposure that immutability does not remove. Each is covered in its own section.</p>
   </div>
+  <h3>What revision 4.1 changes</h3>
+  <p>The first version 4 was written in one session and its new parts had not been reviewed. This revision reviewed them and changed the design where they failed. The owner's decisions are unchanged.</p>
+  <ul>
+    <li><strong>One circuit instead of three</strong>, with deposits computed by the contract and the machine-checked proofs covering withdrawals as well as transfers.</li>
+    <li><strong>No fallback rule.</strong> Under version 4 a third of screeners could switch screening off by staying silent for a week. Now a stalled registry delays deposits and nothing else.</li>
+    <li><strong>A reward index that cannot overpay</strong> or be farmed with dust, and that does not reveal the asset of a private transfer.</li>
+    <li><strong>A buyback in place of the one-sided liquidity add</strong>, which whoever settled the auction could have taken.</li>
+    <li><strong>Caps counted on activated value</strong>, with a recommended stop at 800 ETH per asset.</li>
+    <li><strong>A canary that runs the whole system</strong> on a compressed clock, described as a rehearsal.</li>
+  </ul>
+  <p>The reasons are in <a href="#review">Review of the new parts</a>. Ten values still need the owner's confirmation and are listed in <a href="#decisions">Defaults to confirm</a>. The work is broken into 50 jobs in the <a href="#plan">build plan</a>.</p>
 </section>
 
 <section id="lifecycle">
@@ -176,21 +199,23 @@ sequenceDiagram
   participant P as Pool contract
   participant S as Screeners
   participant B as Relayer
-  U->>P: Deposit from a public address (a label is recorded)
-  S->>P: Daily screening root, signed by two thirds of screeners
-  U->>U: After at least one day, prove the label is approved
+  U->>P: Deposit from a public address (nothing is shielded yet)
+  S->>S: Each day, commit and then reveal the batch of covered and refused deposits
+  S->>P: Batch accepted at two thirds and applied
+  U->>P: Activate after at least one day (0.2% taken, note enters the tree)
   U->>B: Private transfer or withdrawal, encrypted
   B->>P: Submit and pay gas
-  P-->>U: New shielded notes, with rewards added
-  P-->>U: Withdrawal in a standard size, minus 0.2%
+  P-->>U: New shielded notes, reward carried inside them
+  P-->>U: Withdrawal in a standard size, minus exactly 0.2%
   </pre>
   <ol>
-    <li><strong>Deposit.</strong> You send funds from a public address. The deposit is public and carries a label. The 0.2% entry fee is taken later, when the deposit is approved and first spent.</li>
-    <li><strong>Screening.</strong> Each day the screeners publish the set of approved labels. A deposit can be spent only once its label is approved and at least 7,200 blocks, about a day, have passed.</li>
-    <li><strong>Refused deposits.</strong> If a deposit is not approved, its owner takes it back in full, publicly, to the address it came from. No fee is charged and nobody else can touch it.</li>
-    <li><strong>Private use.</strong> After the first spend your funds are ordinary shielded notes. You can hold them, split them and pay other users. Observers see that a transaction happened and nothing about who or how much.</li>
-    <li><strong>Relaying.</strong> Your wallet hands the encrypted transaction to a relayer picked at random, so your own address never pays the gas. The relayer's fee is fixed inside the proof.</li>
-    <li><strong>Withdrawal.</strong> Funds leave to any address in standard sizes, with 0.2% taken as the pool's exit fee. A larger amount leaves as several standard withdrawals, spread over time by the wallet.</li>
+    <li><strong>Deposit.</strong> You send funds from a public address together with a hidden commitment to the key that will own them. The deposit is public. Nothing is shielded yet and no fee is taken.</li>
+    <li><strong>Screening.</strong> Once a day the screeners agree on a batch: every deposit made before the day's first block, and which of them are refused. A batch needs two thirds of the active screeners.</li>
+    <li><strong>Activation.</strong> When your deposit is covered, not refused and at least 7,200 blocks old, you activate it from the same address. The pool takes the 0.2% entry fee and adds your note to the tree. From deposit to activation takes one to two days.</li>
+    <li><strong>Refund.</strong> At any time before activation you can take the deposit back in full, to the address it came from. Nobody else can touch it, and no screening decision can stop it.</li>
+    <li><strong>Private use.</strong> An activated note is an ordinary shielded note. You can hold it, split it and pay other users. Observers see that a transaction happened and nothing about who, how much or which asset.</li>
+    <li><strong>Relaying.</strong> Your wallet hands the encrypted transaction to a relayer picked at random, so your own address never pays the gas. The relayer is paid with a shielded note inside the same proof.</li>
+    <li><strong>Withdrawal.</strong> Funds leave to any address in standard sizes. The recipient receives the size minus 0.2%, the same amount for everyone who withdraws that size. A larger amount leaves as several standard withdrawals, spread over time by the wallet.</li>
   </ol>
 </section>
 
@@ -208,65 +233,73 @@ sequenceDiagram
     <tr><td>Notes against a future quantum computer</td><td>No notes on-chain</td><td>Elliptic-curve encryption</td><td>Elliptic-curve encryption</td><td>Hybrid with ML-KEM</td></tr>
     <tr><td>Protocol fee</td><td>None</td><td>0.25% in and 0.25% out</td><td>None now; settable up to 99.99%</td><td>0.2% in and 0.2% out, fixed forever</td></tr>
     <tr><td>Crowd today</td><td>About $780M</td><td>$106M, about 390 transactions a day</td><td>$0.65M, 583 deposits</td><td>None. Starts at zero</td></tr>
-    <tr><td>Time in production</td><td>Since 2019</td><td>Since 2021</td><td>Since October 2026</td><td>None. New circuits</td></tr>
+    <tr><td>Time in production</td><td>Since 2019</td><td>Since 2021</td><td>Since October 2026</td><td>None. New circuit</td></tr>
   </table></div>
   <p>The first seven rows are design. The last two decide how private a user is in practice, and on those the pool is behind on launch day by a wide margin. It becomes better than the others only if it gets used.</p>
   <h4>Design</h4>
+  <p>This table is the summary. The <a href="#build">build specification</a> has the detail, and the <a href="#review">review</a> explains each change from the first version 4.</p>
   <div class="tbl"><table>
     <tr><th>Element</th><th>Choice</th><th>Why</th></tr>
-    <tr><td>Notes</td><td><code>Poseidon(asset, value, owner, randomness, indexAtCreation)</code>, one append-only tree for all assets</td><td>Small assets hide in the same set as large ones. The last field is what rewards and the minimum age are computed from</td></tr>
-    <tr><td>Circuits</td><td>Three: deposit, a two-in two-out transfer, and withdraw. Groth16, each sized to prove on a mid-range phone in a few seconds</td><td>Every circuit is permanent. Fewer and smaller circuits are easier to audit and to verify formally</td></tr>
-    <tr><td>Screening</td><td>A deposit carries a public label. Its first spend must prove the label is in an accepted screening root that is at least 7,200 blocks newer than the deposit. Later notes carry no label</td><td>Screeners get about a day to exclude stolen funds, and quick in-and-out use is impossible. Screening at entry avoids carrying labels through every private transfer</td></tr>
-    <tr><td>Ragequit</td><td>The original depositor can always withdraw an unspent deposit publicly to the depositing address</td><td>Screening failure or capture can never trap funds</td></tr>
-    <tr><td>Root acceptance</td><td>A root is accepted with signatures from two thirds of registered screeners. A screener holds an IMD seat and stakes tokens. If no root is accepted for seven days, a fallback rule approves any deposit whose sender is not on the sanctions oracle</td><td>No single curator, and the pool keeps working if screeners disappear. Capturing two thirds of screeners lets a bad deposit through. It never moves anyone's funds</td></tr>
-    <tr><td>Exits</td><td>Public withdrawals only in a 1, 2, 5 series per asset (0.1, 0.2, 0.5, 1, 2, 5, 10 ETH and so on)</td><td>Removes amount matching at the edge, the signal automated analysis relies on most</td></tr>
-    <tr><td>Note encryption</td><td>Hybrid X25519 and ML-KEM-768. About 1.1 KB more per output note, roughly 70,000 gas each at the Glamsterdam calldata floor</td><td>Ciphertexts are public forever. This is the part of the quantum threat that cannot be fixed later</td></tr>
+    <tr><td>Notes</td><td>A commitment to asset, value, reward accrued, the reward index at creation, and a hidden owner. One append-only tree for all assets, one leaf per transaction</td><td>Small assets hide in the same set as large ones. One leaf per transaction keeps the tree code as simple as Tornado Cash's</td></tr>
+    <tr><td>Circuit</td><td>One, called Spend: two notes in, three notes and a reward note out, and an optional public amount. Groth16, about 22,000 constraints by estimate</td><td>Every circuit is permanent. One circuit means one ceremony, one audit target, and one proof that covers transfers and withdrawals alike</td></tr>
+    <tr><td>Deposits</td><td>No proof. The pool computes the commitment from the public amount and the depositor's hidden owner commitment</td><td>A deposit is public anyway. A circuit for it proved nothing the contract could not compute</td></tr>
+    <tr><td>Screening</td><td>A deposit can be activated once a screening batch covers it without refusing it and it is at least 7,200 blocks old. Later notes carry no label</td><td>Screeners get one to two days to refuse stolen funds, and quick in-and-out use is impossible. Screening at entry avoids carrying labels through every private transfer</td></tr>
+    <tr><td>Refund</td><td>The depositor can take back an unactivated deposit at any time, to the depositing address, in full</td><td>Screening failure or capture can never trap funds</td></tr>
+    <tr><td>Batch acceptance</td><td>Two thirds of the active screeners, by commit and reveal, with at least seven active. A screener holds an IMD seat and stakes tokens. With no accepted batch, new deposits wait or are refunded. There is no fallback rule</td><td>No single curator. Capturing two thirds lets a bad deposit through and never moves anyone's funds. One third can delay deposits and cannot switch screening off</td></tr>
+    <tr><td>Exits</td><td>Public withdrawals only in a 1, 2, 5 series per asset, from 0.001 to 1,000 ETH and from 1 to 1,000,000 units of a stablecoin. Every exit of a size pays out the same amount</td><td>Removes exact amount matching at the edge. It does not hide a total sent to one address</td></tr>
+    <tr><td>Note encryption</td><td>HPKE over X-Wing, the hybrid of X25519 and ML-KEM-768. 1,312 bytes of ciphertext per spend</td><td>Ciphertexts are public forever. This is the part of the quantum threat that cannot be fixed later</td></tr>
     <tr><td>Proof system</td><td>Groth16 on BN254 with a new public ceremony. It is not quantum-safe</td><td>Quantum-safe proofs cost too much to verify on Ethereum today. The deposit window below limits the exposure</td></tr>
-    <tr><td>Deposit window</td><td>Deposits stop at a block fixed at deployment, about four years out. Withdrawals never stop</td><td>Funds move to a successor pool without any key, before proof forgery becomes realistic</td></tr>
-    <tr><td>Per-asset limits</td><td>Each asset has its own counter: withdrawals cannot exceed deposits plus rewards released so far</td><td>A bug in one asset's accounting, or in the reward logic, cannot drain another asset</td></tr>
-    <tr><td>Caps</td><td>A per-asset ceiling that starts very low, about 25 ETH and the equivalent in each other asset, and doubles every 90 days, in code</td><td>Limits loss while the circuits are young, with no admin to raise it</td></tr>
-    <tr><td>Assets</td><td>A list fixed at deployment: ETH and a few major tokens. A freezable stablecoin can be listed; an issuer freeze traps only that asset</td><td>An immutable pool cannot add assets later. New ones wait for the successor</td></tr>
-    <tr><td>Relaying</td><td>Permissionless, with the relayer's fee bound into the proof. Seat broadcasters serve it with the wallet policy described under the node and the wallet</td><td>Frame transactions could remove the relayer, but the specification is not frozen. That is for the successor pool</td></tr>
-    <tr><td>Deployment</td><td>Through the deterministic deployment proxy at <code>0x4e59…956C</code>, by anyone, from a reproducible build. Every contract under 24 KiB</td><td>No deployer privilege exists, so it does not matter who sends the transaction</td></tr>
+    <tr><td>Deposit window</td><td>Deposits stop at a block fixed at deployment, about four years out. Activation, refunds and withdrawals never stop</td><td>New money goes to a successor pool before proof forgery becomes realistic. Funds left inside after that stay exposed, and the wallet says so</td></tr>
+    <tr><td>Per-asset limits</td><td>Each asset has its own balance. A spend cannot take out more of an asset than was activated into it, or more of the reward token than was activated plus rewards released</td><td>A fault in one asset or in the reward logic cannot drain another asset. A flaw in the circuit reaches every asset at once, so the exposure is the cap times the number of assets</td></tr>
+    <tr><td>Caps</td><td>A per-asset ceiling on activated value: about 25 ETH and the equivalent in each stablecoin, doubling every 90 days in code. Recommended: stop at 800 ETH</td><td>Limits loss while the circuit is young, with no admin to raise it. Unactivated deposits are outside the cap because no proof can reach them</td></tr>
+    <tr><td>Assets</td><td>A list fixed at deployment. Recommended: ETH, USDC, DAI and the pool's own token. A freezable stablecoin can be listed; an issuer freeze traps only that asset</td><td>An immutable pool cannot add assets later. Tokens that charge on transfer or rebase are excluded</td></tr>
+    <tr><td>Relaying</td><td>Permissionless. The relayer's fee is a shielded note created by the same proof. Seat broadcasters serve it with the wallet policy described under the node and the wallet</td><td>A public fee would reveal the asset of a private transfer and mark each withdrawal with the fee quoted</td></tr>
+    <tr><td>Deployment</td><td>Through the deterministic deployment proxy at <code>0x4e59…956C</code> and a one-time deployer, by anyone, from a reproducible build. Every contract under 24 KiB</td><td>No deployer privilege exists, so it does not matter who sends the transactions</td></tr>
   </table></div>
   <h4>Assurance without an external audit</h4>
   <p>The owner's decision is to rely on IMD and see whether the swarm can secure what it builds. Wallets, L2BEAT and exchanges look for a named firm's report, so adoption will be slower without one. Four measures make the test fair and keep a failure small.</p>
   <ul>
-    <li><strong>IMD audit panels on everything.</strong> Every contract and circuit goes through IMD's audit template, with each finding and its fix public. Reviewers built on the same models as the builders tend to share blind spots, which is why the next three measures do not depend on reviewers.</li>
-    <li><strong>Machine-checked proofs.</strong> The swarm writes formal proofs that the transfer circuit cannot create value or spend a note twice, and anyone can re-run the proof checker. A checked proof holds whoever wrote it. Open-source analysers for under-constrained circuits are run in public as well.</li>
-    <li><strong>A canary.</strong> The same bytecode is deployed on mainnet 90 days before launch and holds at least 10 ETH, deposited as an ordinary user would. Anyone who can break the circuits can take it. No judge is needed, and funds that survive are withdrawn normally.</li>
-    <li><strong>Very low caps.</strong> The pool opens at about 25 ETH per asset and doubles every 90 days, reaching about 6,400 ETH after two years. The most that can be lost at any time is the current cap.</li>
+    <li><strong>IMD audit panels on everything.</strong> Every contract and the circuit go through IMD's audit jobs, with each finding and its fix public. Reviewers built on the same models as the builders tend to share blind spots, which is why the next three measures do not depend on reviewers.</li>
+    <li><strong>Machine-checked proofs.</strong> The swarm writes formal proofs of the five properties listed under <a href="#b-circuit">the circuit</a>: no value created, no note spent twice, no reward created, nothing left unconstrained, no wrap-around. Anyone can re-run the checker. A checked proof holds whoever wrote it, as long as the statement it proves is the right one, so each statement is also published in plain words for review. Open-source analysers for under-constrained circuits are run in public as well.</li>
+    <li><strong>A canary.</strong> The whole system is deployed on mainnet 90 days before launch with a compressed clock, funded with at least 10 ETH, and exercised by a published script. It is a rehearsal and a standing reward for anyone who can break it. It does not prove the circuit sound: someone who finds a flaw can wait for the larger pool.</li>
+    <li><strong>Low caps.</strong> The pool opens at about 25 ETH per asset and doubles every 90 days. With three capped assets the most that can be lost is about $160,000 at launch and about $5.1M at the recommended stop of 800 ETH. Without a stop the same schedule reaches about $41M after two years.</li>
   </ul>
   <p>Nothing in the research shows that IMD has audited a zero-knowledge circuit before. This launch is that test.</p>
-  <p>Planning figure for gas: a transfer should cost about what a Railgun spend does, 1.17M gas or roughly $0.50 at 0.2 gwei, plus the larger ciphertexts. This is a reference, not a measurement.</p>
-
-  </section>
+</section>
 
 <section id="screening">
   <h2>Screening</h2>
-  <p>A screening set is the output of a deterministic program. Its inputs are a published criteria file, public chain data at a named block, and list files pinned by hash. Any node can run it, and any two honest nodes get the same root. Screeners sign that root, and the pool accepts it when two thirds of registered screeners have signed.</p>
-<pre><code>// Output of the deterministic screener, signed by each attesting node's opKey (EIP-712)
-SetAttestation {
+  <p>A screening batch is the output of a deterministic program. Its inputs are a published criteria file, public chain data at a named block, list files pinned by hash, and flags that screeners have posted on-chain. Any node can run it, and any two honest nodes get the same batch. Each screener commits to a hash of its batch and reveals it later the same day, and the registry accepts a batch when two thirds of the active screeners have revealed the same one.</p>
+<pre><code>// What screeners agree on, once per 7,200-block epoch. Computed from chain data at the epoch's first block.
+Batch {
+  uint32  epoch;
   bytes32 criteriaHash;   // keccak256 of the criteria file below
-  uint256 scope;          // the pool's scope value (Privacy Pools) or a pool identifier
-  uint64  atBlock;        // finalized block the chain data was read at
-  uint256 root;           // LeanIMT Poseidon root over approved labels, same format the pool's circuit expects
-  bytes32 dataCid;        // IPFS file: approved labels, excluded labels, and the rule that excluded each
+  uint64  upTo;           // highest deposit id made before the epoch's first block
+  Word[]  words;          // refusal bitmap, 256 deposits per word, for each word that differs from what is on-chain
+  bytes32 dataCid;        // IPFS file: every refused deposit and the rule that refused it
 }</code></pre>
-<pre><code>{ "name": "sanctions-plus-two-hops", "version": 1,
-  "lists": [ { "name": "chainalysis-sanctions-oracle", "source": "eth_call:0x40C57923924B5c5c5455c48D93317139ADDaC8fb@atBlock" },
+<pre><code>{ "name": "sanctions-flags-and-hops", "version": 2,
+  "lists": [ { "name": "chainalysis-sanctions-oracle", "source": "eth_call:0x40C57923924B5c5c5455c48D93317139ADDaC8fb@epochStart" },
              { "name": "ofac-sdn", "source": "ipfs://…", "sha256": "…" } ],
+  "flags": { "source": "ScreenerRegistry.Flag events before epochStart", "quorum": 3 },
   "rules": [ { "deny": "listed(depositor)" },
+             { "deny": "flagged(depositor) || flagged(anyAddressWithin(depositor, 2 hops, 7d))" },
              { "deny": "hopsFromListed(depositor) &lt;= 2 && age(deposit) &lt; 7d" },
+             { "hold": "amount(deposit) &gt; 10 ETH-equivalent && firstFunded(depositor) &lt; 72h", "epochs": 3 },
              { "allow": "default" } ] }</code></pre>
   <ul>
-    <li><strong>Who screens.</strong> Anyone who holds an IMD seat and stakes the token can register. There is no curator and no allowlist.</li>
-    <li><strong>What it decides.</strong> Whether a deposit may be spent privately. It never decides whether the depositor keeps the money: a refused deposit goes back to its sender.</li>
-    <li><strong>When.</strong> At entry, with about a day for screeners to exclude stolen funds. After its first spend a note carries no label, so later private transfers need no screening proof.</li>
-    <li><strong>How screeners are paid.</strong> 40% of the pool's fee and 15% of the token, split by days of agreement with the accepted root. Never per withdrawal, because that would reward approving more.</li>
-    <li><strong>If screeners disappear.</strong> After seven days without an accepted root, a fallback rule approves any deposit whose sender is not on the sanctions oracle.</li>
-    <li><strong>If screeners are bought.</strong> Two thirds of them could approve a bad deposit. They could not move funds, and anyone can recompute the root and see what they did.</li>
+    <li><strong>Who screens.</strong> Anyone who holds an IMD seat and stakes the token can register, and counts from 30 days later. There is no curator and no allowlist.</li>
+    <li><strong>What it decides.</strong> Whether a deposit may be activated. It never decides whether the depositor keeps the money: a deposit can be refunded to its sender at any time before activation.</li>
+    <li><strong>When.</strong> At entry, with one to two days for screeners to refuse stolen funds. A refusal can be added or lifted until the moment of activation. After activation a note carries no label, so private transfers need no screening proof.</li>
+    <li><strong>How fresh information gets in.</strong> A list cannot know about a theft from this morning. A screener can post a flag on-chain against an address, and the published rule refuses deposits that enough screeners have flagged. The judgement is the screener's. The rule that turns flags into refusals is fixed and public, so the batch stays recomputable.</li>
+    <li><strong>Changing the criteria.</strong> Lists go stale, so criteria files are versioned. Nodes adopt a new file when two thirds of active screeners have signalled its hash on-chain before the epoch starts. Nobody coordinates this: it is a rule in the node software, and the registry sees only batch hashes.</li>
+    <li><strong>How screeners are paid.</strong> 40% of the pool's fee and 15% of the token, split equally among the screeners who revealed the accepted batch that day. Never per withdrawal, because that would reward approving more. Commit and reveal means a screener cannot copy another's answer.</li>
+    <li><strong>If screeners disappear.</strong> A screener that stops revealing is dropped from the count after seven days. If fewer than seven remain, or no batch reaches two thirds, new deposits wait or are refunded. Everything already in the pool keeps working.</li>
+    <li><strong>If screeners are bought.</strong> Two thirds of them could approve a bad deposit that is at least a day old. They could not move funds, and anyone can recompute the batch and see what they did. One third could delay new deposits for as long as they keep it up.</li>
   </ul>
+  <div class="callout warn">
+    <p><strong>What screening at entry does not do.</strong> It stops funds that a list or a flag identifies before the deposit is activated. Stolen funds that nobody has identified within one to two days enter and cannot be removed afterwards. Railgun's check has the same limit with a one-hour wait. Privacy Pools can still exclude a deposit until it is withdrawn, and is stronger on this point. The criteria are public, so a careful thief can test a deposit against them in advance. And the registry is as independent as the seats are: one holder with many seats is many screeners.</p>
+  </div>
   <h3>Why screen at all</h3>
   <p>A pool that accepts every deposit is possible. Tornado Cash is one, and what happened to it is the reason this pool does not copy it.</p>
   <ul>
@@ -277,8 +310,8 @@ SetAttestation {
     <li><strong>Wallets are less likely to offer it otherwise.</strong> People reach a pool through a wallet app, and the launch gate requires one with real users. Wallet teams carry their own legal and app-store exposure, and the wallets that offer privacy today, Railway and Ambire, chose a screened pool. This is not absolute: the Ethereum Foundation's Kohaku kit has a Tornado Cash plugin in alpha.</li>
     <li><strong>There would be no reason to exist.</strong> An unscreened immutable pool already exists and holds about $780M. A new one would be the same thing with no crowd.</li>
   </ul>
-  <p>Screening does not weaken an honest user's privacy. It looks only at the deposit, which is public in any pool, and after approval nothing connects the deposit to what happens inside. What it costs is a wait of about a day, and the fact that funds not yet reported as stolen can still pass.</p>
-  <p>Before the pool exists, the same screening sets serve as a second opinion on Privacy Pools v1 withdrawals. The user makes a side proof with Privacy Pools' own circuit, and anyone checks it against the verifier contract already deployed there. That is how screeners build a public record first.</p>
+  <p>Screening does not weaken an honest user's privacy. It looks only at the deposit, which is public in any pool, and after activation nothing connects the deposit to what happens inside. What it costs is a wait of one to two days.</p>
+  <p>Before the pool exists, the same screening program serves as a second opinion on Privacy Pools v1 withdrawals. The user makes a side proof with Privacy Pools' own circuit, and anyone checks it against the verifier contract already deployed there. That is how screeners build a public record first.</p>
 </section>
 
 <section id="token">
@@ -287,10 +320,10 @@ SetAttestation {
   <h3>The fee</h3>
   <ul>
     <li>0.2% on the way in and 0.2% on the way out, taken in the asset itself. Together that is 0.4%, against Railgun's 0.5%. Transfers inside the pool are free.</li>
-    <li>The entry fee is taken when a deposit is approved and first spent, so a refused deposit is returned in full.</li>
+    <li>The entry fee is taken when a deposit is activated, so a refunded deposit is returned in full.</li>
     <li>The rate and the destination are fixed in code. Nobody can raise, lower or redirect it.</li>
-    <li>It goes to an immutable distributor: 40% to token stakers in proportion to stake, 40% split equally among the screeners whose signatures are on that day's accepted root, and 20% into the token's own liquidity for good.</li>
-    <li>Screeners are paid per day of agreement with the accepted root, never per withdrawal. Paying per use would reward approving more.</li>
+    <li>It goes to an immutable distributor: 40% to token stakers in proportion to stake, 40% split equally among the screeners who revealed that day's accepted batch, and 20% into the token's own liquidity for good.</li>
+    <li>Stakers are paid in the asset the fee was taken in, evenly over the seven days after each sweep, so staking for one block around a sweep earns nothing extra.</li>
   </ul>
   <h3>The token</h3>
   <div class="tbl"><table>
@@ -299,41 +332,552 @@ SetAttestation {
     <tr><td>Serve as the stake a screener posts, alongside an IMD seat</td><td>Gate use of the pool. Users pay fees in the asset they withdraw</td></tr>
     <tr><td>Reward users for time spent shielded</td><td>Reward the act of depositing, or act as a relayer bond</td></tr>
   </table></div>
-  <p>Supply is fixed and minted once at deployment. The token contract has no mint function and no owner. There is no treasury and no multisig. No tokens are sold directly. 25% is placed in a public pool, which is a sale in substance and is treated as one below.</p>
+  <p>Supply is fixed and created once at deployment. The token contract has no mint function and no owner. There is no treasury and no multisig. No tokens are sold directly. 25% is placed in a public pool, which is a sale in substance and is treated as one below.</p>
   <div class="tbl"><table>
     <tr><th>Share</th><th>To</th><th>How</th></tr>
-    <tr><td class="n">45%</td><td>Users</td><td>Private rewards for shielded time, over two years, released in step with the caps</td></tr>
+    <tr><td class="n">45%</td><td>Users</td><td>Private rewards for shielded time, over two years, released in step with the caps. Whatever an under-used pool does not release stays locked for good</td></tr>
     <tr><td class="n">25%</td><td>Public pool</td><td>One-sided liquidity paired with IMD, placed at launch. The position is locked for good</td></tr>
-    <tr><td class="n">15%</td><td>Screeners</td><td>Per accepted root, over two years</td></tr>
-    <tr><td class="n">10%</td><td>The swarm</td><td>Builders and auditors, from a list fixed at deployment and computed from public job records, locked for up to one year</td></tr>
+    <tr><td class="n">15%</td><td>Screeners</td><td>Per accepted batch, over two years. A day with no accepted batch pays nobody and its share stays locked</td></tr>
+    <tr><td class="n">10%</td><td>The swarm</td><td>Builders and auditors, from a list fixed at deployment and computed from public job records by a rule published before the work starts. Version 4 said "locked for up to one year"; a two-year linear vest is recommended</td></tr>
     <tr><td class="n">5%</td><td>Founder</td><td>One pseudonymous address fixed at deployment, vested over two years with nothing in the first month</td></tr>
   </table></div>
   <h3>The public pool</h3>
   <ul>
-    <li>At launch the distribution contract places 25% of supply as one-sided liquidity in a Uniswap pool against IMD. Buyers bring IMD and the price rises as they buy. There is no ETH pair.</li>
-    <li>The range starts at a valuation of 48,000 IMD for the whole supply, about $127,000 with IMD at $2.64, and extends far above it so the pool never runs out of tokens to buy. Once half of the 25% has been bought, the pool holds about 12,000 IMD and the price is four times the start. These figures are arithmetic for a standard range position. They have not been tested, and the dollar values move with IMD.</li>
-    <li>A one-sided pool starts with no IMD in it, so sellers can only sell into what buyers have paid. To deepen it, 20% of every fee the privacy pool collects goes into this market for good. Once a day the distributor sells that share for IMD in a descending-price auction open to anyone, then adds the IMD as buy-side liquidity that can never be withdrawn. No price feed and no key is involved.</li>
-    <li>That mechanism is more logic in contracts that can never be patched. It is kept to those two steps, and it is covered by the same proofs and canary as the rest.</li>
-    <li>The liquidity position is held by the contract and can never be withdrawn. Trading fees it earns go to the fee distributor, not to any wallet.</li>
+    <li>At launch the distribution contract places 25% of supply as one-sided liquidity in a Uniswap v3 pool against IMD, at the 1% fee tier. Buyers bring IMD and the price rises as they buy. There is no ETH pair.</li>
+    <li>The range starts at a valuation of 48,000 IMD for the whole supply, about $127,000 with IMD at $2.64, and runs upward without a practical limit so the pool never runs out of tokens to buy. With a share <em>f</em> of the pool's tokens bought, the pool holds 12,000 × <em>f</em> / (1 − <em>f</em>) IMD and the price is the start divided by (1 − <em>f</em>)². At half bought that is 12,000 IMD and four times the start. The <a href="#sim">simulation</a> tabulates it.</li>
+    <li>A one-sided pool starts with no IMD in it, so sellers can only sell into what buyers have paid, and below the starting price there are no bids at all.</li>
+    <li>The token's address is known before it exists, and anyone can create a Uniswap pool for it and set a price first. The launch code handles a pool that already exists and brings a wrong price back to the start before placing the position.</li>
+    <li>The liquidity position is held by the distribution contract, which has no code path that withdraws it. The trading fees it earns are collected by anyone: the IMD part joins the buyback below and the token part is burned.</li>
+    <li>IMD's launch factory was checked and is not used. It can issue a token with no owner and no mint, and its trading fee can go to a contract. But only IMD's own key can call it, it always gives 10% of supply to seat holders, and it would hold the position itself.</li>
     <li>It is a market and a tie to IMD. It raises no money for the project: what buyers pay stays in the pool.</li>
-    <li>It is priced in IMD, a thin and volatile token (about $1.27M in its main pool, and an 18% move in two days this week). If IMD fails, this liquidity fails with it.</li>
-    <li>IMD's launch factory could do the same in one request and pays 1% of every trade to the launching wallet. It is used only if it can issue a token with no owner and no mint function and send that fee to the distributor. Neither has been checked.</li>
+    <li>It is priced in IMD, a thin and volatile token (about $1.14M in its main pool, which is not locked, and an 18% move in two days this week). IMD's owner key can mint IMD through its bridge settings. If IMD fails or is inflated, this liquidity fails with it.</li>
   </ul>
+  <h3>The 20%: auction and buyback</h3>
+  <ol>
+    <li>The distributor keeps 20% of every fee receipt in a basket of the pool's assets. For fees paid in the pool's own token, the 20% is burned directly.</li>
+    <li>One continuous descending-price auction sells the whole basket for IMD. The price falls in a straight line from a starting price to a floor over one day and waits at the floor. Whoever accepts the price first pays it in IMD and takes the assets they name. The next starting price is twice the price just paid. The starting price of the very first sale and the floor are fixed at deployment.</li>
+    <li>The IMD is spent buying the token from the locked pool in small steps, at most one every 25 blocks, and the bought tokens are burned. Because the position can never be withdrawn and the bought tokens no longer exist, that IMD stays in the pool as bids for good.</li>
+    <li>Each step is at most half of the pool's fee rate times its IMD reserves. Below the full product a sandwich costs more in fees than it gains, so the limit leaves a margin of two.</li>
+  </ol>
+  <p>Version 4 added the IMD as one-sided liquidity at the current price, which the buyer of the auction could set and then sell into. The buyback reaches the same end without that opening. No price feed and no key is involved in any step.</p>
   <h3>How private rewards work</h3>
   <ol>
-    <li>For each asset the pool keeps one public number, a reward index, which grows every day by that day's emission divided by the total amount shielded.</li>
-    <li>A note records, hidden inside its commitment, the index value on the day it was created. The proof that creates the note shows this value matches the public one.</li>
-    <li>When the note is spent, the same proof shows what it earned: its value multiplied by how far the index has moved. The pool adds the reward as a new shielded note for the same owner.</li>
-    <li>Nobody sees the amount, the age or the owner, and there is no separate claim to observe. Tornado's reward scheme leaked deposit age at exactly that step.</li>
+    <li>The pool keeps one public number, a reward index, which grows every block by that block's emission divided by the weighted total shielded. Each asset's weight is fixed at deployment, because an immutable pool has no price oracle. The divisor never falls below a quarter of what the pool can hold, so a nearly empty pool cannot pay a huge rate.</li>
+    <li>A note records, hidden inside its commitment, the index value when it was created. For a deposit the pool writes the exact value at activation. For notes made by a spend, the proof uses a checkpoint taken every 300 blocks.</li>
+    <li>When the note is spent, the proof computes what it earned: its value times its asset's weight times how far the index has moved. The amount is carried into the new notes as a hidden field.</li>
+    <li>When the owner wants the tokens, any spend can turn the carried amount into a token note. Every spend has that output slot whether it is used or not, so nobody can tell a claim from a payment. Tornado's reward scheme leaked deposit age at exactly that step.</li>
   </ol>
-  <p>A reward follows value multiplied by time, so splitting a deposit gains nothing. Each asset's share of emissions is fixed at deployment, because an immutable pool has no price oracle. The token has its own withdrawal limit inside the pool, so a mistake in the reward logic can at worst drain the reward budget and never another asset.</p>
-  <p>Rewards exist to gather a first crowd and to spread the token to real users. They do not keep users. The evidence is that people who come for yield leave when it ends, so the product has to earn the rest. Emissions run two years and grow in step with the caps. Otherwise most of the users' share would go to whoever filled a 25 ETH pool in its first months.</p>
+  <p>A reward follows value multiplied by time, so splitting a deposit gains nothing. Checkpoints always round against the spender, so the total paid can never exceed the emission. The token has its own withdrawal limit inside the pool, so a mistake in the reward logic can at worst drain the reward budget released so far and never another asset.</p>
+  <p>Rewards exist to gather a first crowd and to spread the token to real users. They do not keep users. The evidence is that people who come for yield leave when it ends, so the product has to earn the rest. Emissions run two years and grow in step with the caps. Otherwise most of the users' share would go to whoever filled a 25 ETH pool in its first months. At the starting valuation the reward is small: about 0.6% a year on a full pool, and four times that on a pool a quarter full or less.</p>
   <h3>What this changes</h3>
   <div class="callout warn">
-    <p><strong>Legal position.</strong> A fee and a token make the project look like a business to financial-crime and securities enforcement. In the Tornado Cash and Samourai prosecutions, the money the developers made was part of the case. Railgun and 0xbow charge fees and have not been charged; both pair the fee with real screening. This design pairs it with screening enforced by the contract and sends no fee to a team address. It does offer 25% of the token to the public through a pool, and offering tokens to the public is the step regulators target most directly. Those choices reduce the exposure. They do not remove it.</p>
-    <p><strong>Founder allocation and pseudonymity.</strong> The founder's 5% sits at a public address for two years, and that address is the first thing anyone will trace. Using a fresh wallet does not make its owner anonymous: how it is funded and where its tokens are eventually sold can both be followed. The review recommended choosing one of two options, pseudonymity with no special allocation or an allocation held openly. The owner chose a pseudonymous allocation. It is recorded here as a decision, not as a recommendation, and it should be put to a lawyer before any deployment.</p>
+    <p><strong>Legal position.</strong> A fee and a token make the project look like a business to financial-crime and securities enforcement. In the Tornado Cash and Samourai prosecutions, the money the developers made was part of the case. Railgun and 0xbow charge fees and have not been charged; both pair the fee with real screening. This design pairs it with screening enforced by the contract and sends no fee to a team address. It does offer 25% of the token to the public through a pool, and offering tokens to the public is the step regulators target most directly. Stakers receive a share of fees, which is the feature securities law looks at first. Those choices reduce the exposure in some places and add to it in others. They do not remove it.</p>
+    <p><strong>Founder allocation and pseudonymity.</strong> The founder's 5% sits at a public address for two years. The review recommended choosing one of two options, pseudonymity with no special allocation or an allocation held openly. The owner chose a pseudonymous allocation. It is recorded here as a decision, not as a recommendation, and it should be put to a lawyer before any deployment.</p>
+    <p><strong>This is not legal advice.</strong> A lawyer reviews the fee, the token, the public pool and the founder allocation before launch, and before the canary, which places a token pool of its own.</p>
   </div>
-  <p>Cost. Three more small contracts (token, distributor with staking, vesting and builder distribution) go through the same IMD review, proofs and canary as the pool. A token is worth little until the pool has volume: Railgun's 0.25% brings in about $312,000 a month at $106M, and a pool the size of Privacy Pools v2 would bring in a few thousand.</p>
+  <p>Cost. The token contracts go through the same IMD review, proofs and canary as the pool. A token is worth little until the pool has volume: Railgun's 0.25% brings in about $312,000 a month at $106M, and the caps hold this pool's fee income under about $400 a month for its first 90 days (see the <a href="#sim">simulation</a>).</p>
+</section>
+
+<section id="review">
+  <h2>Review of the new parts</h2>
+  <p>The pool, the token contracts, the fee auction and the screening registry were designed in one session and had not been reviewed. This pass asked the same three questions of each as the earlier review did of the services: the weakest assumption, the most likely failure, and what was built beyond the guarantee it bought. It was done by the same author who then changed the design, so the changes are themselves unreviewed until the review jobs in the <a href="#plan">build plan</a> have run. Every finding below is either fixed in the <a href="#build">build specification</a> or listed for the owner in <a href="#decisions">Defaults to confirm</a>.</p>
+  <div class="tbl"><table class="wide">
+    <tr><th>Part</th><th>Weakest assumption</th><th>Most likely failure</th><th>Overbuilt</th></tr>
+    <tr><td><strong>The pool</strong></td><td>That a reward index updated once a day, one per asset, can be used inside a private proof. A proof cannot name a number that moves, a per-asset number tells observers which asset a private transfer moved, and a daily step pays a note created at 23:59 for the whole day.</td><td>The pool sits full. Refunds are free and version 4 never said where the cap is counted, so one address can hold a 25 ETH cap for nothing. Once caps bind, whoever fills each doubling first collects the rewards and ordinary users cannot get in.</td><td>Two of the three circuits. The deposit circuit proved a hash the contract can compute itself. The transfer and withdraw circuits were one statement with a single number made public. A screening-root proof inside the circuit, when the deposit and its approval are both public.</td></tr>
+    <tr><td><strong>Token contracts</strong></td><td>That the launch transaction is the first to touch the token's market. The token's address is known before deployment, and anyone can create and price a Uniswap pool for an address that has no code yet.</td><td>Unlocks meet no bids. Three quarters of supply unlocks over two years and the only exit liquidity is the IMD that buyers have paid in. With half the pool bought, 12,000 IMD is all that sellers can ever take out together.</td><td>The screener stake as a security measure. Nothing can slash it, so it is a refundable deposit, and at the starting valuation the whole supply is worth about $127,000. The seat is the real cost of a screener identity.</td></tr>
+    <tr><td><strong>Fee auction</strong></td><td>That liquidity can be added one-sided at "the current price". The buyer who settles the auction sets the current price in the same transaction.</td><td>The 20% is taken by whoever settles. They push the price up with borrowed IMD, the contract places its IMD as bids under the inflated price, and they sell into those bids before the transaction ends.</td><td>One auction per asset per day, each with its own start price and no reference for the first one. A single continuous auction for the whole basket does the same job with one state variable.</td></tr>
+    <tr><td><strong>Screening registry</strong></td><td>That two thirds of screeners must be bought to defeat screening. Under the fallback rule one third is enough: they withhold their signatures for seven days and the pool then accepts every deposit that is not on a sanctions list.</td><td>Screeners copy the first root they see. Pay depends on agreeing with the accepted root, computing it costs an archive-grade data source, and copying it costs nothing. A two-thirds threshold over copies measures one node.</td><td>Aggregated signatures chosen by whoever submits the root, who can leave rivals out and raise their own share. A Poseidon tree of approved labels in "the format the circuit expects", when no circuit needs to read it.</td></tr>
+  </table></div>
+
+  <h3>The questions this review had to answer</h3>
+  <div class="svc">
+    <h4>Can a thief get a deposit approved, spend once, and be untouchable?</h4>
+    <p>Yes, if nothing public marks the funds as stolen before the deposit matures. Version 4 gave screeners "about a day" and a deterministic program over pinned lists. A fresh theft is on no list after a day: sanctions designations take weeks. The criteria are public, so the thief can run the screener before depositing and add hops until it passes. After the first spend nothing can be undone.</p>
+    <p>This is the same guarantee Railgun's one-hour check gives, with a longer wait. It is weaker than Privacy Pools, where a deposit can be removed from the approved set until it is withdrawn. Version 4 was unclear on one point that made it worse: it accepted any past root, so a deposit approved once stayed spendable after a later root dropped it.</p>
+    <p>What the build specification does about it. Screeners can post flags on-chain, and the published rule turns flags into refusals, so a human or an agent who learns of a theft has a way to act inside a deterministic system. A refusal applies until the moment of activation, and only the current screening state counts. The criteria can hold large or freshly funded deposits longer than the one-day floor without any contract change. What remains is stated plainly in the risks: screening at entry stops funds that are identifiable in time, and nothing else.</p>
+  </div>
+  <div class="svc">
+    <h4>Can someone stall screeners for seven days to trigger the fallback?</h4>
+    <p>Yes, and it is the cheapest attack in version 4. The threshold was two thirds of registered screeners, so anyone holding more than one third blocks every root by doing nothing. With 15 honest screeners that is 8 seats: about 5.6 ETH of capital that can be resold afterwards, plus 8 stakes that are returned. After seven days the fallback approves any deposit whose sender is not on the sanctions oracle, which is every thief who is not already sanctioned. The same thing happens without an attacker if a third of registered screeners simply stop.</p>
+    <p>The fallback also tied a contract that can never change to the Chainalysis oracle, a contract whose owner can change or retire it.</p>
+    <p>The build specification removes the fallback. If no batch is accepted, new deposits wait or go back to their senders, and everything already in the pool keeps working. A third of screeners can still stop new deposits, which is a nuisance and earns them nothing. They can no longer switch screening off. Screeners that stop taking part are dropped from the count after seven days, so the pool recovers from ordinary attrition by itself. This changes an unconfirmed default and is listed for the owner.</p>
+  </div>
+  <div class="svc">
+    <h4>The reward index</h4>
+    <ul>
+      <li><strong>It could pay out more than the budget.</strong> With a daily step, a note created just before the update and spent just after earns a full day for a few minutes inside. Value that cycles in and out around each update collects a day's reward per cycle, and the total issued exceeds what was emitted. The token's own withdrawal limit would then stop the last claimants from leaving.</li>
+      <li><strong>The first depositor.</strong> The index grew by emission divided by the total shielded. With 0.001 ETH in an otherwise empty asset, one note collects that asset's whole emission, at a nominal rate above 40,000% a year (see the <a href="#sim">simulation</a>). With zero shielded the division fails outright.</li>
+      <li><strong>A proof cannot follow a moving number.</strong> The index a proof was built against has changed by the time a relayer lands the transaction.</li>
+      <li><strong>A per-asset index names the asset.</strong> A private transfer would have to say which asset's index it used, or carry every asset's index as a public input.</li>
+      <li><strong>Reward dust.</strong> A new reward note on every spend leaves an active wallet with hundreds of tiny notes that each cost a transfer to merge.</li>
+    </ul>
+    <p>The build specification uses one index for all assets with fixed weights. A deposit takes the exact index at the block it is activated, computed by the contract. Spends use a checkpoint taken every 300 blocks, which always rounds against the spender, so the total issued can never exceed the emission. The divisor has a floor of a quarter of capacity, which caps the rate at four times the full-pool rate and leaves the rest of the emission locked for good. The reward is carried inside the note and turned into a token note only when the owner chooses, inside an ordinary spend that looks like any other.</p>
+  </div>
+  <div class="svc">
+    <h4>Fixed-size exits: change, dust, and a large withdrawal</h4>
+    <ul>
+      <li><strong>Change</strong> stays inside as a new note. That part works.</li>
+      <li><strong>Dust</strong> below the smallest size can never leave by itself. Once deposits close it can never be topped up either. The smallest size therefore has to be small: 0.001 ETH and 1 unit of a stablecoin.</li>
+      <li><strong>Arbitrary deposits undo part of the benefit.</strong> A deposit of 7.3134 ETH followed by exits of 5, 2, 0.2 and 0.1 to one address shows the total to anyone who adds them up. Fixed sizes stop exact matching of a single withdrawal. They do not hide a total sent to one place. The wallet should deposit in standard sizes by default and warn before sending several exits to one address.</li>
+      <li><strong>A large withdrawal</strong> is a visible run of the largest size. Ten exits of 100 ETH in a week in a pool capped at 800 ETH are one actor, whatever the proofs hide.</li>
+      <li><strong>A public relay fee would mark each exit.</strong> If the relayer's fee came out of the withdrawn amount, payouts of the same size would differ by the fee quoted. The build specification pays relayers with a shielded note, so every exit of a given size pays out the same amount to the wei.</li>
+    </ul>
+  </div>
+  <div class="svc">
+    <h4>The daily auction</h4>
+    <ul>
+      <li><strong>No first price.</strong> With no oracle, the first auction has nothing to start from. If it starts low, the first bot takes the basket for almost nothing.</li>
+      <li><strong>Zero-bid days.</strong> At $1M a month the 20% share is about $13 a day. When gas is high it is not worth collecting, and a rule that resets daily would give it away at the floor.</li>
+      <li><strong>One frozen asset blocks the rest.</strong> If a stablecoin issuer freezes the distributor, a settlement that transfers every asset reverts for all of them.</li>
+      <li><strong>The liquidity add is the real hole</strong>, as described in the table above.</li>
+    </ul>
+    <p>The build specification keeps the owner's mechanism and changes how each step is done. One continuous descending-price auction sells the whole basket for IMD. After a sale the next starting price is twice the price just paid, with a floor, and the buyer names which assets to take so a frozen one can be skipped. The IMD is then spent buying the token from the locked pool in small steps and the bought tokens are burned. In a pool whose position can never be withdrawn, that leaves the IMD in the pool for good, which is what "into locked liquidity" asked for. A step smaller than the pool's fee rate times its IMD reserves cannot be sandwiched at a profit, and each step is limited to half of that. The bound is checked numerically in <code>reports/sim/buyback_sandwich_bound.py</code>.</p>
+  </div>
+  <div class="svc">
+    <h4>Screener registration</h4>
+    <ul>
+      <li><strong>Cost to approve a bad deposit:</strong> two thirds of active screeners. With 15 honest ones that is 30 seats, about 21 ETH or $45,000 of resalable capital. One address already holds 77 seats and needs to buy nothing.</li>
+      <li><strong>Cost to block:</strong> one third, 8 seats. Under version 4 that also meant switching screening off. Without the fallback it only delays deposits.</li>
+      <li><strong>The prize grows and the cost does not.</strong> The cap doubles every 90 days. The price of 30 seats does not. After a year the cap is 400 ETH per asset and buying the registry to launder into it pays for itself.</li>
+      <li><strong>Pay per head invites one holder to register every seat.</strong> Each registered seat earns a full share, so the largest seat holders end up with the largest share of the registry. The top ten addresses hold 382 of the 2,000 seats. Counting holders does not help, because a seat moves to a fresh wallet for the price of a transfer.</li>
+      <li><strong>Stake and exit.</strong> Version 4 had no waiting period. Seats could be bought, registered, used to approve one deposit and sold in the same week.</li>
+    </ul>
+    <p>The build specification adds a 30-day wait before a new screener counts, a 14-day wait to take the stake back, a commit and reveal so that copying is not possible, individual reveals so nobody can be left out, and a minimum of seven active screeners before any batch can be accepted. It does not solve concentration. Nothing on-chain can tell one holder with many seats from many holders, and the spec now says so.</p>
+  </div>
+  <div class="svc">
+    <h4>Does the canary exercise the same code paths?</h4>
+    <p>No, not as version 4 described it. Ninety days with 10 ETH never reaches the second cap step, the end of emissions, the end of the deposit window, a second asset, a refused deposit, the auction or the buyback. It also needs its own token and its own public pool to run the token paths at all, which makes the canary a small public token offering and puts the lawyer's review before the canary, not after it.</p>
+    <p>Silence proves less than it seems. Someone who finds a flaw in the canary can take 10 ETH now or wait for the same flaw in a pool that holds far more. The canary catches the impatient.</p>
+    <p>The build specification makes the canary the complete system from the same source, with the clock compressed: seven-day cap steps, so every schedule boundary and the close of deposits pass on mainnet inside the 90 days. It runs a published script that calls every function and every branch of the circuit. It is described as a rehearsal that catches deployment and integration errors and careless attackers. The caps remain what limits a loss.</p>
+  </div>
+  <div class="svc">
+    <h4>Per-asset limits and the cap schedule</h4>
+    <ul>
+      <li><strong>What the limit bounds.</strong> A fault in one asset, such as a token that starts charging a transfer fee, cannot drain another asset. A fault in the reward logic cannot pay out more than the rewards released so far.</li>
+      <li><strong>What it does not bound.</strong> A flaw in the circuit forges notes in every asset at once. The loss is every asset's balance, so the figure to watch is the cap multiplied by the number of assets.</li>
+      <li><strong>The schedule has no end.</strong> Version 4 said the cap reaches "about 6,400 ETH after two years" and never said it stops. At that level three assets hold about $41M in code no outside firm has read. Two more years of doubling would remove the cap in all but name.</li>
+      <li><strong>Where the cap is counted.</strong> The build specification counts it on activated value only. Unactivated deposits cannot be reached by any proof, so they need no cap, and counting them would let a free refundable deposit hold the pool shut.</li>
+    </ul>
+  </div>
+
+  <h3>Other findings</h3>
+  <div class="tbl"><table>
+    <tr><th>Finding</th><th>What the build specification does</th></tr>
+    <tr><td>The launch gate required a machine-checked proof of the transfer circuit only. A flaw in the withdraw circuit drains the pool just as well.</td><td>One circuit, and the proof obligations cover all of it</td></tr>
+    <tr><td>Fees arriving in lumps let someone stake just before a sweep and unstake just after, taking most of it.</td><td>Each sweep is paid to stakers evenly over the following seven days</td></tr>
+    <tr><td>A proof made for the canary could be presented to the real pool if the two ever shared a tree state.</td><td>Every proof is bound to the chain id and the pool's address</td></tr>
+    <tr><td>A receiving address has to carry a post-quantum key of about 1.2 KB.</td><td>A short address holds a hash of the key. The key itself is announced once in a log and fetched from the public snapshots</td></tr>
+    <tr><td>Version 4 priced note encryption at about 70,000 gas per note at the calldata floor. The floor applies only to transactions that do little else.</td><td>See <a href="#b-gas">gas</a>. One recipient ciphertext per spend, at ordinary calldata prices</td></tr>
+    <tr><td>The swarm's 10% was "locked for up to one year" while the owner's rule is that every schedule runs two years. It was also the largest early unlock.</td><td>Listed for the owner. Recommended: a two-year linear vest</td></tr>
+    <tr><td>The risk table said 70% of supply unlocks. The allocation adds to 75%.</td><td>Corrected</td></tr>
+    <tr><td>Tokens that charge on transfer, rebase, or return no value on transfer would corrupt an asset's accounting.</td><td>The pool checks the amount that arrived. The asset list excludes such tokens</td></tr>
+    <tr><td>Deploying six contracts that refer to each other needs their addresses in advance, and one transaction cannot carry them all under Glamsterdam pricing.</td><td>A one-time deployer with no other function creates them in a fixed order from code hashes fixed at its own creation</td></tr>
+  </table></div>
+</section>
+
+
+<section id="build">
+  <h2>Build specification</h2>
+  <p>This section is what a build job works from. It replaces the design table of version 4 wherever the two differ, and the <a href="#review">review</a> gives the reason for each difference. Values marked <span class="pill">param</span> come from the <a href="#parameters">parameter table</a> and are frozen before the trusted-setup ceremony. Names are working names.</p>
+
+  <h3 id="b-conventions">Conventions</h3>
+  <div class="tbl"><table>
+    <tr><th>Item</th><th>Definition</th></tr>
+    <tr><td>Field</td><td>The BN254 scalar field. Every hashed value is less than its modulus <code>p</code>, and the contracts reject inputs that are not</td></tr>
+    <tr><td>Hash</td><td>Poseidon with circomlib's parameters. <code>H2</code>, <code>H3</code> and <code>H4</code> take two, three and four inputs. On-chain they are the three poseidon-solidity contracts already deployed on mainnet, pinned by code hash and checked against the circuit with shared test vectors</td></tr>
+    <tr><td>Domain tags</td><td>Every hash that is not a tree node or a leaf bundle takes a small constant tag as its first input: <code>TAG_SPK</code>, <code>TAG_NK</code>, <code>TAG_PK</code>, <code>TAG_OC</code>, <code>TAG_NF</code>. A note's packed word carries <code>TAG_NOTE</code> in its top byte</td></tr>
+    <tr><td>Amounts</td><td>Unsigned, at most 96 bits, in the asset's smallest unit. Range-checked in the circuit wherever they are added</td></tr>
+    <tr><td>Asset id</td><td>8 bits. The list and each asset's weight are constants in the circuit and the pool <span class="pill">param</span></td></tr>
+    <tr><td>Reward index</td><td>One number <code>G</code> for the whole pool, at most 90 bits, fixed-point with 64 fractional bits. It only grows</td></tr>
+    <tr><td>Tree</td><td>Append-only, depth 32, nodes <code>H2(left, right)</code>, empty leaf <code>ZERO = keccak256("murmuration.zero") mod p</code>. One leaf per transaction: <code>leaf = H4(C0, C1, C2, C3)</code>, a bundle of four note commitments. The pool keeps the last 64 roots</td></tr>
+    <tr><td>Position</td><td><code>pos = 4 × leafIndex + slot</code>, where <code>slot</code> is 0 to 3. It identifies one note for good</td></tr>
+    <tr><td>Epochs</td><td>A screening epoch is 7,200 blocks. A reward checkpoint is taken every 300 blocks. A cap step is 648,000 blocks, about 90 days. All count from the pool's genesis block <span class="pill">param</span></td></tr>
+  </table></div>
+
+  <h3 id="b-notes">Keys, notes and addresses</h3>
+<pre><code>// Keys. sk never leaves the wallet.
+spk      = H2(TAG_SPK, sk)                 // proves the right to spend
+nk       = H2(TAG_NK,  sk)                 // computes nullifiers; safe to give to a view-only wallet
+ownerPk  = H4(TAG_PK, spk, nk, d)          // d: a diversifier, so one wallet can hand out many unlinkable addresses
+
+// A note is (asset, value, accrued, index, ownerPk, rho). rho is 248 random bits.
+ownerCommit = H3(TAG_OC, ownerPk, rho)     // hides the owner; this is all a deposit reveals about its recipient
+packed      = TAG_NOTE·2^200 + accrued·2^104 + value·2^8 + asset
+commitment  = H3(packed, index, ownerCommit)
+nullifier   = H4(TAG_NF, nk, pos, rho)     // one per note position; published when the note is spent
+
+// Address a payer needs: ownerPk (32 bytes) and the recipient's X-Wing public key (1,216 bytes).
+// Short form: ownerPk and keccak256(key). The key is announced once through Pool.announce and read from the public snapshots.</code></pre>
+  <ul>
+    <li><strong>accrued</strong> is reward already earned and not yet turned into tokens. It travels with the note. <strong>index</strong> is the value of <code>G</code> when the note was created.</li>
+    <li><strong>Encryption.</strong> Output 0 is encrypted to the recipient with HPKE over the X-Wing hybrid of X25519 and ML-KEM-768: 1,120 bytes of key encapsulation, an 80-byte payload and a 16-byte tag, 1,216 bytes in all. X-Wing is an IETF draft, not yet an RFC. The build pins draft 11 of 23 September 2026 and its test vectors, with HPKE identifier 0x647A. Output 1 is the sender's change, sealed with the sender's own symmetric key: 96 bytes. The relayer's fee note is opened to the relayer off-chain. The reward note is derived by its owner. Every spend therefore publishes the same 1,312 bytes of ciphertext whatever it does.</li>
+    <li><strong>The pool does not check ciphertexts.</strong> A sender who posts garbage loses the payment for the recipient and gains nothing. This is the same in every shielded pool.</li>
+    <li><strong>Not post-quantum:</strong> the Groth16 proof. Ownership and nullifiers rest on hashes only.</li>
+  </ul>
+
+  <h3 id="b-circuit">The circuit</h3>
+  <p>There is one circuit, <code>Spend</code>. It takes two notes of one asset and one owner, and produces three notes of the same asset, one note of the reward token, and an optional public amount. A private transfer has a public amount of zero. A withdrawal has a standard size as its public amount. A deposit needs no proof: the pool computes the commitment itself from public values. Estimated size is about 22,000 constraints, which is to be measured by the build job, as is proving time on a mid-range phone.</p>
+  <h4>Public inputs (11)</h4>
+  <div class="tbl"><table>
+    <tr><th>Name</th><th>Meaning</th><th>Checked by the pool against</th></tr>
+    <tr><td><code>root</code></td><td>A recent root of the note tree</td><td>The last 64 roots</td></tr>
+    <tr><td><code>nf[0]</code>, <code>nf[1]</code></td><td>Nullifiers of the two inputs</td><td>The spent set. Both must be new and different</td></tr>
+    <tr><td><code>C[0..3]</code></td><td>Output commitments: recipient, change, relay fee, reward</td><td>Hashed into the new leaf</td></tr>
+    <tr><td><code>publicAmount</code></td><td>Zero, or the size leaving the pool</td><td>The asset's list of standard sizes and its balance</td></tr>
+    <tr><td><code>publicAsset</code></td><td>The asset leaving. Zero when nothing leaves</td><td>The asset list</td></tr>
+    <tr><td><code>gRef</code></td><td>The reward checkpoint the proof was built against</td><td>The current checkpoint or the one before it</td></tr>
+    <tr><td><code>extHash</code></td><td>Hash of chain id, pool address, recipient and the two ciphertexts</td><td>Recomputed from the call data</td></tr>
+  </table></div>
+  <h4>Private inputs</h4>
+  <div class="tbl"><table>
+    <tr><th>Name</th><th>Meaning</th></tr>
+    <tr><td><code>sk</code></td><td>The spending key</td></tr>
+    <tr><td><code>asset</code></td><td>The asset of every input and of outputs 0 to 2</td></tr>
+    <tr><td>Per input <code>i</code>: <code>value</code>, <code>accrued</code>, <code>index</code>, <code>d</code>, <code>rho</code></td><td>The note's contents</td></tr>
+    <tr><td>Per input <code>i</code>: <code>leafIndex</code>, <code>slot</code>, <code>others[3]</code>, <code>path[32]</code></td><td>Where the note sits: its leaf, its place in the bundle, the bundle's three other commitments and the tree path</td></tr>
+    <tr><td>Per output <code>k</code> in 0 to 2: <code>value</code>, <code>accrued</code>, <code>ownerCommit</code></td><td>The new notes. The sender computes each <code>ownerCommit</code> from the recipient's address and a fresh <code>rho</code></td></tr>
+    <tr><td><code>claim</code>, <code>ownerCommit[3]</code></td><td>The amount of reward turned into tokens, and who gets it</td></tr>
+  </table></div>
+  <h4>Constraints</h4>
+  <ol>
+    <li><strong>Keys.</strong> <code>spk</code> and <code>nk</code> are derived from <code>sk</code> as defined above.</li>
+    <li><strong>Asset.</strong> <code>asset</code> is one of the listed ids, and <code>weight</code> is that asset's constant from the table. The reward token's weight is zero.</li>
+    <li><strong>Ranges.</strong> Every <code>value</code>, <code>accrued</code>, <code>claim</code> and <code>publicAmount</code> fits in 96 bits. <code>gRef</code> and each input's <code>index</code> fit in 90 bits. Each <code>leafIndex</code> fits in 32 bits and each <code>slot</code> in 2. Path selectors are bits.</li>
+    <li><strong>Input notes.</strong> For each input, <code>ownerPk</code>, <code>ownerCommit</code>, <code>packed</code> and <code>commitment</code> are computed from <code>spk</code>, <code>nk</code> and the note's contents exactly as defined above.</li>
+    <li><strong>Membership.</strong> For each input, the commitment placed at <code>slot</code> among <code>others</code> hashes to a leaf, and that leaf with <code>leafIndex</code> and <code>path</code> hashes to <code>root</code>. The check is skipped only when the input's <code>value</code> and <code>accrued</code> are both zero, which is how a wallet pads a spend that has one real input.</li>
+    <li><strong>Nullifiers.</strong> <code>nf[i] = H4(TAG_NF, nk, 4 × leafIndex + slot, rho)</code> for each input, from the same <code>leafIndex</code>, <code>slot</code> and <code>rho</code> used above.</li>
+    <li><strong>Index order.</strong> <code>gRef − index</code> is between 0 and 2<sup>90</sup> for each input. A note cannot be spent against a checkpoint older than itself.</li>
+    <li><strong>Reward earned.</strong> <code>earned = floor(weight × (value₀ × (gRef − index₀) + value₁ × (gRef − index₁)) / 2^64)</code>, enforced as an exact division with a 64-bit remainder.</li>
+    <li><strong>Outputs.</strong> <code>C[k] = H3(packed(asset, valueₖ, accruedₖ), gRef, ownerCommitₖ)</code> for <code>k</code> in 0 to 2.</li>
+    <li><strong>Reward note.</strong> <code>C[3] = H3(packed(TOKEN, claim, 0), gRef, ownerCommit₃)</code>.</li>
+    <li><strong>Value is conserved.</strong> The two input values add up to the three output values plus <code>publicAmount</code>.</li>
+    <li><strong>Reward is conserved.</strong> The two input <code>accrued</code> amounts plus <code>earned</code> add up to the three output <code>accrued</code> amounts plus <code>claim</code>.</li>
+    <li><strong>The public asset is the real one.</strong> <code>publicAmount × (asset − publicAsset) = 0</code>.</li>
+    <li><strong>Binding.</strong> <code>extHash</code> takes part in one constraint so that no tool can drop it from the proof.</li>
+  </ol>
+  <p>What the circuit leaves to the contract: that the root is recent, that the nullifiers are new and distinct, that <code>gRef</code> is a real checkpoint, that the public amount is a standard size the asset can pay, and that <code>extHash</code> matches the call.</p>
+  <h4>What the proofs must show</h4>
+  <p>The launch gate requires each of these to be machine-checked against the compiled circuit, with the statement published in plain words beside the formal one.</p>
+  <ol>
+    <li><strong>No value is created.</strong> Any accepted spend takes out exactly what its inputs held, and each input with a non-zero value or reward is a note in the tree.</li>
+    <li><strong>No note is spent twice.</strong> A note position and a key give exactly one nullifier, and a nullifier names at most one note position per key.</li>
+    <li><strong>No reward is created.</strong> Reward leaving a spend is at most the reward entering plus <code>weight × value × (gRef − index) / 2^64</code> for each input, rounded down.</li>
+    <li><strong>Nothing is left free.</strong> Given the private inputs, every public output is determined. No signal can take two values.</li>
+    <li><strong>No wrap-around.</strong> No sum or product in constraints 8, 11 and 12 can reach the field modulus.</li>
+  </ol>
+
+  <h3 id="b-contracts">The six contracts</h3>
+  <p>None has an owner, a pause, an upgrade path or a setter for any parameter. Every state-changing function is guarded against re-entry. They call three Poseidon hash contracts that already exist on mainnet, and a one-time deployer creates them and then has no function left.</p>
+
+  <div class="svc">
+    <h4>1. Pool</h4>
+    <p>Holds every asset. Takes deposits, activates them, verifies spends, keeps the note tree, the spent set, the caps and the reward index.</p>
+    <div class="tbl"><table>
+      <tr><th>Storage</th><th>Type</th><th>Meaning</th></tr>
+      <tr><td><code>deposits[id]</code></td><td>bytes32</td><td>Hash of depositor, asset, amount, <code>ownerCommit</code> and block number. Cleared when the deposit is activated or refunded. One slot per open deposit</td></tr>
+      <tr><td><code>depositCount</code></td><td>uint64</td><td>Next deposit id</td></tr>
+      <tr><td><code>pending[asset]</code>, <code>shielded[asset]</code>, <code>fees[asset]</code></td><td>uint128 each</td><td>Unactivated deposits, value inside the tree, and fees not yet swept</td></tr>
+      <tr><td><code>tokenIn</code>, <code>tokenOut</code></td><td>uint128</td><td>The reward token activated into and withdrawn from the pool, for its own limit</td></tr>
+      <tr><td><code>filled[32]</code>, <code>nextLeaf</code>, <code>roots[64]</code>, <code>rootPos</code></td><td>uint256[32], uint32, uint256[64], uint8</td><td>The append-only tree and its last 64 roots</td></tr>
+      <tr><td><code>spent[nullifier]</code></td><td>bool</td><td>One new slot per real or padding input</td></tr>
+      <tr><td><code>g</code>, <code>gBlock</code>, <code>weighted</code>, <code>released</code></td><td>uint128, uint64, uint128, uint128</td><td>The reward index, the block it was last advanced to, the weighted total shielded, and reward released so far</td></tr>
+      <tr><td><code>refEpoch</code>, <code>gCur</code>, <code>gPrev</code></td><td>uint64, uint128, uint128</td><td>The current 300-block checkpoint and the one before</td></tr>
+      <tr><td><code>lastSweep[asset]</code></td><td>uint64</td><td>Block of the last fee sweep</td></tr>
+    </table></div>
+    <div class="tbl"><table>
+      <tr><th>Function</th><th>Who</th><th>What it does</th></tr>
+      <tr><td><code>deposit(asset, amount, ownerCommit)</code></td><td>Anyone, until the deposit window closes</td><td>Requires a listed asset, an amount of at least the asset's smallest size and at most its current cap, and <code>ownerCommit &lt; p</code>. Pulls the funds and checks that exactly <code>amount</code> arrived. Stores the record hash, adds to <code>pending</code>, returns the id</td></tr>
+      <tr><td><code>activate(id, record)</code></td><td>The depositor only</td><td>Requires the record to match, at least 7,200 blocks since the deposit, and <code>Registry.isApproved(id)</code>. Takes the entry fee of <code>amount / 500</code>. Requires <code>shielded + net</code> to fit under the asset's cap. Advances the reward index to this block, computes the commitment with the exact index, inserts the leaf <code>H4(commitment, 0, 0, 0)</code>, moves the amount from <code>pending</code> to <code>shielded</code> and <code>fees</code>, clears the record</td></tr>
+      <tr><td><code>refund(id, record)</code></td><td>The depositor only, any time before activation</td><td>Clears the record and returns the full amount to the depositor. No fee. This is the ragequit of version 4</td></tr>
+      <tr><td><code>spend(proof, inputs, ext)</code></td><td>Anyone</td><td>Rolls the checkpoint if a 300-block boundary has passed. Requires a known root, <code>gRef</code> equal to <code>gCur</code> or <code>gPrev</code>, a matching <code>extHash</code>, and two unused nullifiers. For a non-zero public amount: requires a standard size of that asset and enough <code>shielded</code> balance (for the token: <code>tokenOut + amount ≤ tokenIn + released</code>), advances the reward index, lowers the balances, keeps <code>amount / 500</code> as the exit fee and pays the rest to the recipient. Verifies the proof, marks the nullifiers, inserts one leaf, emits the ciphertexts</td></tr>
+      <tr><td><code>sweepFees(asset)</code></td><td>Anyone, at most once per 7,200 blocks per asset</td><td>Sends the asset's accrued fees to the distributor and calls its <code>notify</code></td></tr>
+      <tr><td><code>announce(keys)</code></td><td>Anyone</td><td>Emits an encryption key so that a short address can refer to it by hash. Writes no storage</td></tr>
+      <tr><td><code>cap(asset)</code>, <code>checkpoint()</code>, <code>isKnownRoot(root)</code></td><td>Views</td><td>What a wallet needs to build a proof</td></tr>
+    </table></div>
+    <p><strong>Events.</strong> <code>Deposited(id, depositor, asset, amount, ownerCommit)</code>, <code>Activated(id, leafIndex, commitment, index, net)</code>, <code>Refunded(id)</code>, <code>Spent(nf0, nf1, leafIndex, C0, C1, C2, C3, publicAsset, publicAmount, recipient, ct0, ct1)</code>, <code>FeesSwept(asset, amount)</code>, <code>KeysAnnounced(keyHash, keys)</code>.</p>
+    <p><strong>The reward index.</strong> On every activation and every spend with a public amount, before any balance changes:</p>
+<pre><code>g        += blocks × emission(step) × 2^64 / max(weighted, floor(step))     // per cap step crossed, rounded down
+released += blocks × emission(step) × weighted / max(weighted, floor(step)) // rounded up
+weighted  = Σ over assets of weight[asset] × shielded[asset]
+floor     = a quarter of the weighted total the pool can hold at the current caps
+emission  = the users' 45%, spread over eight cap steps in proportion to each step's cap; zero afterwards</code></pre>
+    <p><strong>Invariants.</strong></p>
+    <ol>
+      <li>For each asset, the pool's balance is at least <code>pending + shielded + fees</code>. For the reward token it is at least <code>pending + fees + tokenIn − tokenOut</code> plus the reward budget not yet withdrawn.</li>
+      <li>A spend can never take out more of an asset than was activated into it, and never more of the reward token than was activated plus <code>released</code>.</li>
+      <li><code>shielded[asset]</code> never exceeds the asset's cap at the block it last grew. Caps never fall.</li>
+      <li>Only its depositor can activate or refund a deposit, and each deposit ends in exactly one of the two.</li>
+      <li>A nullifier is marked once and never cleared. The tree only grows, by one leaf per activation or spend.</li>
+      <li><code>g</code> never decreases and stays under 2<sup>90</sup>. <code>released</code> never exceeds the users' 45%.</li>
+      <li>After the deposit window closes no deposit is created. Activation, refund and spend have no end date.</li>
+      <li>No function sends an asset anywhere except: a refund to its depositor, a withdrawal to the recipient named in a verified proof, and fees to the distributor.</li>
+    </ol>
+  </div>
+
+  <div class="svc">
+    <h4>2. Verifier</h4>
+    <p>The Groth16 verifier for <code>Spend</code>, generated from the ceremony's output. One view function, <code>verify(proof, inputs[11])</code>. No storage. Its invariant is that it accepts exactly the proofs the verification key accepts, which is tested against the reference verifier with valid, altered and malformed proofs, including public inputs at or above the field modulus.</p>
+  </div>
+
+  <div class="svc">
+    <h4>3. ScreenerRegistry</h4>
+    <p>Decides which deposits may be activated. Holds screener stakes, the screeners' share of fees and the screeners' 15% of the token. It cannot reach anything in the pool. If it fails, deposits stop and nothing already shielded is affected.</p>
+    <div class="tbl"><table>
+      <tr><th>Storage</th><th>Meaning</th></tr>
+      <tr><td><code>screeners[seatId]</code></td><td>Holder, operator key, epoch registered, epoch active from, exit epoch, last commitment, last reveal, and the count of accepted epochs at the last agreement. Reused every epoch</td></tr>
+      <tr><td><code>activeCount</code>, <code>snapEpoch</code>, <code>snapActive</code></td><td>Active screeners now, and the number fixed at the start of the current epoch</td></tr>
+      <tr><td><code>tally[epoch][batchHash]</code></td><td>Matching reveals. One new slot per distinct batch per epoch</td></tr>
+      <tr><td><code>ring[16]</code></td><td>For the last 16 epochs: the accepted batch hash, how many agreed, and the pay per head in each asset</td></tr>
+      <tr><td><code>screenedThrough</code>, <code>denied[word]</code></td><td>The highest deposit id covered, and a bitmap of refused deposits, 256 per slot</td></tr>
+      <tr><td><code>pot[asset]</code>, <code>owed[seatId][asset]</code></td><td>Fees waiting for the next accepted epoch, and pay credited to each screener</td></tr>
+    </table></div>
+    <div class="tbl"><table>
+      <tr><th>Function</th><th>Who</th><th>What it does</th></tr>
+      <tr><td><code>register(seatId, operator)</code></td><td>The seat's owner</td><td>Requires <code>ownerOf(seatId)</code> on the IMD seat contract to be the caller. Takes the stake <span class="pill">param</span>. The screener counts from 30 epochs later, or from epoch 7 if registered in the first week</td></tr>
+      <tr><td><code>commit(seatId, hash)</code></td><td>The operator, in the first 4,800 blocks of an epoch</td><td>Requires an active screener whose seat is still held by the registered holder. Stores <code>keccak256(batchHash, seatId, salt)</code>. First settles the screener's pay for its previous reveal</td></tr>
+      <tr><td><code>reveal(seatId, batchHash, salt)</code></td><td>The operator, in the last 2,400 blocks of the same epoch</td><td>Checks the commitment and adds one to the tally. When a batch reaches two thirds of the screeners active at the epoch's start, and that number is at least seven, the batch is accepted</td></tr>
+      <tr><td><code>apply(batch)</code></td><td>Anyone</td><td>Requires the batch to hash to an accepted batch newer than the last one applied. Sets <code>screenedThrough</code>, which may only rise, and overwrites the listed bitmap words. At most 96 words per batch</td></tr>
+      <tr><td><code>isApproved(id)</code></td><td>View, called by the pool</td><td><code>id ≤ screenedThrough</code> and the deposit's bit is clear</td></tr>
+      <tr><td><code>flag(seatId, data)</code></td><td>The operator</td><td>Emits an event and stores nothing. Flags are an input to the published criteria</td></tr>
+      <tr><td><code>requestExit(seatId)</code>, <code>withdrawStake(seatId)</code></td><td>The holder</td><td>Stops counting at once. The stake is returned 14 epochs later</td></tr>
+      <tr><td><code>evict(seatId)</code></td><td>Anyone</td><td>Removes a screener whose seat has changed hands, who has not revealed for 7 epochs, or who has missed 7 accepted batches. The stake is returned after the same 14 epochs</td></tr>
+      <tr><td><code>fund(asset, amount)</code></td><td>The distributor</td><td>Adds fees to the pot</td></tr>
+      <tr><td><code>withdrawPay(seatId, assets)</code></td><td>The holder</td><td>Pays out what is owed</td></tr>
+    </table></div>
+<pre><code>// What screeners agree on, once per epoch. Computed from chain data at the epoch's first block.
+Batch {
+  uint32  epoch;
+  bytes32 criteriaHash;   // the published criteria file in force
+  uint64  upTo;           // highest deposit id made before the epoch's first block
+  Word[]  words;          // { index, mask }: full refusal bitmap for each word that differs from what is on-chain
+  bytes32 dataCid;        // IPFS file: every refusal and the rule that caused it
+}</code></pre>
+    <p><strong>Pay.</strong> When an epoch ends with an accepted batch, the pot and that epoch's share of the 15% are divided equally among the screeners who revealed that batch. An epoch with no accepted batch pays nobody: its token share stays locked for good and its fees roll to the next accepted epoch.</p>
+    <p><strong>Events.</strong> <code>Registered</code>, <code>Committed</code>, <code>Revealed</code>, <code>BatchAccepted(epoch, batchHash, agreed)</code>, <code>BatchApplied(epoch, upTo)</code>, <code>Flag(seatId, data)</code>, <code>ExitRequested</code>, <code>Evicted</code>, <code>PayWithdrawn</code>.</p>
+    <p><strong>Invariants.</strong></p>
+    <ol>
+      <li>A batch is accepted only with matching reveals from at least two thirds of the screeners active at the epoch's start, and only when at least seven were active.</li>
+      <li>Only <code>apply</code> writes <code>screenedThrough</code> or <code>denied</code>, only with a batch that hashes to an accepted one, and <code>screenedThrough</code> never falls.</li>
+      <li>A screener commits and reveals at most once per epoch, and only while the registered holder still owns the seat.</li>
+      <li>A stake leaves only to the holder who posted it, and only 14 epochs after exit or eviction. Nothing can reduce it.</li>
+      <li>For each asset, the registry's balance is at least the pot plus everything owed plus, for the token, the stakes and the unpaid part of the 15%.</li>
+      <li>The registry has no function that moves funds held by the pool.</li>
+    </ol>
+  </div>
+
+  <div class="svc">
+    <h4>4. FeeDistributor</h4>
+    <p>Receives the pool's fees and splits each receipt 40, 40 and 20. Holds staked tokens. Sells the liquidity share for IMD and spends the IMD in the locked pool.</p>
+    <div class="tbl"><table>
+      <tr><th>Storage</th><th>Meaning</th></tr>
+      <tr><td><code>staked[user]</code>, <code>totalStaked</code></td><td>Staked tokens</td></tr>
+      <tr><td><code>stream[asset]</code></td><td>Rate, end block, last update and reward per staked token for each asset's seven-day stream</td></tr>
+      <tr><td><code>paid[user][asset]</code>, <code>owed[user][asset]</code></td><td>Each staker's position in each stream</td></tr>
+      <tr><td><code>basket[asset]</code></td><td>The liquidity share waiting to be sold</td></tr>
+      <tr><td><code>auction</code></td><td>Sale counter, starting price and start time</td></tr>
+      <tr><td><code>lastBuyback</code></td><td>Block of the last buyback step</td></tr>
+    </table></div>
+    <div class="tbl"><table>
+      <tr><th>Function</th><th>Who</th><th>What it does</th></tr>
+      <tr><td><code>notify(asset, amount)</code></td><td>The pool</td><td>Adds 40% to the asset's staker stream, restarted to pay evenly over the next 50,400 blocks. Sends 40% to the registry with <code>fund</code>. Adds 20% to the basket. For the reward token the 20% is burned. With nothing staked, the stakers' share goes to the basket</td></tr>
+      <tr><td><code>stake(amount)</code>, <code>unstake(amount)</code>, <code>claim(assets)</code></td><td>Anyone</td><td>Standard reward-per-token accounting, one stream per asset. No lock</td></tr>
+      <tr><td><code>buy(assets, to, saleId, deadline, maxPay)</code></td><td>Anyone</td><td>The price falls in a straight line from the starting price to a floor over one day and stays at the floor until someone buys. The buyer pays that price in IMD and receives the basket balance of each asset named. The next starting price is twice the price paid, and never under a minimum <span class="pill">param</span>. <code>saleId</code>, <code>deadline</code> and <code>maxPay</code> protect the buyer from a stale transaction</td></tr>
+      <tr><td><code>buyback()</code></td><td>Anyone, at most once per 25 blocks</td><td>Swaps IMD for the token in the locked pool. The amount is the smaller of the IMD held and half of the pool's fee rate times its IMD-side reserves at the current price. The bought tokens go to the burn address</td></tr>
+    </table></div>
+    <p><strong>Events.</strong> <code>Notified(asset, toStakers, toScreeners, toBasket)</code>, <code>Staked</code>, <code>Unstaked</code>, <code>Claimed</code>, <code>BasketSold(saleId, buyer, price)</code>, <code>Buyback(imdIn, tokensBurned)</code>.</p>
+    <p><strong>Invariants.</strong></p>
+    <ol>
+      <li>Every receipt is split 40, 40 and 20, with any rounding remainder going to the basket.</li>
+      <li>For each asset, the balance is at least the unpaid stream plus everything owed plus the basket.</li>
+      <li>Staked tokens return only to the staker who staked them.</li>
+      <li>IMD leaves only through a swap in the locked pool. No function sends it to an address.</li>
+      <li>A buyback step never exceeds half of the pool's fee rate times its IMD-side reserves, and at most one step runs per 25 blocks.</li>
+      <li>A basket asset whose transfer fails cannot block the sale of the others.</li>
+    </ol>
+  </div>
+
+  <div class="svc">
+    <h4>5. Distribution</h4>
+    <p>Receives the whole supply at creation and gives it out once. Owns the locked liquidity position.</p>
+    <div class="tbl"><table>
+      <tr><th>Function</th><th>Who</th><th>What it does</th></tr>
+      <tr><td><code>launch()</code></td><td>Anyone, once</td><td>Sends 45% to the pool and 15% to the registry. Creates the token and IMD pool at the 1% fee tier if it does not exist and sets the starting price if it is not set. If someone has already set a higher price, sells a bounded number of tokens to bring it down to the start, and reverts if that is not enough. Then adds 25% of supply as one position from the starting price to the top of the tick range, held by this contract</td></tr>
+      <tr><td><code>claimFounder()</code></td><td>Anyone</td><td>Sends the vested part of 5% to the founder address fixed at creation: nothing for the first month, then linear to two years</td></tr>
+      <tr><td><code>claimSwarm(index, account, amount, proof)</code></td><td>Anyone</td><td>Checks the entry against the Merkle root fixed at creation and sends the vested part to <code>account</code>. Linear from launch over the swarm period <span class="pill">param</span></td></tr>
+      <tr><td><code>collect()</code></td><td>Anyone</td><td>Collects the position's trading fees. The IMD goes to the distributor's buyback balance. The token part is burned</td></tr>
+    </table></div>
+    <p><strong>Storage.</strong> <code>launched</code>, <code>founderClaimed</code>, <code>swarmClaimed[index]</code>. <strong>Events.</strong> <code>Launched(pool, liquidity)</code>, <code>FounderClaimed(amount)</code>, <code>SwarmClaimed(index, account, amount)</code>, <code>FeesCollected(imd, tokenBurned)</code>.</p>
+    <p><strong>Invariants.</strong></p>
+    <ol>
+      <li><code>launch</code> runs once, and afterwards the five shares add up to the whole supply.</li>
+      <li>No code path reduces the position's liquidity. The contract never calls the pool's <code>burn</code> with a non-zero amount.</li>
+      <li>The founder's and each swarm entry's payout never exceeds the vested amount, and never exceeds the allocation.</li>
+      <li>The position's fees can go only to the distributor and the burn address.</li>
+    </ol>
+  </div>
+
+  <div class="svc">
+    <h4>6. Token</h4>
+    <p>A plain ERC-20 with 18 decimals. The whole supply <span class="pill">param</span> is created for the Distribution contract in the constructor. There is no owner, no mint, no burn function, no fee on transfer and no blocklist. Its invariants are that total supply never changes and that no address has any power another does not.</p>
+  </div>
+
+  <h3 id="b-states">State machines</h3>
+  <h4>A deposit</h4>
+  <pre class="mermaid">
+stateDiagram-v2
+  [*] --> Pending: deposit
+  Pending --> Covered: a batch reaches this id and does not refuse it
+  Pending --> Refused: a batch refuses it
+  Covered --> Refused: a later batch refuses it
+  Refused --> Covered: a later batch clears it
+  Covered --> Activated: activate, by the depositor
+  Pending --> Refunded: refund, by the depositor
+  Covered --> Refunded: refund, by the depositor
+  Refused --> Refunded: refund, by the depositor
+  Activated --> [*]
+  Refunded --> [*]
+  </pre>
+  <div class="tbl"><table>
+    <tr><th>Transition</th><th>Guard</th><th>Effect</th></tr>
+    <tr><td>deposit</td><td>Before the deposit window closes. Listed asset. Amount between the smallest size and the current cap. Exactly the amount arrives</td><td>Record hash stored. <code>pending</code> rises. Nothing is shielded and no reward accrues</td></tr>
+    <tr><td>Covered or Refused</td><td>An accepted batch has been applied. Read from the registry at the moment of activation, so only the current state counts</td><td>None in the pool</td></tr>
+    <tr><td>activate</td><td>Caller is the depositor. At least 7,200 blocks old. Covered and not refused. Net amount fits under the cap</td><td>0.2% to fees. A note with the exact reward index enters the tree. Record cleared. Final</td></tr>
+    <tr><td>refund</td><td>Caller is the depositor. Not yet activated. No other condition, in any screening state, for ever</td><td>Full amount back to the depositor. Record cleared. Final</td></tr>
+  </table></div>
+  <p>A deposit waits between one and two days: the batch that covers it is computed at the next epoch boundary and accepted during that epoch. No state exists in which a deposit can be neither activated nor refunded by its depositor, except a depositor that cannot receive its own asset back, such as an address a stablecoin issuer has frozen.</p>
+  <h4>A note</h4>
+  <pre class="mermaid">
+stateDiagram-v2
+  [*] --> Created: activate or spend inserts its leaf
+  Created --> Spendable: a checkpoint at or above its index exists
+  Spendable --> Spent: spend records its nullifier
+  Spent --> [*]
+  </pre>
+  <div class="tbl"><table>
+    <tr><th>State</th><th>On-chain meaning</th><th>Notes</th></tr>
+    <tr><td>Created</td><td>Its commitment is one of four in a leaf of the tree</td><td>A note made by a spend carries that spend's checkpoint and is spendable in the next transaction. A note made by activation carries the exact index of its block and becomes spendable at the next 300-block boundary, at most an hour later</td></tr>
+    <tr><td>Spendable</td><td>A root that contains the leaf is among the last 64, and <code>gCur</code> is at least the note's index</td><td>A proof stays valid until 64 more leaves have been added or two checkpoints have passed, whichever comes first. After that the wallet proves again</td></tr>
+    <tr><td>Spent</td><td>Its nullifier is in the spent set</td><td>Final. Nothing links the nullifier to the leaf</td></tr>
+  </table></div>
+  <p>Padding inputs are never in the tree and go straight to Spent. A note whose ciphertext was posted wrongly is Created for ever and nobody can spend it. Reward stops growing for everyone when emissions end, and a note keeps what it has accrued.</p>
+
+  <h3 id="b-gas">Size, gas and state pricing</h3>
+  <p>Figures are a model built from measured parts, not measurements of this code, which does not exist yet. The Glamsterdam column uses EIP-8037, EIP-8038 and EIP-7976 as they stand in Last Call on 10 November 2026. Their authors have said the numbers may still be revised after the audit reports due on 13 November and the developer call of 19 November. Dollar figures are at 0.2 gwei and ETH at $2,130. The working is in <code>gas_model_and_pq_cost_v3.md</code>.</p>
+  <div class="tbl"><table>
+    <tr><th>Transaction</th><th>Gas today</th><th>Under Glamsterdam</th><th>Cost today and after</th><th>State it creates</th></tr>
+    <tr><td>Deposit</td><td class="n">80,305</td><td class="n">189,925</td><td class="n">$0.03, $0.08</td><td>One slot, cleared again at activation or refund</td></tr>
+    <tr><td>Activate</td><td class="n">749,604</td><td class="n">786,588</td><td class="n">$0.32, $0.34</td><td>None that lasts. Tree writes overwrite existing slots</td></tr>
+    <tr><td>Spend (transfer or withdrawal)</td><td class="n">1,081,224</td><td class="n">1,300,864</td><td class="n">$0.46, $0.55</td><td>Two slots, one per nullifier. 195,840 of the Glamsterdam figure is state gas</td></tr>
+  </table></div>
+  <div class="tbl"><table>
+    <tr><th>Part</th><th>Gas</th><th>Source</th></tr>
+    <tr><td>One tree insert: 32 <code>H2</code> calls and one <code>H4</code></td><td class="n">about 650,000</td><td>poseidon-solidity: 18,624 per <code>H2</code>, 35,117 per <code>H3</code>, 51,826 per <code>H4</code> on a warm call, confirmed by simulation against the contracts already on mainnet</td></tr>
+    <tr><td>Groth16 verification, 11 public inputs</td><td class="n">about 255,000</td><td>182,441 plus 6,626 per input, extrapolated from deployed snarkjs verifiers with 4 and 8 inputs</td></tr>
+    <tr><td>A new storage slot</td><td class="n">22,100, then 110,020</td><td>EIP-8037: 97,920 state gas on top of the write</td></tr>
+    <tr><td>Overwriting a cold slot</td><td class="n">5,000, then 12,100</td><td>EIP-8038</td></tr>
+    <tr><td>The 1,312 bytes of ciphertext in a spend</td><td class="n">about 31,500, both</td><td>16 gas per byte as calldata and 8 per byte in the log. The calldata floor of EIP-7623 and EIP-7976 applies only to transactions that do little besides carry data, and a spend is not one</td></tr>
+    <tr><td>Deploying 24 KiB of code</td><td class="n">5.36M, then 38.21M</td><td>EIP-8037 charges 1,530 state gas per byte. It fits one transaction and one 60M block. The transaction must set a gas limit above 2<sup>24</sup> so the state gas has room</td></tr>
+  </table></div>
+  <ul>
+    <li><strong>Version 4 overstated the cost of post-quantum encryption.</strong> It priced each note at about 70,000 gas "at the calldata floor". A spend pays the ordinary rate, and the design now publishes one recipient ciphertext per spend, so the whole encryption overhead is about 31,500 gas, under 3% of a spend, today and under Glamsterdam.</li>
+    <li><strong>The hash contracts.</strong> The pool calls the three poseidon-solidity contracts that already exist on mainnet, pinned by code hash, so it deploys none. They are 23,478, 14,189 and 19,260 bytes. Their README says they are unaudited, so the build checks them against the circuit with shared test vectors and the audit reads the generator.</li>
+    <li><strong>Size limit.</strong> The build fails if any contract's deployed code exceeds 24,576 bytes. Estimates: Pool 16 to 20 KiB, ScreenerRegistry 12 to 16, FeeDistributor 10 to 13, Distribution 7 to 9, Verifier about 4, Token under 3.</li>
+    <li><strong>Transaction limit.</strong> The build fails if any call can exceed 16,777,216 execution gas. The heaviest calls are a spend at about 1.3M, and <code>apply</code> with a full 96-word batch, which writes 96 new slots: about 2.1M today and 10.6M under Glamsterdam, of which 1.2M is execution gas.</li>
+    <li><strong>No refunds are relied on.</strong> Clearing a deposit record earns a refund under both rule sets. No limit or estimate in the code depends on it.</li>
+    <li><strong>Deployment.</strong> About 60 KiB of new code in six transactions: roughly 13M gas today and 95M under Glamsterdam, under $50 either way at 0.2 gwei.</li>
+  </ul>
+
+  <h3 id="b-deploy">Deployment and the canary</h3>
+  <ol>
+    <li><strong>Build.</strong> One reproducible build produces the creation code of the six contracts, the circuit, and a parameter file. The ceremony runs on that circuit, and the verifier's code is generated from its output.</li>
+    <li><strong>Deployer.</strong> A small contract is created through the deterministic deployment proxy at <code>0x4e59…956C</code>. Its constructor fixes the six creation-code hashes in order. Its only function, <code>deploy(i, code)</code>, creates contract <code>i</code> if <code>code</code> matches hash <code>i</code> and every earlier one exists. Addresses follow from the deployer's address and a counter, so each constructor receives the others' addresses before they exist. Anyone can send these transactions, and nobody can deploy anything else through it.</li>
+    <li><strong>One contract per transaction.</strong> Under Glamsterdam pricing the six do not fit in one transaction or one block.</li>
+    <li><strong>Launch.</strong> Anyone calls <code>Distribution.launch()</code>. Screeners who register in the first week count from epoch 7, so the first deposits can be activated about eight days after deployment.</li>
+  </ol>
+  <h4>The canary</h4>
+  <p>The canary is the whole system from the same build, deployed with a different salt and three different time constants: a cap step of 50,400 blocks instead of 648,000, and an emission period and deposit window shortened to match. In 90 days it passes all eight emission steps, the last cap step, the end of emissions and the close of deposits. Screening runs at its real pace with real seats. It has its own token and its own pool against IMD, which anyone could buy from, so the lawyer's review comes before the canary.</p>
+  <p>The project funds it with at least 10 ETH and the equivalent in each other asset, and runs a published script. The canary passes only when every line of the script has a transaction hash beside it:</p>
+  <ul class="check">
+    <li>Every external function of every contract, called at least once.</li>
+    <li>A spend with two real inputs, one with a padding input, one paying a relay fee note, one that turns reward into a token note, and a withdrawal of every asset at its smallest and at its largest reachable size.</li>
+    <li>A refused deposit, its refund, and a refusal that a later batch clears.</li>
+    <li>An activation that fails at a full cap and succeeds after a withdrawal.</li>
+    <li>An epoch with no accepted batch, a screener evicted for silence, and one whose seat was transferred.</li>
+    <li>A basket sale, a sale that skips one asset, and buyback steps down to an empty balance.</li>
+    <li>A token pool that a third party created and priced wrongly before launch.</li>
+    <li>Spends and refunds after deposits have closed and emissions have ended.</li>
+  </ul>
+  <p>What it shows: the deployment procedure works, the contracts and the circuit agree on mainnet, and nobody who looked took the money. What it does not show is that the circuit is sound. The proofs are for that, and the caps limit the cost if the proofs are wrong.</p>
+</section>
+
+<section id="sim">
+  <h2>Economics, simulated</h2>
+  <p>These tables are arithmetic on the design, not forecasts. The script is <code>reports/sim/murmuration_economics.py</code> in the repository, with its full output in <code>results.md</code> beside it. Prices are those of 10 November 2026: ETH at $2,130 and IMD at $2.64. Supply is set to one billion tokens for readable numbers. Every result in IMD or in percent of supply holds for any supply.</p>
+
+  <h3>The one-sided range</h3>
+  <p>25% of supply, placed from a valuation of 48,000 IMD upward. "Bought" is the share of the pool's tokens that buyers have taken.</p>
+  <div class="tbl"><table class="wide">
+    <tr><th>Pool tokens bought</th><th>Price against start</th><th>Valuation of whole supply</th><th>IMD in the pool</th><th>In dollars</th><th>Price move from a $3,000 sale</th></tr>
+    <tr><td class="n">0%</td><td class="n">1.00×</td><td class="n">48,000 IMD ($127k)</td><td class="n">0</td><td class="n">$0</td><td>No bids</td></tr>
+    <tr><td class="n">10%</td><td class="n">1.23×</td><td class="n">59,259 IMD ($156k)</td><td class="n">1,333</td><td class="n">$3,520</td><td class="n">−16.3%</td></tr>
+    <tr><td class="n">25%</td><td class="n">1.78×</td><td class="n">85,333 IMD ($225k)</td><td class="n">4,000</td><td class="n">$10,560</td><td class="n">−13.7%</td></tr>
+    <tr><td class="n">50%</td><td class="n">4.00×</td><td class="n">192,000 IMD ($507k)</td><td class="n">12,000</td><td class="n">$31,680</td><td class="n">−9.2%</td></tr>
+    <tr><td class="n">75%</td><td class="n">16.00×</td><td class="n">768,000 IMD ($2.03M)</td><td class="n">36,000</td><td class="n">$95,040</td><td class="n">−4.7%</td></tr>
+  </table></div>
+  <p>The IMD in the pool is the only exit liquidity the token has. It is never more than about 6% of the valuation it supports, and below the starting price there are no bids at all.</p>
+
+  <h3>Two years of unlocks against that depth</h3>
+  <p>Three quarters of supply unlocks in two years: three times what the public pool ever holds. User rewards follow the caps, so they are small at first and half of them arrive in the last 90 days.</p>
+  <div class="tbl"><table>
+    <tr><th>After month</th><th>Users</th><th>Screeners</th><th>Swarm</th><th>Founder</th><th>Unlocked in total</th></tr>
+    <tr><td class="n">3</td><td class="n">0.18%</td><td class="n">1.88%</td><td class="n">2.50%</td><td class="n">0.62%</td><td class="n">5.18%</td></tr>
+    <tr><td class="n">6</td><td class="n">0.53%</td><td class="n">3.75%</td><td class="n">5.00%</td><td class="n">1.25%</td><td class="n">10.53%</td></tr>
+    <tr><td class="n">12</td><td class="n">2.65%</td><td class="n">7.50%</td><td class="n">10.00%</td><td class="n">2.50%</td><td class="n">22.65%</td></tr>
+    <tr><td class="n">18</td><td class="n">11.12%</td><td class="n">11.25%</td><td class="n">10.00%</td><td class="n">3.75%</td><td class="n">36.12%</td></tr>
+    <tr><td class="n">24</td><td class="n">45.00%</td><td class="n">15.00%</td><td class="n">10.00%</td><td class="n">5.00%</td><td class="n">75.00%</td></tr>
+  </table></div>
+  <p>The next table starts with a share of the pool already bought and nobody buying afterwards. Each month a fixed share of that month's unlocks is sold into the pool. It shows the month in which the pool's IMD runs out and the price is back at the start.</p>
+  <div class="tbl"><table>
+    <tr><th>Pool tokens bought at the start</th><th>10% of unlocks sold</th><th>25% sold</th><th>50% sold</th><th>All sold</th></tr>
+    <tr><td>10% (1,333 IMD in the pool)</td><td>Month 14</td><td>Month 6</td><td>Month 3</td><td>Month 2</td></tr>
+    <tr><td>25% (4,000 IMD)</td><td>Month 23</td><td>Month 14</td><td>Month 8</td><td>Month 4</td></tr>
+    <tr><td>50% (12,000 IMD)</td><td>Not within 24 months</td><td>Month 22</td><td>Month 14</td><td>Month 8</td></tr>
+    <tr><td>75% (36,000 IMD)</td><td>Not within 24 months</td><td>Month 24</td><td>Month 19</td><td>Month 11</td></tr>
+  </table></div>
+  <p>With half the pool bought and half of each month's unlocks sold, the price falls from 4.00× to 2.74× in three months and 1.10× in twelve. All sellers together take out at most the 12,000 IMD, about $31,700, that buyers put in. Vesting the swarm's 10% over two years instead of one moves the empty month from 14 to 16.</p>
+
+  <h3>Fee income and what the 20% adds</h3>
+  <p>Volume here is the dollar value crossing the pool's edge in a month, deposits plus withdrawals. The fee is 0.2% of it.</p>
+  <div class="tbl"><table class="wide">
+    <tr><th>Volume a month</th><th>Fee a month</th><th>Stakers, 40%</th><th>Screeners, 40%</th><th>Each of 15 screeners</th><th>To liquidity, 20%</th><th>IMD bought a month</th><th>Months to add 12,000 IMD</th></tr>
+    <tr><td class="n">$1M</td><td class="n">$2,000</td><td class="n">$800</td><td class="n">$800</td><td class="n">$53</td><td class="n">$400</td><td class="n">152</td><td class="n">79</td></tr>
+    <tr><td class="n">$10M</td><td class="n">$20,000</td><td class="n">$8,000</td><td class="n">$8,000</td><td class="n">$533</td><td class="n">$4,000</td><td class="n">1,515</td><td class="n">7.9</td></tr>
+    <tr><td class="n">$100M</td><td class="n">$200,000</td><td class="n">$80,000</td><td class="n">$80,000</td><td class="n">$5,333</td><td class="n">$40,000</td><td class="n">15,152</td><td class="n">0.8</td></tr>
+  </table></div>
+  <p>The caps decide which of these rows can happen. Railgun turns its balance over about 1.18 times a month. A pool that is full at every cap, with three capped assets, and turns over at that rate:</p>
+  <div class="tbl"><table>
+    <tr><th>Days</th><th>Cap per asset</th><th>Most the pool can hold</th><th>Volume a month</th><th>Fee a month</th><th>IMD to liquidity a month</th></tr>
+    <tr><td class="n">0 to 90</td><td class="n">25 ETH</td><td class="n">$159,750</td><td class="n">$188,505</td><td class="n">$377</td><td class="n">29</td></tr>
+    <tr><td class="n">180 to 270</td><td class="n">100 ETH</td><td class="n">$639,000</td><td class="n">$754,020</td><td class="n">$1,508</td><td class="n">114</td></tr>
+    <tr><td class="n">360 to 450</td><td class="n">400 ETH</td><td class="n">$2,556,000</td><td class="n">$3,016,080</td><td class="n">$6,032</td><td class="n">457</td></tr>
+    <tr><td class="n">540 to 630</td><td class="n">1,600 ETH</td><td class="n">$10,224,000</td><td class="n">$12,064,320</td><td class="n">$24,129</td><td class="n">1,828</td></tr>
+    <tr><td class="n">630 to 720</td><td class="n">3,200 ETH</td><td class="n">$20,448,000</td><td class="n">$24,128,640</td><td class="n">$48,257</td><td class="n">3,656</td></tr>
+  </table></div>
+  <p>At that turnover a full pool first reaches $1M a month at day 270 and $10M a month at day 540. It never reaches $100M a month inside the two-year schedule. Over the whole two years it adds about 21,800 IMD, roughly $58,000, to the token's market. In the first year the buyback is too small to matter against unlock selling: with half of unlocks sold, $1M a month of volume moves the empty month from 14 to 16.</p>
+
+  <h3>User reward per unit of shielded value</h3>
+  <p>Emissions follow the caps, so a full pool pays the same number of tokens per ETH per day in every period: 261 tokens, of a supply of one billion. In dollars that depends on the token's price.</p>
+  <div class="tbl"><table>
+    <tr><th>Token price against start</th><th>Reward a year on a full pool</th><th>On a pool a quarter full or less</th></tr>
+    <tr><td class="n">1× (valuation $127k)</td><td class="n">0.57%</td><td class="n">2.27%</td></tr>
+    <tr><td class="n">4× (half the pool bought)</td><td class="n">2.27%</td><td class="n">9.08%</td></tr>
+    <tr><td class="n">16× (three quarters bought)</td><td class="n">9.08%</td><td class="n">36.3%</td></tr>
+  </table></div>
+  <ul>
+    <li>0.39% of the users' tokens are paid in the first 90 days, 5.9% in the first year and 50.2% in the last 90 days.</li>
+    <li>Under the first version 4 rule, emission divided by the total shielded with no floor, a single depositor of 0.001 ETH in an empty pool would have collected the whole first period, a nominal 42,578% a year. With the floor the rate never exceeds four times the full-pool rate.</li>
+    <li>With the recommended stop at 800 ETH, emissions level off with the caps: 525 tokens per ETH per day on a full pool, 1.14% a year at the starting price, and the last three periods each pay a quarter of the users' tokens.</li>
+  </ul>
 </section>
 
 <section id="periphery">
@@ -372,7 +916,7 @@ SeatDelegation {
   <ul>
     <li>Railgun broadcaster 8.2.0 from <code>gitlab.com/railgun-protocol</code>. The GitHub copy stops at 8.0.0 and points at the wrong Waku cluster.</li>
     <li>nwaku 0.37.1 on Railgun's cluster 5, shard 1, with Railgun's content topics (<code>/railgun/v2/0-1-fees/json</code> and the matching transact topics). That cluster does not use RLN.</li>
-    <li>A PPOI node URL and an RPC endpoint of the operator's own. The broadcaster refuses any transaction without a valid proof of innocence for the required list.</li>
+    <li>A PPOI node URL and an RPC endpoint of the operator's own. The broadcaster reads the URL from <code>POI_NODE_URL</code> and ships with it empty. Railgun's documentation publishes a community node at <code>ppoi.fdi.network</code> that any operator can use. The broadcaster refuses any transaction without a valid proof of innocence for the required list.</li>
     <li>The open-source Privacy Pools relayer, if the operator also relays there.</li>
   </ul>
   <h4>What Murmuration adds, in the wallet</h4>
@@ -422,7 +966,7 @@ on refusal or timeout:
     <li><strong>Verified by the wallet.</strong> The wallet rebuilds the commitment tree from the chunks and compares the root with the pool's on-chain root at <code>toBlock</code>.</li>
     <li><strong>Nothing to hide.</strong> Every user fetches the same chunks. A mirror or gateway learns that someone uses the pool, and no more. Fetch over Tor to hide that too.</li>
     <li><strong>Covers history expiry.</strong> Pools' logs stay available even when full nodes stop serving old ones.</li>
-    <li><strong>Integration.</strong> Railgun's engine takes its quick-sync source as a parameter. The exact hook in engine 9.9.1 is still to be confirmed.</li>
+    <li><strong>Integration.</strong> Railgun's engine 9.9.1 takes its quick-sync source as two arguments of <code>initForWallet</code>: <code>quickSyncEvents</code> and <code>quickSyncRailgunTransactionsV2</code>. Wallet SDK 11.3.0 passes its own subgraph functions with no option, so an application reassigns the two properties on the engine after start, or patches that one call. The engine checks commitments against on-chain roots, so a snapshot keeps event-batch boundaries. It does not check nullifier or unshield events, so the wallet module does. This was read in the code and not run.</li>
   </ul>
   <p>Remaining interactive reads (gas price, a public balance before shielding) go through <code>anon-rpc</code> and Helios in the wallet. Helios verifies answers and does not hide the question, which is why transport privacy comes from the <code>anon-rpc</code> worker.</p>
 
@@ -458,7 +1002,7 @@ DUTIES=relay,mirror,attest
 OPKEY_FILE=/var/lib/murmuration/opkey          # secp256k1, created on this machine
 DELEGATION_FILE=/var/lib/murmuration/delegation.json
 RAILGUN_MNEMONIC_FILE=/run/secrets/mnemonic    # derives the 0zk fee address and the gas wallets
-RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
+RPC_URL=…   POI_NODE_URL=…   IPFS_API=…
 
 # one tier: 2 vCPU, 4 GB, 40 GB disk
 # Railgun's README asks for 1 GB of memory and 20 GB of disk; real use was not measured here</code></pre>
@@ -492,7 +1036,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td>One party buys many seats to watch more traffic</td><td>One relayer counted per holder, random choice, and an optional rule that a seat must be held 30 days</td><td>A share of traffic equal to its share of seats, at about 0.70 ETH each. It sees ciphertext and timing, never content</td></tr>
     <tr><td>A relayer refuses or delays</td><td>The wallet retries through another seat and avoids the refuser for a day</td><td>A short delay</td></tr>
     <tr><td>A mirror serves wrong or partial data</td><td>The wallet rebuilds the pool's root from the files and compares it with the chain. Several mirrors publish identical files</td><td>Nothing. A bad file is rejected</td></tr>
-    <tr><td>Screeners refuse a legitimate deposit</td><td>The depositor takes it back in full. The screening set can be recomputed by anyone, so a wrong refusal is visible</td><td>The deposit address was public already</td></tr>
+    <tr><td>Screeners refuse a legitimate deposit</td><td>The depositor takes it back in full. The screening batch can be recomputed by anyone, so a wrong refusal is visible</td><td>The deposit address was public already</td></tr>
   </table></div>
   <h3>What no design choice removes</h3>
   <ul>
@@ -511,9 +1055,9 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td>Relay, Railgun</td><td>Railgun's existing fee note to the broadcaster's 0zk address</td><td>About 1.10 times estimated gas cost. On a median spend at the median gas price that is roughly $0.02 of margin on $0.19 of gas</td></tr>
     <tr><td>Relay, Privacy Pools</td><td>The pool's public transfer to the fee recipient named in the proof</td><td>Basis points of the withdrawal in v1, a nominal amount in v2</td></tr>
     <tr><td>Mirror</td><td>Unpaid</td><td>A by-product of the sync a broadcaster already does</td></tr>
-    <tr><td>Attest</td><td>Unpaid on Railgun and Privacy Pools. In the pool, a share of the fee</td><td>Per day of agreement with the accepted root, never per use</td></tr>
+    <tr><td>Attest</td><td>Unpaid on Railgun and Privacy Pools. In the pool, a share of the fee</td><td>Per day of agreement with the accepted batch, never per use</td></tr>
     <tr><td>Railgun's 0.25% on shield and unshield</td><td>To Railgun's treasury</td><td>Not Murmuration's, and not the broadcasters'</td></tr>
-    <tr><td>Murmuration pool fee (phase 2)</td><td>0.2% of each approved deposit and 0.2% of each public withdrawal, in the asset itself, to the immutable distributor</td><td>40% to token stakers, 40% to the screeners who signed that day's accepted root, 20% to permanent liquidity. Nothing on transfers inside the pool</td></tr>
+    <tr><td>Murmuration pool fee (phase 2)</td><td>0.2% of each approved deposit and 0.2% of each public withdrawal, in the asset itself, to the immutable distributor</td><td>40% to token stakers, 40% to the screeners who revealed that day's accepted batch, 20% to the token's market through the auction and buyback. Nothing on transfers inside the pool</td></tr>
   </table></div>
   <p>Relaying is not a business at today's gas prices. Thirty nodes would share a market margin of about $480 a month with the incumbents, while hosting alone costs them $135 to $270 a month in total. Operators relay on a machine they already pay for, for a small return or none. The roadmap's targets are sized to that: a few dozen independent broadcasters cover the demand many times over.</p>
   <div class="tbl"><table>
@@ -523,31 +1067,66 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td>Same, under Glamsterdam</td><td class="n">417,664</td><td class="n">$0.18</td><td class="n">$0.37</td><td class="n">$1.78</td></tr>
     <tr><td>Same, under Glamsterdam, to a fresh account</td><td class="n">601,264</td><td class="n">$0.26</td><td class="n">$0.54</td><td class="n">$2.56</td></tr>
     <tr><td>Seat delegation on EAS, once per seat per 90 days</td><td class="n">about 231,000</td><td class="n">$0.10</td><td class="n">$0.21</td><td class="n">$0.98</td></tr>
+    <tr><td>Murmuration deposit, modelled</td><td class="n">80,305</td><td class="n">$0.03</td><td class="n">$0.07</td><td class="n">$0.34</td></tr>
+    <tr><td>Murmuration activation, modelled</td><td class="n">749,604</td><td class="n">$0.32</td><td class="n">$0.67</td><td class="n">$3.19</td></tr>
+    <tr><td>Murmuration spend, modelled</td><td class="n">1,081,224</td><td class="n">$0.46</td><td class="n">$0.97</td><td class="n">$4.61</td></tr>
+    <tr><td>Same spend, under Glamsterdam</td><td class="n">1,300,864</td><td class="n">$0.55</td><td class="n">$1.16</td><td class="n">$5.54</td></tr>
   </table></div>
   <p>Prices are for 10 November 2026: ETH at $2,130, base fee 0.046 gwei at 00:13 UTC, seven-day mean 0.203 gwei (median 0.058), 30-day mean 0.418 gwei (median 0.066). The 30-day mean is pulled up by a spike to 253 gwei on 29 October. A broadcaster's quote is fixed before the user proves, so a spike like that leaves it relaying at a loss or refusing.</p>
 
     <h3 id="parameters">Parameters fixed at deployment</h3>
-  <p>These are proposed defaults. Whatever values are deployed can never be changed, so each one needs a deliberate decision before the trusted-setup ceremony.</p>
+  <p>Whatever values are deployed can never be changed. Rows marked <span class="pill ok">decided</span> are the owner's decisions. Rows marked <span class="pill hi">to confirm</span> are recommendations from <a href="#decisions">Defaults to confirm</a>. Rows marked <span class="pill">build</span> are engineering constants the build jobs may tune before the ceremony, with the reason recorded.</p>
   <div class="tbl"><table>
-    <tr><th>Parameter</th><th>Value</th><th>Note</th></tr>
-    <tr><td>Pool fee</td><td class="n">0.2% in, 0.2% out</td><td>The entry fee is taken at a deposit's first spend. Nothing on transfers inside the pool</td></tr>
-    <tr><td>Fee split</td><td class="n">40 / 40 / 20</td><td>Token stakers, that day's signing screeners, and permanent liquidity through a daily auction for IMD</td></tr>
-    <tr><td>Minimum age before first spend</td><td class="n">7,200 blocks</td><td>About one day</td></tr>
-    <tr><td>Exit sizes</td><td class="n">1, 2, 5 series</td><td>Per asset: 0.1, 0.2, 0.5, 1, 2, 5, 10 ETH and so on</td></tr>
-    <tr><td>Starting cap</td><td class="n">about 25 ETH per asset</td><td>Doubles every 90 days, about 6,400 ETH after two years</td></tr>
-    <tr><td>Deposit window</td><td class="n">about 4 years</td><td>Deposits stop at a fixed block. Withdrawals never stop</td></tr>
-    <tr><td>Screening threshold</td><td class="n">two thirds</td><td>Of registered screeners. Fallback rule after 7 days without a root</td></tr>
-    <tr><td>Screener requirement</td><td class="n">1 seat + stake</td><td>One IMD seat and a token stake, amount to be set</td></tr>
-    <tr><td>Token supply</td><td class="n">fixed</td><td>Minted once. No mint function, no owner</td></tr>
-    <tr><td>Token allocation</td><td class="n">45 / 25 / 15 / 10 / 5</td><td>Users, public pool, screeners, the swarm, founder</td></tr>
-    <tr><td>Emission period</td><td class="n">2 years</td><td>User rewards released in step with the caps</td></tr>
-    <tr><td>Founder vesting</td><td class="n">2 years</td><td>Linear, with nothing in the first month</td></tr>
-    <tr><td>Swarm lock</td><td class="n">up to 1 year</td><td>Builders and auditors</td></tr>
-    <tr><td>Public pool</td><td class="n">25% of supply</td><td>One-sided against IMD only, placed at launch, position locked for good</td></tr>
-    <tr><td>Starting valuation</td><td class="n">48,000 IMD</td><td>For the whole supply. About 12,000 IMD sits in the pool once half of the 25% is bought</td></tr>
-    <tr><td>Circuits</td><td class="n">3, Groth16</td><td>Deposit, two-in two-out transfer, withdraw</td></tr>
-    <tr><td>Note encryption</td><td class="n">X25519 + ML-KEM-768</td><td>Hybrid, about 1.1 KB more per output note</td></tr>
+    <tr><th>Parameter</th><th>Value</th><th>Status</th><th>Note</th></tr>
+    <tr><td>Pool fee</td><td class="n">0.2% in, 0.2% out</td><td><span class="pill ok">decided</span></td><td>The entry fee is taken at activation. Nothing on transfers inside the pool</td></tr>
+    <tr><td>Fee split</td><td class="n">40 / 40 / 20</td><td><span class="pill ok">decided</span></td><td>Token stakers, that day's agreeing screeners, and the token's market through an auction for IMD</td></tr>
+    <tr><td>Token supply</td><td class="n">fixed</td><td><span class="pill ok">decided</span></td><td>Created once. No mint function, no owner. One billion is used in examples; the number itself is free</td></tr>
+    <tr><td>Token allocation</td><td class="n">45 / 25 / 15 / 10 / 5</td><td><span class="pill ok">decided</span></td><td>Users, public pool, screeners, the swarm, founder</td></tr>
+    <tr><td>Founder vesting</td><td class="n">2 years</td><td><span class="pill ok">decided</span></td><td>Linear, with nothing in the first month. One address</td></tr>
+    <tr><td>Public pool</td><td class="n">25% of supply</td><td><span class="pill ok">decided</span></td><td>One-sided against IMD only, from a valuation of 48,000 IMD, position locked for good</td></tr>
+    <tr><td>Screener requirement</td><td class="n">1 seat + stake</td><td><span class="pill ok">decided</span></td><td>One IMD seat and a token stake</td></tr>
+    <tr><td>Minimum age before activation</td><td class="n">7,200 blocks</td><td><span class="pill hi">to confirm</span></td><td>About one day. The screening cycle makes the real wait one to two days</td></tr>
+    <tr><td>Exit sizes</td><td class="n">1, 2, 5 series</td><td><span class="pill hi">to confirm</span></td><td>0.001 to 1,000 ETH. 1 to 1,000,000 USDC or DAI. 1,000 to 100,000,000 of the token</td></tr>
+    <tr><td>Caps</td><td class="n">25 ETH, 50,000 USDC, 50,000 DAI</td><td><span class="pill hi">to confirm</span></td><td>On activated value. Doubling every 648,000 blocks. Recommended stop after five doublings, at 800 ETH and 1,600,000 of each stablecoin</td></tr>
+    <tr><td>Deposit window</td><td class="n">10,512,000 blocks</td><td><span class="pill hi">to confirm</span></td><td>About four years from genesis. Activation, refunds and withdrawals never stop</td></tr>
+    <tr><td>Screening threshold</td><td class="n">two thirds of active</td><td><span class="pill hi">to confirm</span></td><td>At least seven active. No fallback rule</td></tr>
+    <tr><td>Screener stake</td><td class="n">0.05% of supply</td><td><span class="pill hi">to confirm</span></td><td>Counts from 30 epochs after registration. Returned 14 epochs after exit</td></tr>
+    <tr><td>Emission</td><td class="n">8 steps of 90 days</td><td><span class="pill hi">to confirm</span></td><td>In proportion to the cap in each step. Divisor floor at a quarter of capacity</td></tr>
+    <tr><td>Swarm vesting</td><td class="n">2 years, linear</td><td><span class="pill hi">to confirm</span></td><td>Version 4 said "up to one year"</td></tr>
+    <tr><td>Assets and weights</td><td class="n">ETH 1 : USDC 1/2,000 : DAI 1/2,000</td><td><span class="pill hi">to confirm</span></td><td>Reward weight per unit, set from the cap ratios. The token's weight is zero. Final before the ceremony, because the circuit holds them</td></tr>
+    <tr><td>Auction</td><td class="n">1-day decline, ×2 restart</td><td><span class="pill hi">to confirm</span></td><td>First starting price 100 IMD, floor 1 IMD, minimum restart 10 IMD</td></tr>
+    <tr><td>Buyback step</td><td class="n">half of fee rate × reserves</td><td><span class="pill">build</span></td><td>At most one step per 25 blocks, in a pool at the 1% fee tier</td></tr>
+    <tr><td>Staker stream</td><td class="n">50,400 blocks</td><td><span class="pill">build</span></td><td>Each fee sweep is paid out evenly over about seven days</td></tr>
+    <tr><td>Screening epoch</td><td class="n">7,200 blocks</td><td><span class="pill">build</span></td><td>Commit in the first 4,800 blocks, reveal in the last 2,400. Eviction after 7 silent epochs or 7 missed batches</td></tr>
+    <tr><td>Reward checkpoint</td><td class="n">300 blocks</td><td><span class="pill">build</span></td><td>A proof may use the current checkpoint or the one before</td></tr>
+    <tr><td>Tree and roots</td><td class="n">depth 32, last 64 roots</td><td><span class="pill">build</span></td><td>One leaf per transaction</td></tr>
+    <tr><td>Circuit</td><td class="n">1, Groth16</td><td><span class="pill">build</span></td><td>Spend: two in, three out, a reward note and an optional public amount</td></tr>
+    <tr><td>Note encryption</td><td class="n">X25519 + ML-KEM-768</td><td><span class="pill ok">decided</span></td><td>As X-Wing under HPKE. 1,312 bytes of ciphertext per spend</td></tr>
   </table></div>
+</section>
+
+<section id="decisions">
+  <h2>Defaults to confirm</h2>
+  <p>The previous session chose these values and the owner has not confirmed them. None is settled. Each row gives the value in the first version 4, what this revision recommends, and why. The build specification is written to the recommended value and marks it as a parameter, so a different choice changes a constant and not the design, except where the last column says otherwise.</p>
+  <div class="tbl"><table class="wide">
+    <tr><th>Default</th><th>First version 4</th><th>Recommendation</th><th>Why</th><th>If the owner chooses otherwise</th></tr>
+    <tr><td>Exit sizes</td><td>1, 2, 5 series, starting at 0.1 ETH</td><td><strong>Keep the 1, 2, 5 series.</strong> Run it from 0.001 to 1,000 ETH and from 1 to 1,000,000 units of each stablecoin</td><td>Three sizes per decade keep a full exit under about 18 transactions. The smallest size must be small, because anything below it can never leave once deposits close</td><td>A constant per asset</td></tr>
+    <tr><td>Minimum age</td><td>7,200 blocks</td><td><strong>Keep 7,200 blocks</strong> as the floor in the contract. Let the published criteria hold large or freshly funded deposits longer</td><td>The floor binds even a captured registry. Longer waits belong in the criteria, which screeners can tighten without a new pool</td><td>A constant</td></tr>
+    <tr><td>Caps</td><td>About 25 ETH per asset, doubling every 90 days, no stated end</td><td><strong>Keep the start and the pace. Stop at 800 ETH per asset</strong>, reached on day 450. Count the cap on activated value only</td><td>Without a stop, three assets hold about $41M after two years in code no outside firm has read, and the doubling goes on. With the stop the most at risk is about $5.1M. A larger pool is a decision for a successor, made with two years of evidence</td><td>A constant for the stop. Emissions follow the caps, so the reward schedule moves with it</td></tr>
+    <tr><td>Deposit window</td><td>About four years</td><td><strong>Keep four years</strong>, written as an exact block number</td><td>It leaves time to build a successor. It stops new deposits only: funds left inside after it stay exposed to whatever breaks Groth16, and the wallet should say so from year three</td><td>A constant</td></tr>
+    <tr><td>Screening threshold and fallback</td><td>Two thirds of registered screeners. After seven days with no root, approve any deposit not on the sanctions oracle</td><td><strong>Keep two thirds, of active screeners. Remove the fallback.</strong> With no accepted batch, deposits wait or are refunded</td><td>The fallback let one third of screeners switch screening off by staying silent for a week, and tied the pool to an oracle its owner can change. Without it a stalled registry delays deposits and cannot admit unscreened ones</td><td>Keeping the fallback adds the oracle call and a second activation path to the pool, and the risk table gains the one-third attack</td></tr>
+    <tr><td>Screener stake</td><td>Unset</td><td><strong>0.05% of supply per screener</strong>, with a 30-day wait before a new screener counts and 14 days to withdraw</td><td>Nothing can slash the stake, so it is a deposit that ties a screener to the token's value. At the starting valuation it is worth about $63. The seat, about $1,490, is the real cost. A larger stake would mostly keep honest operators out</td><td>A constant</td></tr>
+    <tr><td>User rewards</td><td>Released in step with the caps</td><td><strong>Keep, with a floor on the divisor</strong> at a quarter of capacity. Unreleased tokens stay locked for good</td><td>Without the floor the first dust depositor takes a whole period's emission. With it the rate is at most four times the full-pool rate</td><td>The floor is a constant. Removing it restores the first-depositor problem</td></tr>
+    <tr><td>Swarm lock</td><td>Up to one year</td><td><strong>A two-year linear vest from launch</strong>, no cliff, for every entry on the list</td><td>The owner's rule is that every schedule runs two years. A one-year release is also the largest unlock in the first year, 0.83% of supply a month into a market with no bids below the start</td><td>A constant</td></tr>
+    <tr><td>Asset list</td><td>"ETH and a few major tokens"</td><td><strong>ETH, USDC, DAI and the pool's own token.</strong> Not USDT, not rebasing tokens, not IMD</td><td>Each asset adds permanent constants and its cap to the exposure. DAI's contract is immutable and cannot freeze. USDC can freeze and is too widely used to leave out. USDT can switch on a transfer fee. IMD's token contract has not been audited</td><td>Each asset changes the circuit's constant table, so the list must be final before the ceremony</td></tr>
+    <tr><td>Auction design</td><td>A daily descending-price auction per asset, then a one-sided liquidity add</td><td><strong>One continuous descending-price auction for the whole basket, then a stepped buyback and burn</strong> through the locked pool</td><td>The one-sided add could be taken by whoever settled the auction. The buyback leaves the same IMD in the locked pool and cannot be sandwiched at a profit below the step limit</td><td>A different mechanism is a different FeeDistributor</td></tr>
+  </table></div>
+  <h3>Where this revision disagrees with a decision</h3>
+  <p>The owner's decisions are built as decided. Two notes are recorded here because the evidence supports them, and neither is acted on.</p>
+  <ul>
+    <li><strong>Stakers are paid in the asset the fee was taken in, as decided.</strong> Selling the whole fee for IMD in the one auction and paying stakers and screeners in IMD would remove most of the accounting in the distributor and the registry, and would tie the project more closely to IMD. It would also expose all fee income to IMD's price. It is an option, not a recommendation.</li>
+    <li><strong>The canary places a public token pool.</strong> A canary that exercises the token contracts has to launch a token. The decision to rely on a canary therefore brings the lawyer's review forward to before the canary.</li>
+  </ul>
 </section>
 
 <section id="legal">
@@ -560,7 +1139,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <li>The team does not recruit, pay or coordinate operators. Roadmap gates are observations read from the chain.</li>
     <li>A fixed fee of 0.2% in and 0.2% out and a token exist. No fee goes to a team address. The founder holds 5% of the token, vested in code over two years, at one public address.</li>
     <li>25% of the token is offered to the public through a locked pool paired with IMD. No external audit firm reviews the code. Assurance comes from IMD audit panels, machine-checked proofs, a canary and very low caps.</li>
-    <li>Screening is real, published and executed by independent screeners. The pool contract enforces it at a deposit's first spend, and seat broadcasters enforce PPOI on Railgun.</li>
+    <li>Screening is real, published and executed by independent screeners. The pool contract enforces it when a deposit is activated, and seat broadcasters enforce PPOI on Railgun.</li>
     <li>No running part is brokered through IMD's control plane. IMD jobs are bought only to build and review open-source code. Admission is derived from on-chain seat ownership.</li>
     <li>Disclosure is user-held, opt-in and scoped to one transaction. No key share exists anywhere outside the user's wallet.</li>
     <li>No support channel through which the team learns about specific flows.</li>
@@ -571,12 +1150,15 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
   <div class="callout warn">
     <p><strong>Operators carry the exposure the developers avoid.</strong> No guidance or ruling found says whether a fee-earning relayer is a money transmitter. FinCEN's 2019 guidance separates anonymizing software providers, who are not, from anonymizing services providers, who are, and never mentions relayers. At the Rule 29 hearing on 9 April 2026 the government called relayers "part of the cohort operating Tornado Cash... for a profit". Each operator needs advice under their own law.</p>
   </div>
-  <p>Two rules were tested against new evidence and kept. Immutability has a cost, shown when the ownerless Aztec Connect contracts were drained with no way to stop it, and the plan answers that with three small circuits, formal verification, per-asset limits, immutable caps and a fixed deposit window. Against that cost, on 7 October 2026 the EU's AML authority told the Commission that "effective control" over a DeFi arrangement may arise from "the ability to pause or modify smart contracts". The rule stays.</p>
+  <p>Two rules were tested against new evidence and kept. Immutability has a cost, shown when the ownerless Aztec Connect contracts were drained with no way to stop it, and the plan answers that with one small circuit, formal verification, per-asset limits, immutable caps and a fixed deposit window. Against that cost, on 7 October 2026 the EU's AML authority told the Commission that "effective control" over a DeFi arrangement may arise from "the ability to pause or modify smart contracts". The rule stays.</p>
+  <div class="callout warn">
+    <p><strong>This page is not legal advice.</strong> A lawyer reviews the fee, the token, the public pool and the founder allocation before launch. Because the canary places a token pool of its own, that review now comes before the canary.</p>
+  </div>
 </section>
 
 <section id="compat">
   <h2>Upgrade compatibility</h2>
-  <p>Status as of 10 November 2026. Fusaka is live. Glamsterdam has been live on Sepolia since 6 October. Its Hoodi fork was cancelled on 22 October with no new date, and mainnet has no date either; the client developers' own call summary reads "December 2026 fork now very unlikely; 2027 expected". EIP-8037 and EIP-8038 are in Last Call with parameters unchanged since October. The eight gas invariants they break are still unresolved, and two open pull requests change which gas pool pays, not any price. The next developer calls are on 12 and 19 November. Hegotá is still listed for Q2 2027, unconfirmed, and its scheduled set grew to three EIPs on 29 October.</p>
+  <p>Status as of 10 November 2026. Fusaka is live. Glamsterdam has been live on Sepolia since 6 October. Its Hoodi fork was cancelled on 22 October with no new date, and mainnet has no date either; the client developers' own call summary reads "December 2026 fork now very unlikely; 2027 expected". EIP-8037 and EIP-8038 are in Last Call with parameters unchanged since October. The eight gas invariants they break are still unresolved, and two open pull requests change which gas pool pays, not any price. The next developer calls are on 12 and 19 November. On 9 November the Ethereum Foundation added a timeline to its post: audit reports on the 13th, a testing call on the 16th, and the execution call on the 19th with no decision promised. It reports four more contracts that could break and says the specifications could be revised, so every Glamsterdam gas figure on this page is provisional. Hegotá is still listed for Q2 2027, unconfirmed, and its scheduled set grew to three EIPs on 29 October.</p>
   <p>This table matters in two places: the gas estimates a broadcaster quotes from, and the pool's own contracts.</p>
   <div class="tbl"><table class="wide">
     <tr><th>Fork</th><th>Change</th><th>Status</th><th>What it does to Murmuration</th><th>Rule</th></tr>
@@ -584,7 +1166,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td>Glamsterdam</td><td>EIP-8037 state creation: new slot 97,920 state gas, new account 183,600, 1,530 per code byte</td><td><span class="pill">Last Call, unscheduled</span></td><td>A fresh slot goes from 22,100 to 110,020 gas, five times dearer. Railgun spends write several fresh slots, so their gas rises on fork day and a broadcaster quoting from old estimates relays at a loss</td><td>The node pins its gas estimation to the active fork and never hard-codes a gas figure</td></tr>
     <tr><td>Glamsterdam</td><td>EIP-8037 state gas as a second dimension. The cap applies to execution gas; a reservoir exists only above 2<sup>24</sup> of <code>tx.gas</code></td><td><span class="pill">Last Call, unscheduled</span></td><td>A 24 KiB deployment costs 38.2M gas in all. A 64 KiB one would cost 101.5M and cannot be included under the current 60M block limit.</td><td>Pool: every contract at or under 24 KiB</td></tr>
     <tr><td>Glamsterdam</td><td>EIP-8038 state access: storage write 10,000, cold account 3,000, account write 9,000, create access 12,000; clearing refund rises to 11,616</td><td><span class="pill">Last Call, unscheduled</span></td><td>Overwrites cost 12,100 cold instead of 5,000</td><td>No logic that depends on refunds</td></tr>
-    <tr><td>Glamsterdam</td><td>EIP-7976 calldata floor of 64 gas per byte</td><td><span class="pill">SFI</span></td><td>Groth16 proofs are small. Snapshots and attestations never touch calldata</td><td>On-chain payloads stay at hashes and signatures</td></tr>
+    <tr><td>Glamsterdam</td><td>EIP-7976 calldata floor of 64 gas per byte</td><td><span class="pill">SFI</span></td><td>Groth16 proofs are small. Snapshots and attestations never touch calldata. A spend's 1,312 bytes of ciphertext pay the ordinary rate, because the floor binds only transactions that carry little but data</td><td>On-chain payloads stay at hashes and signatures</td></tr>
     <tr><td>Glamsterdam</td><td>EIP-7708 logs for ETH transfers</td><td><span class="pill">SFI</span></td><td>Every ETH unshield and every Privacy Pools relay fee becomes a log. Relay fees there are public already</td><td>The health dataset adds the new log source</td></tr>
     <tr><td>Glamsterdam</td><td>EIP-7732 ePBS, EIP-7928 block access lists</td><td><span class="pill">SFI</span></td><td>Inclusion can slip a slot or two</td><td>Broadcaster quotes stay valid across several slots</td></tr>
     <tr><td>Glamsterdam</td><td>EIP-7997 deterministic factory</td><td><span class="pill">Last Call</span></td><td>It names the existing deployment proxy at <code>0x4e59…956C</code>, not a new predeploy</td><td>The pool deploys through that address</td></tr>
@@ -622,7 +1204,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
         <li><strong>Wallet policy</strong>: a patch to Railgun's <code>waku-broadcaster-client</code> (MIT) that fills the trusted-signer list from seat delegations, uses a median band and picks at random. Shipped with a reference command-line wallet.</li>
         <li><strong>Snapshot and health builders</strong>, deterministic, with the verifier for wallets.</li>
         <li><strong>Baseline</strong>: the measurement script behind this page's Railgun figures, published so anyone can rerun it.</li>
-        <li><strong>Pool specification</strong>: the three circuits, the contracts, the token and the reward index written out in full, as public build and review jobs.</li>
+        <li><strong>Pool specification</strong>: done in this revision. The circuit, the six contracts and the reward index are written out in the <a href="#build">build specification</a>, with 50 draft job briefs in the <a href="#plan">build plan</a>.</li>
       </ul>
       <p><span class="pill">Dependencies</span> A wallet that adopts the policy. Railway's allowlist is Railway's decision and this plan asks nothing of it<br><span class="pill ok">Gate</span> 10 seats with distinct holders hold valid delegations and have each relayed at least one real transaction through a wallet using the policy · two independent mirrors publish identical snapshot identifiers for 14 days running</p>
     </div>
@@ -639,9 +1221,9 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
         <li><strong>Disclosure receipts</strong> for Railgun and Privacy Pools v1.</li>
         <li><strong>Transport</strong>: Waku and IPFS through an <code>anon-rpc</code> worker in the wallet module. A relayer list for Kohaku's Privacy Pools plugin once Kohaku has a stable release. Its Railgun package is still a stub.</li>
         <li><strong>IMD audit</strong> of the wallet policy, verifiers and builders, with findings public.</li>
-        <li><strong>Pool on testnet</strong>: circuits and contracts running on Sepolia, where the Glamsterdam gas rules are already live, with the wallet module and seat screeners.</li>
+        <li><strong>Pool on testnet</strong>: the circuit and contracts running on Sepolia, where the Glamsterdam gas rules are already live, with the wallet module and seat screeners.</li>
       </ul>
-      <p><span class="pill">Dependencies</span> Kohaku's release state (alpha, no stable release) · PPOI node access for operators (no public default was found)<br><span class="pill ok">Gate</span> 30 distinct holders relaying · three criteria sets each attested daily by five or more distinct holders for 90 days with no unexplained disagreement · the seat broadcasters' share of Railgun spends, read from chain</p>
+      <p><span class="pill">Dependencies</span> Kohaku's release state (alpha, no stable release) · PPOI node access for operators (a public community node exists; who runs it and on what terms is not known)<br><span class="pill ok">Gate</span> 30 distinct holders relaying · three criteria sets each attested daily by five or more distinct holders for 90 days with no unexplained disagreement · the seat broadcasters' share of Railgun spends, read from chain</p>
     </div>
   </div>
 
@@ -650,24 +1232,50 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <div>
       <h3>Proofs, canary, ceremony and launch of the pool</h3>
       <ul>
-        <li>IMD audit panels on every contract and circuit, and machine-checked proofs of the transfer circuit.</li>
-        <li>A public trusted-setup ceremony for the three circuits.</li>
-        <li>The canary: the final bytecode on mainnet for 90 days, holding at least 10 ETH.</li>
-        <li>Deployment of the six contracts through the deterministic deployment proxy, and placement of the public pool against IMD.</li>
+        <li>The 50 jobs of the <a href="#plan">build plan</a>: contracts, the circuit, machine-checked proofs, reviews and IMD audits.</li>
+        <li>A lawyer's review of the fee, the token, the public pool and the founder allocation, before the canary.</li>
+        <li>A public trusted-setup ceremony for the one circuit, and a check of its output.</li>
+        <li>The canary: the whole system on mainnet for 90 days with a compressed clock, funded with at least 10 ETH and exercised by a published script.</li>
+        <li>Deployment of the six contracts through the deterministic deployment proxy and the one-time deployer, and placement of the public pool against IMD.</li>
         <li>The wallet module ships the pool beside Railgun and Privacy Pools.</li>
       </ul>
       <p>The pool launches only when all six conditions hold. There is no date.</p>
       <ol>
-        <li>Every IMD audit finding is public and closed.</li>
-        <li>The transfer circuit has a machine-checked proof that it cannot create value or spend a note twice, and public analyser runs are clean.</li>
-        <li>The canary has held at least 10 ETH on mainnet for 90 days without loss.</li>
-        <li>Three months on testnet, with at least 15 screeners on distinct seats producing matching roots for 30 days.</li>
+        <li>Every IMD audit and review finding is public and closed, for the six contracts and for the circuit.</li>
+        <li>The circuit has machine-checked proofs of the five properties against statements the owner has signed off, the proved constraint system is the one in the ceremony, and public analyser runs are clean.</li>
+        <li>A lawyer has reviewed the fee, the token, the public pool and the founder allocation. This comes before the canary, which places a token pool of its own.</li>
+        <li>The canary has run 90 days on mainnet without loss, and every line of its script has a transaction hash.</li>
+        <li>Three months on testnet, with at least 15 screeners on distinct seats producing matching batches for 30 days.</li>
         <li>A wallet with real users ships the pool.</li>
-        <li>A lawyer has reviewed the fee, the token, the public pool and the founder allocation.</li>
       </ol>
-      <p><span class="pill">Dependencies</span> IMD's audit quality, which this launch tests · Glamsterdam and Hegotá dates · the Storm retrial in April 2027 and the EU rules that apply from 10 July 2027<br><span class="pill ok">Gate</span> The six conditions above</p>
+      <p><span class="pill">Dependencies</span> IMD's audit quality, which this launch tests · the <code>clean</code> proof framework and its Poseidon proofs · Glamsterdam and Hegotá dates · the Storm retrial in April 2027 and the EU rules that apply from 10 July 2027<br><span class="pill ok">Gate</span> The six conditions above</p>
     </div>
   </div>
+</section>
+
+<section id="plan">
+  <h2>Build plan</h2>
+  <p>The work is broken into 50 job briefs for the IMD swarm, saved in the repository under <code>reports/build_plan/</code>. None has been submitted. Each fits one IMD request under the limits IMD publishes: an objective of at most 8,000 characters, at most six steps, at most eight acceptance tests per step, at most 16 writable paths. A script in the same folder regenerates the briefs and fails if one breaks a limit.</p>
+  <div class="tbl"><table>
+    <tr><th>Group</th><th>Briefs</th><th>What they produce</th><th>How acceptance is checked</th></tr>
+    <tr><td>Contracts</td><td class="n">B00 to B60, 18</td><td>The six contracts in small pieces, the deployer, the verifier wrapper and end-to-end tests</td><td>Foundry tests written into each brief. IMD's verifier runs them</td></tr>
+    <tr><td>Fuzzing</td><td class="n">F01 to F04, 4</td><td>One invariant harness per stateful contract, a million calls each</td><td>The same</td></tr>
+    <tr><td>Circuit</td><td class="n">C00 to C07, 8</td><td>The frozen formal statements, the circuit in Lean, an independent Circom copy, proof fixtures, the wallet's cryptography</td><td>A named <code>make</code> target. IMD checks only that the files exist, so a review job re-runs each</td></tr>
+    <tr><td>Proofs</td><td class="n">P01 to P05, 5</td><td>Machine-checked proofs of every gadget and of the five properties, and public analyser runs</td><td>The Lean checker, a list of permitted axioms, and a comparison against the frozen statements so that a proof cannot quietly change what it proves</td></tr>
+    <tr><td>Reviews</td><td class="n">R01 to R05, 5</td><td>Whether the formal statements say the right thing, the circuit and contract boundary, a circuit checklist, the ceremony output, and the token market on a fork</td><td>Panel verdicts with a reproduction for every finding</td></tr>
+    <tr><td>Audits</td><td class="n">A01 to A05, 5</td><td>IMD's four-specialist audit of each contract</td><td>The judge's coverage record. No high or critical finding open</td></tr>
+    <tr><td>Node and wallet</td><td class="n">S01 to S03, 3</td><td>The deterministic screening program, the screener duty, the wallet's pool module</td><td>Replay tests and a simulated ten-node network</td></tr>
+    <tr><td>Canary and ceremony</td><td class="n">L01, L02</td><td>The canary's script and record, and the ceremony tooling</td><td>A full rehearsal on a fork</td></tr>
+  </table></div>
+  <h3>Order</h3>
+  <ol>
+    <li><strong>Statements first.</strong> B00, then C00 and R01. The owner reads R01 and signs off the frozen statements. Every proof is worth exactly as much as the statement it proves, and the known failures of agent-written proofs are added assumptions, weakened inputs and statements that are true of anything.</li>
+    <li><strong>Contracts and circuit in parallel.</strong> B10 to B41 and C01 to C07.</li>
+    <li><strong>Proofs, reviews and audits.</strong> P01 to P05, R02, R03, A01 to A05. Fixes go back through IMD's fix job and the changed contract is audited again.</li>
+    <li><strong>Assembly.</strong> B50, B51, B60, S01 to S03, R05.</li>
+    <li><strong>Canary and ceremony.</strong> L01 and L02, then R04 on the real ceremony output. The lawyer's review comes before the canary runs.</li>
+  </ol>
+  <p>Fifty requests cost 25 IMD, about $66. Rejected attempts, fix rounds and second audits will multiply that. A working figure is 300 to 600 requests, 150 to 300 IMD.</p>
 </section>
 
 <section id="cost">
@@ -676,10 +1284,10 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
   <h3>What the project pays once</h3>
   <div class="tbl"><table>
     <tr><th>Item</th><th>Estimate</th><th>Basis</th></tr>
-    <tr><td>IMD build and audit jobs</td><td class="n">$3k to $13k</td><td>2,000 to 10,000 requests at 0.5 IMD, about $1.32 each</td></tr>
+    <tr><td>IMD build and audit jobs</td><td class="n">$0.4k to $13k</td><td>The build plan has 50 briefs. With rejected attempts, fixes and second audits, 300 to 600 requests at 0.5 IMD, about $1.32 each. The earlier figure of 10,000 requests is kept as the ceiling</td></tr>
     <tr><td>Trusted-setup ceremony</td><td class="n">~$5k</td><td>Cloud hosting for a public ceremony</td></tr>
     <tr><td>Deployment gas</td><td class="n">under $100</td><td>Six contracts, each under 24 KiB, even under Glamsterdam pricing</td></tr>
-    <tr><td>Canary deposit</td><td class="n">10 to 25 ETH ($21k to $53k)</td><td>Returned if the canary is not broken in 90 days</td></tr>
+    <tr><td>Canary deposit</td><td class="n">about $64k</td><td>10 ETH and the equivalent in USDC and DAI. Returned if the canary is not broken in 90 days</td></tr>
     <tr><td>Legal review</td><td class="n">not priced</td><td>Required before launch</td></tr>
   </table></div>
   <p>Nothing is raised before launch. The public pool opens at launch and what buyers pay stays in it. The founder or other contributors cover these costs.</p>
@@ -689,15 +1297,15 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td>Machine</td><td class="n">$4.50 to $9 a month</td><td>2 vCPU, 4 GB, 40 GB disk</td></tr>
     <tr><td>Gas float</td><td class="n">0.15 ETH or more (about $320)</td><td>Per gas wallet. It stays the operator's</td></tr>
     <tr><td>Seat</td><td class="n">0.70 ETH (about $1,490)</td><td>The floor on 10 November 2026</td></tr>
-    <tr><td>Screener stake</td><td class="n">tokens</td><td>Amount fixed at deployment. Returned on exit after a delay</td></tr>
+    <tr><td>Screener stake</td><td class="n">0.05% of supply</td><td>Recommended. About $63 at the starting valuation. Returned 14 days after exit</td></tr>
     <tr><td>Delegation</td><td class="n">about $0.10</td><td>One on-chain attestation every 90 days</td></tr>
   </table></div>
   <p>Relaying alone pays little: about $480 a month across Railgun's whole mainnet market today. Screeners also receive 40% of the pool's fee and 15% of the token over two years.</p>
   <h3>What a user pays</h3>
   <div class="tbl"><table>
     <tr><th>Action</th><th>Cost</th></tr>
-    <tr><td>Deposit</td><td>Gas, and 0.2% of the amount once it is approved and first spent</td></tr>
-    <tr><td>Private transfer</td><td>Gas, about $0.50 at 0.2 gwei as a planning figure, plus a relay fee of about 10% of the gas</td></tr>
+    <tr><td>Deposit</td><td>Gas for the deposit and for activation, about $0.35 together at 0.2 gwei by the model, and 0.2% of the amount at activation</td></tr>
+    <tr><td>Private transfer</td><td>Gas, about $0.46 at 0.2 gwei by the model, plus a relay fee of about 10% of the gas</td></tr>
     <tr><td>Withdrawal</td><td>Gas, the relay fee, and 0.2% of the amount</td></tr>
   </table></div>
 </section>
@@ -706,43 +1314,92 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
   <h2>Risks</h2>
   <div class="tbl"><table>
     <tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr>
-    <tr><td>A soundness bug in new circuits, in a pool nobody can patch, with no external audit</td><td><span class="pill hi">High</span></td><td>Three small circuits. IMD audit panels, machine-checked proofs, a 90-day canary. Caps of about 25 ETH that double every 90 days bound the loss. Per-asset limits, a fixed deposit window, and ragequit for unspent deposits</td></tr>
-    <tr><td>A fee, a token and a pseudonymous founder allocation together are the pattern enforcement has pursued. The allocation address is public and traceable</td><td><span class="pill hi">High</span></td><td>No team fee address, screening enforced by the contract, vesting in code. These reduce the risk and do not remove it. A lawyer reviews it before launch</td></tr>
+    <tr><td>A soundness flaw in a new circuit, in a pool nobody can patch, with no external audit. A flaw reaches every asset at once</td><td><span class="pill hi">High</span></td><td>One small circuit. Machine-checked proofs of five properties, an independent second implementation, IMD reviews, a 90-day canary. Caps bound the loss to the cap times the number of assets: about $160,000 at launch. A stop at 800 ETH is recommended, which holds it at about $5.1M</td></tr>
+    <tr><td>A proof proves the wrong statement. The proofs are written by agents, and the known failures are added assumptions and statements that are true of anything</td><td><span class="pill hi">High</span></td><td>The statements are written first, reviewed by a panel, signed off by the owner and frozen by hash. The checker compares every proof against the frozen file</td></tr>
+    <tr><td>IMD has never reviewed a circuit, and its verifier neither builds nor tests anything but Solidity</td><td><span class="pill hi">High</span></td><td>A circuit checklist written into the brief. Every circuit and proof job is re-run by a second job. The evidence that counts is what anyone can re-run</td></tr>
+    <tr><td>Stolen funds that nobody identifies within one to two days enter and cannot be removed</td><td><span class="pill hi">High</span></td><td>Flags posted by screeners, refusals that apply until activation, longer holds for large and freshly funded deposits, low caps. This is the limit of screening at entry and the spec states it</td></tr>
+    <tr><td>The screener registry is as independent as the seats. One address holds 77 of 2,000 seats and the top ten hold 382. Two thirds of active screeners can approve a bad deposit that is a day old</td><td><span class="pill hi">High</span></td><td>A 30-day wait before a screener counts, commit and reveal, at least seven active, every batch recomputable by anyone. The result of capture is a bad deposit approved, never lost funds. Nothing on-chain can tell one holder from many</td></tr>
+    <tr><td>One third of screeners can stop new deposits for as long as they keep it up</td><td><span class="pill">Medium</span></td><td>Nothing already in the pool is affected and pending deposits are refunded. It earns the blockers nothing. Silent screeners are dropped after seven days</td></tr>
+    <tr><td>The cost of buying the registry stays flat while the cap doubles</td><td><span class="pill hi">High</span></td><td>The recommended stop at 800 ETH. Criteria that hold large deposits longer. Without a stop the prize passes the cost within the first year</td></tr>
+    <tr><td>A fee, a token whose stakers share the fee, and a pseudonymous founder allocation together are the pattern enforcement has pursued</td><td><span class="pill hi">High</span></td><td>No team fee address, screening enforced by the contract, vesting in code. These reduce the risk and do not remove it. A lawyer reviews it before the canary and before launch</td></tr>
     <tr><td>No named audit firm. Wallets, L2BEAT and exchanges look for one</td><td><span class="pill hi">High</span></td><td>Publish every IMD finding, the proofs and the canary's record. Accept slower adoption. An external audit can still be added later for a successor pool</td></tr>
-    <tr><td>The public pool is a token offering in substance, and it is priced in IMD</td><td><span class="pill hi">High</span></td><td>The position is locked and its fees go to the distributor, so no wallet profits from it directly. A lawyer reviews it before launch. If IMD fails, this liquidity fails with it</td></tr>
-    <tr><td>The pool starts with no users, and privacy comes from the crowd</td><td><span class="pill hi">High</span></td><td>Services first, to earn a wallet channel. Rewards for shielded time. A total fee below Railgun's. Fixed-size exits make a small crowd go further</td></tr>
-    <tr><td>Reward seekers leave when emissions taper</td><td><span class="pill">Medium</span></td><td>Rewards follow time held and halve each year. The product has to keep users by itself</td></tr>
-    <tr><td>Two thirds of screeners are bought</td><td><span class="pill">Medium</span></td><td>The result is a bad deposit approved, never lost funds. Each screener needs a seat and a stake, and anyone can recompute the root and see it</td></tr>
-    <tr><td>The token's market is thin. 70% of supply unlocks over two years against 25% in a pool priced only in IMD</td><td><span class="pill hi">High</span></td><td>20% of every pool fee is turned into locked liquidity. User rewards start small and grow with the caps. There is no ETH pair, by the owner's decision, so trading to ETH takes two steps</td></tr>
+    <tr><td>The public pool is a token offering in substance, and it is priced in IMD. IMD's owner key can mint IMD through its bridge settings, and IMD's own market is thin and unlocked</td><td><span class="pill hi">High</span></td><td>The position is locked and its fees go to the buyback and the burn address, so no wallet profits from it directly. A lawyer reviews it. If IMD fails or is inflated, this liquidity fails with it. The owner decided against an ETH pair</td></tr>
+    <tr><td>The token's market is thin. 75% of supply unlocks over two years against 25% in a pool with no bids below its starting price</td><td><span class="pill hi">High</span></td><td>20% of every pool fee buys the token from the locked pool, which the simulation shows is too little to matter in the first year. User rewards start small and grow with the caps. A two-year swarm vest is recommended</td></tr>
+    <tr><td>The pool starts with no users, and privacy comes from the crowd. A 25 ETH cap can be filled by one depositor</td><td><span class="pill hi">High</span></td><td>Services first, to earn a wallet channel. Rewards for shielded time. A total fee below Railgun's. Fixed-size exits make a small crowd go further. The first 90 days protect very little</td></tr>
+    <tr><td>Fixed exit sizes do not hide a total sent to one address, and arbitrary deposit amounts narrow the set a withdrawal could have come from</td><td><span class="pill">Medium</span></td><td>The wallet deposits in standard sizes by default, spreads exits over time and warns before several go to one address</td></tr>
+    <tr><td>Reward seekers leave when emissions end</td><td><span class="pill">Medium</span></td><td>Rewards follow time held and are small at the starting valuation. The product has to keep users by itself</td></tr>
+    <tr><td>The canary is a public token pool, and a careful attacker can wait for the larger pool instead of taking it</td><td><span class="pill">Medium</span></td><td>The lawyer's review comes first. The canary is treated as a rehearsal. The caps limit the loss</td></tr>
+    <tr><td>A mistake in the trusted setup. Two live verifiers were drained in February 2026 because one step was skipped</td><td><span class="pill hi">High</span></td><td>A script that checks the verification key, a review job on the ceremony transcript, and a check that the circuit in the ceremony is the one that was proved</td></tr>
+    <tr><td>New tooling under the proofs: the framework's exporter is two months old and its Poseidon proofs for the widths used here are on an unmerged branch</td><td><span class="pill">Medium</span></td><td>An independent Circom implementation compared on thousands of inputs. A brief that redoes the Poseidon proofs if the branch does not merge</td></tr>
+    <tr><td>Glamsterdam's state pricing may change after the 19 November call, and X-Wing is still a draft</td><td><span class="pill">Low</span></td><td>No constant in the contracts depends on a gas price. The build pins the X-Wing draft and its test vectors</td></tr>
     <tr><td>No wallet adopts the policy, so seat broadcasters get no traffic. Railway Wallet selects from four allowlisted signers</td><td><span class="pill hi">High</span></td><td>Ship the policy as a small patch to Railgun's own client library with a reference wallet. The phase 0 gate measures real relays, not installed nodes</td></tr>
     <tr><td>Relaying does not pay: about $480 a month for the whole mainnet market at current gas</td><td><span class="pill hi">High</span></td><td>One node on a machine the operator already runs. Targets of 10 and 30 operators, not hundreds. No promise of income anywhere in the software or docs</td></tr>
-    <tr><td>Operator legal exposure as fee-earning relayers. Prosecutors have called relayers part of the operating cohort</td><td><span class="pill hi">High</span></td><td>PPOI enforced by default. Operators take their own advice. The team does not recruit, pay or coordinate them</td></tr>
-    <tr><td>Cheap identities: a seat is about 0.70 ETH and resalable. Ten seats cost about 7 ETH</td><td><span class="pill hi">High</span></td><td>Design rule 1: no seat output guards funds or privacy. Random selection caps an attacker at its share of seats. Optional 30-day holding filter</td></tr>
+    <tr><td>Operator legal exposure as fee-earning relayers and screeners. Prosecutors have called relayers part of the operating cohort</td><td><span class="pill hi">High</span></td><td>PPOI enforced by default. Operators take their own advice. The team does not recruit, pay or coordinate them</td></tr>
+    <tr><td>Cheap identities: a seat is about 0.70 ETH and resalable. Ten seats cost about 7 ETH</td><td><span class="pill hi">High</span></td><td>No seat output guards funds or privacy. Random relayer selection caps an attacker at its share of seats. Optional 30-day holding filter</td></tr>
     <tr><td>A hostile broadcaster sees transactions first and can censor, delay or trade ahead of a relayed swap</td><td><span class="pill">Medium</span></td><td>Random choice among many. Tight minimum-output limits. Local memory of refusals. Retry through another seat</td></tr>
     <tr><td>Host pools keep admin keys: Railgun upgrades by token vote, Privacy Pools v2 by a two-of-four Safe with no delay</td><td><span class="pill hi">High</span></td><td>Not fixable by services. The Murmuration pool is the answer, and it has no admin key at all</td></tr>
     <tr><td>Regulatory change: Storm retrial on 26 April 2027; EU Article 79 applies from 10 July 2027 and its definition of anonymity-enhancing coins includes optional privacy</td><td><span class="pill hi">High</span></td><td>No custody, no control, no team fee address and nothing operated by the team. Disclosure receipts for users who must answer a provider's questions</td></tr>
-    <tr><td>IMD dependency: single developer, unaudited contracts, closed control plane</td><td><span class="pill">Medium</span></td><td>Only <code>ownerOf</code> on the seat NFT is read. That contract is verified, is not a proxy, and has no key behind its owner functions. Nothing else of IMD's is in any path</td></tr>
-    <tr><td>Screening attestations are ignored, or a panel is bought</td><td><span class="pill">Medium</span></td><td>On Railgun and Privacy Pools they are advisory and unpaid. In the pool, see the row on bought screeners</td></tr>
-    <tr><td>Operators lose interest</td><td><span class="pill">Medium</span></td><td>The mirror and attest duties are reproducible by anyone, so the data survives any one operator. Relaying falls back to the incumbents</td></tr>
-    <tr><td>Harvest now, decrypt later</td><td><span class="pill">Medium</span></td><td>Inherited on Railgun and Privacy Pools. The Murmuration pool encrypts notes with a post-quantum hybrid</td></tr>
+    <tr><td>IMD dependency: single developer, unaudited contracts, closed control plane, an owner key over the IMD token</td><td><span class="pill hi">High</span></td><td>The contracts read only <code>ownerOf</code> on the seat NFT, which is verified, is not a proxy, and has no key behind its owner functions. The token's market depends on IMD's price, by the owner's decision</td></tr>
+    <tr><td>Operators lose interest</td><td><span class="pill">Medium</span></td><td>The mirror duty is reproducible by anyone. Relaying falls back to the incumbents. If screeners leave, deposits stop and withdrawals go on</td></tr>
+    <tr><td>Harvest now, decrypt later</td><td><span class="pill">Medium</span></td><td>Inherited on Railgun and Privacy Pools. The Murmuration pool encrypts notes with a post-quantum hybrid. Funds left in the pool after its deposit window stay exposed to a break of Groth16</td></tr>
   </table></div>
+</section>
+
+<section id="verified">
+  <h2>What was checked for this revision</h2>
+  <p>Seven assumptions that version 4 rested on were checked on 10 November 2026 against source code, chain data and primary pages. The notes, with quotes and links, are in the repository under <code>research_notes/</code> with names ending <code>_v3.md</code>. Nothing was built, deployed or sent to anyone.</p>
+  <div class="tbl"><table class="wide">
+    <tr><th>Question</th><th>Result</th><th>What it means here</th></tr>
+    <tr><td>Can IMD's launch factory issue a token with no owner and no mint, and send its trade fee to a contract?</td><td><span class="pill ok">Verified</span> Yes to both. It deploys whatever token code it is given, and none of the 431 tokens it has launched has a mint function. The "1%" is 80% of a 1.25% Uniswap v4 pool fee, paid to an address that may be a contract</td><td>It still does not fit. Only IMD's own deployer key can call it. It always gives 10% of supply to seat holders. The factory, not the project's contract, holds the position. The Distribution contract places the pool itself</td></tr>
+    <tr><td>Has IMD audited a zero-knowledge circuit, and what does its audit template cover?</td><td><span class="pill ok">Verified</span> No circuit audit was found among 432 to 450 public audits. The template is a Solidity checklist adapted from Pashov's solidity-auditor: four specialists (math, permissions, economics, control flow) and a judge. It does not mention circuits, Groth16 or trusted setups. IMD's verifier builds and tests Foundry projects only</td><td>Contract audits can use the template. The circuit cannot. The build plan gives the circuit its own checklist review and puts the weight on machine-checked proofs. Circuit and proof jobs are accepted by IMD on file structure alone, so each is re-run by a second job</td></tr>
+    <tr><td>Can an operator reach a PPOI node?</td><td><span class="pill ok">Verified</span> Yes. Railgun's documentation and SDK defaults publish a community aggregator at <code>ppoi.fdi.network</code>, which answered from here. The broadcaster takes it as <code>POI_NODE_URL</code> and ships with that empty</td><td>The phase 1 dependency is met. Who runs that node and on what terms is not known, and a self-hosted node still needs it as a peer</td></tr>
+    <tr><td>What is the Railgun engine's quick-sync hook?</td><td><span class="pill ok">Verified by reading code</span> Engine 9.9.1 takes <code>quickSyncEvents</code> and <code>quickSyncRailgunTransactionsV2</code> as arguments of <code>initForWallet</code>. Wallet SDK 11.3.0 passes its own subgraph functions with no option</td><td>Snapshots can replace quick-sync by reassigning two properties on the engine after start, or by patching one call. Commitments are checked against on-chain roots, so a snapshot must keep event-batch boundaries. Nullifier and unshield events are not checked by the engine. Not run</td></tr>
+    <tr><td>What do ML-KEM-768 ciphertexts cost on-chain?</td><td><span class="pill ok">Verified</span> 1,088 bytes, or 1,120 for the X-Wing hybrid. Inside a spend they pay 24 gas a byte as calldata plus log: about 29,000 gas for the 1,216-byte recipient ciphertext, the same under Glamsterdam. Sent alone they would cost about 70,000 today and 99,000 under Glamsterdam</td><td>Version 4's "70,000 gas per note" was the stand-alone figure. See <a href="#b-gas">gas</a>. X-Wing is still an IETF draft</td></tr>
+    <tr><td>Is there proof tooling an agent can drive?</td><td><span class="pill ok">Verified from repositories</span> Yes: Lean 4 with the <code>clean</code> framework. It was used for Zcash's Orchard Action circuit in mid-2026 with largely AI-written proofs, and it exports the constraint system that was proved. The push-button checkers stall on hashes. The Noir route is weaker for a Groth16 circuit today</td><td>The circuit is written in <code>clean</code>, with an independent Circom copy as a test oracle. Limits: its Poseidon proofs for the widths used here sit on an unmerged branch, and its exporter is two months old</td></tr>
+    <tr><td>What changed in the Glamsterdam schedule, US v. Storm and IMD's Goals?</td><td><span class="pill ok">Checked</span> Glamsterdam: still no date. The Ethereum Foundation added a timeline on 9 November: audit reports on the 13th, a call on the 19th with "no decision pre-committed", and revisions to EIP-8037 and EIP-8038 now openly possible. Storm: no change found. Goals: worker 0.1.17 shipped on 10 November with fixes; custody is still off and there is no paid goal action</td><td>Gas figures under Glamsterdam are provisional. Nothing in the plan depends on Goals</td></tr>
+  </table></div>
+  <h3>Found along the way</h3>
+  <ul>
+    <li><strong>IMD's token can be inflated by its owner.</strong> The IMD token on Ethereum is a bridged token whose owner, a single key, sets the bridge peers that are allowed to mint. It has no transfer tax, blocklist or pause. Its main market is an unlocked Uniswap v4 pool of about $1.14M. The public pool and the buyback are both priced in IMD.</li>
+    <li><strong>Seats are concentrated.</strong> 2,000 seats sit at 791 addresses. The largest holds 77, the top five 243, the top ten 382, and 38 addresses hold ten or more. One address could register more screeners than a launch set of 15 independent ones needs to be outvoted two to one.</li>
+    <li><strong>Anyone can pre-create the token's Uniswap pool.</strong> Uniswap v3's factory does not check that a token exists, and a pool's first price is set by whoever calls first. Checked in the v3 core source.</li>
+    <li><strong>The sandwich bound.</strong> A buyback step no larger than the pool's fee rate times its IMD reserves cannot be sandwiched at a profit. Checked numerically in <code>reports/sim/buyback_sandwich_bound.py</code>.</li>
+    <li><strong>Setup mistakes have been exploited.</strong> In February 2026 two live Groth16 verifiers were drained because a setup step was skipped. The build plan checks the verification key explicitly.</li>
+    <li><strong>FinCEN withdrew its 2020 recordkeeping and travel-rule proposal on 6 November</strong>, the third digital-asset proposal withdrawn in five weeks. It concerns financial institutions, not pools.</li>
+  </ul>
+  <h3>Not verified</h3>
+  <ul>
+    <li>Every gas figure for the pool. They are a model built from measured parts. The constraint count and proving time are estimates too.</li>
+    <li>Whether EIP-8037 and EIP-8038 ship with today's numbers.</li>
+    <li>That <code>clean</code>'s exporter is correct, and that its unmerged Poseidon proofs build. Neither was run.</li>
+    <li>A real request to the public PPOI node, who operates it, and replacing quick-sync in a running wallet.</li>
+    <li>The Storm docket between 20 October and 8 November at docket level, and the Pertsev appeal.</li>
+    <li>How many people stand behind the 791 seat addresses.</li>
+    <li>Whether Uniswap governance takes, or can start taking, a share of trading fees on a v3 pool like this one.</li>
+    <li>IMD's budget per job step, and posts by its developer on X or Telegram.</li>
+    <li>The changes this revision makes to the design. They answer the review, and they have been read by nobody but their author. The review jobs in the build plan are the first outside look.</li>
+  </ul>
 </section>
 
 <section id="open">
   <h2>Open questions</h2>
   <ol>
-    <li>Can IMD's audit panels find the kind of bug that breaks privacy pools? Nothing in the research shows they have audited a zero-knowledge circuit. This launch is the test.</li>
-    <li>Can IMD's launch factory issue a token with no owner and no mint function, and send its trade fee to a contract? If not, the distribution contract places the pool itself.</li>
+    <li>Will the owner confirm the ten values in <a href="#decisions">Defaults to confirm</a>? Three of them change the design: the fallback, the stop on the caps, and the asset list.</li>
+    <li>Can agents produce proofs of this circuit that stand up? The tooling and one precedent exist. Nothing in the research shows IMD has done it. This launch is the test.</li>
+    <li>Who signs off the formal statements? The plan gives that to the owner after a panel review. It is the one step that cannot be delegated to the checker.</li>
+    <li>Who coordinates the trusted-setup ceremony, given that the team operates nothing?</li>
+    <li>Who writes and maintains the criteria file and the lists it pins, and will enough screeners post flags for fresh thefts to be caught inside the window?</li>
+    <li>Is a registry that one large seat holder could dominate acceptable to the wallets and exchanges the pool needs?</li>
     <li>Which wallet will ship the pool? Nobody has been asked.</li>
-    <li>Parameters to settle before the ceremony, because they can never change: exit sizes per asset, the minimum age, each asset's share of emissions, the screener stake, and the starting caps.</li>
     <li>Will exchanges accept screening at entry, as Railgun does it, or expect screening at exit, as Privacy Pools does it?</li>
     <li>Will any wallet with real users fill its trusted-signer list from seat delegations? Until one does, the mesh relays only for the reference wallet.</li>
-    <li>Can an independent operator reach a PPOI node? The broadcaster has no default URL, and no public aggregator open to third parties was found.</li>
+    <li>Who operates the public PPOI node at <code>ppoi.fdi.network</code>, and on what terms may a third-party broadcaster rely on it?</li>
     <li>Do Railway's iOS and Android builds enforce the allowlist? The web and desktop minimum version does. The mobile minimum predates the change.</li>
     <li>Who operates the four allowlisted fee signers and the three bootstrap nodes of Railgun's Waku cluster?</li>
     <li>How will Judge Failla's Rule 29 ruling and the April 2027 retrial treat independent relayers? The government's position at the April 2026 hearing was that relayers are part of the operating cohort.</li>
-    <li>Does an EU seat holder who relays for a fee fall under any regulated category? AMLR Article 2(1)(25) defines anonymity-enhancing coins and includes optional privacy. Recital 160 carves out software providers without access to wallets. AMLA's guidance on self-hosted addresses is due by 10 July 2027.</li>
-    <li>Is the trusted setup behind Privacy Pools v1's verifier documented well enough to reuse? This matters only if the pool option is exercised.</li>
+    <li>Does an EU seat holder who relays or screens for a fee fall under any regulated category? AMLR Article 2(1)(25) defines anonymity-enhancing coins and includes optional privacy. Recital 160 carves out software providers without access to wallets. AMLA's guidance on self-hosted addresses is due by 10 July 2027.</li>
+    <li>Will EIP-8037 and EIP-8038 keep today's numbers after the developer call of 19 November 2026?</li>
+    <li>Does Uniswap governance take, or plan to take, a share of trading fees on v3 pools at the 1% tier?</li>
     <li>Does Railgun adopt frame transactions or a 4337 path first, and remove the relayer before the mesh matters?</li>
   </ol>
 </section>
@@ -750,6 +1407,6 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
 </main>
 
 <footer>
-  <p>Murmuration v4 specification, 10 November 2026. A proposal for review: no contract, circuit or node described here has been built, audited or deployed, and no transaction was made. Earlier versions, the adversarial review findings and the full changelog are on the history page at <a href="https://claude.ai/artifact/FTpHa2bajd3eY8mhumgTZQ">claude.ai/artifact/FTpHa2bajd3eY8mhumgTZQ</a>.</p>
+  <p>Murmuration v4 specification, revision 4.1, 10 November 2026. A proposal for review: no contract, circuit or node described here has been built, audited or deployed, no transaction was made, and nothing was sent to IMD, its developer or any third party. It is not legal advice. Earlier versions, the adversarial review findings and the full changelog are on the history page at <a href="https://claude.ai/artifact/FTpHa2bajd3eY8mhumgTZQ">claude.ai/artifact/FTpHa2bajd3eY8mhumgTZQ</a>.</p>
 </footer>
 </div>
