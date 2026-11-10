@@ -1,0 +1,96 @@
+<section id="review">
+  <h2>Review of the new parts</h2>
+  <p>The pool, the token contracts, the fee auction and the screening registry were designed in one session and had not been reviewed. This pass asked the same three questions of each as the earlier review did of the services: the weakest assumption, the most likely failure, and what was built beyond the guarantee it bought. An independent reviewer that saw only the version 4 page was run in parallel, and its findings are merged in. Every finding below is either fixed in the <a href="#build">build specification</a> or listed for the owner in <a href="#decisions">Defaults to confirm</a>.</p>
+  <div class="tbl"><table class="wide">
+    <tr><th>Part</th><th>Weakest assumption</th><th>Most likely failure</th><th>Overbuilt</th></tr>
+    <tr><td><strong>The pool</strong></td><td>That a reward index updated once a day, one per asset, can be used inside a private proof. A proof cannot name a number that moves, a per-asset number tells observers which asset a private transfer moved, and a daily step pays a note created at 23:59 for the whole day.</td><td>The pool sits full. Refunds are free and version 4 never said where the cap is counted, so one address can hold a 25 ETH cap for nothing. Once caps bind, whoever fills each doubling first collects the rewards and ordinary users cannot get in.</td><td>Two of the three circuits. The deposit circuit proved a hash the contract can compute itself. The transfer and withdraw circuits were one statement with a single number made public. A screening-root proof inside the circuit, when the deposit and its approval are both public.</td></tr>
+    <tr><td><strong>Token contracts</strong></td><td>That the launch transaction is the first to touch the token's market. The token's address is known before deployment, and anyone can create and price a Uniswap pool for an address that has no code yet.</td><td>Unlocks meet no bids. Three quarters of supply unlocks over two years and the only exit liquidity is the IMD that buyers have paid in. With half the pool bought, 12,000 IMD is all that sellers can ever take out together.</td><td>The screener stake as a security measure. Nothing can slash it, so it is a refundable deposit, and at the starting valuation the whole supply is worth about $127,000. The seat is the real cost of a screener identity.</td></tr>
+    <tr><td><strong>Fee auction</strong></td><td>That liquidity can be added one-sided at "the current price". The buyer who settles the auction sets the current price in the same transaction.</td><td>The 20% is taken by whoever settles. They push the price up with borrowed IMD, the contract places its IMD as bids under the inflated price, and they sell into those bids before the transaction ends.</td><td>One auction per asset per day, each with its own start price and no reference for the first one. A single continuous auction for the whole basket does the same job with one state variable.</td></tr>
+    <tr><td><strong>Screening registry</strong></td><td>That two thirds of screeners must be bought to defeat screening. Under the fallback rule one third is enough: they withhold their signatures for seven days and the pool then accepts every deposit that is not on a sanctions list.</td><td>Screeners copy the first root they see. Pay depends on agreeing with the accepted root, computing it costs an archive-grade data source, and copying it costs nothing. A two-thirds threshold over copies measures one node.</td><td>Aggregated signatures chosen by whoever submits the root, who can leave rivals out and raise their own share. A Poseidon tree of approved labels in "the format the circuit expects", when no circuit needs to read it.</td></tr>
+  </table></div>
+
+  <h3>The questions this review had to answer</h3>
+  <div class="svc">
+    <h4>Can a thief get a deposit approved, spend once, and be untouchable?</h4>
+    <p>Yes, if nothing public marks the funds as stolen before the deposit matures. Version 4 gave screeners "about a day" and a deterministic program over pinned lists. A fresh theft is on no list after a day: sanctions designations take weeks. The criteria are public, so the thief can run the screener before depositing and add hops until it passes. After the first spend nothing can be undone.</p>
+    <p>This is the same guarantee Railgun's one-hour check gives, with a longer wait. It is weaker than Privacy Pools, where a deposit can be removed from the approved set until it is withdrawn. Version 4 was unclear on one point that made it worse: it accepted any past root, so a deposit approved once stayed spendable after a later root dropped it.</p>
+    <p>What the build specification does about it. Screeners can post flags on-chain, and the published rule turns flags into refusals, so a human or an agent who learns of a theft has a way to act inside a deterministic system. A refusal applies until the moment of activation, and only the current screening state counts. The criteria can hold large or freshly funded deposits longer than the one-day floor without any contract change. What remains is stated plainly in the risks: screening at entry stops funds that are identifiable in time, and nothing else.</p>
+  </div>
+  <div class="svc">
+    <h4>Can someone stall screeners for seven days to trigger the fallback?</h4>
+    <p>Yes, and it is the cheapest attack in version 4. The threshold was two thirds of registered screeners, so anyone holding more than one third blocks every root by doing nothing. With 15 honest screeners that is 8 seats: about 5.6 ETH of capital that can be resold afterwards, plus 8 stakes that are returned. After seven days the fallback approves any deposit whose sender is not on the sanctions oracle, which is every thief who is not already sanctioned. The same thing happens without an attacker if a third of registered screeners simply stop.</p>
+    <p>The fallback also tied a contract that can never change to the Chainalysis oracle, a contract whose owner can change or retire it.</p>
+    <p>The build specification removes the fallback. If no batch is accepted, new deposits wait or go back to their senders, and everything already in the pool keeps working. A third of screeners can still stop new deposits, which is a nuisance and earns them nothing. They can no longer switch screening off. Screeners that stop taking part are dropped from the count after seven days, so the pool recovers from ordinary attrition by itself. This changes an unconfirmed default and is listed for the owner.</p>
+  </div>
+  <div class="svc">
+    <h4>The reward index</h4>
+    <ul>
+      <li><strong>It could pay out more than the budget.</strong> With a daily step, a note created just before the update and spent just after earns a full day for a few minutes inside. Value that cycles in and out around each update collects a day's reward per cycle, and the total issued exceeds what was emitted. The token's own withdrawal limit would then stop the last claimants from leaving.</li>
+      <li><strong>The first depositor.</strong> The index grew by emission divided by the total shielded. With 0.001 ETH in an otherwise empty asset, one note collects that asset's whole emission, at a nominal rate above 40,000% a year (see the <a href="#sim">simulation</a>). With zero shielded the division fails outright.</li>
+      <li><strong>A proof cannot follow a moving number.</strong> The index a proof was built against has changed by the time a relayer lands the transaction.</li>
+      <li><strong>A per-asset index names the asset.</strong> A private transfer would have to say which asset's index it used, or carry every asset's index as a public input.</li>
+      <li><strong>Reward dust.</strong> A new reward note on every spend leaves an active wallet with hundreds of tiny notes that each cost a transfer to merge.</li>
+    </ul>
+    <p>The build specification uses one index for all assets with fixed weights. A deposit takes the exact index at the block it is activated, computed by the contract. Spends use a checkpoint taken every 300 blocks, which always rounds against the spender, so the total issued can never exceed the emission. The divisor has a floor of a quarter of capacity, which caps the rate at four times the full-pool rate and leaves the rest of the emission locked for good. The reward is carried inside the note and turned into a token note only when the owner chooses, inside an ordinary spend that looks like any other.</p>
+  </div>
+  <div class="svc">
+    <h4>Fixed-size exits: change, dust, and a large withdrawal</h4>
+    <ul>
+      <li><strong>Change</strong> stays inside as a new note. That part works.</li>
+      <li><strong>Dust</strong> below the smallest size can never leave by itself. Once deposits close it can never be topped up either. The smallest size therefore has to be small: 0.001 ETH and 1 unit of a stablecoin.</li>
+      <li><strong>Arbitrary deposits undo part of the benefit.</strong> A deposit of 7.3134 ETH followed by exits of 5, 2, 0.2 and 0.1 to one address shows the total to anyone who adds them up. Fixed sizes stop exact matching of a single withdrawal. They do not hide a total sent to one place. The wallet should deposit in standard sizes by default and warn before sending several exits to one address.</li>
+      <li><strong>A large withdrawal</strong> is a visible run of the largest size. Ten exits of 100 ETH in a week in a pool capped at 800 ETH are one actor, whatever the proofs hide.</li>
+      <li><strong>A public relay fee would mark each exit.</strong> If the relayer's fee came out of the withdrawn amount, payouts of the same size would differ by the fee quoted. The build specification pays relayers with a shielded note, so every exit of a given size pays out the same amount to the wei.</li>
+    </ul>
+  </div>
+  <div class="svc">
+    <h4>The daily auction</h4>
+    <ul>
+      <li><strong>No first price.</strong> With no oracle, the first auction has nothing to start from. If it starts low, the first bot takes the basket for almost nothing.</li>
+      <li><strong>Zero-bid days.</strong> At $1M a month the 20% share is about $13 a day. When gas is high it is not worth collecting, and a rule that resets daily would give it away at the floor.</li>
+      <li><strong>One frozen asset blocks the rest.</strong> If a stablecoin issuer freezes the distributor, a settlement that transfers every asset reverts for all of them.</li>
+      <li><strong>The liquidity add is the real hole</strong>, as described in the table above.</li>
+    </ul>
+    <p>The build specification keeps the owner's mechanism and changes how each step is done. One continuous descending-price auction sells the whole basket for IMD. After a sale the next starting price is twice the price just paid, with a floor, and the buyer names which assets to take so a frozen one can be skipped. The IMD is then spent buying the token from the locked pool in small steps and the bought tokens are burned. In a pool whose position can never be withdrawn, that leaves the IMD in the pool for good, which is what "into locked liquidity" asked for. Each step is limited to the pool's fee rate times its reserves, and below that size a sandwich loses money.</p>
+  </div>
+  <div class="svc">
+    <h4>Screener registration</h4>
+    <ul>
+      <li><strong>Cost to approve a bad deposit:</strong> two thirds of active screeners. With 15 honest ones that is 30 seats, about 21 ETH or $45,000 of resalable capital, less for anyone who already holds many seats.</li>
+      <li><strong>Cost to block:</strong> one third, 8 seats. Under version 4 that also meant switching screening off. Without the fallback it only delays deposits.</li>
+      <li><strong>The prize grows and the cost does not.</strong> The cap doubles every 90 days. The price of 30 seats does not. After a year the cap is 400 ETH per asset and buying the registry to launder into it pays for itself.</li>
+      <li><strong>Pay per head invites one holder to register every seat.</strong> Each registered seat earns a full share, so the largest seat holders end up with the largest share of the registry. Counting holders does not help, because a seat moves to a fresh wallet for the price of a transfer.</li>
+      <li><strong>Stake and exit.</strong> Version 4 had no waiting period. Seats could be bought, registered, used to approve one deposit and sold in the same week.</li>
+    </ul>
+    <p>The build specification adds a 30-day wait before a new screener counts, a 14-day wait to take the stake back, a commit and reveal so that copying is not possible, individual reveals so nobody can be left out, and a minimum of seven active screeners before any batch can be accepted. It does not solve concentration. Nothing on-chain can tell one holder with many seats from many holders, and the spec now says so.</p>
+  </div>
+  <div class="svc">
+    <h4>Does the canary exercise the same code paths?</h4>
+    <p>No, not as version 4 described it. Ninety days with 10 ETH never reaches the second cap step, the end of emissions, the end of the deposit window, a second asset, a refused deposit, the auction or the buyback. It also needs its own token and its own public pool to run the token paths at all, which makes the canary a small public token offering and puts the lawyer's review before the canary, not after it.</p>
+    <p>Silence proves less than it seems. Someone who finds a flaw in the canary can take 10 ETH now or wait for the same flaw in a pool that holds far more. The canary catches the impatient.</p>
+    <p>The build specification makes the canary the complete system from the same source, with the clock compressed: seven-day cap steps, so every schedule boundary and the close of deposits pass on mainnet inside the 90 days. It runs a published script that calls every function and every branch of the circuit. It is described as a rehearsal that catches deployment and integration errors and careless attackers. The caps remain what limits a loss.</p>
+  </div>
+  <div class="svc">
+    <h4>Per-asset limits and the cap schedule</h4>
+    <ul>
+      <li><strong>What the limit bounds.</strong> A fault in one asset, such as a token that starts charging a transfer fee, cannot drain another asset. A fault in the reward logic cannot pay out more than the rewards released so far.</li>
+      <li><strong>What it does not bound.</strong> A flaw in the circuit forges notes in every asset at once. The loss is every asset's balance, so the figure to watch is the cap multiplied by the number of assets.</li>
+      <li><strong>The schedule has no end.</strong> Version 4 said the cap reaches "about 6,400 ETH after two years" and never said it stops. At that level three assets hold about $41M in code no outside firm has read. Two more years of doubling would remove the cap in all but name.</li>
+      <li><strong>Where the cap is counted.</strong> The build specification counts it on activated value only. Unactivated deposits cannot be reached by any proof, so they need no cap, and counting them would let a free refundable deposit hold the pool shut.</li>
+    </ul>
+  </div>
+
+  <h3>Other findings</h3>
+  <div class="tbl"><table>
+    <tr><th>Finding</th><th>What the build specification does</th></tr>
+    <tr><td>The launch gate required a machine-checked proof of the transfer circuit only. A flaw in the withdraw circuit drains the pool just as well.</td><td>One circuit, and the proof obligations cover all of it</td></tr>
+    <tr><td>Fees arriving in lumps let someone stake just before a sweep and unstake just after, taking most of it.</td><td>Each sweep is paid to stakers evenly over the following seven days</td></tr>
+    <tr><td>A proof made for the canary could be presented to the real pool if the two ever shared a tree state.</td><td>Every proof is bound to the chain id and the pool's address</td></tr>
+    <tr><td>A receiving address has to carry a post-quantum key of about 1.2 KB.</td><td>A short address holds a hash of the key. The key itself is announced once in a log and fetched from the public snapshots</td></tr>
+    <tr><td>Version 4 priced note encryption at about 70,000 gas per note at the calldata floor. The floor applies only to transactions that do little else.</td><td>See <a href="#b-gas">gas</a>. One recipient ciphertext per spend, at ordinary calldata prices</td></tr>
+    <tr><td>The swarm's 10% was "locked for up to one year" while the owner's rule is that every schedule runs two years. It was also the largest early unlock.</td><td>Listed for the owner. Recommended: a two-year linear vest</td></tr>
+    <tr><td>The risk table said 70% of supply unlocks. The allocation adds to 75%.</td><td>Corrected</td></tr>
+    <tr><td>Tokens that charge on transfer, rebase, or return no value on transfer would corrupt an asset's accounting.</td><td>The pool checks the amount that arrived. The asset list excludes such tokens</td></tr>
+    <tr><td>Deploying six contracts that refer to each other needs their addresses in advance, and one transaction cannot carry them all under Glamsterdam pricing.</td><td>A one-time deployer with no other function creates them in a fixed order from code hashes fixed at its own creation</td></tr>
+  </table></div>
+</section>

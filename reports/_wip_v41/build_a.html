@@ -1,0 +1,89 @@
+<section id="build">
+  <h2>Build specification</h2>
+  <p>This section is what a build job works from. It replaces the design table of version 4 wherever the two differ, and the <a href="#review">review</a> gives the reason for each difference. Values marked <span class="pill">param</span> come from the <a href="#parameters">parameter table</a> and are frozen before the trusted-setup ceremony. Names are working names.</p>
+
+  <h3 id="b-conventions">Conventions</h3>
+  <div class="tbl"><table>
+    <tr><th>Item</th><th>Definition</th></tr>
+    <tr><td>Field</td><td>The BN254 scalar field. Every hashed value is less than its modulus <code>p</code>, and the contracts reject inputs that are not</td></tr>
+    <tr><td>Hash</td><td>Poseidon with circomlib's parameters. <code>H2</code>, <code>H3</code> and <code>H4</code> take two, three and four inputs. On-chain they are three stateless bytecode contracts generated from the same parameters, checked against the circuit with shared test vectors</td></tr>
+    <tr><td>Domain tags</td><td>Every hash that is not a tree node or a leaf bundle takes a small constant tag as its first input: <code>TAG_SPK</code>, <code>TAG_NK</code>, <code>TAG_PK</code>, <code>TAG_OC</code>, <code>TAG_NF</code>. A note's packed word carries <code>TAG_NOTE</code> in its top byte</td></tr>
+    <tr><td>Amounts</td><td>Unsigned, at most 96 bits, in the asset's smallest unit. Range-checked in the circuit wherever they are added</td></tr>
+    <tr><td>Asset id</td><td>8 bits. The list and each asset's weight are constants in the circuit and the pool <span class="pill">param</span></td></tr>
+    <tr><td>Reward index</td><td>One number <code>G</code> for the whole pool, at most 90 bits, fixed-point with 64 fractional bits. It only grows</td></tr>
+    <tr><td>Tree</td><td>Append-only, depth 32, nodes <code>H2(left, right)</code>, empty leaf <code>ZERO = keccak256("murmuration.zero") mod p</code>. One leaf per transaction: <code>leaf = H4(C0, C1, C2, C3)</code>, a bundle of four note commitments. The pool keeps the last 64 roots</td></tr>
+    <tr><td>Position</td><td><code>pos = 4 × leafIndex + slot</code>, where <code>slot</code> is 0 to 3. It identifies one note for good</td></tr>
+    <tr><td>Epochs</td><td>A screening epoch is 7,200 blocks. A reward checkpoint is taken every 300 blocks. A cap step is 648,000 blocks, about 90 days. All count from the pool's genesis block <span class="pill">param</span></td></tr>
+  </table></div>
+
+  <h3 id="b-notes">Keys, notes and addresses</h3>
+<pre><code>// Keys. sk never leaves the wallet.
+spk      = H2(TAG_SPK, sk)                 // proves the right to spend
+nk       = H2(TAG_NK,  sk)                 // computes nullifiers; safe to give to a view-only wallet
+ownerPk  = H4(TAG_PK, spk, nk, d)          // d: a diversifier, so one wallet can hand out many unlinkable addresses
+
+// A note is (asset, value, accrued, index, ownerPk, rho). rho is 248 random bits.
+ownerCommit = H3(TAG_OC, ownerPk, rho)     // hides the owner; this is all a deposit reveals about its recipient
+packed      = TAG_NOTE·2^200 + accrued·2^104 + value·2^8 + asset
+commitment  = H3(packed, index, ownerCommit)
+nullifier   = H4(TAG_NF, nk, pos, rho)     // one per note position; published when the note is spent
+
+// Address a payer needs: ownerPk (32 bytes) and the recipient's X-Wing public key (1,216 bytes).
+// Short form: ownerPk and keccak256(key). The key is announced once through Pool.announce and read from the public snapshots.</code></pre>
+  <ul>
+    <li><strong>accrued</strong> is reward already earned and not yet turned into tokens. It travels with the note. <strong>index</strong> is the value of <code>G</code> when the note was created.</li>
+    <li><strong>Encryption.</strong> Output 0 is encrypted to the recipient with HPKE over the X-Wing hybrid of X25519 and ML-KEM-768: 1,120 bytes of key encapsulation, an 80-byte payload and a 16-byte tag, 1,216 bytes in all. Output 1 is the sender's change, sealed with the sender's own symmetric key: 96 bytes. The relayer's fee note is opened to the relayer off-chain. The reward note is derived by its owner. Every spend therefore publishes the same 1,312 bytes of ciphertext whatever it does.</li>
+    <li><strong>The pool does not check ciphertexts.</strong> A sender who posts garbage loses the payment for the recipient and gains nothing. This is the same in every shielded pool.</li>
+    <li><strong>Not post-quantum:</strong> the Groth16 proof. Ownership and nullifiers rest on hashes only.</li>
+  </ul>
+
+  <h3 id="b-circuit">The circuit</h3>
+  <p>There is one circuit, <code>Spend</code>. It takes two notes of one asset and one owner, and produces three notes of the same asset, one note of the reward token, and an optional public amount. A private transfer has a public amount of zero. A withdrawal has a standard size as its public amount. A deposit needs no proof: the pool computes the commitment itself from public values. Estimated size is about 22,000 constraints, which is to be measured by the build job, as is proving time on a mid-range phone.</p>
+  <h4>Public inputs (11)</h4>
+  <div class="tbl"><table>
+    <tr><th>Name</th><th>Meaning</th><th>Checked by the pool against</th></tr>
+    <tr><td><code>root</code></td><td>A recent root of the note tree</td><td>The last 64 roots</td></tr>
+    <tr><td><code>nf[0]</code>, <code>nf[1]</code></td><td>Nullifiers of the two inputs</td><td>The spent set. Both must be new and different</td></tr>
+    <tr><td><code>C[0..3]</code></td><td>Output commitments: recipient, change, relay fee, reward</td><td>Hashed into the new leaf</td></tr>
+    <tr><td><code>publicAmount</code></td><td>Zero, or the size leaving the pool</td><td>The asset's list of standard sizes and its balance</td></tr>
+    <tr><td><code>publicAsset</code></td><td>The asset leaving. Zero when nothing leaves</td><td>The asset list</td></tr>
+    <tr><td><code>gRef</code></td><td>The reward checkpoint the proof was built against</td><td>The current checkpoint or the one before it</td></tr>
+    <tr><td><code>extHash</code></td><td>Hash of chain id, pool address, recipient and the two ciphertexts</td><td>Recomputed from the call data</td></tr>
+  </table></div>
+  <h4>Private inputs</h4>
+  <div class="tbl"><table>
+    <tr><th>Name</th><th>Meaning</th></tr>
+    <tr><td><code>sk</code></td><td>The spending key</td></tr>
+    <tr><td><code>asset</code></td><td>The asset of every input and of outputs 0 to 2</td></tr>
+    <tr><td>Per input <code>i</code>: <code>value</code>, <code>accrued</code>, <code>index</code>, <code>d</code>, <code>rho</code></td><td>The note's contents</td></tr>
+    <tr><td>Per input <code>i</code>: <code>leafIndex</code>, <code>slot</code>, <code>others[3]</code>, <code>path[32]</code></td><td>Where the note sits: its leaf, its place in the bundle, the bundle's three other commitments and the tree path</td></tr>
+    <tr><td>Per output <code>k</code> in 0 to 2: <code>value</code>, <code>accrued</code>, <code>ownerCommit</code></td><td>The new notes. The sender computes each <code>ownerCommit</code> from the recipient's address and a fresh <code>rho</code></td></tr>
+    <tr><td><code>claim</code>, <code>ownerCommit[3]</code></td><td>The amount of reward turned into tokens, and who gets it</td></tr>
+  </table></div>
+  <h4>Constraints</h4>
+  <ol>
+    <li><strong>Keys.</strong> <code>spk</code> and <code>nk</code> are derived from <code>sk</code> as defined above.</li>
+    <li><strong>Asset.</strong> <code>asset</code> is one of the listed ids, and <code>weight</code> is that asset's constant from the table. The reward token's weight is zero.</li>
+    <li><strong>Ranges.</strong> Every <code>value</code>, <code>accrued</code>, <code>claim</code> and <code>publicAmount</code> fits in 96 bits. <code>gRef</code> and each input's <code>index</code> fit in 90 bits. Each <code>leafIndex</code> fits in 32 bits and each <code>slot</code> in 2. Path selectors are bits.</li>
+    <li><strong>Input notes.</strong> For each input, <code>ownerPk</code>, <code>ownerCommit</code>, <code>packed</code> and <code>commitment</code> are computed from <code>spk</code>, <code>nk</code> and the note's contents exactly as defined above.</li>
+    <li><strong>Membership.</strong> For each input, the commitment placed at <code>slot</code> among <code>others</code> hashes to a leaf, and that leaf with <code>leafIndex</code> and <code>path</code> hashes to <code>root</code>. The check is skipped only when the input's <code>value</code> and <code>accrued</code> are both zero, which is how a wallet pads a spend that has one real input.</li>
+    <li><strong>Nullifiers.</strong> <code>nf[i] = H4(TAG_NF, nk, 4 × leafIndex + slot, rho)</code> for each input, from the same <code>leafIndex</code>, <code>slot</code> and <code>rho</code> used above.</li>
+    <li><strong>Index order.</strong> <code>gRef − index</code> is between 0 and 2<sup>90</sup> for each input. A note cannot be spent against a checkpoint older than itself.</li>
+    <li><strong>Reward earned.</strong> <code>earned = floor(weight × (value₀ × (gRef − index₀) + value₁ × (gRef − index₁)) / 2^64)</code>, enforced as an exact division with a 64-bit remainder.</li>
+    <li><strong>Outputs.</strong> <code>C[k] = H3(packed(asset, valueₖ, accruedₖ), gRef, ownerCommitₖ)</code> for <code>k</code> in 0 to 2.</li>
+    <li><strong>Reward note.</strong> <code>C[3] = H3(packed(TOKEN, claim, 0), gRef, ownerCommit₃)</code>.</li>
+    <li><strong>Value is conserved.</strong> The two input values add up to the three output values plus <code>publicAmount</code>.</li>
+    <li><strong>Reward is conserved.</strong> The two input <code>accrued</code> amounts plus <code>earned</code> add up to the three output <code>accrued</code> amounts plus <code>claim</code>.</li>
+    <li><strong>The public asset is the real one.</strong> <code>publicAmount × (asset − publicAsset) = 0</code>.</li>
+    <li><strong>Binding.</strong> <code>extHash</code> takes part in one constraint so that no tool can drop it from the proof.</li>
+  </ol>
+  <p>What the circuit leaves to the contract: that the root is recent, that the nullifiers are new and distinct, that <code>gRef</code> is a real checkpoint, that the public amount is a standard size the asset can pay, and that <code>extHash</code> matches the call.</p>
+  <h4>What the proofs must show</h4>
+  <p>The launch gate requires each of these to be machine-checked against the compiled circuit, with the statement published in plain words beside the formal one.</p>
+  <ol>
+    <li><strong>No value is created.</strong> Any accepted spend takes out exactly what its inputs held, and each input with a non-zero value or reward is a note in the tree.</li>
+    <li><strong>No note is spent twice.</strong> A note position and a key give exactly one nullifier, and a nullifier names at most one note position per key.</li>
+    <li><strong>No reward is created.</strong> Reward leaving a spend is at most the reward entering plus <code>weight × value × (gRef − index) / 2^64</code> for each input, rounded down.</li>
+    <li><strong>Nothing is left free.</strong> Given the private inputs, every public output is determined. No signal can take two values.</li>
+    <li><strong>No wrap-around.</strong> No sum or product in constraints 8, 11 and 12 can reach the field modulus.</li>
+  </ol>
