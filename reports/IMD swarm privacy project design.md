@@ -217,3 +217,8 @@ A re-review on 9 and 10 November 2026 re-verified the time-sensitive facts and a
 **Revision 3, later on 10 November 2026**
 
 After reviewing revision 2 the owner decided to make a pool of the project's own the main product again. Revision 3 of the spec therefore reverses three points above: the pool is a phase 2 build with new circuits and a launch gate, not a gated fork of Privacy Pools v1; a fixed 0.2% withdrawal fee and a fixed-supply token are added, which reverses this report's "no developer fee" and "no token" requirements; and the budget is $0.68M to $1.64M plus a pay-on-finding bounty. The review's recommendations against a fee, against a token, and against combining a founder allocation with pseudonymity are recorded in the spec's "Token and fee" section. The cuts to collaborative proving and threshold disclosure, the replacements for the read layer and stewardship, and every re-verified fact are unchanged.
+
+**Revision 4, later on 10 November 2026**
+
+Two further decisions by the owner. The project relies on IMD's own audits and pays no external audit firm; the spec carries that risk with machine-checked proofs, a 90-day mainnet canary and starting caps of about 25 ETH per asset. And 15% of the token goes into a locked one-sided pool paired with IMD at launch, with every token schedule cut to two years. This contradicts this report's statement that IMD audits "do not replace external audits"; the spec records the review's view that this is now the largest technical risk. Cash spending falls to about $10,000 to $20,000 plus a returnable canary deposit.
+
