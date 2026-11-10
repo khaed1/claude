@@ -636,7 +636,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td class="n">20%</td><td>Screeners</td><td>Per accepted root, over two years</td></tr>
     <tr><td class="n">15%</td><td>Public pool</td><td>One-sided liquidity paired with IMD, placed at launch. The position is locked for good</td></tr>
     <tr><td class="n">10%</td><td>The swarm</td><td>Builders and auditors, from a list fixed at deployment and computed from public job records, locked for up to one year</td></tr>
-    <tr><td class="n">5%</td><td>Founder</td><td>One pseudonymous address fixed at deployment, vested over two years with nothing in the first six months</td></tr>
+    <tr><td class="n">5%</td><td>Founder</td><td>One pseudonymous address fixed at deployment, vested over two years with nothing in the first month</td></tr>
   </table></div>
   <h3>The public pool</h3>
   <ul>
@@ -668,7 +668,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
   <p>Status as of 10 November 2026. Fusaka is live. Glamsterdam has been live on Sepolia since 6 October. Its Hoodi fork was cancelled on 22 October with no new date, and mainnet has no date either; the client developers' own call summary reads "December 2026 fork now very unlikely; 2027 expected". EIP-8037 and EIP-8038 are in Last Call with parameters unchanged since October. The eight gas invariants they break are still unresolved, and two open pull requests change which gas pool pays, not any price. The next developer calls are on 12 and 19 November. Hegotá is still listed for Q2 2027, unconfirmed, and its scheduled set grew to three EIPs on 29 October.</p>
   <p>This table matters in two places: the gas estimates a broadcaster quotes from, and the pool's own contracts.</p>
   <div class="tbl"><table class="wide">
-    <tr><th>Fork</th><th>Change</th><th>Status</th><th>What it does to revision 2</th><th>Rule</th></tr>
+    <tr><th>Fork</th><th>Change</th><th>Status</th><th>What it does to Murmuration</th><th>Rule</th></tr>
     <tr><td>Fusaka</td><td>EIP-7825 transaction cap of 16,777,216, on execution gas</td><td><span class="pill ok">Live</span></td><td>A Railgun spend uses about 1.17M gas. Nothing in the plan comes near the cap</td><td>Pool: one withdrawal per transaction, no batches</td></tr>
     <tr><td>Glamsterdam</td><td>EIP-8037 state creation: new slot 97,920 state gas, new account 183,600, 1,530 per code byte</td><td><span class="pill">Last Call, unscheduled</span></td><td>A fresh slot goes from 22,100 to 110,020 gas, five times dearer. Railgun spends write several fresh slots, so their gas rises on fork day and a broadcaster quoting from old estimates relays at a loss</td><td>The node pins its gas estimation to the active fork and never hard-codes a gas figure</td></tr>
     <tr><td>Glamsterdam</td><td>EIP-8037 state gas as a second dimension. The cap applies to execution gas; a reservoir exists only above 2<sup>24</sup> of <code>tx.gas</code></td><td><span class="pill">Last Call, unscheduled</span></td><td>A 24 KiB deployment costs 38.2M gas in all. A 64 KiB one would cost 101.5M and cannot be included under the current 60M block limit. The first version's 64 KiB verifier could not have been deployed</td><td>Pool: every contract at or under 24 KiB</td></tr>
@@ -887,7 +887,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <li>Can IMD's audit panels find the kind of bug that breaks privacy pools? Nothing in the research shows they have audited a zero-knowledge circuit. This launch is the test.</li>
     <li>Can IMD's launch factory issue a token with no owner and no mint function, and send its trade fee to a contract? If not, the distribution contract places the pool itself.</li>
     <li>Which wallet will ship the pool? Nobody has been asked.</li>
-    <li>Parameters to settle before the ceremony, because they can never change: exit sizes per asset, the minimum age, each asset's share of emissions, the screener stake, the starting caps, and the founder's six-month cliff.</li>
+    <li>Parameters to settle before the ceremony, because they can never change: exit sizes per asset, the minimum age, each asset's share of emissions, the screener stake, and the starting caps.</li>
     <li>Will exchanges accept screening at entry, as Railgun does it, or expect screening at exit, as Privacy Pools does it?</li>
     <li>Will any wallet with real users fill its trusted-signer list from seat delegations? Until one does, the mesh relays only for the reference wallet.</li>
     <li>Can an independent operator reach a PPOI node? The broadcaster has no default URL, and no public aggregator open to third parties was found.</li>
@@ -927,7 +927,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td class="n">R4.1</td><td>No external audit firm. Assurance comes from IMD audit panels, machine-checked proofs, a 90-day mainnet canary and starting caps of about 25 ETH per asset</td><td>Owner's decision, to test whether the swarm can build and secure such a system. The review advised that IMD audits should not replace external ones</td><td><a href="#spec-pool">Pool design</a>; <code>imd_goals_and_state_v2.md</code>; <code>imd_and_swarm_tech.md</code></td></tr>
     <tr><td class="n">R4.2</td><td>No separate token sale. 15% of supply goes into a locked one-sided pool paired with IMD at launch; its trading fees go to the distributor</td><td>Owner's decision, for a market and a tie to IMD. The review notes it is an offering in substance and raises no money for the project</td><td><a href="#token">Token and fee</a>; IMD launch terms in <code>imd_multisig_feature.md</code></td></tr>
     <tr><td class="n">R4.3</td><td>Allocation is now 50% users, 20% screeners, 15% public pool, 10% the swarm, 5% founder</td><td>Follows from R4.2. The swarm's share pays builders and auditors</td><td><a href="#token">Token and fee</a></td></tr>
-    <tr><td class="n">R4.4</td><td>Every schedule runs two years. The founder's allocation vests over two years with a six-month cliff</td><td>Owner's decision. The six-month cliff is a default chosen here</td><td><a href="#token">Token and fee</a></td></tr>
+    <tr><td class="n">R4.4</td><td>Every schedule runs two years. The founder's allocation vests over two years with a one-month cliff</td><td>Owner's decision, including the one-month cliff</td><td><a href="#token">Token and fee</a></td></tr>
     <tr><td class="n">R4.5</td><td>User rewards are released in step with the caps instead of halving each year</td><td>With caps starting at about 25 ETH, a front-loaded schedule would hand most of the supply to the first few depositors</td><td><a href="#token">Token and fee</a></td></tr>
     <tr><td class="n">R4.6</td><td>Cash budget from $0.68M to $1.64M down to about $10k to $20k, plus a returnable canary deposit</td><td>No external firm is paid</td><td><a href="#cost">Infrastructure cost</a></td></tr>
     <tr><td class="n">R4.7</td><td>Launch gate rewritten: public IMD findings closed, checked proofs, an unbroken canary, testnet record, a wallet, a lawyer's review</td><td>The earlier gate required external audits and their budget</td><td><a href="#roadmap">Roadmap</a></td></tr>
