@@ -1,0 +1,65 @@
+  <h3 id="b-states">State machines</h3>
+  <h4>A deposit</h4>
+  <pre class="mermaid">
+stateDiagram-v2
+  [*] --> Pending: deposit
+  Pending --> Covered: a batch reaches this id and does not refuse it
+  Pending --> Refused: a batch refuses it
+  Covered --> Refused: a later batch refuses it
+  Refused --> Covered: a later batch clears it
+  Covered --> Activated: activate, by the depositor
+  Pending --> Refunded: refund, by the depositor
+  Covered --> Refunded: refund, by the depositor
+  Refused --> Refunded: refund, by the depositor
+  Activated --> [*]
+  Refunded --> [*]
+  </pre>
+  <div class="tbl"><table>
+    <tr><th>Transition</th><th>Guard</th><th>Effect</th></tr>
+    <tr><td>deposit</td><td>Before the deposit window closes. Listed asset. Amount between the smallest size and the current cap. Exactly the amount arrives</td><td>Record hash stored. <code>pending</code> rises. Nothing is shielded and no reward accrues</td></tr>
+    <tr><td>Covered or Refused</td><td>An accepted batch has been applied. Read from the registry at the moment of activation, so only the current state counts</td><td>None in the pool</td></tr>
+    <tr><td>activate</td><td>Caller is the depositor. At least 7,200 blocks old. Covered and not refused. Net amount fits under the cap</td><td>0.2% to fees. A note with the exact reward index enters the tree. Record cleared. Final</td></tr>
+    <tr><td>refund</td><td>Caller is the depositor. Not yet activated. No other condition, in any screening state, for ever</td><td>Full amount back to the depositor. Record cleared. Final</td></tr>
+  </table></div>
+  <p>A deposit waits between one and two days: the batch that covers it is computed at the next epoch boundary and accepted during that epoch. No state exists in which a deposit can be neither activated nor refunded by its depositor, except a depositor that cannot receive its own asset back, such as an address a stablecoin issuer has frozen.</p>
+  <h4>A note</h4>
+  <pre class="mermaid">
+stateDiagram-v2
+  [*] --> Created: activate or spend inserts its leaf
+  Created --> Spendable: a checkpoint at or above its index exists
+  Spendable --> Spent: spend records its nullifier
+  Spent --> [*]
+  </pre>
+  <div class="tbl"><table>
+    <tr><th>State</th><th>On-chain meaning</th><th>Notes</th></tr>
+    <tr><td>Created</td><td>Its commitment is one of four in a leaf of the tree</td><td>A note made by a spend carries that spend's checkpoint and is spendable in the next transaction. A note made by activation carries the exact index of its block and becomes spendable at the next 300-block boundary, at most an hour later</td></tr>
+    <tr><td>Spendable</td><td>A root that contains the leaf is among the last 64, and <code>gCur</code> is at least the note's index</td><td>A proof stays valid until 64 more leaves have been added or two checkpoints have passed, whichever comes first. After that the wallet proves again</td></tr>
+    <tr><td>Spent</td><td>Its nullifier is in the spent set</td><td>Final. Nothing links the nullifier to the leaf</td></tr>
+  </table></div>
+  <p>Padding inputs are never in the tree and go straight to Spent. A note whose ciphertext was posted wrongly is Created for ever and nobody can spend it. Reward stops growing for everyone when emissions end, and a note keeps what it has accrued.</p>
+
+  <h3 id="b-gas">Size, gas and state pricing</h3>
+<!--GAS-->
+
+  <h3 id="b-deploy">Deployment and the canary</h3>
+  <ol>
+    <li><strong>Build.</strong> One reproducible build produces the creation code of the three hash contracts and the six contracts, the circuit, and a parameter file. The ceremony runs on that circuit, and the verifier's code is generated from its output.</li>
+    <li><strong>Deployer.</strong> A small contract is created through the deterministic deployment proxy at <code>0x4e59…956C</code>. Its constructor fixes the nine creation-code hashes in order. Its only function, <code>deploy(i, code)</code>, creates contract <code>i</code> if <code>code</code> matches hash <code>i</code> and every earlier one exists. Addresses follow from the deployer's address and a counter, so each constructor receives the others' addresses before they exist. Anyone can send these transactions, and nobody can deploy anything else through it.</li>
+    <li><strong>One contract per transaction.</strong> Under Glamsterdam pricing the six do not fit in one transaction or one block.</li>
+    <li><strong>Launch.</strong> Anyone calls <code>Distribution.launch()</code>. Screeners who register in the first week count from epoch 7, so the first deposits can be activated about eight days after deployment.</li>
+  </ol>
+  <h4>The canary</h4>
+  <p>The canary is the whole system from the same build, deployed with a different salt and three different time constants: a cap step of 50,400 blocks instead of 648,000, and an emission period and deposit window shortened to match. In 90 days it passes all eight emission steps, the last cap step, the end of emissions and the close of deposits. Screening runs at its real pace with real seats. It has its own token and its own pool against IMD, which anyone could buy from, so the lawyer's review comes before the canary.</p>
+  <p>The project funds it with at least 10 ETH and the equivalent in each other asset, and runs a published script. The canary passes only when every line of the script has a transaction hash beside it:</p>
+  <ul class="check">
+    <li>Every external function of every contract, called at least once.</li>
+    <li>A spend with two real inputs, one with a padding input, one paying a relay fee note, one that turns reward into a token note, and a withdrawal of every asset at its smallest and at its largest reachable size.</li>
+    <li>A refused deposit, its refund, and a refusal that a later batch clears.</li>
+    <li>An activation that fails at a full cap and succeeds after a withdrawal.</li>
+    <li>An epoch with no accepted batch, a screener evicted for silence, and one whose seat was transferred.</li>
+    <li>A basket sale, a sale that skips one asset, and buyback steps down to an empty balance.</li>
+    <li>A token pool that a third party created and priced wrongly before launch.</li>
+    <li>Spends and refunds after deposits have closed and emissions have ended.</li>
+  </ul>
+  <p>What it shows: the deployment procedure works, the contracts and the circuit agree on mainnet, and nobody who looked took the money. What it does not show is that the circuit is sound. The proofs are for that, and the caps limit the cost if the proofs are wrong.</p>
+</section>

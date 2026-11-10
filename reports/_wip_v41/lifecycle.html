@@ -1,0 +1,27 @@
+<section id="lifecycle">
+  <h2>How a payment moves</h2>
+  <pre class="mermaid">
+sequenceDiagram
+  participant U as Wallet
+  participant P as Pool contract
+  participant S as Screeners
+  participant B as Relayer
+  U->>P: Deposit from a public address (nothing is shielded yet)
+  S->>S: Each day, commit and then reveal the batch of covered and refused deposits
+  S->>P: Batch accepted at two thirds and applied
+  U->>P: Activate after at least one day (0.2% taken, note enters the tree)
+  U->>B: Private transfer or withdrawal, encrypted
+  B->>P: Submit and pay gas
+  P-->>U: New shielded notes, reward carried inside them
+  P-->>U: Withdrawal in a standard size, minus exactly 0.2%
+  </pre>
+  <ol>
+    <li><strong>Deposit.</strong> You send funds from a public address together with a hidden commitment to the key that will own them. The deposit is public. Nothing is shielded yet and no fee is taken.</li>
+    <li><strong>Screening.</strong> Once a day the screeners agree on a batch: every deposit made before the day's first block, and which of them are refused. A batch needs two thirds of the active screeners.</li>
+    <li><strong>Activation.</strong> When your deposit is covered, not refused and at least 7,200 blocks old, you activate it from the same address. The pool takes the 0.2% entry fee and adds your note to the tree. From deposit to activation takes one to two days.</li>
+    <li><strong>Refund.</strong> At any time before activation you can take the deposit back in full, to the address it came from. Nobody else can touch it, and no screening decision can stop it.</li>
+    <li><strong>Private use.</strong> An activated note is an ordinary shielded note. You can hold it, split it and pay other users. Observers see that a transaction happened and nothing about who, how much or which asset.</li>
+    <li><strong>Relaying.</strong> Your wallet hands the encrypted transaction to a relayer picked at random, so your own address never pays the gas. The relayer is paid with a shielded note inside the same proof.</li>
+    <li><strong>Withdrawal.</strong> Funds leave to any address in standard sizes. The recipient receives the size minus 0.2%, the same amount for everyone who withdraws that size. A larger amount leaves as several standard withdrawals, spread over time by the wallet.</li>
+  </ol>
+</section>
