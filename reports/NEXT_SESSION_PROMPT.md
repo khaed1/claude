@@ -1,33 +1,47 @@
-# Next-session prompt: adversarial re-review of Murmuration
+# Next-session prompt: from the Murmuration v4 spec to a build-ready design
 
-Paste the block below into a fresh Claude Code session on this repository (branch `claude/keen-ramanujan-cbv9bu`). Run it at high effort.
+Paste the block below into a fresh Claude Code session on this repository. The files are on `claude/keen-ramanujan-cbv9bu` and `claude/upbeat-hawking-76x6mg` (same commit). Run it at high effort.
 
 ---
 
-You are taking over a privacy-protocol design called Murmuration: a swarm-operated privacy stack on Ethereum mainnet built on IMD (IdentityMD, imd.fun) seat agents. A previous session produced the research, the design and a published spec page. Your job is to re-review the whole thing adversarially, make it better, and make it cheaper to build and run, then update the spec page in place.
+You are taking over Murmuration, a privacy-pool design for Ethereum mainnet built and run by the IMD (IdentityMD, imd.fun) swarm. Three earlier sessions produced the research, an adversarial re-review, and four revisions of the spec. Version 4 is the current design. Your job is to attack the parts of version 4 that have never been reviewed, turn it into a build-ready technical specification, and check the assumptions it still rests on.
 
-Start by reading, in this order:
-1. `reports/IMD swarm privacy project design.md` (the full research report, ~10k words)
-2. `reports/Murmuration privacy stack.html` (the spec page; the same content is published at https://claude.ai/artifact/FTpHa2bajd3eY8mhumgTZQ)
-3. Every file in `research_notes/IMD swarm privacy project design/` (12 sourced note files: Tornado Cash, privacy coins, Aztec and zk.money, the Ethereum privacy ecosystem, the unsolved-problem inventory, IMD and swarm tech, IMD's unreleased Goals feature, the Ethereum roadmap as of 8 Nov 2026, and cost inputs)
-4. `reports/NEXT_SESSION_PROMPT.md` (this file)
+Read first, in this order:
+1. `reports/Murmuration v4 specification.html` (the current spec; published at https://claude.ai/artifact/4BpAYUhRLVR3vv4u9RfsaB)
+2. The "Review findings" and "Changelog" sections of `reports/Murmuration privacy stack.html` (the history page; published at https://claude.ai/artifact/FTpHa2bajd3eY8mhumgTZQ). Skip the rest of that file.
+3. `reports/NEXT_SESSION_PROMPT.md` (this file)
 
-Do not redo the research corpus. Re-verify only what can have changed since 8 November 2026, and cite a dated source for every change you make.
+Do not read the 19 research note files in `research_notes/IMD swarm privacy project design/` yourself. They total about 800 KB. When you need a fact, send a subagent to the specific file (names ending `_v2.md` are the newest) and ask for quoted evidence.
+
+**Decisions the owner has made. Do not reopen them. Record disagreement in the spec if you have evidence, then build what was decided.**
+- Fully immutable contracts: no admin, pause, upgrade, fee switch or mint.
+- The pool is the main product, with its own contracts and new circuits.
+- No external audit firm. Assurance comes from IMD audit panels, machine-checked proofs, a 90-day mainnet canary and low caps.
+- Pool fee 0.2% in and 0.2% out. The entry fee is taken at a deposit's first spend. Fee split 40% stakers, 40% screeners, 20% into locked liquidity through a daily descending-price auction for IMD.
+- Token: fixed supply, no sale, no treasury, no governance. Allocation 45% users (private shielded-time rewards), 25% public pool, 15% screeners, 10% the swarm, 5% founder. Every schedule runs two years.
+- Founder's 5%: one pseudonymous address, two-year vest, one-month cliff.
+- Public pool: 25% of supply, one-sided against IMD only, position locked for good, starting valuation 48,000 IMD, wide range, no ETH pair.
+- Screening stays. Deposits are screened at entry by staked seat holders using published, recomputable criteria.
+- The team writes software and operates nothing.
+
+**Defaults chosen by the previous session that the owner has not confirmed. List them for the owner with a recommendation each; do not treat them as settled.** Exit sizes (1, 2, 5 series); minimum age of 7,200 blocks; starting cap of about 25 ETH per asset doubling every 90 days; deposit window of about four years; screening threshold of two thirds with a seven-day fallback rule; screener stake amount (unset); user rewards released in step with the caps; swarm lock of up to one year; the asset list; the auction design.
 
 Then do the following, in order.
 
-**A. Attack the design.** For each of the six services, the Layer 0 pool, the Goals integration, the fee model and the legal gate: list the weakest assumption, the most likely failure, and anything that is overengineered relative to the guarantee it buys. Be specific. "Collusion risk" is not a finding; "the client-side selection seed is derived from the nullifier, so a broadcaster that sees two requests from the same wallet can test whether they share a seed" is.
+**A. Attack the new parts.** The pool, the token contracts, the fee auction and the screening registry were designed in one session and never reviewed. For each, give the weakest assumption, the most likely failure and anything overbuilt, as specific mechanisms and not categories. Cover at least: screening at entry with no label carried afterwards (can a thief get a deposit approved, spend once, and be untouchable?); the fallback rule (can someone stall screeners for seven days to trigger it?); the reward index (rounding, the first-depositor case, index manipulation when total shielded value is tiny, whether reward notes can exceed the budget); fixed-size exits (how change and dust are handled, what a large withdrawal looks like on-chain); the daily auction (griefing, zero-bid days, sandwiching the liquidity add); screener registration (cost to capture two thirds, stake-and-exit timing); the canary (does it really exercise the same code paths?); per-asset limits and the cap schedule.
 
-**B. Simplify.** Wherever a simpler mechanism gives the same privacy or legal property, replace it. Candidates to test: whether the panel ASP can be an overlay on Privacy Pools' existing ASP contract rather than new contracts; whether collaborative proving is needed at all now that Aztec claims 1-second native proofs and Zcash 200 ms mobile proofs; whether the read layer and the broadcaster mesh should be one role; whether threshold disclosure should be cut from scope entirely; whether the Layer 0 pool should exist or whether the project should stay services-only forever. Keep a component only if you can state the guarantee that is lost without it.
+**B. Write the build-ready specification.** For each of the three circuits: public inputs, private inputs and every constraint in words. For each of the six contracts: storage, external functions, events and invariants. State machines for a deposit and for a note. Keep every contract under 24 KiB and every transaction under 16,777,216 execution gas, and price state under EIP-8037 and EIP-8038.
 
-**C. Cut cost.** The budget is dominated by audits and formal verification (about $0.75M to $1.5M over 24 months), not infrastructure. Reduce novel code: reuse audited components (Railgun's contracts and broadcaster client, Privacy Pools' ASP and pool, Safe 1.4.1 and Zodiac Roles v2, Semaphore v4, the canonical CREATE2 factory) instead of writing new ones wherever the guarantee survives. Recompute the cost tables after your changes, at the then-current gas and prices, and show before and after.
+**C. Simulate the economics.** Write a small script and show results for: the one-sided range (IMD in the pool and price at 10%, 25%, 50%, 75% sold, from a 48,000 IMD start); sell pressure from two years of unlocks against that depth; fee income and liquidity added at pool volumes of $1M, $10M and $100M a month; user reward per unit of shielded value across the cap schedule.
 
-**D. Re-verify time-sensitive facts.** Check and update: IMD's Goals feature (has it shipped? are docs at imd.fun/docs updated? are the 12 developer questions in the spec answerable now? fill the Answer column where they are); the Glamsterdam schedule and whether EIP-8037 and EIP-8038 parameters changed; the Hegotá EIP-8081 list and EIP-8141 and EIP-8250 status; Privacy Pools v2's ASP interface and whether it accepts alternative roots; Railgun broadcaster client API and fee rates; Kohaku's release state; IMD explorer agent counts and seat floor; ETH, IMD and gas prices; any new legal developments in US v. Storm (Rule 29 ruling, retrial date) or EU AMLR guidance on anonymity-enhancing coins. Use parallel subagents for this. Mark anything you could not verify.
+**D. Check what was never verified.** Use parallel subagents. Whether IMD's launch factory can issue a token with no owner and no mint and route its trade fee to a contract; whether IMD has ever audited a zero-knowledge circuit, and what its audit template covers; whether an operator can reach a PPOI node; the Railgun engine's quick-sync hook; the cost of ML-KEM-768 ciphertexts on-chain today and under Glamsterdam; machine-checkable proof tooling for Circom or Noir circuits that an agent could use; anything that changed since 10 November 2026 in the Glamsterdam schedule, US v. Storm, or IMD's Goals feature. Mark what you could not verify.
 
-**E. Keep these rules unless you find evidence they are wrong, and say so explicitly if you change one:** immutable core contracts with no admin, pause, fee switch or upgrade; the team writes software and operates nothing; no developer fee in any token; no project token before Layer 0 is live, and probably never; nothing brokered through IMD's closed control plane, admission derived from on-chain seat ownership; pool funds never in IMD contracts or any Goal escrow; screening real, published and executed by independent panels; disclosure user-held, opt-in and revocable; TEE attestation never the sole root; services first, pool only with evidence; all signature checks ERC-1271-aware; all gas assumptions compatible with the Glamsterdam repricing and the 16,777,216 transaction cap.
+**E. Draft the build plan for the swarm.** Break the work into IMD job briefs (build, review, audit, proof), each small enough for one request, with acceptance tests. Save them as files under `reports/build_plan/`. Do not submit any of them.
 
-**F. Update the deliverables.** Edit `reports/Murmuration privacy stack.html` in place, keeping its title, structure, theme tokens and section ids. Add a dated "Changelog" section near the end listing every change with the reason and the source. Publish it to the existing artifact URL above (read the artifact first, then publish with `url`). Update the markdown report only where a finding contradicts it. Save new research notes into `research_notes/IMD swarm privacy project design/` with a `_v2` suffix. Commit with clear messages and push to `claude/keen-ramanujan-cbv9bu`.
+**F. Update the deliverables.** Edit `reports/Murmuration v4 specification.html` in place and publish it to its existing URL. Add each change to the changelog on the history page, with reason and source. Save new notes with a `_v3` suffix. Commit with clear messages and push.
 
-**G. Report back.** In chat, give the ten most important changes with one sentence of reasoning each, the before-and-after cost totals, the list of facts you could not verify, and the artifact link. Keep it under 400 words.
+**G. Report back** in under 400 words: the five most serious findings from A, the simulation's headline numbers, the unconfirmed defaults with your recommendation for each, what you could not verify, and both artifact links.
 
-Constraints: no external audits, deployments or transactions; nothing is sent to IMD, the IMD developer or any third party; do not create a pull request; do not add a token to the design; write for a reader who knows Ethereum and ZK but has not seen the previous session.
+Constraints: no deployments, transactions or external audits. Nothing is sent to IMD, its developer or any third party unless the owner says so in the session. Do not create a pull request. Do not advise on concealing anyone's identity. This is not legal advice, and the spec must keep saying that a lawyer reviews the fee, the token, the public pool and the founder allocation before launch. Write for a reader who knows crypto but is not a cryptographer.
+
+Practical notes from earlier sessions: commit and push early, because usage limits have interrupted long runs. For large edits to the HTML pages, use a script with exact-match assertions and validate the HTML afterwards. To publish over an artifact this session has not published, read its saved copy in full with explicit line ranges first; a truncated read does not count.
