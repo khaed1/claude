@@ -131,6 +131,12 @@ rep("<tr><td>Seat delegation on EAS, once per seat per 90 days</td><td class=\"n
     "    <tr><td>Murmuration activation, modelled</td><td class=\"n\">749,604</td><td class=\"n\">$0.32</td><td class=\"n\">$0.67</td><td class=\"n\">$3.19</td></tr>\n"
     "    <tr><td>Murmuration spend, modelled</td><td class=\"n\">1,081,224</td><td class=\"n\">$0.46</td><td class=\"n\">$0.97</td><td class=\"n\">$4.61</td></tr>\n"
     "    <tr><td>Same spend, under Glamsterdam</td><td class=\"n\">1,300,864</td><td class=\"n\">$0.55</td><td class=\"n\">$1.16</td><td class=\"n\">$5.54</td></tr>")
+rep('<tr><td>Privacy Pools-style Groth16 withdrawal, ETH to an existing account, today</td><td class="n">325,544</td><td class="n">$0.14</td><td class="n">$0.29</td><td class="n">$1.39</td></tr>',
+    '<tr><td>Privacy Pools-style Groth16 withdrawal, ETH to an existing account, today</td><td class="n">about 294,000</td><td class="n">$0.13</td><td class="n">$0.26</td><td class="n">$1.25</td></tr>')
+rep('<tr><td>Same, under Glamsterdam</td><td class="n">417,664</td><td class="n">$0.18</td><td class="n">$0.37</td><td class="n">$1.78</td></tr>',
+    '<tr><td>Same, under Glamsterdam</td><td class="n">about 386,000</td><td class="n">$0.16</td><td class="n">$0.35</td><td class="n">$1.64</td></tr>')
+rep('<tr><td>Same, under Glamsterdam, to a fresh account</td><td class="n">601,264</td><td class="n">$0.26</td><td class="n">$0.54</td><td class="n">$2.56</td></tr>',
+    '<tr><td>Same, under Glamsterdam, to a fresh account</td><td class="n">about 570,000</td><td class="n">$0.24</td><td class="n">$0.51</td><td class="n">$2.43</td></tr>')
 a = s.index('    <h3 id="parameters">'); b = s.index("</section>", a)
 assert s.count('<h3 id="parameters">') == 1
 s = s[:a] + frag("parameters.html").rstrip("\n") + "\n" + s[b:]
