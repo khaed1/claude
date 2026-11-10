@@ -108,7 +108,7 @@ table.wide{min-width:820px}
   <p class="lede">A pool where you can hold and send funds privately on Ethereum, with no owner, no pause and no upgrade. Deposits are screened by independent operators using published rules, funds leave only in standard sizes, and the notes are encrypted against future quantum computers. It is built and audited by the IMD swarm and opens behind very low caps. This page is the complete version 4 specification. Nothing in it is built or deployed yet.</p>
   <div class="facts">
     <div><b>0</b><span>admin keys, pauses or upgrades</span></div>
-    <div><b>0.2%</b><span>withdrawal fee, fixed in code</span></div>
+    <div><b>0.2%</b><span>fee in and 0.2% out, fixed in code</span></div>
     <div><b>25 ETH</b><span>starting cap per asset, doubling every 90 days</span></div>
     <div><b>3</b><span>circuits: deposit, transfer, withdraw</span></div>
     <div><b>50%</b><span>of the token goes to users</span></div>
@@ -184,12 +184,12 @@ sequenceDiagram
   P-->>U: Withdrawal in a standard size, minus 0.2%
   </pre>
   <ol>
-    <li><strong>Deposit.</strong> You send funds from a public address. The deposit is public and carries a label. There is no deposit fee.</li>
+    <li><strong>Deposit.</strong> You send funds from a public address. The deposit is public and carries a label. The 0.2% entry fee is taken later, when the deposit is approved and first spent.</li>
     <li><strong>Screening.</strong> Each day the screeners publish the set of approved labels. A deposit can be spent only once its label is approved and at least 7,200 blocks, about a day, have passed.</li>
-    <li><strong>Refused deposits.</strong> If a deposit is not approved, its owner takes it back publicly to the address it came from. Nobody else can touch it.</li>
+    <li><strong>Refused deposits.</strong> If a deposit is not approved, its owner takes it back in full, publicly, to the address it came from. No fee is charged and nobody else can touch it.</li>
     <li><strong>Private use.</strong> After the first spend your funds are ordinary shielded notes. You can hold them, split them and pay other users. Observers see that a transaction happened and nothing about who or how much.</li>
     <li><strong>Relaying.</strong> Your wallet hands the encrypted transaction to a relayer picked at random, so your own address never pays the gas. The relayer's fee is fixed inside the proof.</li>
-    <li><strong>Withdrawal.</strong> Funds leave to any address in standard sizes, with 0.2% taken as the pool's fee. A larger amount leaves as several standard withdrawals, spread over time by the wallet.</li>
+    <li><strong>Withdrawal.</strong> Funds leave to any address in standard sizes, with 0.2% taken as the pool's exit fee. A larger amount leaves as several standard withdrawals, spread over time by the wallet.</li>
   </ol>
 </section>
 
@@ -205,7 +205,7 @@ sequenceDiagram
     <tr><td>Private transfers inside</td><td>No</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
     <tr><td>Relayers</td><td>Token-staked registry</td><td>Four allowlisted in the main wallet</td><td>Three active in 30 days</td><td>Permissionless, picked at random by the wallet</td></tr>
     <tr><td>Notes against a future quantum computer</td><td>No notes on-chain</td><td>Elliptic-curve encryption</td><td>Elliptic-curve encryption</td><td>Hybrid with ML-KEM</td></tr>
-    <tr><td>Protocol fee</td><td>None</td><td>0.25% in and 0.25% out</td><td>None now; settable up to 99.99%</td><td>0.2% out, fixed forever</td></tr>
+    <tr><td>Protocol fee</td><td>None</td><td>0.25% in and 0.25% out</td><td>None now; settable up to 99.99%</td><td>0.2% in and 0.2% out, fixed forever</td></tr>
     <tr><td>Crowd today</td><td>About $780M</td><td>$106M, about 390 transactions a day</td><td>$0.65M, 583 deposits</td><td>None. Starts at zero</td></tr>
     <tr><td>Time in production</td><td>Since 2019</td><td>Since 2021</td><td>Since October 2026</td><td>None. New circuits</td></tr>
   </table></div>
@@ -274,7 +274,8 @@ SetAttestation {
   <p>The first two versions of this spec forbade a protocol fee and a token. On 10 November 2026 the owner decided to add both, to keep the pool fully immutable, and to keep the project decentralized. This section gives them the only shape that fits those three decisions, and says plainly what they change.</p>
   <h3>The fee</h3>
   <ul>
-    <li>0.2% of each public withdrawal, taken in the asset withdrawn. Nothing on deposits or on transfers inside the pool.</li>
+    <li>0.2% on the way in and 0.2% on the way out, taken in the asset itself. Together that is 0.4%, against Railgun's 0.5%. Transfers inside the pool are free.</li>
+    <li>The entry fee is taken when a deposit is approved and first spent, so a refused deposit is returned in full.</li>
     <li>The rate and the destination are fixed in code. Nobody can raise, lower or redirect it.</li>
     <li>It goes to an immutable distributor: half to token stakers in proportion to stake, half split equally among the screeners whose signatures are on that day's accepted root.</li>
     <li>Screeners are paid per day of agreement with the accepted root, never per withdrawal. Paying per use would reward approving more.</li>
@@ -468,7 +469,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td>Mirror</td><td>Unpaid</td><td>A by-product of the sync a broadcaster already does</td></tr>
     <tr><td>Attest</td><td>Unpaid on Railgun and Privacy Pools. In the pool, a share of the fee</td><td>Per day of agreement with the accepted root, never per use</td></tr>
     <tr><td>Railgun's 0.25% on shield and unshield</td><td>To Railgun's treasury</td><td>Not Murmuration's, and not the broadcasters'</td></tr>
-    <tr><td>Murmuration pool fee (phase 2)</td><td>0.2% of each public withdrawal, in the withdrawn asset, to the immutable distributor</td><td>Half to token stakers, half to the screeners who signed that day's accepted root. Nothing on deposits or transfers</td></tr>
+    <tr><td>Murmuration pool fee (phase 2)</td><td>0.2% of each approved deposit and 0.2% of each public withdrawal, in the asset itself, to the immutable distributor</td><td>Half to token stakers, half to the screeners who signed that day's accepted root. Nothing on transfers inside the pool</td></tr>
   </table></div>
   <p>Relaying is not a business at today's gas prices. Thirty nodes would share a market margin of about $480 a month with the incumbents, while hosting alone costs them $135 to $270 a month in total. Operators relay on a machine they already pay for, for a small return or none. The roadmap's targets are sized to that: a few dozen independent broadcasters cover the demand many times over.</p>
   <div class="tbl"><table>
@@ -485,7 +486,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
   <p>These are proposed defaults. Whatever values are deployed can never be changed, so each one needs a deliberate decision before the trusted-setup ceremony.</p>
   <div class="tbl"><table>
     <tr><th>Parameter</th><th>Value</th><th>Note</th></tr>
-    <tr><td>Withdrawal fee</td><td class="n">0.2%</td><td>Nothing on deposits or on transfers inside the pool</td></tr>
+    <tr><td>Pool fee</td><td class="n">0.2% in, 0.2% out</td><td>The entry fee is taken at a deposit's first spend. Nothing on transfers inside the pool</td></tr>
     <tr><td>Fee split</td><td class="n">50% / 50%</td><td>Token stakers, and the screeners who signed that day's accepted root</td></tr>
     <tr><td>Minimum age before first spend</td><td class="n">7,200 blocks</td><td>About one day</td></tr>
     <tr><td>Exit sizes</td><td class="n">1, 2, 5 series</td><td>Per asset: 0.1, 0.2, 0.5, 1, 2, 5, 10 ETH and so on</td></tr>
@@ -512,7 +513,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <li>The pool, the token and the fee distributor are immutable: no admin, pause, upgrade, fee switch or mint function.</li>
     <li>The project team writes software and operates nothing: no node, relayer, mirror, screener or hosted frontend. The software ships as a node package and a wallet module.</li>
     <li>The team does not recruit, pay or coordinate operators. Roadmap gates are observations read from the chain.</li>
-    <li>A fixed 0.2% withdrawal fee and a token exist. No fee goes to a team address. The founder holds 5% of the token, vested in code over two years, at one public address.</li>
+    <li>A fixed fee of 0.2% in and 0.2% out and a token exist. No fee goes to a team address. The founder holds 5% of the token, vested in code over two years, at one public address.</li>
     <li>15% of the token is offered to the public through a locked pool paired with IMD. No external audit firm reviews the code. Assurance comes from IMD audit panels, machine-checked proofs, a canary and very low caps.</li>
     <li>Screening is real, published and executed by independent screeners. The pool contract enforces it at a deposit's first spend, and seat broadcasters enforce PPOI on Railgun.</li>
     <li>No running part is brokered through IMD's control plane. IMD jobs are bought only to build and review open-source code. Admission is derived from on-chain seat ownership.</li>
@@ -650,7 +651,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
   <h3>What a user pays</h3>
   <div class="tbl"><table>
     <tr><th>Action</th><th>Cost</th></tr>
-    <tr><td>Deposit</td><td>Gas only</td></tr>
+    <tr><td>Deposit</td><td>Gas, and 0.2% of the amount once it is approved and first spent</td></tr>
     <tr><td>Private transfer</td><td>Gas, about $0.50 at 0.2 gwei as a planning figure, plus a relay fee of about 10% of the gas</td></tr>
     <tr><td>Withdrawal</td><td>Gas, the relay fee, and 0.2% of the amount</td></tr>
   </table></div>
@@ -664,7 +665,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
     <tr><td>A fee, a token and a pseudonymous founder allocation together are the pattern enforcement has pursued. The allocation address is public and traceable</td><td><span class="pill hi">High</span></td><td>No team fee address, screening enforced by the contract, vesting in code. These reduce the risk and do not remove it. A lawyer reviews it before launch</td></tr>
     <tr><td>No named audit firm. Wallets, L2BEAT and exchanges look for one</td><td><span class="pill hi">High</span></td><td>Publish every IMD finding, the proofs and the canary's record. Accept slower adoption. An external audit can still be added later for a successor pool</td></tr>
     <tr><td>The public pool is a token offering in substance, and it is priced in IMD</td><td><span class="pill hi">High</span></td><td>The position is locked and its fees go to the distributor, so no wallet profits from it directly. A lawyer reviews it before launch. If IMD fails, this liquidity fails with it</td></tr>
-    <tr><td>The pool starts with no users, and privacy comes from the crowd</td><td><span class="pill hi">High</span></td><td>Services first, to earn a wallet channel. Rewards for shielded time. No fee on deposits. Fixed-size exits make a small crowd go further</td></tr>
+    <tr><td>The pool starts with no users, and privacy comes from the crowd</td><td><span class="pill hi">High</span></td><td>Services first, to earn a wallet channel. Rewards for shielded time. A total fee below Railgun's. Fixed-size exits make a small crowd go further</td></tr>
     <tr><td>Reward seekers leave when emissions taper</td><td><span class="pill">Medium</span></td><td>Rewards follow time held and halve each year. The product has to keep users by itself</td></tr>
     <tr><td>Two thirds of screeners are bought</td><td><span class="pill">Medium</span></td><td>The result is a bad deposit approved, never lost funds. Each screener needs a seat and a stake, and anyone can recompute the root and see it</td></tr>
     <tr><td>No wallet adopts the policy, so seat broadcasters get no traffic. Railway Wallet selects from four allowlisted signers</td><td><span class="pill hi">High</span></td><td>Ship the policy as a small patch to Railgun's own client library with a reference wallet. The phase 0 gate measures real relays, not installed nodes</td></tr>
