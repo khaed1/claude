@@ -1,0 +1,43 @@
+# B21 · ScreenerRegistry: commit, reveal, accept, apply
+
+**Kind:** Build · **IMD template:** `impl_tests_review` · **Steps:** `implement-and-test`, `write-foundry-tests`, `adversarial-review`
+**Depends on:** B20
+**Status:** draft. Not submitted. One request, 0.5 IMD.
+
+## Objective
+
+Implement commit (first 4,800 blocks of an epoch), reveal (last 2,400), the tally, acceptance at two thirds of
+the screeners active at the epoch's start with at least seven active, apply(batch), isApproved(id) and flag. A
+batch is {epoch, criteriaHash, upTo, words[], dataCid}; apply requires its hash to equal an accepted batch
+newer than the last applied, raises screenedThrough (never lowers it) and overwrites each listed bitmap word;
+at most 96 words. Work only from the pinned commit of the project repository and the build specification
+(`reports/Murmuration v4 specification.html`, section "Build specification"). Solidity 0.8.30, Foundry,
+optimizer on, no ffi, no network. No owner, admin, pause, upgrade or setter may appear in any contract. If the
+specification is ambiguous, stop and report the ambiguity instead of choosing.
+
+## Contracts named
+
+- `src/ScreenerRegistry.sol`
+
+## Paths the job may write
+
+- `src/ScreenerRegistry.sol`
+- `test/RegistryBatches.t.sol`
+
+## Acceptance tests
+
+1. A batch is accepted exactly when matching reveals reach ceil(2n/3) with n >= 7 the snapshot count; never with n < 7.
+2. A reveal that does not match the screener's commitment, or arrives outside the reveal window, reverts; each screener reveals once per epoch.
+3. Two different batches can never both be accepted in one epoch (fuzz over reveal orders).
+4. apply reverts for a batch that is not accepted, is older than the last applied, lowers screenedThrough, or lists more than 96 words.
+5. isApproved(id) is true exactly when id <= screenedThrough and its bit is clear.
+6. apply with 96 words uses under 3,000,000 gas today and under 16,777,216 execution gas under the EIP-8037 model in the test.
+7. The adversarial review step reports no high or critical finding, or each one is fixed and re-reviewed.
+
+## Notes
+
+IMD's verifier runs forge build, forge test and Slither on this job.
+
+## Inputs
+
+`repoUrl` and `baseCommit`: the project's public repository at the commit that contains the outputs of the jobs this one depends on. Resolve the commit with IMD's free import check before quoting.

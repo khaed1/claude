@@ -1,7 +1,9 @@
 # IMD jobs, audit template, track record, Goals state, network size (v3, fetched 10 Nov 2026)
 
 Read-only planning research. Nothing was submitted, signed, posted or paid; no account was made. All live fetches were
-plain GETs made on **10 Nov 2026 between 14:44 and about 15:10 UTC**. "Local" means the earlier notes in this folder.
+plain GETs made on **10 Nov 2026 in two windows: 14:44-15:03 UTC and 23:11-23:17 UTC**. Sections A, B, D and E rest on
+the first window; the audit list pages 2-5, the one audit job record and the job keyword searches in B7 and C are from
+the second. "Local" means the earlier notes in this folder.
 
 ## Source keys
 
@@ -145,6 +147,7 @@ What is published:
   `build-contract-project` 18.7, `audit-imported-code` 14.7, `write-foundry-tests` 11.8, `audit-specialist` 10.8,
   `audit-judge` 9.3, `adversarial-review` 5.9, `refine-project` 5.2, `research-report` 3.8.
 - Budgets do run out: STATUS (10 Nov) lists a failure cause "Wall-clock budget exhausted during repair | 2 runs".
+- One whole audit job (four specialists in parallel, then the judge) took about 43 minutes end to end (section B7).
 - Launch-specific hard limits (only for contracts deployed by IMD's factory; READ `audit-judge` and
   `build-contract-project`): "49,152 bytes of creation code with its arguments, 24,576 deployed"; "at most 16
   constructor arguments"; `evm_contracts` launches "1–8 contracts" (DOCS line 746).
@@ -386,9 +389,110 @@ specialists would do with non-Solidity files, is not stated anywhere. NOT VERIFI
 
 ---
 
+### B7. What a real audit job looks like (one job record read, 10 Nov 23:13 UTC)
+
+`GET https://api.imd.fun/jobs/b3859010-b6e0-480f-a7fc-9cd17e85e69a` (`"template": "audit"`, `"state": "completed"`):
+- Five nodes, all `"role": "review"`, `"attempt": 1`, each on a different seat: `audit_math` (seat 970),
+  `audit_permissions` (seat 1591), `audit_economics` (seat 1552), `audit_flow` (seat 544), and `audit_judge` (seat 694)
+  with `"dependsOn": ["audit_math", "audit_permissions", "audit_economics", "audit_flow"]`.
+- Time: `"createdAt": "2026-11-07T12:34:14.689Z"`, judge accepted `"updatedAt": "2026-11-07T13:16:55.615Z"`: about 43
+  minutes from payment to report (my subtraction). One WorkRegistry transaction recorded the five reviews.
+- Report header (`/report.md`, 41,352 bytes): "Four agents audited the code as it is at `e879a14`, each in one area
+  (math, permissions, economics, control flow), and a judge reproduced, merged and ranked what they found, then read the
+  code once more itself. Nothing in the repository was changed or deployed." Footer: "Acceptance means the report met
+  the job's checks; it is not a guarantee that the code has no other defects."
+- The report is a list of findings (here "4 medium · 6 low · 1 info") with file, line, snippet and reproduction. It has
+  no coverage table and no statement of what was not reviewed (the words "coverage", "unreached", "out of scope" occur 0
+  times), although the specialist prompt asks for coverage rows. Several reproductions end "Verified by reading lines …",
+  i.e. traced by reading, not by running a test, even though that buyer asked for "Foundry tests, fuzzing, invariant
+  testing".
+- The audit template is also being used on non-Solidity code: 78 of the 432 public audit objectives name TypeScript,
+  Python or JavaScript (my regex count), e.g. job `c0ebfa5e-cf39-4631-9e44-cee039176a70` ("TypeScript and Python, no
+  Solidity in scope … If the audit tool cannot cover this scope, say so plainly."). So the plane does not refuse a
+  non-Solidity scope, but the specialists still get the Solidity checklist of B3. How well that works was not assessed.
+
+---
+
 ## C. Track record
 
-(see the section as updated below)
+**Verdict: (i) smart-contract audits: Verified, many public examples. (ii) zero-knowledge circuit audits: none found**,
+after a full-text search of every job objective and of all public audit reports that could be reached (limits stated
+below). Developer posts on X and the holders-only Telegram could not be read. No audit by IMD of IMD's own contracts,
+and no outside audit of them, was found either.
+
+### C1. Smart-contract audits (public, with links)
+
+- Counts: `GET /publications/counts` → `{"counts":{"all":5308,"code":135,"media":1420,"sites":770,"audits":432,
+  "tokens":706,"research":1774,"contracts":1058}}` (10 Nov 14:57 UTC). `GET /publications?type=audits` listed 432 audits
+  at 14:58 UTC and 450 at 23:11 UTC. I hold 432 distinct audit records (page 1 from 14:58, pages 2-5 from 23:11; up to
+  18 of the newest are therefore missing).
+- Of those 432 (my tallies from the API records): all have a paying wallet (`paidBy` set; 59 distinct wallets); 83
+  distinct repositories; 396 are on repositories outside the `identity-md-launches` org; published 4 in Sep, 379 in Oct,
+  49 in Nov 2026; 427 report at least one finding; severities summed: 6 critical, 102 high, 423 medium, 1,414 low, 1,356
+  info. A few buyers account for many jobs (top repository owners: 69, 52, 52, 36, 31 audits), so this is repeat use by
+  a small group, including re-audits after fixes.
+- IMD's `Identity-md/research` GitHub repository (cloned 10 Nov, HEAD `69562df`) holds 380 job folders and 122 `AUDIT.md`
+  files.
+- Examples (job page `https://explorer.imd.fun/jobs/<id>`, report `https://api.imd.fun/jobs/<id>/report.md`):
+
+| Published | Job id | Repository @ commit | Findings | Objective starts |
+|---|---|---|---|---|
+| 2026-11-07 | `b3859010-b6e0-480f-a7fc-9cd17e85e69a` | github.com/kadiri-seer/quietpay @ e879a142 | 4 medium, 6 low, 1 info | "Conduct a deep security audit of the current QuietPay repository." |
+| 2026-11-07 | `ad781e59-5e5f-41c2-a7b0-29ed0fed2f4c` | github.com/imdbell/imd-bell-contracts @ 8bdb3c7f | 1 high, 2 medium, 3 low | "Audit the IMD Bell contracts in src/ at this commit" |
+| 2026-11-04 | `a80b18b5-d8d2-4c9d-a1a6-10f3473be4e9` | github.com/fa11up/miyamints-contracts @ a991e8c9 | 5 high, 1 medium, 2 low, 4 info | "Audit the alignment vaults: src/vaults/uni/ (UniAlignmentVault, UniAlignmentVaultFactory)" |
+| 2026-11-03 | `1bd59a2f-b0be-4bd1-aa75-0c90009b5dcc` | github.com/contractclaus/claus-network-contracts @ 25df8a95 | 2 high, 3 medium, 4 low, 1 info | "Audit the code at exactly these repository-relative entry paths: ["src/DynamicSellFloorProgram.sol"]." |
+| 2026-11-01 | `6acefe89-1311-462a-8f78-5697050c327d` | github.com/nitro-slav/imduel @ 8a46d287 | 1 high, 1 medium, 3 low, 3 info | "Audit IMDuelHook in this repository, a Uniswap v4 hook" |
+| 2026-10-20 | `42b4b3b5-4c53-4368-aa49-ffdd71222d33` | github.com/JJ-ME55/tombola-contracts @ 705e9d24 | 1 high, 3 medium, 3 low, 3 info | "Audit the Tombola draw contracts in this repository: src/TombolaDraw.sol and src/TombolaSplitter.sol" |
+| 2026-10-18 | `2a2826a6-6ce0-4dcb-8b20-ed61e0ae0004` | github.com/RobertKodes/nightshift | 2 critical, 2 high, 3 medium, 4 low, 1 info | (not read) |
+| 2026-10-14 | `85083c05-6dca-432c-85a9-4969c58c6303` | github.com/identity-md-launches/launch-1545-goblin-gold | 1 critical, 3 high, 2 medium, 3 low, 1 info | (a launch's own audit) |
+
+  Only the first report was opened and read. The others are listed from the API's records, not checked for quality.
+  Nothing here measures how many real bugs were missed or how many findings were false.
+- Audit panels also run inside launches (four `audit-specialist` nodes plus an `audit-judge`). SKILLS record, 10 Nov:
+  `audit-specialist` "attempts": 5982, "accepted": 4829, "rejected": 0; `audit-judge` 1813 / 1451 / 0. A specialist or
+  judge submission is "accepted" when it meets the format checks; zero rejections says nothing about audit quality.
+- IMD's own contracts: Etherscan showed "No Contract Security Audit Submitted" (earlier notes, 9 Nov); Bankless, 25 Sep
+  2026 (https://www.bankless.com/read/inside-imd-ethereum-s-new-ai-swarm-experiment.md, read through WebFetch): "treat
+  this like an experiment that hasn’t been formally audited for now." The worker's own text says the custody contracts
+  "wait for their audit" (earlier notes). Not re-checked today.
+
+### C2. Zero-knowledge circuit audits: nothing found
+
+What was searched on 10 Nov 2026, and the result:
+
+| Where | Method | Terms | Result |
+|---|---|---|---|
+| All jobs except oracle panels: `GET https://api.imd.fun/jobs?exclude=oracle&limit=50&q=<term>` ("`q` (objective or id prefix …)", DOCS line 1991) | substring match on the objective | circom, groth16, snark, plonk, zero-knowledge | `count` 0 for each |
+| same | same | nullifier | 2 jobs: audit `b3859010` (below) and a research report `59734b38` |
+| same | same | zk | 4 jobs: two research reports, one goal (a snapshot of rollups), one website; none is an audit or a circuit |
+| same | same | noir | 6 jobs, all games or sites (French text, "noir" as a colour or word); none is Noir code |
+| same | same | circuit | 15 jobs: "circuit breaker" hooks, a game called "Squeek Burrow Circuit", logos; none is a ZK circuit |
+| 432 public audit records (full objective text in each record) | regex over the JSON | circom, noir, groth16, plonk, snark, stark, zk, zero-knowledge, poseidon, halo2, risc0, sp1, semaphore, tornado, mixer | 0 for every term |
+| same | same | nullifier 1, circuit 1 ("circuit breaker"), witness 3 (unrelated uses), privacy 7 | no circuit audit |
+| 122 `AUDIT.md` files in github.com/Identity-md/research | grep | circom, noir, groth16, plonk, snark, zero-knowledge, zkp, zk, halo2, risc0, under-constrained, trusted setup, .zkey, r1cs, nullifier | 0 files |
+| Explorer search `https://explorer.imd.fun/api/search?q=<term>` (jobs, oracle questions, publications) | site search | circom, groth16, snark, plonk, halo2, risc0, sp1, zkp, zero-knowledge, nullifier, poseidon, formal verification, halmos | `{"groups":[]}` for each |
+| Web search (2 queries naming IMD/IdentityMD with circom / zk / groth16 / noir / audit) | search engine | | no result about IMD |
+| github.com/Identity-md/awesome-imd README | grep | zk, circom, circuit, privacy | nothing relevant |
+
+- The nearest case: audit job `b3859010-b6e0-480f-a7fc-9cd17e85e69a` (7 Nov 2026) audited a payments app whose brief
+  listed "Shielded pool: 0xbow integration, Merkle proofs, nullifiers, root updates, approval churn, stale proofs, double
+  withdrawals and ragequit." Its report covers Solidity routers, a relayer and web code. The words circom, groth, snark,
+  circuit and verifier occur 0 times in the report; "nullifier" occurs once, in the quoted brief. It treats proofs as
+  inputs to a router (`proof{pubSignals[2] = …}`); it does not review any circuit. This is an audit of contracts that
+  *use* a shielded pool, not an audit of a zero-knowledge circuit.
+- Statement: **no public evidence was found that IMD has audited, built or tested any zero-knowledge circuit** (Circom,
+  Noir, Groth16 or other), and nothing in its tooling (section B6) supports one.
+
+How thorough this is, and what it misses:
+- Strong: the `q` search runs on the control plane over every non-oracle job's objective (about 6,900 jobs), and the 432
+  audit records were scanned in full.
+- Limits: (1) a job whose objective does not use any of these words but whose repository contains circuits would not be
+  found; the 432 audited repositories were not opened. (2) Up to 18 of the newest audit records were not scanned, though
+  the `q` search covers their objectives. (3) Oracle questions were searched only through the explorer search, which is
+  not full-text (it returned nothing for "nullifier" although one job objective contains it). (4) Goal items and research
+  reports mention ZK topics as subject matter (for example PLONK in a rollup survey); these are reports, not audits.
+  (5) The developer's X account and the holders-only Telegram were not readable (earlier notes: X returned HTTP 402), so
+  any claim made only there is NOT VERIFIED.
 
 ---
 
@@ -449,3 +553,27 @@ fresh read of those two routes. NOT RE-VERIFIED.
   approved premium model 679 (HEALTH field name `premium`; its definition is not documented).
 - Compared with 10 Nov 00:13 UTC (earlier notes): agents 1,149 → 1,151; online 871 → 844; working 118 → 6; jobs 6,883 →
   6,908; paid orders 7,899 → 7,924.
+
+---
+
+## Could not verify (all sections)
+
+1. The time, turn and token budget the control plane gives each skill. Only the protocol's outer bounds (200 turns,
+   4 hours) and observed averages are public.
+2. Any official statement of how large one request should be. None exists in the docs; section A4 is inference.
+3. How the `standard` inference label on contract and audit skills relates to the "approved premium model" rule.
+4. The meaning of HEALTH `taskSubagents` (all 0 for the audit skills today) and whether audit helpers are in use.
+5. Audit quality: false-positive and miss rates. No benchmark or outside comparison was found.
+6. Whether an audit of a repository holding circuits would be refused, ignored or attempted. No such job exists to look at.
+7. Developer statements on X or in the holders-only Telegram about audits, ZK work or the Goals roll-out.
+8. Today's state of the jury and earnings feature flags (routes not re-read; see section D).
+9. Buyer-side acceptance or dispute: the docs describe none.
+
+## Raw copies
+
+Scratch directory of this session (not in the repository):
+`/tmp/claude-0/-home-user-claude/4107f7be-64fa-56df-982c-ff1f40a87dd3/scratchpad/raw/` (docs, skill.md, capabilities,
+health, skills, `reads/` with every skill text and the audit list pages, `explorer/` search results, `jobsq/` job
+keyword searches) and
+`/tmp/claude-0/-home-user-claude/4107f7be-64fa-56df-982c-ff1f40a87dd3/scratchpad/untrusted/` (clones of the worker,
+research and awesome-imd repositories; `rn_all.txt` is the full release-note history).

@@ -1,0 +1,29 @@
+    <h3 id="parameters">Parameters fixed at deployment</h3>
+  <p>Whatever values are deployed can never be changed. Rows marked <span class="pill ok">decided</span> are the owner's decisions. Rows marked <span class="pill hi">to confirm</span> are recommendations from <a href="#decisions">Defaults to confirm</a>. Rows marked <span class="pill">build</span> are engineering constants the build jobs may tune before the ceremony, with the reason recorded.</p>
+  <div class="tbl"><table>
+    <tr><th>Parameter</th><th>Value</th><th>Status</th><th>Note</th></tr>
+    <tr><td>Pool fee</td><td class="n">0.2% in, 0.2% out</td><td><span class="pill ok">decided</span></td><td>The entry fee is taken at activation. Nothing on transfers inside the pool</td></tr>
+    <tr><td>Fee split</td><td class="n">40 / 40 / 20</td><td><span class="pill ok">decided</span></td><td>Token stakers, that day's agreeing screeners, and the token's market through an auction for IMD</td></tr>
+    <tr><td>Token supply</td><td class="n">fixed</td><td><span class="pill ok">decided</span></td><td>Created once. No mint function, no owner. One billion is used in examples; the number itself is free</td></tr>
+    <tr><td>Token allocation</td><td class="n">45 / 25 / 15 / 10 / 5</td><td><span class="pill ok">decided</span></td><td>Users, public pool, screeners, the swarm, founder</td></tr>
+    <tr><td>Founder vesting</td><td class="n">2 years</td><td><span class="pill ok">decided</span></td><td>Linear, with nothing in the first month. One address</td></tr>
+    <tr><td>Public pool</td><td class="n">25% of supply</td><td><span class="pill ok">decided</span></td><td>One-sided against IMD only, from a valuation of 48,000 IMD, position locked for good</td></tr>
+    <tr><td>Screener requirement</td><td class="n">1 seat + stake</td><td><span class="pill ok">decided</span></td><td>One IMD seat and a token stake</td></tr>
+    <tr><td>Minimum age before activation</td><td class="n">7,200 blocks</td><td><span class="pill hi">to confirm</span></td><td>About one day. The screening cycle makes the real wait one to two days</td></tr>
+    <tr><td>Exit sizes</td><td class="n">1, 2, 5 series</td><td><span class="pill hi">to confirm</span></td><td>0.001 to 1,000 ETH. 1 to 1,000,000 USDC or DAI. 1,000 to 100,000,000 of the token</td></tr>
+    <tr><td>Caps</td><td class="n">25 ETH, 50,000 USDC, 50,000 DAI</td><td><span class="pill hi">to confirm</span></td><td>On activated value. Doubling every 648,000 blocks. Recommended stop after five doublings, at 800 ETH and 1,600,000 of each stablecoin</td></tr>
+    <tr><td>Deposit window</td><td class="n">10,512,000 blocks</td><td><span class="pill hi">to confirm</span></td><td>About four years from genesis. Activation, refunds and withdrawals never stop</td></tr>
+    <tr><td>Screening threshold</td><td class="n">two thirds of active</td><td><span class="pill hi">to confirm</span></td><td>At least seven active. No fallback rule</td></tr>
+    <tr><td>Screener stake</td><td class="n">0.05% of supply</td><td><span class="pill hi">to confirm</span></td><td>Counts from 30 epochs after registration. Returned 14 epochs after exit</td></tr>
+    <tr><td>Emission</td><td class="n">8 steps of 90 days</td><td><span class="pill hi">to confirm</span></td><td>In proportion to the cap in each step. Divisor floor at a quarter of capacity</td></tr>
+    <tr><td>Swarm vesting</td><td class="n">2 years, linear</td><td><span class="pill hi">to confirm</span></td><td>Version 4 said "up to one year"</td></tr>
+    <tr><td>Assets and weights</td><td class="n">ETH 1 : USDC 1/2,000 : DAI 1/2,000</td><td><span class="pill hi">to confirm</span></td><td>Reward weight per unit, set from the cap ratios. The token's weight is zero. Final before the ceremony, because the circuit holds them</td></tr>
+    <tr><td>Auction</td><td class="n">1-day decline, ×2 restart</td><td><span class="pill hi">to confirm</span></td><td>First starting price 100 IMD, floor 1 IMD, minimum restart 10 IMD</td></tr>
+    <tr><td>Buyback step</td><td class="n">half of fee rate × reserves</td><td><span class="pill">build</span></td><td>At most one step per 25 blocks, in a pool at the 1% fee tier</td></tr>
+    <tr><td>Staker stream</td><td class="n">50,400 blocks</td><td><span class="pill">build</span></td><td>Each fee sweep is paid out evenly over about seven days</td></tr>
+    <tr><td>Screening epoch</td><td class="n">7,200 blocks</td><td><span class="pill">build</span></td><td>Commit in the first 4,800 blocks, reveal in the last 2,400. Eviction after 7 silent epochs or 7 missed batches</td></tr>
+    <tr><td>Reward checkpoint</td><td class="n">300 blocks</td><td><span class="pill">build</span></td><td>A proof may use the current checkpoint or the one before</td></tr>
+    <tr><td>Tree and roots</td><td class="n">depth 32, last 64 roots</td><td><span class="pill">build</span></td><td>One leaf per transaction</td></tr>
+    <tr><td>Circuit</td><td class="n">1, Groth16</td><td><span class="pill">build</span></td><td>Spend: two in, three out, a reward note and an optional public amount</td></tr>
+    <tr><td>Note encryption</td><td class="n">X25519 + ML-KEM-768</td><td><span class="pill ok">decided</span></td><td>As X-Wing under HPKE. 1,312 bytes of ciphertext per spend</td></tr>
+  </table></div>

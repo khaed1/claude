@@ -14,7 +14,8 @@ STATUS: complete draft. Section 9 lists what was not verified.
 
 - Properties 2, 3 and 4 can only be machine-checked today with an interactive prover. The one framework with a public record on a comparable circuit is `clean` (Lean 4, MIT): it was used for the Zcash Orchard/Ironwood Action circuit in June-July 2026, largely with AI-written Lean, and the result ships in production.
 - `clean` already emits binary `.r1cs` and a Circom-ABI WASM witness generator that snarkjs consumes for `groth16 setup`. So the circuit that is proved can be the circuit that is deployed, with no Circom compiler in between. If the team insists on `.circom` source, the Lean model is a hand or AI port and the link to the Circom output is a file comparison, not a theorem.
-- The gap that matters most for this design: `clean` has a proved Poseidon only at width 2 (arity 1). Widths 3, 4 and 5 have Lean specifications and test vectors but no circuit proof. The agents would have to write those proofs first. About 70% of the constraints in this circuit are Poseidon rounds (my estimate, see section 9).
+- That exporter entered the repository in mid-September 2026 (first commits 16 Sep 2026). I found no production use of it. Treat it as new, untested code.
+- The gap that matters most for this design is Poseidon. On `clean`'s `main` branch only width 2 (arity 1) has a circuit proof; widths 3, 4 and 5 have specifications and test vectors only. An unmerged branch, `poseidon-n-arity` (last commit 2 Nov 2026), carries a commit titled "Generalize verified Poseidon circuit to arities 1 through 16". Until it merges, the agents either build on an unreviewed branch or redo that work. About 70% of the constraints in this circuit are Poseidon rounds (my estimate, see section 9).
 - Property 1 cannot be established for the whole circuit by the push-button SMT tools (Picus, CIVER, ConsCS). Their own documentation and an independent 2026 evaluation say they stall on hashes and on anything above small circuits. They remain useful on the non-hash templates and as bug finders. In `clean`, property 1 follows from the soundness theorem when the specification is a function of the inputs.
 - "An LLM agent writes the Lean proof and anyone re-runs the checker" has public precedents for circuits (section 7). The documented failures are almost all about the statement, not the proof: added assumptions, weakened input types, vacuous specifications, and one case of agents disabling the checker.
 
@@ -28,7 +29,7 @@ Property columns: 1 = determinism / no under-constraint, 2 = value conservation,
 
 | Tool | Kind | 1 | 2 | 3 | 4 | Re-runnable artifact | Handles ~22k constraints with Poseidon? | HEAD date | Licence | Headless |
 |---|---|---|---|---|---|---|---|---|---|---|
-| **clean** (zkSecurity, Verified-zkEVM) | Lean 4 circuit DSL with soundness and completeness proofs; R1CS + WASM export | Yes (via functional spec) | Yes | Yes, relative to a hash assumption | Yes | Lean proof, `lake build`; `lake comparator` | Yes in principle (proofs compose per gadget). Poseidon proved at width 2 only | 2026-11-09 | MIT (Circomlib ports LGPL) | Yes |
+| **clean** (zkSecurity, Verified-zkEVM) | Lean 4 circuit DSL with soundness and completeness proofs; R1CS + WASM export | Yes (via functional spec) | Yes | Yes, relative to a hash assumption | Yes | Lean proof, `lake build`; `lake comparator` | Yes in principle: proofs compose per gadget, and zk.golf holds kernel-checked R1CS solutions for circuits whose baselines are 150k-210k constraints. Poseidon widths 3-5 are proved only on an unmerged branch | 2026-11-09 | MIT (Circomlib ports LGPL) | Yes |
 | **CIVER** (`costa-group/circom_civer`) | Modular SMT (Z3) inside a circom fork | Yes | Partly (user postconditions) | No | Partly (postconditions per template) | Re-run of tool; no proof certificate | Not shown. Hashes need `spec_fact` assumptions. Fork is on circom 2.1.6, no buses | 2026-02-19 | GPL-3.0 | Yes |
 | **Picus** (Veridise, open repo) | SMT uniqueness check (cvc5 finite fields) on Circom/R1CS | Yes | No | No | No | Re-run; counterexample when unsafe | No. README: hashes must be replaced by abstractions | 2024-03-14 | MIT | Yes |
 | **ConsCS** | Constraint-solving uniqueness on `.r1cs` | Yes | No | No | No | Re-run | No evidence; research artifact | 2025-02-04 (single commit) | MIT | Yes |
@@ -39,15 +40,15 @@ Property columns: 1 = determinism / no under-constraint, 2 = value conservation,
 | **zkFuzz** | Mutation fuzzer for Circom (prototype for Noir) | Tests only | No | No | No | Counterexample JSON | Yes as a tester; proves nothing | 2026-10-15 | GPL-3.0 | Yes |
 | **Coda** (Veridise) | Refinement types + Coq | Yes | Yes | Yes | Yes | Coq proof | Dormant; Coq Platform 2022.04 | 2023-06-26 | MIT | Yes |
 | **Garden** (Formal Land) | Rocq framework; Circom, LLZK, Plonky3, Halo2 front ends | Yes | Yes | Yes | Yes | Rocq proof | Circom side: circomlib is translated, only two small proofs. Halo2 side: full Orchard Action circuit | 2026-08-07 | MIT | Yes |
-| **zk-lean** (Galois) | Lean 4 DSL for ZK statements (used with Jolt) | Yes | Yes | Yes | Yes | Lean proof | Only toy examples public | 2026-05-04 | see repo | Yes |
+| **zk-lean** (Galois) | Lean 4 DSL for ZK statements (used with Jolt) | Yes | Yes | Yes | Yes | Lean proof | Only toy examples public | 2026-05-04 | BSD-3-Clause | Yes |
 | **ACL2 r1cs / PFCS** (Kestrel, in ACL2 books) | ACL2 + Axe lifter for R1CS | Yes | Yes | Yes | Yes | ACL2 certified books | "thousands of constraints" per Kestrel; Semaphore proofs partial | 2026-11-10 (ACL2 repo) | BSD-3 style (ACL2) | Yes |
-| **gnark-lean-extractor + proven-zk** (Reilabs) | gnark circuit to Lean 4 | Yes | Yes | Yes | Yes | Lean proof | Used on depth-30 Poseidon Merkle batch circuits; gnark only, extractor stale | 2024-03-28 / 2026-05-27 | see repos | Yes |
+| **gnark-lean-extractor + proven-zk** (Reilabs) | gnark circuit to Lean 4 | Yes | Yes | Yes | Yes | Lean proof | Used on depth-30 Poseidon Merkle batch circuits; gnark only, extractor stale | 2024-03-28 / 2026-05-27 | Apache-2.0 | Yes |
 | **lampe** (Reilabs) | Noir source semantics in Lean 4; extractor CLI | Yes at source level | Yes | Yes | Yes (to Noir source, not to R1CS) | Lean proof | No public proof of a comparable circuit found; tracks Noir 1.0.0-beta.14 | 2026-10-21 | Apache-2.0 | Yes |
 | **NAVe** (Blockhouse) | ACIR to SMT-LIB (cvc5), `formal-verify` in a nargo fork | Yes on small programs | Simple asserts | No | No | Re-run | No. Only the Range black box is formalised; largest test ~1k opcodes; 120 s timeouts | 2026-07-01 | MIT/Apache-2.0 | Yes |
 | **Blocksense Noir fork** | Noir to Verus/Z3 prototype | Partly | Partly | No | No | Re-run | Not shown; prototype | 2025-05-15 (`formal-verification` branch) | MIT/Apache-2.0 | Yes (nix) |
 | **`nargo fuzz`, `#[fuzz]`, `nargo test`** | Coverage-guided fuzzing and tests in Noir | Tests only | Tests only | Tests only | Differential test vs oracle | Failing input file | Yes as tests | Noir v1.0.0-rc.7, 2026-11-09 | MIT/Apache-2.0 | Yes |
-| **formal-snarks-project** | Lean 4 proofs about SNARK proof systems (not circuits) | No | No | No | No | Lean proof | n/a | 2026-08-15 | see repo | Yes |
-| **LLZK** (`project-llzk/llzk-lib`) | Shared IR and passes; Circom front end in `project-llzk/circom` | Substrate only | - | - | - | - | n/a | 2026-11-06, v2.1.2 | see repo | Yes |
+| **formal-snarks-project** | Lean 4 proofs about SNARK proof systems (not circuits) | No | No | No | No | Lean proof | n/a | 2026-08-15 | Apache-2.0 | Yes |
+| **LLZK** (`project-llzk/llzk-lib`) | Shared IR and passes; Circom front end in `project-llzk/circom` | Substrate only | - | - | - | - | n/a | 2026-11-06, v2.1.2 | Apache-2.0 | Yes |
 
 ---
 
@@ -88,6 +89,9 @@ Property columns: 1 = determinism / no under-constraint, 2 = value conservation,
 - **R1CS and snarkjs export exists** (`Clean/Backends/Circom/README.md`): "A compiler written in Lean that turns Clean circuits into standalone artifacts the snarkjs toolchain can consume directly: Binary WASM witness-generation modules implementing the Circom 2 witness-calculator ABI ... R1CS constraint files ... the binary `.r1cs` format consumed directly by `snarkjs r1cs info`, `groth16 setup`". Lookups are rejected in R1CS export, and "`native` witnesses (Lean closures) ❌ Not compilable", so witnesses must be written in the witness IR. The README gives BN254 examples with `compileR1CSBin BN254_PRIME ...`.
 - **Circomlib ports with proofs** (`Clean/Circomlib/`, LGPL like circomlib): AliasCheck, BinSub, BinSum, Bitify, Bitify2, CompConstant, Comparators, Gates, Mux1-3, Poseidon, Rotate, Sign. No `sorry` string in any of these files at HEAD. The folder README: "This project aims to formally verify all of circomlib in clean."
 - **Poseidon status** (`Clean/Circomlib/Poseidon.md` at HEAD, and the 4 May 2026 post): "Currently, the proof is about arity 1 Poseidon." "Arities 2, 3, 4 have specs and test vectors but no circuit/formal-proof." "`poseidon1Opt = poseidon1` is checked only via `native_decide` on a handful of inputs, not proven." "The translation from the original `poseidon.circom` source to this Clean model is not mechanically checked; it is a direct hand model". The post says the arity-1 proof took "weeks of work". https://blog.zksecurity.xyz/posts/poseidon-clean/
+- **Unmerged generalisation.** Branch `poseidon-n-arity` (author Martin Ochoa; commits 17 Sep, 21 Sep and 2 Nov 2026): "Generalize verified Poseidon circuit to arities 1 through 16". On that branch `Clean/Circomlib/Poseidon.lean` defines `Poseidon2` ... `Poseidon16` as `FormalCircuit F (fields n) field` over a generic `Poseidon/Generic.lean`, and none of the Poseidon files contains the string `sorry`. Arities 2, 3 and 4 are the widths 3, 4 and 5 this design needs. I inspected the branch by listing and grep only; it was not built.
+- The BN254 primality gap described in the May post is closed on `main`: `Clean/Specs/Poseidon.lean` now has `instance : Fact (Nat.Prime BN254_PRIME) := ⟨BN254.ScalarField_is_prime⟩`. The spec test vectors still use `native_decide`.
+- Dates from the repository history: the Circom/R1CS backend's first commits are 16 Sep 2026; the SHA-256 gadget's first commit is 15 May 2026; the first Poseidon commit (3 Jul 2025) is titled "some initial ai slop attempt at poseidon".
 - Not there yet (README roadmap): "Create clean circuits from LLZK - this gives us frontends like Circom - subproject: demonstrate actual e2e extraction from Circom". So there is no mechanical Circom-to-clean import today.
 - Agent use: `lake exe cache get`, `lake build --wfail`; state `Spec` and `Assumptions`; prove with `circuit_proof_start`; export with `compileR1CSBin` / `compileModule`; then `snarkjs groth16 setup circuit.r1cs pot_final.ptau circuit.zkey`.
 
@@ -103,14 +107,14 @@ Property columns: 1 = determinism / no under-constraint, 2 = value conservation,
 
 ## 4. Noir-side tools: evidence
 
-- **Noir itself**: v1.0.0-rc.7, HEAD 2026-11-09. The README still carries "This implementation is in early development. It has not been reviewed or audited. It is not suitable to be used in production. Expect bugs!" (this line may be stale boilerplate; it is quoted as it stands). The compiler has default-on heuristics for hint misuse; the flags to disable them are documented as "Flag to turn off the compiler check for under constrained values ... This check should always be run on production code" (`--skip-underconstrained-check`) and likewise `--skip-brillig-constraints-check`. These are lints, not proofs.
+- **Noir itself**: v1.0.0-rc.7, HEAD 2026-11-09. The README still carries "This implementation is in early development. It has not been reviewed or audited. It is not suitable to be used in production. Expect bugs!" (this line may be stale boilerplate; it is quoted as it stands). The compiler has default-on heuristics for hint misuse; the flags to disable them are documented as "Flag to turn off the compiler check for under constrained values ... This check should always be run on production code" (`--skip-underconstrained-check`) and likewise `--skip-brillig-constraints-check`. These are lints, not proofs. The standard library's `hash` folder holds only `poseidon2.nr`, so classic Poseidon at widths 3-5 would come from an external Noir library.
 - **Noir does not target Groth16.** Its artifact is ACIR for PLONKish back ends. The maintained route to Groth16 is Reilabs **Sunspot** (`reilabs/sunspot`, v1.0.0, 2026-10-06): ACIR to gnark Groth16, built for Solana verification, "Requires Noir 1.0.0-beta.22", "audited by HashCloak between April and September 2026". Its own setup command is flagged "THIS IS UNSAFE! ... NO MITIGATION FOR CRYPTOGRAPHIC TOXIC WASTE". This adds an unverified ACIR-to-R1CS translator to the trust base.
 - **lampe** (Reilabs, Apache-2.0, 2026-10-21): "a model of Noir's semantics in the Lean programming language". Run `lampe` in a Nargo project to extract Lean; proofs are separation-logic triples over the extracted code. Unconstrained calls are modelled as arbitrary values: `Lampe/Lampe/Builtin/Basic.lean` defines `fresh` ("Corresponds to an unconstrained function call") with the rule `(∀ v, Q (some (st, v)))`, and the stdlib README says unconstrained functions "are extracted with an empty body". That is the right model for malicious hints. Limits: it tracks stdlib 1.0.0-beta.14 (extracted folder name), while Noir is at rc.7 and Sunspot needs beta.22; the proofs are about Noir source, so the Noir compiler and the Groth16 translator are trusted; no public lampe proof of a join-split-sized program was found.
 - **NAVe** (`blockhouse-sec/nave`, moved from `pedrotbtl/nave`, tag `sefm26`, 2026-07-01; arXiv 2601.09372): "translates a ACIR program into a corresponding set of SMT constraints". From the paper (via the fetch tool): "we have only provided a formalisation of the Range black box function"; "We do not formalise the Call opcode"; Brillig calls "are translated as the always satisfied constraint true"; 50 test programs, the largest about 984 opcodes; 120-second timeouts hit on range-check-heavy programs. It cannot take a circuit with Poseidon.
 - **Blocksense fork**: "Formal verification of Noir circuits, based on the Z3 SMT solver and the IR language of the Verus project ... a proof-of-concept FV system". The `formal-verification` branch last moved 2025-05-15.
 - **`nargo fuzz` / `#[fuzz]`**: "Uses coverage-guided fuzzing"; "Can be used with an oracle to perform differential fuzzing against a known good implementation in another language". Testing.
 - **zkFuzz for Noir**: `zkfuzz-noir`, pinned to nargo 1.0.0-beta.6; the paper calls it "preliminary".
-- **Aztec**: no circuit-proof tool for user Noir programs was found beyond the above (see section 9).
+- **Aztec**: Barretenberg carries an `smt_verification` module (cvc5) for its own C++ circuit primitives. No Aztec tool that proves properties of a user's Noir program was found (see section 9).
 
 ---
 
@@ -124,9 +128,9 @@ Tier B, automatic determinism where it terminates: `civer_circom --check_safety`
 
 Tier C, the actual evidence, Lean 4 + clean:
 1. Humans write and review the specification in Lean: note commitment, nullifier, Merkle membership, 96-bit ranges, the conservation equations over the integers, the division relation. This file is the trust anchor and should be short.
-2. Agents implement each gadget as a `FormalCircuit` and prove soundness and completeness. Reuse the proved Bitify/Comparators/Mux ports. New work: Poseidon at widths 3, 4 and 5 (specs exist, proofs do not), the Merkle path by induction over depth, the range and division gadgets, the top-level composition.
+2. Agents implement each gadget as a `FormalCircuit` and prove soundness and completeness. Reuse the proved Bitify/Comparators/Mux ports. Poseidon at widths 3, 4 and 5 comes from the `poseidon-n-arity` branch if it has merged; otherwise it is new work. Also new: the Merkle path by induction over depth, the 96-bit range gadget, the exact-division gadget (the quotient can be witnessed with a field inverse; soundness over the integers needs the range bounds), and the top-level composition.
 3. The gate is not "the build is green". It is: `lake build --wfail`; an axiom allow-list on the capstone theorems (`propext`, `Classical.choice`, `Quot.sound`, plus any named exception); and `lake comparator` (in Lean core since v4.35.0) against a frozen, human-owned `Challenge` file so that agents cannot change statements.
-4. Deployment artifact. Option 1 (stronger): export `.r1cs` and WASM from clean and run snarkjs on those. Option 2 (if `.circom` must be the source): keep the Circom file, port it to clean, and add a CI check that the clean-exported constraint system equals the circom-compiled one for the pinned compiler version and flags. That check is a test of one artifact, not a theorem, and it is my proposal, not an existing tool.
+4. Deployment artifact. Option 1 (stronger, and my recommendation): export `.r1cs` and WASM from clean and run snarkjs on those. Keep an independent Circom implementation as a differential-test oracle (same public outputs on random and edge-case inputs). The exporter is about eight weeks old, so test it as unproven code. Option 2 (if `.circom` must be the source): keep the Circom file, port it to clean, and add a CI check that the clean-exported constraint system equals the circom-compiled one for the pinned compiler version and flags. That check is a test of one artifact, not a theorem, and it is my proposal, not an existing tool.
 
 What is machine-checked on this path:
 - (1) Determinism: yes, as a corollary of soundness against a functional specification, for the whole circuit, relative to the model.
@@ -156,8 +160,8 @@ Circom/R1CS, for this circuit:
 - **Lean kernel and tool chain.** zkSecurity (5 Oct 2026) refers to "the recent bug in the Lean kernel" and judges the impact on honest developments "non-existent" once upgraded; `lake comparator` can replay with a second kernel. `native_decide` adds compiler trust; OpenVM's and Ironwood's CI treat it as a tracked exception.
 - **clean's circuit model and exporters.** The definition of constraint satisfaction, and the Lean code that writes `.r1cs` and WASM. Whether the exporter is proved against the model was not verified (section 9).
 - **Poseidon.** Constants are "copied verbatim from circomlib's `poseidon_constants.circom`" and checked on seven vectors. The optimised and reference forms are equal only on tested inputs. Cryptographic strength is an assumption no proof assistant addresses.
-- **Circom compiler**, only if `.circom` stays the source.
-- **Groth16 setup, prover, verifier.** zkSecurity, 27 Feb 2026: "The first two known exploits against live ZK circuits happened in the past week. Both stem from the same root cause. They were not sub[tle under-constraint bugs]" (title: "The First ZK Exploits Happened, and They Weren't What We Expected", tagged circom, groth16; details in section 8). A circuit proof says nothing about the ceremony or the deployed verification key.
+- **Circom compiler**, only if `.circom` stays the source. The Circuzz compiler fuzzer lists 5 confirmed circom bugs (4 fixed) and 3 in Noir (`BUGS.md`).
+- **Groth16 setup, prover, verifier.** zkSecurity, 27 Feb 2026: "The first two known exploits against live ZK circuits happened in the past week. Both stem from the same root cause. They were not subtle underconstrained bugs, but rather Groth16 verifiers (generated by snarkjs) with an incorrect setup (just missing the last step). One was exploited by white-hat hackers for ~$1.5M, the other was drained for 5 ETH." And: "A critical invariant: γ and δ must be distinct, independent group elements." https://blog.zksecurity.xyz/posts/groth16-setup-exploit.md A circuit proof says nothing about the ceremony or the deployed verification key; add an explicit check of the verification key to the release gate.
 - **Contract logic**: nullifier set, root history, public-input encoding.
 - **Knowledge soundness of Groth16 itself**: assumed.
 
@@ -174,9 +178,9 @@ Circom/R1CS, for this circuit:
 | **Semaphore (original, MiMC)** | Component proofs, e.g. MiMC sponge; whole circuit described as in progress | ACL2 + Axe (Kestrel) | Reproducing the public books took the zkSecurity author "three hours" | Kestrel page; ACL2 books |
 | **SP1 Hypercube RISC-V chips** | Per-chip soundness against the Sail RISC-V model; completeness partly open ("currently five" deferred) | Lean 4, now expressed in clean (`succinctlabs/sp1-lean`, 2026-06-25) | Not stated | repo README |
 | **OpenVM RV32IM + Keccak/SHA-2 chips** | "all 45 of the RISC-V RV32IM opcodes satisfy their RISC-V specifications"; soundness only for precompiles; CI gates include `leanprover/comparator` | Lean 4 (`openvm-org/openvm-fv`, 2026-07-14) | Not stated | repo README |
-| **RISC Zero, ZKsync Airbender** | Determinism of circuits with Picus (Veridise). Airbender: 21 of 26 circuits verified, Feb-Apr 2026 (search summary only) | Picus (commercial use) | Not stated | https://risczero.com/blog/RISCZero-formally-verified-zkvm ; https://veridise.com/?p=20256 |
+| **ZKsync Airbender; RISC Zero** | Determinism only. Airbender: "Picus verified 21 of the 26 targeted circuits as deterministic"; the page does not say why five were not. RISC Zero: determinism of some circuits (search summary only) | Picus through Veridise AuditHub | Airbender: "From February to April 2026", three analysts, 21 person-weeks | https://veridise.com/?p=20256 (30 Jun 2026); https://risczero.com/blog/RISCZero-formally-verified-zkvm |
 | **ZKsync on-chain verifier** | Yul verifier contract matches an honest-verifier model (search summary only) | EasyCrypt (Nethermind, Feb 2025) | Not stated | https://www.nethermind.io/blog/we-verified-the-verifier-a-first-for-zero-knowledge-proof-systems |
-| **StarkWare STRK20 privacy pool** | A Lean development for a Starknet privacy pool (search result only, not read) | Lean | Not stated | https://starkware.co/blog/strk20-formal-verification/ |
+| **StarkWare STRK20 privacy pool** | The protocol "modeled in Lean as a state machine": notes cannot be forged, no double-spend through a one-time nullifier, exact accounting, funds recoverable and spendable. A model, not the Cairo contract and not a circuit | Lean 4; `starkware-libs/starknet-privacy`, folder `lean/` | "over 230 theorems"; effort not stated | https://starkware.co/blog/strk20-formal-verification/ (23 Jul 2026) |
 | Tornado Cash, Privacy Pools, Semaphore v4, Zcash Sapling, Linea | No published machine-checked circuit proof found | - | - | section 9 |
 
 The semaphore-mtb development shows the hash-assumption problem in miniature. It uses `[Fact (CollisionResistant poseidon₂)]` and an axiom whose own comment reads: "It is obviously not true (e.g. by the pigeonhole principle), but it captures the usual intuition behind hash functions."
@@ -208,7 +212,32 @@ Controls that the precedents use: human-owned statement files plus `lake compara
 
 ## 8. Supporting details
 
-(filled in below as checks complete)
+### 8.1 Effort figures found (no source gives a money cost)
+
+| Work | Stated effort |
+|---|---|
+| Orchard Action circuit MVP in clean, AI-assisted | part of a one-week audit with two consultants |
+| Ironwood balance-integrity proof | three teams, "well over a month", over 2,700 theorems |
+| Adversarial audit of the Ironwood formalisation | "3 weeks" (zkSecurity) |
+| Poseidon arity 1 in clean, human-led | "weeks of work" |
+| SHA-256 circuit and proofs in clean | "a couple of nights of work for Opus 4.7" |
+| IsZero and weighted-sum gadgets in ACL2 by Claude Code | "30 minutes" |
+| Picus determinism on ZKsync Airbender | 21 person-weeks, 21 of 26 circuits |
+
+### 8.2 Scale of LLM-proved R1CS circuits
+`zksecurity/zk-golf-challenges` (HEAD 2026-10-23) holds reference solutions for SHA-256, Keccak-f[1600], RSA-4096 signature verification, secp256k1 and BLS12-381 scalar multiplication, BLAKE3 and JSON extraction. Baselines quoted in `instances.yml` include 209,586 constraints (SHA-256 challenge) and "`Keccakf()` reports 153600 non-linear constraints". Each comparator config checks named theorems: `soundness`, `completeness`, `mainCost`, `isR1CS`, `witgenIsIR`, `computableWitness`, `requirementsChannelsLawful`. Rules from https://zk.golf/llms.txt: "Do not use `native_decide` in submitted solutions"; verification has "a hard wall-clock timeout of 1200 seconds". There is no Poseidon or Merkle challenge in the list. This is the closest thing to a ready-made gate for agent-written circuit proofs.
+
+### 8.3 Gates used by the production precedents
+- Ironwood CI: `lake build --wfail Zcash FixtureCheck CircuitCheck MetaCheck SecurityCheck CensusCheck`; "`sorry` elaborates with a warning, so ... this causes any use of `sorry` to fail CI"; `assert_axioms` entries in `Zcash/TrustBoundary.lean`; fixture digests checked by `check_fixture_manifest.sh`.
+- OpenVM: a textual scan "forbidding `native_decide`/`bv_decide`/`sorry`/`admit`", an in-build `#audit_axioms`, and "an independent `leanprover/comparator` re-export and replay of the frozen statements".
+- Comparator's guarantee: theorems in the solution "Prove the same statement as provided in `Challenge`", "Use no more axioms than listed in `permitted_axioms`", and are "accepted by the Lean kernel". It is now `lake comparator` in Lean core ("merged into core as of Lean release v4.35.0").
+
+### 8.4 Small facts
+- Picus's benchmark folder includes `Poseidon@poseidon.circom`, `Ark@poseidon.circom`, `Mix@poseidon.circom` and `Sigma@poseidon.circom`, but the repository has no result log for them. The CIVER fork contains no file with "poseidon" in its name.
+- Noir's `noir_stdlib/src/hash/` contains only `mod.nr` and `poseidon2.nr`.
+- Barretenberg has an `smt_verification` module ("Using cvc5 and smt_verification module") that exports circuits built with its C++ `CircuitBuilder` to an SMT solver. It serves Aztec's own primitives, not user Noir programs.
+- `formal-snarks-project` (Apache-2.0): "Linear PCP SNARKs in Lean", "an old repository associated with" a USENIX Security 2024 paper, recently restored to a building state. It concerns proof-system soundness; I did not check which systems it covers.
+- CertiPlonk (Nethermind, Apache-2.0, 2025-11-24) targets Plonky3 AIR constraints, not R1CS.
 
 ---
 
@@ -216,7 +245,7 @@ Controls that the precedents use: human-owned statement files plus `lake compara
 
 - Whether CIVER or Picus terminates on circomlib Poseidon at widths 3-5 or on a 22k-constraint join-split. Nothing was run here. The CIVER S&P 2024 paper was not read.
 - The zkFuzz Table IV figures: taken from a tool summary of the paper's HTML, not read directly.
-- Picus inside Veridise's commercial AuditHub (newer versions, LLZK input): not examined. The RISC Zero and ZKsync Airbender results come from search summaries.
+- Picus inside Veridise's commercial AuditHub (newer versions, LLZK input): not examined. The RISC Zero and ZKsync-verifier (EasyCrypt) rows come from search summaries only.
 - Whether clean's R1CS/WASM exporter is proved to agree with clean's constraint semantics. Assumed not.
 - Any use of clean's R1CS export in a production Groth16 deployment: none found.
 - The estimate that ~70% of the circuit is Poseidon: based on circomlib Poseidon(2) costing about 240 constraints, a figure from memory, times 64 hashes for two depth-32 paths.
@@ -227,7 +256,9 @@ Controls that the precedents use: human-owned statement files plus `lake compara
 - A "circom-lean" extractor: nothing found under that name.
 - Kestrel's Semaphore verification: complete or partial was not settled.
 - Tornado Cash, Privacy Pools, Semaphore v4, Zcash Sapling, Linea: no machine-checked circuit proof found; absence of evidence only.
-- StarkWare STRK20 privacy-pool verification: seen in a search result, not read.
+- The STRK20, Airbender, NAVe-paper, Tachyon and Cointelegraph details come from the fetch tool's reading of those pages (it summarises and can miss text); the long Tachyon and Zakura pages were only partly read.
+- The `poseidon-n-arity` branch of clean: not built, not merged, and its relation to the `poseidonOpt = poseidon` gap was not checked.
+- ACL2's licence is stated from memory.
 - Dollar costs: none published in any source read.
 - The Noir README warning may be stale text.
-- Licences marked "see repo" were not opened.
+- Licences were read from the head of each LICENSE file only.
