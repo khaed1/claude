@@ -131,6 +131,7 @@ table.wide{min-width:820px}
     <a class="sub" href="#spec-steward">Pool health</a>
     <a class="sub" href="#spec-disclose">Disclosure receipt</a>
     <a class="sub" href="#spec-worker">Node setup</a>
+    <a href="#visibility">What operators can see</a>
     <a href="#economics">Fees, gas and parameters</a>
     <a class="sub" href="#parameters">Fixed parameters</a>
     <a href="#legal">Legal position</a>
@@ -266,6 +267,17 @@ SetAttestation {
     <li><strong>If screeners disappear.</strong> After seven days without an accepted root, a fallback rule approves any deposit whose sender is not on the sanctions oracle.</li>
     <li><strong>If screeners are bought.</strong> Two thirds of them could approve a bad deposit. They could not move funds, and anyone can recompute the root and see what they did.</li>
   </ul>
+  <h3>Why screen at all</h3>
+  <p>A pool that accepts every deposit is possible. Tornado Cash is one, and what happened to it is the reason this pool does not copy it.</p>
+  <ul>
+    <li><strong>Thieves arrive first.</strong> A Cambridge study found attackers used Tornado Cash in 78% of Ethereum incidents through mid-2025. The wallet behind the Binance hack of October 2026 was funded through it.</li>
+    <li><strong>Honest users pay for it.</strong> Exchanges flag or freeze funds that come out of an unscreened pool, and some block accounts with only indirect exposure. A private withdrawal nobody will accept is worth little.</li>
+    <li><strong>Issuers can freeze the pool.</strong> Circle froze the USDC inside Tornado Cash's pool in 2022. A pool known to hold stolen funds invites the same.</li>
+    <li><strong>The fee depends on it.</strong> This pool takes a fee and has a token. Profiting from every deposit, stolen ones included, is the pattern the Tornado Cash and Samourai prosecutions turned on. Railgun and 0xbow charge fees, screen, and have not been charged.</li>
+    <li><strong>Wallets will not ship it otherwise.</strong> The launch gate requires a wallet with real users, and an unscreened mixer will not get one.</li>
+    <li><strong>There would be no reason to exist.</strong> An unscreened immutable pool already exists and holds about $780M. A new one would be the same thing with no crowd.</li>
+  </ul>
+  <p>Screening does not weaken an honest user's privacy. It looks only at the deposit, which is public in any pool, and after approval nothing connects the deposit to what happens inside. What it costs is a wait of about a day, and the fact that funds not yet reported as stolen can still pass.</p>
   <p>Before the pool exists, the same screening sets serve as a second opinion on Privacy Pools v1 withdrawals. The user makes a side proof with Privacy Pools' own circuit, and anyone checks it against the verifier contract already deployed there. That is how screeners build a public record first.</p>
 </section>
 
@@ -457,6 +469,35 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
   <p>The seats bring machines, operators and a cost per identity. Their language models are not used by any duty: relaying, mirroring and screening are ordinary deterministic programs.</p>
 
   </section>
+
+<section id="visibility">
+  <h2>What operators can see</h2>
+  <p>A seat holder running a node never receives a user's private information, so there is nothing of that kind to expose. What each duty does and does not see:</p>
+  <div class="tbl"><table>
+    <tr><th>Duty</th><th>Sees</th><th>Cannot see</th></tr>
+    <tr><td>Relayer, private transfer</td><td>An encrypted transaction and its own fee</td><td>Sender, recipient, amount</td></tr>
+    <tr><td>Relayer, withdrawal</td><td>The destination address and the standard amount, a few seconds before they become public anyway</td><td>Which deposit the funds came from</td></tr>
+    <tr><td>Mirror</td><td>That someone downloaded the pool's public files</td><td>Which notes belong to whom</td></tr>
+    <tr><td>Screener</td><td>Deposits, which are public to everyone</td><td>Anything inside the pool</td></tr>
+  </table></div>
+  <p>No operator can see a balance, who pays whom inside the pool, how much, or the link between a deposit and a withdrawal. None holds a user's keys, and none can move funds.</p>
+  <h3>What a dishonest operator can do, and the answer to each</h3>
+  <div class="tbl"><table>
+    <tr><th>Behaviour</th><th>Mitigation</th><th>What remains</th></tr>
+    <tr><td>A relayer records the sender's IP address</td><td>The wallet sends everything through Tor by default, so the relayer sees a Tor exit and no address</td><td>Nothing, while Tor is on. A wallet with Tor switched off is exposed</td></tr>
+    <tr><td>A relayer logs arrival times and withdrawal addresses</td><td>Each request uses a fresh one-time key and carries no account or session identifier. The wallet picks a different relayer at random each time</td><td>The relayer knows what the chain will show seconds later, and its own share of traffic</td></tr>
+    <tr><td>One party buys many seats to watch more traffic</td><td>One relayer counted per holder, random choice, and an optional rule that a seat must be held 30 days</td><td>A share of traffic equal to its share of seats, at about 0.70 ETH each. It sees ciphertext and timing, never content</td></tr>
+    <tr><td>A relayer refuses or delays</td><td>The wallet retries through another seat and avoids the refuser for a day</td><td>A short delay</td></tr>
+    <tr><td>A mirror serves wrong or partial data</td><td>The wallet rebuilds the pool's root from the files and compares it with the chain. Several mirrors publish identical files</td><td>Nothing. A bad file is rejected</td></tr>
+    <tr><td>Screeners refuse a legitimate deposit</td><td>The depositor takes it back in full. The screening set can be recomputed by anyone, so a wrong refusal is visible</td><td>The deposit address was public already</td></tr>
+  </table></div>
+  <h3>What no design choice removes</h3>
+  <ul>
+    <li><strong>The edges are public.</strong> Every deposit and every withdrawal shows an address, an amount and a time, to everyone. Fixed exit sizes hide the amount link. They do not hide that a withdrawal happened.</li>
+    <li><strong>Timing in a small crowd.</strong> If few people use the pool, a deposit followed soon by a withdrawal can be guessed without any operator's help. The wallet's delay and its pool-health warnings help, and only a larger crowd fixes it.</li>
+    <li><strong>The user's own habits.</strong> Withdrawing to an address already tied to the deposit address undoes everything. The wallet warns before it happens.</li>
+  </ul>
+</section>
 
 <section id="economics">
   <h2>Fees, gas and fixed parameters</h2>
