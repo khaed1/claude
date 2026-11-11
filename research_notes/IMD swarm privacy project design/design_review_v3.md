@@ -103,3 +103,60 @@ Railgun's turnover); reward 261 tokens per ETH per day on a full pool, 0.57% a y
   falls only through the swap".
 - **Residual risks recorded in the spec:** the weight is a price ratio frozen at deployment; one key administers IMD's
   bridge; IMD's deposits and withdrawals will be few, so its privacy at the edges is weak.
+
+---
+
+## Addendum, 11 November 2026: revision 4.2
+
+Source for everything below unless stated: `adversarial_review_independent_v3.md` in this folder (the independent review of revision 4.1), and the owner's instructions in session.
+
+### What happened
+
+1. An independent reviewer, given only the published revision 4.1 page, found 1 critical and 6 high faults, 24 contradictions between sections and 28 points a builder would have had to guess. It confirmed 20 claims of the 4.1 review, including that total reward paid cannot exceed the emission.
+2. The owner fixed the asset list: ETH, USDT, USDC, IMD, the pool's own token. DAI is out. My 4.1 recommendation (USDC and DAI, no USDT) was wrong on the evidence: USDT is the largest stablecoin in both screened pools (31.6% of Railgun's Ethereum balance, 71.7% of Privacy Pools'; `privacy_pool_asset_mix_v3.md`).
+3. Revision 4.2 of the specification answers the review. The changes are rows R4.2-1 to R4.2-22 of the changelog on the history page.
+
+### Design decisions taken in 4.2, and why
+
+| Decision | Reason | Finding |
+|---|---|---|
+| Token created inside `Distribution.launch()` with CREATE2, salt = `prevrandao` and caller. Bounded price reset (0.1% of supply), revert beyond | The address was computable from the published build, so anyone could pre-create the Uniswap pool and block launch for ever for about $100. Only a builder of the launch block can still interfere, per attempt | 1 (F-LAUNCH-1, 1b) |
+| A batch covers only deposits a day old at its epoch start. `isApproved(id, depositTime)` requires `depositTime + 1 day <= dataTime` | The reaction window was 0 to 1 day, not 1 to 2. Also bounds `upTo`: no batch can approve a deposit made after its data time | 2, 5 (F-SCR-1, F-SCR-2) |
+| Top statement plus ten lemmas | The five properties were satisfied by circuits with no spend authority, a free nullifier position, a free output index or asset | 3 (F-CIR-2) |
+| No launch shortcut for screeners | 77 seats in one address would have been two thirds on day seven | 4 (F-SCR-3) |
+| Majority hash per epoch, 7 consecutive misses allow eviction | A third plus one revealing junk blocked deposits for ever and profited if inside. Cost accepted and stated: a majority held for a week controls the registry | 6 (F-SCR-4) |
+| Public `roll()`, one shift per call, checkpoint roots saved | One reading of 4.1 bricked every spend. Checkpoint roots also defeat a 64-root flush | 7 (F-RWD-1, F-RWD-2), F-POOL-1 |
+| Deterministic rho and diversifier, `gRef` in `Spent`, ciphertext layouts | A wallet could not be restored from its seed | 8 (F-WAL-1) |
+| Buyback bound from the locked position's constant liquidity and the price, one step per 12 hours | "Reserves" was undefined and inflatable | 9 (F-FEE-1 to 3) |
+| Flag quorum max(3, a third of active), expiry 14 epochs, no hop expansion; truncation rule for more than 96 words | Three seats could have any deposit refused | 10 (F-SCR-6, F-SCR-7) |
+| Relay fee as public ETH from a third (ETH) input. 13 public inputs, about 31,000 constraints by estimate | Shielded fee notes doubled the user's gas and told the relayer the asset | F-POOL-3 |
+| Entry fee on top of the deposit | 1 ETH became 0.998 and stranded dust against standard sizes | F-POOL-4 |
+| Seconds from `GENESIS` everywhere | Block counts halve if slots shorten. `GENESIS` also keeps a published build from launching early | F-POOL-6, F-GATE-1 |
+| Refund of a refused deposit by anyone; basket fed over seven days; streams pause with no stakers; screeners' 40% to stakers when no batch for seven epochs | See the review | F-POOL-5, F-FEE-4, F-FEE-5, F-SCR-14 |
+
+### Not adopted
+
+- Refusals that lapse unless renewed: a bloc that controls the registry renews them.
+- A launch that never reverts: an unbounded reset hands the public allocation to whoever parked bids.
+- A third ciphertext for the relayer: unnecessary once the relayer is paid in ETH.
+- Anything against cap squatting paid by emissions (F-POOL-2): no rule inside an immutable pool separates a user from a farmer. Stated as a risk.
+
+### Claims of mine in 4.1 that were wrong
+
+Commit and reveal "so that copying is not possible"; "individual reveals so nobody can be left out"; blocking "earns them nothing"; "recovers from ordinary attrition by itself"; capture means only "a bad deposit approved"; "one to two days for screeners"; "the launch code handles a pool that already exists"; "that IMD stays in the pool as bids for good"; the canary "calls every function and every branch". The exposure figures $166,000 / $5.3M / $43M were also wrong: they priced each stablecoin cap at the value of 25 ETH. With caps of 25 ETH, 50,000 USDT, 50,000 USDC and 2,500 IMD the figures are $159,850 / $5,115,200 / $40,921,600 (`reports/sim/results.md`).
+
+### Checked for 4.2
+
+- USDT on Ethereum, read on-chain 11 November: `basisPointsRate` 0, `maximumFee` 0, not paused, not deprecated, 6 decimals. Its `transfer` returns no value. Source code not re-read (Sourcify returned 403).
+- Simulation re-run on the decided asset list: two-year IMD to the buyback 21,863 ($57,719); full-pool reward 251.1 tokens per ETH per day, 0.55% a year at the starting price.
+
+### Not verified
+
+- Revision 4.2 itself. Nobody but its author has read it.
+- Gas of the three-input spend (adjusted by hand: about 1,142,000 today, 1,476,000 under Glamsterdam, relayed) and of a 13-input verifier (extrapolated: about 269,000).
+- That `launch()` stays under 16,777,216 execution gas with a block's worth of hostile positions in front. It is a required fork test in B40 and R05.
+- Exit sizes for USDT and USDC.
+
+### Still for the owner
+
+Nine defaults: minimum age measured at the batch; caps and the stop at 800 ETH; four-year deposit window; two thirds with no fallback and majority-miss removal; screener stake 0.05% with a 30-day wait; reward floor; two-year swarm vest; auction design; relay fee in ETH. Plus the stablecoin exit sizes.
