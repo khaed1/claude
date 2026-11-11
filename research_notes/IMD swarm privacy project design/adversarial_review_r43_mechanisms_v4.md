@@ -249,6 +249,93 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 **Confidence.** Certain for 1 and 2. For 3, depends on reading.
 
+### Q-12. Low. In a small registry, removing a blocking third stops the registry
+
+**Where.** Line 716: acceptance needs "the snapshot is at least seven". Line 722: eviction at 14 strikes. Line 474: "Seven screeners is a cliff (M-24)."
+
+**How it works.** With 7 to 10 active screeners, a group that can block is 3 or 4 seats. After a week it has 14 strikes. Evicting it leaves 4 to 6 screeners, under seven, so no batch can be accepted until replacements have waited 31 epochs. The honest screeners must choose between a registry blocked part of the time and one stopped for a month. The page admits the cliff for one departure. It does not say that the strike rule, the remedy for a blockade, walks the registry over it. The canary starts at exactly seven.
+
+**Who and cost.** Three seats, about 2.1 ETH of resalable capital, in a registry of seven.
+
+**Consequence.** A month without activation, or a tolerated blockade. Rated low because the page accepts the cliff and the launch gate asks for fifteen seats.
+
+**Smallest fix.** None inside the decided rules. State it beside the cliff, and make the fifteen seats of the launch gate a condition on registered seats in the real registry, not on seats screening another pool.
+
+**Confidence.** Certain.
+
+### Q-13. Low. Anyone can restart a holder's 14-day stake clock by evicting one of its stale records
+
+**Where.** Line 705: "`unbonding[holder]` | Stake waiting to be returned, one total per holder, and the epoch it is released. Adding to it restarts the 14 epochs for the whole amount". Line 722: `evict` is open to anyone and "Moves the stake to `unbonding` for the holder who posted it". Line 759: "A stake leaves only to the holder who posted it, 14 epochs after exit or eviction."
+
+**How it works.** A holder exits 20 seats and waits. It also has 5 records for seats it sold without exiting. On day 13 someone evicts one of the five ("the seat has changed hands"). The clock restarts for all 21 stakes. Thirteen days later, the next one. Five stale records delay the whole amount by 65 days. A buyer who registers a bought seat does the same without meaning to.
+
+**Who and cost.** Anyone, for gas.
+
+**Consequence.** Delay only, and the holder can end it by evicting its own stale records in one go. The invariant on line 759 is wrong as worded.
+
+**Smallest fix.** Keep one unbonding entry per seat, which needs no new storage beyond a release epoch in the record.
+
+**Confidence.** Certain.
+
+### Q-14. Low. A swarm list that adds up to more than 10% is paid out of the founder's share, and the contract could prevent it
+
+**Where.** Line 230: "The contract cannot check that the list adds up to 10%, so the launch gate asks for a published recomputation". Line 817: "The founder's and each swarm entry's payout never exceeds the vested amount, and never exceeds the allocation."
+
+**How it works.** The Distribution contract holds the swarm's 10% and the founder's 5% in one balance. If the Merkle list sums to 11% of supply, swarm claims succeed until 11% has gone and the founder's last 1% cannot be paid. The contract cannot check the sum of the list. It can keep a running total of swarm payouts and refuse to go past 10%.
+
+**Who and cost.** Whoever builds the list, by mistake or not. The gate that guards it is off-chain (line 1430).
+
+**Consequence.** Up to the founder's 5% misdirected in the worst case.
+
+**Smallest fix.** One counter, `swarmPaid`, and one comparison in `claimSwarm`.
+
+**Confidence.** Certain.
+
+### Q-15. Low. A stablecoin issuer that freezes the registry or the distributor stops that asset's fee flow for everyone
+
+**Where.** Line 779: `notify` "Sends 40% to the registry with `fund`". Line 506: "A token transfer that fails reverts the call". Line 1514 lists freezes of the pool and of a depositor only.
+
+**How it works.** USDC refuses transfers to a frozen address. If Circle freezes the registry, `notify(USDC)` reverts at the transfer of the screeners' 40%, so `sweepFees(USDC)` reverts, and the stakers' 40% and the basket's 20% of USDC fees stay in the pool with it. Freezing the distributor has the same effect at the first transfer.
+
+**Who and cost.** The issuer only.
+
+**Consequence.** That asset's fees pile up in the pool. Users and other assets are not affected, so it fails safe.
+
+**Smallest fix.** If the transfer to the registry fails, add the amount to the staker stream. Add the case to the risk row.
+
+**Confidence.** Certain for USDC. USDT blocks transfers from a frozen address, not to one.
+
+### Q-16. Low. The auction's floor is a fixed number of IMD, and a backlog is sold at a stale price
+
+**Where.** Line 781: "The buyer names assets by id... The next starting price is twice the price paid, and never under a minimum param that is above the floor." Line 1281: "First starting price 100 IMD from the first receipt, floor 1 IMD, minimum restart 10 IMD."
+
+**How it works.** `misc.py` confirms that with a steady flow the auction sells at fair value: at 505 IMD a day of fees it settles on a sale every half day at about 253 IMD. Two edges fall outside that.
+
+1. The floor never moves. In the first 90 days the basket grows by about 0.95 IMD a day. If IMD's price rises a hundredfold, 1 IMD is $264 and the basket is sold about every hundred days.
+2. An asset that could not be transferred for a time leaves a backlog. While USDC is frozen for the distributor, buyers leave it out and the price tracks the other assets. On the day of the thaw the basket holds months of USDC against a price set by the last small sale, and the first transaction takes it for that price. The difference goes to whoever orders the block.
+
+**Who and cost.** For 2, a block builder or the fastest bidder, after an issuer's action.
+
+**Consequence.** Lumpy sales, and one windfall per thaw at the buyback's expense.
+
+**Smallest fix.** Feed an asset back through its 7-day basket stream when it becomes transferable again, and accept the first edge as a cost of pricing in IMD.
+
+**Confidence.** Certain as mechanics. Likelihood is low.
+
+### Q-17. Low. The screener whose reveal completes the two thirds gets the first place at every opening
+
+**Where.** Line 716: "When a hash reaches two thirds of the snapshot... it is the accepted batch of the epoch." Line 717: `apply` by "Anyone, from acceptance". Line 1508: "Whoever fills a cap first collects that step's rewards".
+
+**How it works.** The reveal that crosses the threshold, `apply` and the screener's own `activate` fit in one transaction. Nobody else can activate under that batch before it. On the first batch ever, which opens a pool with a month of queued deposits and a 25 ETH cap, the screener that holds back its reveal until it is the deciding one fills the cap. The same holds on any day new cap space and a new batch coincide.
+
+**Who and cost.** Any screener willing to reveal last. With several seats it is easy to be the one.
+
+**Consequence.** The first-come rewards of each step go to a screener by construction. The page admits the race and not that one party always wins it.
+
+**Smallest fix.** None that is small. It is another reason for the empty first batch proposed in Q-7, after which the first approval is at least a public event a day ahead.
+
+**Confidence.** Certain.
+
 ## 3. Contradictions between sections
 
 (pending)
