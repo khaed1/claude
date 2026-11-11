@@ -5,16 +5,48 @@
 - Reviewed: "Murmuration v4 specification, revision 4.4", dated 11 November 2026, in its plain-text rendering (1,615 lines). Line numbers below refer to that rendering.
 - Reviewer's area: "How a payment moves", "The pool", "How private rewards work", the build specification from "Conventions" through "Keys, notes and addresses", "The circuit", contract 1 "Pool" and contract 2 "Verifier", "State machines", "Rules for the wallet and the relayer", "Size, gas and state pricing", "What operators can see", and the rows of the parameter, defaults and risk tables that concern them. The pool's interface with the registry (`isApproved`, `isRefused`, `START`) is included.
 - Method: the whole page was read once in full. No other file in the repository was opened. Arithmetic was redone with scripts kept outside the repository.
-- Verdict, for this area only: it passes the test the page sets, with two caveats. I found no critical fault and nothing I rate high or high if misread. The circuit as fifteen equations, the pool's ledgers, the reward index and the new relay-fee path held against every attack listed in section 5.
-- Counts: 0 critical, 0 high, 0 high if misread, 4 medium (P-1 to P-4, two of them dependent on reading), 3 low (P-5 to P-7), 15 contradictions between sections, 22 points a builder would have to guess.
-- The two caveats, where the letter of the calibration and my rating differ, so that the owner can decide. P-1 is "a way around the standard exit sizes", which the calibration lists under high. I rate it medium because the 0.2% is still paid, no balance can be exceeded, and the only privacy it weakens is that of the user who takes the route. If the owner holds that standard sizes must be enforced by the contract, P-1 is high and the page does not pass. P-4's literal reading locks an unactivated deposit for good, for a narrow class of depositing contracts. I rate it medium because the page already accepts the general case of a depositor that cannot receive its own asset back, and because the page's own record rates the two nearest earlier faults medium (a recipient that refuses payment, line 448, and a wallet that could not be restored, line 397).
-- What should change before a build job is written: the wording of lemma 11 and of two other statements to be proved (P-3), the refund's missing fallback (P-4), the address format (P-2), and either the constant in the relay-fee ceiling or the sentences that describe it (P-1). Each fix is a sentence or a few lines.
+- Verdict, for this area only. No critical fault and no certain high fault. One place where a builder's reading decides between safe and critical (P-1), fixed by three sentences. By the page's own test ("no high finding") I would not count it as passed until those sentences are in, and with them I see nothing in this area that should hold a build back. The circuit as fifteen equations, the pool's ledgers, the reward index and the new relay-fee path held against every attack listed in section 5.
+- Counts: 0 critical, 0 high, 1 high if misread (P-1), 4 medium (P-2 to P-5, two of them dependent on reading), 3 low (P-6 to P-8), 15 contradictions between sections, 22 points a builder would have to guess.
+- Two caveats, where the letter of the calibration and my rating differ, so that the owner can decide. P-2 is "a way around the standard exit sizes", which the calibration lists under high. I rate it medium because the 0.2% is still paid, no balance can be exceeded, and the only privacy it weakens is that of the user who takes the route. If the owner holds that standard sizes must be enforced by the contract, P-2 is high. P-5's literal reading locks an unactivated deposit for good, for a narrow class of depositing contracts. I rate it medium because the page already accepts the general case of a depositor that cannot receive its own asset back, and because the page's own record rates the two nearest earlier faults medium (a recipient that refuses payment, line 448, and a wallet that could not be restored, line 397).
+- What should change before a build job is written: the rule for public inputs at or above the modulus (P-1), the wording of lemma 11 and of two other statements to be proved (P-4), the refund's missing fallback (P-5), the address format (P-3), and either the constant in the relay-fee ceiling or the sentences that describe it (P-2). Each fix is a sentence or a few lines.
 
 ## 2. Findings
 
 Terms used below. A *spend* is one call of `Pool.spend` with one proof. The *relay fee* is the public input `relayFee`, an amount paid by the pool to the address named as `relayer`. The *ceiling* is the largest `relayFee` the pool accepts in a block. *Base fee* is the per-gas price every transaction in a block must pay, set by the protocol (EIP-1559), which rises by at most 12.5% after a full block. *Self-relay* means a user names an address of their own as `relayer`.
 
-### P-1. Medium. The relay-fee ceiling is 46 times the gas cost today for ETH and 372 times for every other asset, with no limit per day, so the relay fee is a second way out in any amount
+### P-1. High if misread (the worse reading is critical). Nothing says that a nullifier at or above the field modulus is rejected, which is the check that stops one note being spent five times
+
+The proof system works with numbers modulo a prime `p` of about 2^253.6. The contract works with 256-bit numbers. `N` and `N + p` are two different 256-bit numbers and the same number to the proof system. A *nullifier* is the number a spend publishes so that its note cannot be spent again.
+
+**Where.** Three passages touch the point and none settles it.
+
+- Line 572, the pool's check on `nf[0]` and `nf[1]`: "Both non-zero, both absent from the spent set, and different from each other". No bound.
+- Line 509: "Every hashed value is less than its modulus `p`, and the contracts reject inputs that are not". The pool does not hash a nullifier. It stores it as a key (line 650, "`spent[nullifier]`"). Where the pool needs a bound the page writes it out, as in `deposit` (line 658, "`ownerCommit < p`").
+- Line 702, the verifier: "Its invariant is that it accepts exactly the proofs the verification key accepts, which is tested against the reference verifier with valid, altered and malformed proofs, including public inputs at or above the field modulus." It says such inputs are tested. It does not say what the result must be.
+- Line 610 lists what the circuit leaves to the contract, and line 634 what must hold of the pool ("No nullifier is accepted twice"). Neither mentions the range of a public input.
+
+**The two readings.** Under the first, the verifier returns false for any public input at or above `p`. The code that snarkjs generates does this, and then the pool needs no check of its own. Under the second, the builder writes the pool from the table at line 572, and the verifier, whose signature `verify(proof, inputs[11])` is not the stock one and which the build plan produces with a "verifier wrapper", is made to agree with a reference verifier on those inputs. A reference that works on field elements reduces every input modulo `p` when it reads it, and so accepts `N + p` wherever it accepts `N`. The elliptic-curve precompile the verifier calls does the same. Agreeing with that reference means accepting.
+
+**How it works under the second reading.**
+
+1. The attacker holds one note of 10 ETH with nullifier `N`, and withdraws it. `spent[N]` is set.
+2. The attacker proves again for the same note (it is still in the tree, and the attacker knows the witness) and submits with `nf[0] = N + p` and a fresh dummy for `nf[1]`. The pool's checks pass: `N + p` is not zero, not in the spent set, and differs from `nf[1]`. The verifier computes the same point for `N + p` as for `N` and accepts. Another 10 ETH leaves.
+3. Repeat with `N + 2p`, `N + 3p` and `N + 4p`, which all fit in 256 bits, and with `N + 5p` when `N` is under 0.29 `p`. That is five withdrawals for every note and six for 29% of them (2^256 ÷ p = 5.29).
+4. With several notes the attacker takes each asset's whole `shielded` balance. The per-asset limit stops one asset draining another, and nothing else stops this.
+
+**Who and cost.** Any holder of a note, for gas.
+
+**Consequence.** Under the second reading, the sum of the caps. Under the first, nothing. I think the first is much the more likely outcome, because the stock generator rejects by default. It is rated on the worse reading because the page leaves the outcome to the tool, and the same kind of gap was rated the same way last round (line 439, a note used twice in one spend, where "one passage told the contract to stop it and another did not").
+
+**Smallest fix.** Three sentences.
+
+- In the table at line 572: every public input is below `p`, and the pool itself rejects a call in which `nf[0]` or `nf[1]` is not.
+- At line 702: a public input at or above `p` makes `verify` return false, whatever a reference verifier does with it.
+- In part D and in the canary list: a spent proof submitted again with `p` added to a nullifier is rejected.
+
+**Confidence.** Certain that no passage states the outcome. Whether it is built wrong depends on reading.
+
+### P-2. Medium. The relay-fee ceiling is 46 times the gas cost today for ETH and 372 times for every other asset, with no limit per day, so the relay fee is a second way out in any amount
 
 **Where.**
 
@@ -67,7 +99,7 @@ I rate this medium and not high. The calibration lists "a way around the standar
 
 **Confidence.** Certain (arithmetic from the page's own figures).
 
-### P-2. Medium, depends on reading. A payer cannot fill in the diversifier that ciphertext 0 must carry, and a restored wallet has no rule for finding it
+### P-3. Medium, depends on reading. A payer cannot fill in the diversifier that ciphertext 0 must carry, and a restored wallet has no rule for finding it
 
 A *diversifier* (`d`) is the 8-byte value mixed into a wallet's owner key so that one wallet can have many owner keys. To spend a note the owner must know the `d` that note was made with.
 
@@ -97,7 +129,7 @@ Add to the canary list: a payment from one wallet to an address of another, spen
 
 **Confidence.** Certain that the two passages contradict each other. The loss depends on reading.
 
-### P-3. Medium. Lemma 11 is false as written, is not a property of the constraint system, and its natural repair is empty where it matters. Two more statements in part A cannot be proved as worded
+### P-4. Medium. Lemma 11 is false as written, is not a property of the constraint system, and its natural repair is empty where it matters. Two more statements in part A cannot be proved as worded
 
 A *constraint system* is the list of equations the proof system enforces. A statement about it can be machine-checked. A statement about which states the Pool contract can reach cannot be read off it.
 
@@ -136,7 +168,7 @@ A *constraint system* is the list of equations the proof system enforces. A stat
 
 **Confidence.** Certain for items 1, 3, 5, 6 and 7 (arithmetic, a counter-example, or the text of line 632). Likely for item 4.
 
-### P-4. Medium, depends on reading. A refund is the one ETH payment with no fallback. If it is sent with the 50,000-gas allowance, a depositing contract whose receiving code costs more can never be refunded, and Glamsterdam's storage prices put ordinary contracts in that group
+### P-5. Medium, depends on reading. A refund is the one ETH payment with no fallback. If it is sent with the 50,000-gas allowance, a depositing contract whose receiving code costs more can never be refunded, and Glamsterdam's storage prices put ordinary contracts in that group
 
 **Where.**
 
@@ -166,7 +198,7 @@ Every other ETH payment survives this: a withdrawal or relay fee that fails is c
 
 **Confidence.** Certain that the page admits both readings. The lock depends on reading and on the gas figures of line 903, which the page calls provisional.
 
-### P-5. Low. Slots that are empty are made indistinguishable for inputs only. Nothing says what an empty output or an unused ciphertext 0 contains
+### P-6. Low. Slots that are empty are made indistinguishable for inputs only. Nothing says what an empty output or an unused ciphertext 0 contains
 
 **Where.**
 
@@ -186,7 +218,7 @@ Every other ETH payment survives this: a withdrawal or relay fee that fails is c
 
 **Confidence.** Depends on reading.
 
-### P-6. Low. A quote's expiry is not in the proof. A relayer that was handed a spend can land it until two more checkpoints have been taken, which in a quiet pool is never
+### P-7. Low. A quote's expiry is not in the proof. A relayer that was handed a spend can land it until two more checkpoints have been taken, which in a quiet pool is never
 
 **Where.**
 
@@ -211,7 +243,7 @@ Every other ETH payment survives this: a withdrawal or relay fee that fails is c
 
 **Confidence.** Certain.
 
-### P-7. Low. Under the wallet's proving rule a note can be spent only after the next hourly checkpoint, so one note supports one spend an hour. The state table says the opposite
+### P-8. Low. Under the wallet's proving rule a note can be spent only after the next hourly checkpoint, so one note supports one spend an hour. The state table says the opposite
 
 **Where.**
 
@@ -235,16 +267,16 @@ Every other ETH payment survives this: a withdrawal or relay fee that fails is c
 
 | # | Passage A | Passage B | A builder would follow |
 |---|---|---|---|
-| 1 | L90, L123, L1251, L1322: the relay fee is limited to "a few times the gas cost" | L668: the formula. At the base fee of L1267 it allows 46 times the gas cost for ETH and 372 times for other assets | L668. See P-1 |
+| 1 | L90, L123, L1251, L1322: the relay fee is limited to "a few times the gas cost" | L668: the formula. At the base fee of L1267 it allows 46 times the gas cost for ETH and 372 times for other assets | L668. See P-2 |
 | 2 | L333: "Dust below the smallest size can never leave by itself." L1312: "A stablecoin remainder under 10 cannot leave by itself" | L575, L668: up to 0.0024 ETH or 40 USDT per spend is paid to any address the spender names | L575. The dust sentences are wrong, in the user's favour |
 | 3 | L333: the smallest size "is 1 unit for a stablecoin" | L44, L123, L1283, L1312: from 10 | L1283. L333 is left over from before the decision |
-| 4 | L548: an address is `ownerPk` and the encryption key | L557: the payer writes a diversifier into ciphertext 0 | Unclear. See P-2 |
-| 5 | L616, L628: lemma 11 is machine-checked on the constraint system | L634: the bound it depends on is a property of the Pool, covered by tests | Unclear. See P-3 |
-| 6 | L520: a refund is "the one exception" and reverts when its payment fails | L663: `claimOwed` pays with all remaining gas. L121: "can never trap funds" | L520, read literally. See P-4 |
-| 7 | L872: a new note "can be spent in the next transaction against a recent root" | L882: the wallet "waits for the next roll" | L882. See P-7 |
+| 4 | L548: an address is `ownerPk` and the encryption key | L557: the payer writes a diversifier into ciphertext 0 | Unclear. See P-3 |
+| 5 | L616, L628: lemma 11 is machine-checked on the constraint system | L634: the bound it depends on is a property of the Pool, covered by tests | Unclear. See P-4 |
+| 6 | L520: a refund is "the one exception" and reverts when its payment fails | L663: `claimOwed` pays with all remaining gas. L121: "can never trap funds" | L520, read literally. See P-5 |
+| 7 | L872: a new note "can be spent in the next transaction against a recent root" | L882: the wallet "waits for the next roll" | L882. See P-8 |
 | 8 | L88, L121: anyone can send back "a deposit that has stayed refused for three weeks" | L660: anyone can, "once the deposit is at least 21 days old" and is refused now | L660. A deposit that waited 21 days for room under a full cap can be sent back by anyone on the first day it is flagged. L660's own reason ("a refusal that is going to lapse cannot be turned into a forced refund") does not hold for deposits older than 21 days |
 | 9 | L141: "The most that a circuit flaw can take is about $160,000 at launch and about $5.1M". L1508: "Caps bound the loss to the sum of the caps" | L1285: "The token has no cap". L276: a fault can "drain the reward budget released so far and any tokens users have deposited" | L276. The dollar figures leave out the token: every deposited token, and up to 45% of supply once released |
-| 10 | L1538: "One constant depends on gas: the relay-fee ceiling reads the block's base fee" | L668: the 2,000,000 gas inside the ceiling. L520: the 50,000-gas allowance | Three constants depend on gas prices. The third is the one in P-4 |
+| 10 | L1538: "One constant depends on gas: the relay-fee ceiling reads the block's base fee" | L668: the 2,000,000 gas inside the ceiling. L520: the 50,000-gas allowance | Three constants depend on gas prices. The third is the one in P-5 |
 | 11 | L840 to L848: the deposit diagram has no way back from Covered to Pending | L727: `apply` "Sets ... `screenedThrough` to the batch's `upTo`". L748: the batch "lowers upTo" | L727. Coverage can move backwards, so a deposit that could be activated yesterday may be neither approved nor refused today. A wallet has to expect it |
 | 12 | L566: "A spend that its owner sends from a public address pays no relay fee" | L575, L662: the pool accepts a relay fee on any spend, whoever sends it | L662. It is what makes self-relay possible |
 | 13 | L627: "If a builder or a compiler setting removed either range check, the same proof would verify with value moved" | Arithmetic: with one of the two checks left, the two inputs still have different columns. Both must be gone (`columns.py`) | Keep both, as L596 says. The sentence overstates, on the safe side |
@@ -253,8 +285,8 @@ Every other ETH payment survives this: a withdrawal or relay fee that fails is c
 
 ## 4. Points a builder would have to guess
 
-1. The diversifier of an address handed to a payer: how it is chosen, whether the address carries it, and how many candidates a restored wallet tries (P-2).
-2. The `ownerCommit` of an unused output and the content of ciphertext 0 when there is no recipient (P-5).
+1. The diversifier of an address handed to a payer: how it is chosen, whether the address carries it, and how many candidates a restored wallet tries (P-3).
+2. The `ownerCommit` of an unused output and the content of ciphertext 0 when there is no recipient (P-6).
 3. The other private inputs of an empty input. L553 names `rho`, `leafIndex` and `slot`. `index` must be at most `gRef` or constraint 8 fails, and `d`, `others` and `path` need values too. A wallet that randomises `index` cannot make a spend with one real input.
 4. Where `accrued` goes when the payment is to someone else. If the wallet splits it in proportion, the payee learns how much reward the payer had earned, which is the "value held for how long" that L887 warns about. If there is no change, it has to go into an output with value zero and `accrued` above zero (allowed: that output is not empty), or be claimed.
 5. The asset of output 1. Ciphertext 1 (L558) does not carry it and an owner-sent spend shows none. A restored wallet has to take it from the inputs it spent or try the five ids against `C1`.
@@ -264,7 +296,7 @@ Every other ETH payment survives this: a withdrawal or relay fee that fails is c
 9. The formulas while the pool's copy of `START` is still zero. Written as `t = now − START` (L675) they give a `t` of about 57 years: step 5, caps at 32 times, no emission, and a deposit window that has closed. L518 says what is wanted ("Before START the caps are those of the first step ... deposits are open"), so each formula needs a branch. Without it deposits are rejected until the first batch. If the screening program produces no batch while there are no deposits, the pool never opens.
 10. Whether `deposit` reads `START` from the registry. Only `roll` is said to (L661). If not, `deposit` works from a stale zero until the first `roll`, `activate` or `spend` after the first batch. Harmless, since every activation rolls first.
 11. The unit of `rate` (L678, "tokens per second"). It must be base units per second. In whole tokens it is 0.44 at step 0 and rounds to nothing.
-12. The gas forwarded with a refund (P-4).
+12. The gas forwarded with a refund (P-5).
 13. The order of the root check. A wallet that follows L882 uses a checkpoint root, so those two should be compared first. Scanning the 64 recent roots first costs up to 64 cold reads, about 134,000 gas today, on every conforming spend. I could not tell whether the 1,082,000 gas of L897 includes it.
 14. That an activated note has `accrued` zero (L659 does not say).
 15. That each payment needs enough gas left to make the credit if it fails. See the EIP-150 item in "What held": a line `require(gasleft() > ...)` before each payment closes the one corner left.
@@ -273,8 +305,8 @@ Every other ETH payment survives this: a withdrawal or relay fee that fails is c
 18. The resolution of the weights. IMD has weight 1 and ETH "about 807" (L514), so ETH's weight is exact to about one part in 800. If IMD rises a hundredfold against ETH before the freeze, ETH's weight is 8 and its rounding error 6%. A common scale factor on all weights (say 10^6) removes this. The products still fit the field (2^245 against 2^253).
 19. The token's rate for the fee ceiling ("the rate at the starting valuation", L668): 48,000 IMD for the supply, turned into ETH at the freeze-day IMD rate. About 16.8 million tokens per ETH at a supply of one billion.
 20. The order of the 11 public inputs in `inputs[11]`, and the rounding direction of the ceiling's conversion.
-21. Whether the wallet treats notes handed to a relayer as committed after the quote expires (P-6).
-22. Lemma 11's hypotheses and its witness generator (P-3).
+21. Whether the wallet treats notes handed to a relayer as committed after the quote expires (P-7).
+22. Lemma 11's hypotheses and its witness generator (P-4).
 
 ## 5. What held
 
@@ -297,7 +329,7 @@ Each item names the attack tried and why it failed. Scripts are in `/tmp/claude-
 - *The split between `publicAmount` and `relayFee`.* Lemma 10's reasoning is right. A public input's key point comes from its column across the constraint matrices, and two inputs can be traded under one proof only if their columns are linearly dependent. The two range checks give the two inputs different columns (`columns.py`). A relayer therefore cannot move value from the withdrawal to its own fee. The spender can choose any split when proving, which is by design.
 - *`publicAsset` with both amounts zero.* Free in the circuit, forced to zero by the pool, and still bound to the proof because it has a column of its own in constraint 14.
 - *`extHash`.* It binds the chain, the pool, the recipient, the relayer and both ciphertexts. Someone who copies a pending relayed spend pays the gas and the named relayer is paid. The canary and the pool share a circuit, and the pool address inside `extHash` keeps their proofs apart.
-- *Honest spends.* I walked each kind in the canary list (L935) through the fifteen constraints and the pool's table: two real inputs, one real and one empty, relayed in each of the five assets, a single-note wallet, owner-sent, with a claim, against `gPrev`, token notes, a freshly activated note after the next roll, smallest and largest sizes. Each has a satisfying witness and passes the pool's checks, given the reachable-state bound discussed in P-3.
+- *Honest spends.* I walked each kind in the canary list (L935) through the fifteen constraints and the pool's table: two real inputs, one real and one empty, relayed in each of the five assets, a single-note wallet, owner-sent, with a claim, against `gPrev`, token notes, a freshly activated note after the next roll, smallest and largest sizes. Each has a satisfying witness and passes the pool's checks, given the reachable-state bound discussed in P-4.
 
 **The pool.**
 
@@ -323,13 +355,13 @@ Each item names the attack tried and why it failed. Scripts are in `/tmp/claude-
 
 - Its deposits, by trying counters against `Deposited` events, with the position and index from `Activated`. Deposits by someone else that copied its `ownerCommit` show up as its own. That is harmless and the wallet must not offer to activate or refund them.
 - Outputs 1 and 2 of its own spends: values from ciphertext 1, `rho` and `d` from `nf0` and the slot, the index from `gRef`, the position from the event. The asset of output 1 by trial (section 4, item 5).
-- Payments received, by trying its encryption key on every ciphertext 0. Spending them needs the diversifier (P-2).
+- Payments received, by trying its encryption key on every ciphertext 0. Spending them needs the diversifier (P-3).
 - Which notes are spent, by computing each nullifier and looking it up.
-- Not recovered: whom it paid and the memos it sent (the amounts can be worked out from the inputs and the change), the addresses it handed out, and spends it gave to a relayer that have not landed (P-6).
+- Not recovered: whom it paid and the memos it sent (the amounts can be worked out from the inputs and the change), the addresses it handed out, and spends it gave to a relayer that have not landed (P-7).
 
 **Privacy claims.**
 
-- A claim cannot be told from a payment, provided unused outputs are filled as P-5 asks.
+- A claim cannot be told from a payment, provided unused outputs are filled as P-6 asks.
 - A relayed spend shows the asset, the fee and the relayer, and not the amount, the sender or the recipient. The fee is a lower bound on what the spender held, which is trivial.
 - A recipient learns the two nullifiers and the leaf of the payer's spend, as in every pool of this kind, and cannot link them to anything else.
 - Ciphertext sizes add up (1,120 + 80 + 16 and 80 + 16) and every spend publishes 1,312 bytes.
