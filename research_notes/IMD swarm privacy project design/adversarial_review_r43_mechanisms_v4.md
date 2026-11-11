@@ -111,6 +111,48 @@ One more leak from the same rule. On the day after the last batch ever (commits 
 
 **Confidence.** Certain.
 
+### Q-5. Medium. Pay written to the ring is in no ledger, so `fund` has two readings and unsettled pay is stranded
+
+**Where.** Line 746: "the pot and one share of the 15% are divided equally among the screeners who revealed the accepted hash, with any remainder left in the pot, and the amount per head is written to the ring. Each of them is credited when next settled, within 16 epochs". Line 723: `fund` "Adds what arrived to the pot: the registry's balance of the asset less everything it already accounts for". Line 760: "the registry's balance is at least the pot plus everything owed plus, for the token, the stakes, the unbonding stakes and the unpaid part of the 15%." Line 708: a ring slot holds "how many revealed the accepted hash, and the pay per head in each asset". It does not hold how many have been credited.
+
+**How it works.** Between the closing of an epoch and each screener's next settlement, that screener's pay is in neither `pot` nor `owed`. The page gives no name to money in that state.
+
+Reading A: "everything it already accounts for" is the list in the invariant. Then a fee sweep that lands after a closing and before the screeners' commits counts yesterday's uncredited pay as newly arrived and puts it in the pot again. `ledger.py` runs this: the books exceed the balance by about one day's pay. It does not grow without limit, because the next `fund` subtracts the excess from what it adds. But when the new fees plus the uncredited pay are smaller than the excess, the subtraction underflows, `fund` reverts, and with it `notify` and the pool's sweep of that asset, until enough fees have built up in the pool. For the token the excess, about one daily share of the 15% (0.02% of supply, two thirds of a stake), is paid out of the stakes held in the same balance, and the last holder to withdraw a stake comes up short. That breaks "Nothing can reduce it" (line 759).
+
+Reading B: the registry keeps a total of pay written to the ring and not yet credited. Then `fund` is right, and the pay of anyone who is never settled for that epoch stays in that total for good, because a reused slot cannot tell how much of it was claimed. This happens to:
+
+- a screener that reveals and then exits, is evicted or has its seat registered by a buyer in the same epoch. Its record is settled up to the day before and then ends, and the epoch it revealed in closes later;
+- a screener that reveals, stops, and is not touched by anyone for 16 epochs;
+- every revealer of an epoch closed late (Q-1, reading B).
+
+**Who and cost.** No attacker is needed. A holder with k of n revealing seats can also destroy k/n of a day's pay by exiting all of them after the reveal. It gains nothing by it.
+
+**Consequence.** Small amounts stranded under the careful reading. Under the other one, a shortfall of about a day's pay per asset, taken from stakes in the token's case, and sweeps that fail from time to time.
+
+**Smallest fix.** Name the third state: a per-asset total `reserved`, raised at closing and lowered at each credit, included in what `fund` subtracts and in the invariant. Add a credited count to the ring slot, and when a slot is reused return "per head times the number not credited" to the pot. Settle a record for the current epoch's pay before it ends, or let it be settled once more after it has ended. This could be answered by removing the ring: see section 6.
+
+**Confidence.** Certain that the state is unnamed. Which reading a builder takes depends on the builder.
+
+### Q-6. Medium. The 90-epoch bar does not bind a screener that leaves first
+
+**Where.** Line 722: `evict` "removes the screener if one of three things is true: the seat has changed hands; it has not revealed for 7 epochs...; it has 14 strikes... For the last two grounds the seat is barred for 90 epochs". Line 721: `requestExit` "Settles, stops counting at once, moves the stake to `unbonding`". Line 713: `register` over an earlier holder's record "is evicted first, in full". Line 182: "A seat removed this way cannot register again for 90 days."
+
+**How it works.** The bar is set only by an eviction on the silence or strike ground. Three ways round it, all one transaction:
+
+1. A blocker at 12 or 13 strikes calls `requestExit`, and registers the same seat again at once. New record, no strikes, no bar, active again in 31 epochs.
+2. A blocker at 14 strikes that sees an `evict` call waiting does the same ahead of it.
+3. A blocker moves the seat to a second wallet. The first ground, "the seat has changed hands", is now true as well. The page does not say which ground decides when two hold. Registering from the second wallet evicts the old record "in full" on the first ground, with no bar.
+
+Strikes live in the record and a record ends on exit, so strikes are reset by the same step.
+
+**Who and cost.** Any screener. The cost is 31 days out of the registry in place of 121 (90 barred plus the 31-day wait). The stake comes back either way.
+
+**Consequence.** The same seats can run a week-long blockade about every 38 days instead of every 128. A holder with spare seats needs about 6 waves of a blocking group, not about 18, to keep a blockade going without a break. With 15 honest screeners that is 48 seats, not 144. A holder with that many seats has easier routes to control, so this is rated medium, but the figure of 90 days on the page is not what the contract enforces.
+
+**Smallest fix.** Either keep strikes and the bar on the seat and not on the record (`strikes[seatId]`, kept across exit and re-registration, and a bar on any exit or eviction with, say, 8 strikes or more), or remove the bar and its storage and say plainly that the penalty for a blockade is the 31-day wait. The second is the smaller design.
+
+**Confidence.** Certain for paths 1 and 2. Path 3 depends on how `evict` orders its grounds.
+
 ## 3. Contradictions between sections
 
 (pending)
