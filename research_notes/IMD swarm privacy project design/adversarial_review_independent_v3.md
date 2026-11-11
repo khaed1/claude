@@ -186,3 +186,110 @@ Also not covered by the gate: (a) condition 5 runs on Sepolia where IMD seats do
 23. Blockers' gain. "It earns the blockers nothing" vs the index divisor `max(weighted, floor)` (incumbents keep the emission undiluted; a step-1 holder who blocks takes 27 step-1 emissions instead of 8).
 24. Capture. "Capturing two thirds lets a bad deposit through and never moves anyone's funds" / "The result of capture is a bad deposit approved" vs registry powers: refuse everyone else, `evict` those who "missed 7 accepted batches", unbounded `upTo`.
 Also noted, weaker: SeatDelegation (EIP-712 "version 2") has `railgunAddress` and `ppFeeRecipient` but no field for a Murmuration ownerPk/X-Wing key, yet "Seat broadcasters serve it with the wallet policy"; node tier "2 vCPU, 4 GB, 40 GB" vs a screening duty needing archive and trace data; "Deployment ... in six transactions" vs Deployer creation + six + launch; "1 unit for a stablecoin" vs "Amounts ... in the asset's smallest unit".
+
+---
+
+## (a) Ten most serious findings, ranked by damage x likelihood, each with a fix that respects the fixed decisions
+
+**1. CRITICAL. `launch()` can be vetoed for ever for about $100 (F-LAUNCH-1, 1b).**
+Who/what: anyone who can read the published build computes the token address, creates the 1% token/IMD pool before it exists, initialises it far above the start and either (a) parks IMD bids above the start larger than the "bounded" sale, or (b) mints ~1,000-1,200 dust positions on adjacent ticks (~240M gas, ~0.05 ETH, ~$100 at 0.2 gwei). `launch()` "reverts if that is not enough" in case (a) and runs past the 16,777,216 gas cap in case (b). Nobody else owns a token before launch, so nobody else can clear the ticks. The whole supply stays in Distribution; no stake, no screener, no activation, ever; a redeploy is attacked again the same way.
+Fix: (i) make the token address unknowable before the launch block: Distribution creates the token inside `launch()` with CREATE2 and a salt from `prevrandao` and the caller; Pool, Registry and FeeDistributor read `Distribution.token()` once after launch (the circuit only knows the asset id). (ii) make the price reset non-reverting: swap with `sqrtPriceLimit = start`; if bids remain, mint the same liquidity L two-sided at the price reached with the IMD just received and send surplus IMD to the buyback balance. (iii) canary script line: a pre-created pool WITH resting liquidity and 1,200 initialised ticks.
+
+**2. HIGH. The screeners' decision is frozen at the epoch's first block: the reaction window is 0 to 24 hours and the depositor picks 12 seconds (F-SCR-1).**
+Deposit in the last block of epoch E-1; batch E is computed from data one block later (flags count only "before epochStart"); activate at s_E + 7,199. Nothing learned during epoch E can stop it. The flag mechanism, the redesign's answer to "a theft from this morning", has no guaranteed time to act. This is also the claim the legal position leans on ("screening is real").
+Fix: `upTo` = highest deposit id made at least 7,200 blocks before the epoch's first block (equivalently Pool.activate requires `depositBlock + 7,200 <= startBlock(epoch of the last applied batch)`; the block is already in the record). Activation latency becomes 2 to 3 days; say so.
+
+**3. HIGH. The five machine-checked properties do not add up to soundness (F-CIR-2).**
+A circuit with no spend authority, a free nullifier position, a free output index (re-earn the whole emission), a free output asset (turn DAI-wei into ETH-wei) or an unbound `extHash` (relayer swaps the recipient) satisfies all five statements as worded. The launch gate checks exactly these five.
+Fix: add five obligations before the statements are frozen: spend authority; nullifier position equals membership position; per-asset conservation including each output's asset and the fixed fields of C[3]; every output index equals `gRef`, the earned formula uses the committed index and `weight = table[asset]`; non-malleability in every one of the 11 public inputs. Phrase the top-level statement as knowledge soundness of the full relation, and keep the five as lemmas.
+
+**4. HIGH. Two thirds of the registry controls who may enter, therefore the 45% user emission and all screener pay, and one existing holder can have two thirds at epoch 7 (F-SCR-3).**
+77 seats registered in the last block of week one (stake for 77 seats = 3.85% of supply = ~2,184 IMD = ~$5,800 from the pool) are two thirds unless more than 38 independent seats also registered; an outsider needs 30 seats (21 ETH, $44,700, resalable) against 15. The bloc reveals a batch differing in `dataCid`, honest screeners go unpaid, are evicted after "7 missed batches", and wait 30 epochs to return. The bloc refuses every deposit but its own and collects the emission. No slashing, no remedy.
+Fix: no first-week shortcut (everyone waits 30 epochs; first activation on about day 31) or keep it only for the first seven registrants; delete "missed 7 accepted batches" as an eviction ground; pay only on agreement but never evict for disagreement; write the real consequence of capture into the risk table.
+
+**5. HIGH. `screenedThrough` has no upper bound and can only rise: one captured or faulty accepted batch with a huge `upTo` approves every future deposit by default, for ever (F-SCR-2).**
+After it, a deposit made in the first two thirds of any epoch is activatable before any later batch could refuse it.
+Fix: the registry records `Pool.depositCount()` at its first call in each epoch; `apply` requires `upTo < recorded count for batch.epoch` (and, with fix 2, the count one epoch earlier).
+
+**6. HIGH. One third plus one, revealing junk, blocks deposits for ever, cannot be evicted, and gains by it (F-SCR-4).**
+8 seats ($11,900, resalable) against 15. They reveal, so they are not "silent"; no batch is accepted, so they never "miss" one. Incumbent depositors keep the emission undiluted (a step-1 holder collects 27 step-1 emissions instead of 8), and each blocked day destroys that day's share of the screeners' 15%.
+Fix: evict a screener that has not agreed with the plurality hash in 7 epochs in which the plurality reached one half of the snapshot; after 7 consecutive epochs without acceptance, accept at two thirds of those who revealed (still at least seven); carry an unpaid day's token share forward.
+
+**7. HIGH/MEDIUM. Reward plumbing is left to the builder in two places where a wrong guess is permanent (F-RWD-1, F-RWD-2).**
+(a) The checkpoint roll: when it happens, what value it takes, what happens after several boundaries, and that only `spend` triggers it. One natural reading (catch up every missed boundary, value = index advanced to now) leaves gPrev = gCur = a number no proof could have used: every spend reverts, including the one that would roll. Every reading leaves a freshly activated note unspendable in a quiet pool until its owner sends a dummy spend. (b) `shielded[TOKEN]` cannot count privately claimed reward notes; "lowers the balances" on a reward withdrawal underflows unless the token is special-cased, and `tokenIn` gross-or-net is not said.
+Fix: specify: a public `roll()`; one roll per call; `gPrev := gCur; gCur := g advanced to the current block`; `activate` and `spend` call it first; emit `CheckpointRolled(refEpoch, g)`. Token: no `shielded[TOKEN]`; cap and limit both on `tokenIn` (net) and `tokenOut`; limit checked after the index is advanced.
+
+**8. MEDIUM-HIGH. A wallet cannot be restored from chain data alone (F-WAL-1).**
+Deposits publish only `ownerCommit` and "rho is 248 random bits": an activated, not yet spent deposit is lost with the device. `Spent` omits `gRef` (the index of all four new notes) and no event records a checkpoint; after history expiry, which the document plans for, calldata is gone and snapshots are built from events. The relay fee note and the reward note have no opening on-chain; the 80-byte payload is undefined.
+Fix: add `gRef` to `Spent`; emit checkpoints; make rho and d for deposits, change and reward notes a normative PRF of the seed and a public value (deposit counter, nf0); put `claim` in ct1; add a third 96-byte ciphertext for C[2] or derive its rho from a relayer-published nonce; define the payload layout byte by byte.
+
+**9. MEDIUM. The buyback bound is proved for one model and written for another (F-FEE-1, F-FEE-2, F-FEE-3).**
+"IMD-side reserves at the current price" is not defined; the simulation uses virtual reserves; the economics text uses real ones; a builder using the pool's IMD balance lets an out-of-range IMD position inflate the step, and the author's own model then gives two thirds of the buyback to the sandwicher. The bound is per step; queued IMD is public and its price drift is cumulative (62% of a queue ten times the bound). Third-party in-range liquidity takes its share of the IMD away.
+Fix: reserves := the Distribution position's own in-range IMD, L x (sqrtP - sqrtP_start), computed from constants and `slot0`; never a balance, never `pool.liquidity()`. Drip IMD into the spendable buyback balance so that at most fee x L x sqrtP becomes spendable per 7,200 blocks.
+
+**10. MEDIUM. Three seats can have any or every deposit refused, and the 96-word limit has no overflow rule (F-SCR-6, F-SCR-7).**
+The published criteria count flags with an absolute quorum of 3 and extend them two hops for seven days; honest deterministic nodes must follow. 3 seats = $4,470 resalable; flag an exchange hot wallet. If more than 96 words change, the spec does not say whether the batch is unusable or truncated, nor that `upTo` must stop before the first word left out (otherwise refused deposits are approved by default).
+Fix: flag quorum = max(3, one third of the snapshot) of ACTIVE screeners, flags expire after N epochs, no hop expansion from flags; truncation rule written into the Batch definition and enforced in `apply` (words ascending, `upTo` < first deposit of the first omitted dirty word).
+
+Next in line (11-20): canary checklist unreachable with 10 ETH and gate unenforceable (F-CAN-1, F-GATE-1); commit-reveal does not stop copying (F-SCR-5); relay fee note economics (F-POOL-3); cap squatting paid by emission (F-POOL-2); root-window flush (F-POOL-1); auction lumps to MEV (F-FEE-4); screeners' 40% after the window closes (F-SCR-14); entry fee versus standard sizes (F-POOL-4); ring and struct reuse (F-SCR-15, F-SCR-10); eviction clock and activeCount (F-SCR-8, F-SCR-9); block-number clocks (F-POOL-6); launch-caller snipe (F-LAUNCH-2); Deployer circularity (F-DEP-1).
+
+## (b) Author's claims in "Review of the new parts" that I checked and found correct
+
+1. A daily index step overpays (a note created just before the update earns the day) and the redesign removes it: with the exact index at activation, 300-block checkpoints, constraint 7 (no spending against a checkpoint older than the note) and outputs stamped with `gRef`, every unit of weighted value covers one contiguous index interval inside its time in `weighted`. Total earned <= `released` in exact arithmetic; `g` down, `released` up and `earned` down all round the safe way.
+2. "Checkpoints always round against the spender": `gRef` <= index at the time of the spend in every roll semantics.
+3. The floor at a quarter of capacity caps the rate at four times the full-pool rate and removes the first-dust-depositor capture; the divisor never hits zero.
+4. One index with fixed weights hides the asset of a transfer (`gRef` is common to all assets).
+5. "With half the pool bought, 12,000 IMD is all that sellers can ever take out": real IMD = 12,000 f/(1-f), price = start/(1-f)^2 for a range from the start price upward. Recomputed.
+6. The version-4 liquidity add could be taken by whoever settled the auction (the settler sets the price in the same transaction). Logic holds.
+7. One buyback step no larger than fee x VIRTUAL IMD reserves cannot be sandwiched at a profit by swaps alone in one block (re-derived; the script reproduces). Correct only in that scope, see finding 9.
+8. Seat arithmetic: 30 seats to out-vote 15 at two thirds (21 ETH, ~$44,700); 8 seats to hold one third (5.6 ETH).
+9. Nothing can slash the stake; at the starting valuation it is ~$63; the seat is the real cost.
+10. The version-4 canary (90 days, 10 ETH, real clock) never reached a second cap step, the end of emissions or the close of deposits.
+11. A circuit flaw reaches every asset: exposure = cap x number of capped assets; 3 x 800 ETH = $5.1M, 3 x 6,400 ETH = $41M.
+12. Unactivated deposits cannot be reached by any proof (spends are limited by `shielded`), so counting the cap on activated value removes the free cap-hold.
+13. A public relay fee would make same-size exits differ; with a shielded fee note every exit of a size pays `size - size/500` to the wei.
+14. Seventeen ETH sizes from 0.005 to 1,000; at most 16 withdrawals for any amount under 1,000 ETH (worst case 999.995 checked).
+15. Emission arithmetic: 0.39% of the users' share in the first 90 days, 50.2% in the last 90, 261 tokens per ETH per day at one billion supply, 0.57% a year at the starting valuation, 525 per day with the 800 ETH stop.
+16. Gas arithmetic: 32 x 18,624 + 51,826 = 647,794 per insert; 182,441 + 11 x 6,626 = 255,327 to verify; 1,312 x 24 = 31,488 for ciphertext; 96 x 22,100 = 2.12M for a full `apply`; a 1,081,224-gas spend is $0.46 at 0.2 gwei.
+17. Binding to chain id and pool address through `extHash` stops a canary proof being replayed on the real pool (as specified; needs the non-malleability obligation in finding 3).
+18. The seven-day stream removes the stake-one-block-around-a-sweep gain (a same-block stake earns nothing; longer stakes earn pro rata).
+19. Anyone can pre-create and price the token's Uniswap v3 pool. Correct, and worse than stated (finding 1).
+20. Range and product claims: weight < 2^64 (in fact <= 10^12 with ETH 2,000 : DAI 1 : USDC 10^12), value < 2^96, index difference < 2^90, product < 2^251 < p; the index tops out near 2^73 at one billion supply.
+
+Author's claims I checked and found WRONG or overstated: "commit and reveal so that copying is not possible"; "individual reveals so nobody can be left out"; blocking "earns them nothing"; "the pool recovers from ordinary attrition by itself" (needs someone to call `evict`; fails against junk revealers); capture means only "a bad deposit approved"; "one to two days for screeners"; "the launch code handles a pool that already exists"; "that IMD stays in the pool as bids for good"; the canary "runs a published script that calls every function and every branch of the circuit" (the full-cap line is not reachable as funded, and the checklist names four kinds of spend, not every branch: no spend against gPrev, no spend of token-asset notes, no two-padding spend, no spend of a freshly activated note before and after a roll).
+
+## (c) Ambiguities a builder would have to guess at
+
+Pool and circuit
+1. Checkpoint roll: trigger, value (stale `g` or advanced to now), one or many rolls after several boundaries, whether `activate` rolls, initial gCur/gPrev.
+2. Genesis block: a constant in the build or the Pool's deployment block; how Registry and FeeDistributor learn it.
+3. `shielded[TOKEN]`, the token's cap, `tokenIn` gross or net, order of the token limit check and the index advance.
+4. Path selectors versus `leafIndex` (same bits or separate signals); range of `earned` and the remainder; how "both zero" is tested.
+5. Whether the pool forces `publicAsset` = 0 and recipient = 0 when `publicAmount` = 0; whether asset id 0 is a real asset.
+6. Tag values (TAG_NOTE must be non-zero), packing order inside `extHash`, how a 256-bit keccak is reduced into the field, which hash.
+7. Empty-subtree values above the ZERO leaf; the literal 0 in `H4(commitment, 0, 0, 0)` versus ZERO.
+8. Order inside `spend`: the text pays the recipient before "Verifies the proof, marks the nullifiers".
+9. "1 unit" for a stablecoin (1 USDC or 1 base unit); whether `deposit` must reject `msg.value` on token deposits; refund by `call` or `transfer`; minimum deposit gross or net.
+10. Rounding of `released` near the 45% cap; emission per block when a step's total is not divisible.
+11. Note payload layout (80 bytes), derivation of rho, d, the change key and the reward note; whether accrued may be sent to outputs 0 and 2.
+12. Which artefact generates witnesses for the R1CS that was proved (the `clean` export or the Circom copy).
+
+Registry
+13. How `activeCount` and `snapActive` are maintained; when the snapshot is taken; "two thirds" rounding.
+14. Start of the 7-epoch silence clock; whether "7 missed batches" is consecutive.
+15. Whether an exited or evicted screener may still reveal; whether reveals after acceptance are paid; who writes pay per head and when.
+16. Ring slot tagging and clearing; settlement on exit, eviction and `withdrawPay`; re-registration of a seat whose old stake is still held.
+17. Overflow of the 96-word limit; the base state words are diffed against; what `apply` does when `upTo` is below `screenedThrough`.
+18. Canonical encoding of Batch and of the `dataCid` file; the flow-tracing data source; whether `flag` needs an active screener; how a criteria hash is signalled on-chain.
+19. "First week": epochs 0 to 6 from genesis or from the registry's own deployment.
+20. Behaviour when `ownerOf` reverts.
+
+FeeDistributor, Distribution, Deployer
+21. "IMD-side reserves at the current price" (balance, own position's real IMD, or virtual); behaviour when it is zero.
+22. `buy`: empty asset list allowed or not; a named asset whose transfer fails (revert or skip); floor versus minimum restart; when the first auction clock starts.
+23. Stream: precision scaling; what happens to a stream when `totalStaked` reaches zero mid-way.
+24. `launch`: the sale bound; which share the sold tokens come from; where the IMD goes; token0/token1 order and the tick used for "start" and "top"; what happens when the pre-set price is LOWER.
+25. Founder vesting: cliff with catch-up (the simulation's 0.62% at month 3 implies this) or linear from month one; blocks or timestamps; measured from launch or from creation.
+26. Merkle leaf encoding for the swarm list.
+27. Deployer: constructor arguments inside the hashed code or derived from `msg.sender`; revert when the created address differs from the plan; the fixed order of the six.
+28. Supply: stated as "free" but must keep supply x 10^18 under 2^96.
