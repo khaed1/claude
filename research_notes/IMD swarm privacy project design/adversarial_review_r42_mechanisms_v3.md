@@ -1,6 +1,6 @@
 # Adversarial review of Murmuration specification r4.2: registry, launch, fees, deployment, canary, economics
 
-Status: IN PROGRESS. Note file created before reading; findings are appended in batches as the page is read.
+Status: COMPLETE. All 2,016 lines read in order; both scripts in `reports/sim/` run; Uniswap v3 and Euler fee-auction claims checked against the local source copies. 26 findings (M-1 to M-26) and one note (M-25). No critical finding. Detailed entries are in reading order below; the six closing sections index and rank them.
 
 Reviewer scope: the mechanisms around the pool (ScreenerRegistry, Distribution and launch, FeeDistributor, Deployer and build, canary and launch gate, stated economics, risks). The whole page is read for contradictions. Earlier reviews, the build plan and the git history were not read.
 
@@ -268,3 +268,176 @@ If the registry has exactly seven active screeners, any one of them can exit, se
 - Uniswap's protocol fee. The pool's `setFeeProtocol` (local source, line 837) lets the factory owner take between a quarter and a tenth of swap fees, and the local copy of Uniswap's fee repository contains v3 fee adapters. That would cut what `collect()` brings in. It does not weaken the sandwich bound, because the trader still pays the full 1%. I did not confirm the current mainnet setting.
 - Whether a screener bloc that is also a large staker gains from holding batches back for seven epochs so that the screeners' 40% goes to stakers. The sums are small at the page's numbers.
 - Whether the auction can be gamed through the assets a buyer leaves out. I found no profitable strategy: the basket is empty right after each sale, so the doubled start price is never stale by more than the stream adds.
+
+### M-26. For whoever holds most of the stake and most of the registry, filling a cap costs a fifth of the stated fee (low, incentive)
+
+Text. `[#token]`: "Whoever fills a cap early still collects that step's rewards, and paying the 0.2% entry fee is all it costs them." `[#risks]`: "for the price of the 0.2% entry fee".
+
+40% of every fee goes to stakers and 40% to that day's screeners. A party with share s of the stake and share r of the revealing screeners gets back 0.4 × (s + r) of what it pays. The launch sender, who buys first, and the 77-seat holder are the natural candidates for both. With s and r near 1 the round trip of 0.4% costs them about 0.08%, against 0.55% a year of reward on a full pool at the starting price and four times that when the pool is under a quarter full. For an outsider the same farming loses money in the first quarter at the starting price (0.14% of reward per 90 days against 0.4% of fees). So the caps are filled by insiders first, on better terms than the page states. No fix inside the fixed fee split; state it in the risks row.
+
+## Registry: what each size of actor can do (summary of M-2, M-3, M-7, M-17, M-24)
+
+Seat price 0.70 ETH ($1,490), resalable. Stake 0.05% of supply ($63 at the start, rising with every purchase, returned after 14 epochs). "Honest" below means 15 other active screeners unless stated.
+
+| Actor | Can do | Cost | Gain |
+|---|---|---|---|
+| One seat | Earn one equal share. In a registry of exactly seven, stop all activation for 30 days or more by leaving (M-24) | One seat, or nothing if it leaves and resells | Pay; or leverage |
+| Three seats, while nine or fewer are active | Have any named depositor refused, again and again (M-2) | 2.1 ETH resalable | Targeted exclusion |
+| Just over a third (8 seats) | Hold the registry to one batch a week for ever at no cost (M-3 A). Refuse everyone else through flags (M-2). Total blockade for 7 to 43 days per set, or for ever under one reading (M-3 B), or continuously with six rotating sets (M-3 C). Stall activation for W/96 days by flagging a busy address (M-7) | 5.6 ETH resalable; 34 ETH for rotation | Rewards kept among those already inside; a price for stopping |
+| A majority for seven epochs (16 seats) | Everything above, then evict the rest and hold the whole registry. Disclosed on the page | 11.2 ETH resalable | All screener pay, control of entry |
+| Two thirds (30 seats) | Everything at once: approve any deposit a day old, refuse or pre-refuse any deposit (M-5), take all pay. Disclosed on the page | 21 ETH resalable | As above |
+| The 77-seat address | A third of any registry with fewer than 155 others, a majority with fewer than 77, two thirds with fewer than 39 | About $5,800 of stake if it buys at launch, nothing else | As above |
+| A data provider serving over half the screeners | Decide the majority hash with no seat (M-16) | None | As a majority |
+
+No actor of any size can move, freeze or take activated funds or stop a depositor's own refund. That claim on the page holds.
+
+## 1. The most serious findings, ranked by damage times likelihood
+
+1. M-2 (high). The flag rule gives one third of screeners, or three seats in a small registry, the power to refuse any depositor. The page prices that power at two thirds or a week-long majority. The 77-seat address has it from the first epoch.
+2. M-9 (ambiguity, high). All pool formulas assume the token sorts below IMD. The address is random at launch. On the other ordering the position mint reverts as written, or the buyback cap silently stops binding. The canary can pass on one ordering and mainnet get the other.
+3. M-1 (high). Anyone who can place a transaction ahead of `launch` can make it revert, each time, for about 5M gas, because the salt is readable inside the block. The page says only a block builder can. A salt loop that skips existing pools removes the problem and the price-reset code.
+4. M-10 (high). Staker streams scaled by 10^18 round the USDT and USDC income to zero at the page's own first-year volumes, and remain griefable at any volume. More than half of expected fee income is in those assets.
+5. M-3 (high). A bloc of just over a third can keep the registry to one batch a week for ever, free of charge and without ever being evictable; a total blockade lasts well beyond "about a week" under every reading of the miss rule.
+6. M-4 (ambiguity, high). Holds cannot be written into a batch. One reading lets anyone bounce held and age-refused deposits for ever; the other lets one fresh 10 ETH deposit a day stop all activation.
+7. M-13 (medium). The canary's checklist needs scripted misbehaviour by at least eight real seats, which the project may neither operate nor coordinate, and it checks that calls happened, not that amounts were right.
+8. M-17 (ambiguity, high on the dangerous reading). Re-registering a sold seat over a live record can leave the active count permanently too high, after which no batch can be accepted.
+9. M-8 (medium). At the bottom of the range anyone can make each buyback step spend dust and use up its 12-hour slot; below the start a sandwich takes 10% to 54% of a step in the cases I ran.
+10. M-7 (medium). The 96-word rule lets one status change of a busy depositing address pull `screenedThrough` back by years and stall all activation for W/96 days.
+
+## 2. All other findings
+
+- M-14 (medium). Withholding the final build protects nothing, since every constant but GENESIS is printed; no rule says how users find the real pool.
+- M-15 (medium). The stake is bought on the one-sided curve, so the float caps the registry at a few hundred and early buyers set the price of entry; single-seat screening earns about $2 a day before costs.
+- M-16 (ambiguity, medium). Eight inputs to the batch are undefined; a lasting difference between data sources evicts honest screeners or stops batches, and a dominant data provider is in effect the registry.
+- M-6 (medium). The hop rule lets any listed address exclude others by dusting them.
+- M-5 (low to medium). `isRefused` ignores coverage and age, so one faulty batch lets anyone bounce up to 24,576 future deposits.
+- M-11 (low to medium). Pay is keyed by seat and follows it; pay and miss evidence expire after 16 epochs; fees strand in the pot.
+- M-12 (low to medium). Clocks start at GENESIS though nothing can be activated for 33 days; delay comes off the first step, and in the canary off whole steps.
+- M-24 (low to medium). In a registry of seven, one departure halts activation for 30 days.
+- M-18 (low). Late `apply` can leave a stale bit for a day.
+- M-19 (low). "About two days" is the best case.
+- M-20 (low). A refused USDC deposit from a frozen address can never be returned.
+- M-21 (low). A holder can take a whole buyback step by adding liquidity for one transaction, so the IMD need not stay in the pool.
+- M-22 (low). Launch under the draft Glamsterdam prices is about 45M gas in a 60M block; no figure is given and it is listed as unverified.
+- M-23 (low). Nothing checks that the swarm list sums to 10%, and its root is frozen before the work ends.
+- M-26 (low). Insiders recycle up to 80% of the fees they pay.
+- M-25 (note). The IMD bridge key can buy every basket with minted IMD. Fixed decision.
+
+## 3. Contradictions between sections
+
+1. Who can interfere with launch. `[#pool]` Deployment row: "The token's address cannot be known in advance, so nobody can prepare its market against the launch" and `[#review2]`: "Only someone building that same block can still interfere". Against `[#b-contracts]`: "a salt taken from the block's prevrandao and the caller" (both readable by any transaction in the block) and "If someone in the same block has already created it at a higher price".
+2. Launch gas. `[#b-contracts]` invariant: "The gas launch can use is bounded by what one block's worth of interference can add, and stays under the transaction limit." Against `[#verified]` Not verified: "That a launch which creates the token and the Uniswap pool in one transaction stays under the gas limit when a block builder has placed a block's worth of positions in front of it."
+3. Length of a blockade. `[#screening]`: "a third of the screeners can delay deposits for about a week and no longer" and `[#risks]`: "They can be removed after seven days." Against `[#b-contracts]`: removal needs "7 consecutive misses" or "not revealed for 7 epochs", and "its fees stay in the pot", which together allow M-3.
+4. Cost of refusing. `[#screening]`: "Whoever holds two thirds ... can refuse everyone else's deposits. Whoever holds a majority for a week can remove the rest and then do the same." Against the criteria in the same section: `"quorum": "max(3, one third of active screeners)"` with `{ "deny": "flagged(depositor)" }`.
+5. When the screeners' 40% moves to stakers. `[#token]`: "When the registry has accepted no batch for a week, and for good once deposits have closed". `[#b-contracts]` Registry: "The registry takes no commits from 30 epochs after the deposit window closes. From then on the distributor sends the screeners' 40% of fees to stakers." `[#b-contracts]` FeeDistributor `notify`: "or to the staker stream if the registry has accepted no batch in the last seven epochs" and nothing about the window. Three different moments.
+6. Whether the buyback's IMD stays. `[#decisions]`: "The buyback leaves the IMD in the locked pool as bids" and `[#review]`: "its share of that IMD stays in the pool for good". Against `[#token]`: "part of each step is bought from them and that part of the IMD leaves with them", `[#review2]`: "'That IMD stays in the pool as bids for good.' Only for the locked position's share", and `[#sim]`: "All sellers together take out at most the 12,000 IMD".
+7. Sandwich claim. `[#decisions]`: "cannot be sandwiched at a profit" and the `[#b-contracts]` invariant "the IMD spent in a day never exceeds the size at which a sandwich starts to pay". Against `[#verified]`: "Checked numerically ... for a single position" (and M-8 for the price below the range).
+8. Temporary refusals. `[#b-states]`: "Refused --> Covered: a later batch clears it" and `[#screening]`: "A refusal can be added or lifted until the moment of activation". Against `[#b-contracts]`: "refund ... Anyone, while the registry marks the deposit refused", which ends the deposit before a later batch can clear it.
+9. Refused funds leaving. `[#risks]`: "Refused deposits can be sent back by anyone so that flagged funds do not sit in the pool." Against `[#b-states]`: "except a depositor that cannot receive its own asset back, such as an address a stablecoin issuer has frozen".
+10. Which cap schedule the page is built on. `[#pool]`: "Recommended: stop after five doublings, at 800 ETH" and `[#cost]`: "Filling every canary cap up to its last step would take about $100,000" (true only with the stop). Against `[#sim]` tables with "540 to 630 | 1,600 ETH" and "630 to 720 | 3,200 ETH", "half of them arrive in the last 90 days", and `[#token]` "about 0.55% a year on a full pool" (true only without the stop; with it the page's own figure is 1.09%).
+11. Swarm vesting. `[#decisions]`: "The build specification is written to the recommended value" and `[#parameters]`: "Swarm vesting | 730 days, linear". Against the `[#sim]` unlock table, where the swarm column is 10.00% at month 12.
+12. Canary funding. `[#b-deploy]`: "funds it with enough of each asset to fill the caps, at least 10 ETH in all by the end". Against `[#cost]`: "Filling every canary cap up to its last step would take about $100,000".
+13. The team operates nothing. `[#legal]`: "operates nothing: no node, relayer, mirror, screener" and "does not recruit, pay or coordinate operators". Against `[#b-deploy]`: "The project funds it ... and runs a published script" with the lines "a screener evicted for silence, one evicted for seven misses, and one whose seat was transferred", and `[#cost]`: "Trusted-setup ceremony | ~$5k | Cloud hosting" (the last is acknowledged in `[#open]`).
+14. What may differ between canary and final. `[#b-deploy]`: "with these constants changed and nothing else: the salt, GENESIS, a cap step ..., starting caps ..., and a screener wait". Against `[#token]`: the swarm list is "computed from public job records", which keep growing through the canary, and against the canary having "its own token", whose name is not on the list.
+15. Seats or holders. `[#b-deploy]`: "at least seven seat holders"; `[#roadmap]` sixth condition: "at least 15 seats"; `[#b-contracts]`: "the snapshot is at least seven" (seats); `[#roadmap]`: "A gate is something anyone can read from the chain"; `[#review]`: "Counting holders does not help".
+16. When a screener counts. `[#screening]`: "counts from 30 days later" and `[#parameters]`: "Counts from 30 epochs after registration". Against `[#b-contracts]`: a separate `activate(seatId)` call is needed and the screener is "folded into activeCount when the next epoch's snapshot is taken".
+17. Coverage. `[#lifecycle]`: "It covers every deposit that was at least a day old when the day began". Against `[#b-contracts]`: "If more than 96 words differ, the batch lists the first 96 and lowers upTo".
+18. Activation time. `[#lifecycle]`: "at most two days and sixteen hours". Against `[#b-contracts]`: "reveal ... in the last 8 hours of the same epoch" (three days).
+19. Two years. `[#token]`: "Emissions run two years"; `[#b-contracts]`: "eight cap steps" of 90 days (720 days); `[#parameters]`: founder "730 days"; screeners "730 daily shares" that cannot start before day 31.
+20. Wallet condition. `[#roadmap]` seventh condition: "A wallet with real users ships the pool". Against the same section: "The final build, with its GENESIS time, is therefore not published until the conditions hold", so the pool's address does not exist for a wallet to ship.
+
+### Numbers that do not agree
+
+- `[#sim]` unlock table, screeners 1.88% at month 3 and 15.00% at month 24: the first share cannot be paid before about day 31, so at most about 1.2% at month 3 and 14.2% at month 24 (689 of 730 shares by day 720).
+- `[#sim]` unlock totals at months 12 and 18 (22.65%, 36.12%) use a one-year swarm vest; with the recommended 730 days they are about 17.6% and 33.6%.
+- `[#cost]`: "cash spending is roughly $10,000 to $20,000". The items add to about $5,500 to $18,100 ($0.4k to $13k, $5k, under $0.1k), leaving out legal fees and the canary deposit.
+- `[#spec-fees]`: "about $480 a month". Ten percent of $154 a day is $462 to $477.
+- `[#b-deploy]`: 10 ETH ($21,300) against canary caps of $3,200, $6,400, $12,800, $25,600, $51,200 and $102,300 by step.
+- `[#token]`: "paying the 0.2% entry fee is all it costs them" leaves out the 0.2% exit fee for anyone who ever leaves, and the 80% that insiders get back (M-26).
+- `[#parameters]`: stablecoins weigh 1/2,000 of an ETH while every dollar figure uses ETH at $2,130, so a stablecoin dollar earns 6.5% more than an ETH dollar from the first day. IMD's weight is frozen before the ceremony, so at least 90 days before launch, in a token that moved 18% in two days.
+- `[#parameters]`: "First starting price 100 IMD". The clock starts at GENESIS and no fee can arrive for 33 days, so the first real sale is always at the floor and this constant has no effect.
+
+## 4. Points a builder would have to guess
+
+Launch and Distribution
+1. Which of the token and IMD is token0, and every formula that depends on it (M-9).
+2. The exact salt: how `prevrandao` and the caller are combined, and whether a counter is allowed.
+3. What `launch` does when the pool exists but is not initialised, or is initialised at or below the starting price. Only "at a higher price" is described.
+4. The starting tick: the 1% tier has a tick spacing of 200, so the start must be rounded to a 2% grid; in which direction.
+5. Where bought tokens and the token part of fees go: "the burn address" is not named, and many ERC-20 bases reject the zero address.
+6. Whether the sum of the swarm list is checked anywhere, and whether the root may differ between canary and final.
+7. The token's name and symbol, in the canary and in the final build.
+8. What "the first month's share arrives at the end of the cliff" means in code if `claimFounder` is called on day 29 and day 31.
+
+Deployer
+9. Whether the Deployer uses CREATE (nonce order) or CREATE2, and how each contract computes the others' addresses.
+10. Whether any constructor makes an external call, and what happens if a peer has no code yet.
+11. How the Pool, the registry and the distributor obtain the token address: read `Distribution.token()` on each call, or cache it once.
+12. Whether `deposit`, `cap()`, `roll`, `commit` and `buy` revert, or return a defined value, before GENESIS and before launch.
+
+Registry
+13. What a silent epoch does to the count of consecutive misses (M-3).
+14. Whether `evict` settles the last reveal before testing for seven misses, and what settling does when the ring slot has been reused.
+15. `register` on a seat that already has a record (M-17), and by the same holder twice.
+16. Whether `activate` takes the snapshot, and which functions count as "the first registry call".
+17. `unbonding[holder]` for a holder with several seats: one release epoch or one per stake.
+18. Whether `evict` treats a reverting seat call as "changed hands".
+19. Whether the "30 epochs after the deposit window closes" is the same constant as the screener wait (it matters in the canary).
+20. Who is expected to call `apply`, and how long an accepted batch can still be applied.
+21. Whether `reveal` checks seat ownership (the invariant says so, the function row does not).
+22. How the remainder of pot divided by head count is handled, and whether the pot includes fees that arrive after the epoch ends.
+23. What happens at the 731st accepted epoch.
+24. The format of `flag` data, and whether a flag names an address or a deposit.
+
+Screening program
+25. How a hold is represented (M-4).
+26. The block meant by `@epochStart`.
+27. What counts as an ETH transfer, the direction and minimum size of a hop, "firstFunded", and "10 ETH-equivalent".
+28. Which criteria file is in force: signer still active or not, replacement of earlier signals, rounding of two thirds, the file before any signal.
+29. Flag quorum: active at flag time or at epoch start, rounding of one third.
+30. Whether activated and refunded deposits are still evaluated, and the bits above `upTo` in the last word.
+31. The base state for `words` when an accepted batch is unapplied (M-18).
+32. The layout of the `dataCid` file.
+
+FeeDistributor
+33. Scales for the rate and the per-token figure (M-10).
+34. Where the screeners' 40% goes when the seven-epoch rule applies and nothing is staked.
+35. How ETH is named in `buy(assets, ...)`, and whether a sale of an empty basket is allowed.
+36. The buyback swap's price limit, what happens when the amount is zero, and whether the timer restarts on a partial step.
+37. The token's exit sizes if the supply is not one billion ("1,000 to 100,000,000 of the token").
+
+Publication
+38. Where the canonical Deployer and Pool addresses are published and what the wallet pins (M-14).
+
+## 5. Claims on the page that I checked and found correct
+
+- The one-sided range formulas: IMD in the pool is 12,000 × f / (1 − f) and the price is the start divided by (1 − f)². Every row of the `[#sim]` range table, including the "price move from a $3,000 sale" column for the row I redid (−16.3%).
+- "Never more than about 6% of the valuation it supports": the ratio is 0.25 × f × (1 − f), at most 6.25%.
+- Buying a quarter of the pool's tokens costs 4,000 IMD, about $10,560.
+- The cap and exposure figures: $159,850 at launch, about $5.1M after five doublings, about $41M after eight.
+- The fee tables: $377 a month in the first step, 29 IMD a month to the buyback, 21,900 IMD over two years, the three volume rows, and the months in which a full pool passes $1M and $10M a month.
+- The reward figures: 251 tokens per ETH per day, 0.55% a year at the start without the stop, 504 and 1.09% with it, the 4× ceiling, 0.39% / 5.9% / 50.2% of the users' tokens by period, and 42,578% for the old first-depositor case.
+- IMD's share of rewards: 4.0%, 7.6%, 14.2%, 15.9% and the released shares 54% and 16%.
+- The user-reward and founder columns of the unlock table.
+- Attack costs quoted: 8 seats is 5.6 ETH or about $12,000; 30 seats is 21 ETH or about $45,000; the stake is about $63 at the start; ten seats about 7 ETH.
+- Seventeen ETH sizes and at most 16 withdrawals for any amount under 1,000 ETH; the 0.998 ETH example that stranded 0.003 ETH.
+- Gas arithmetic that can be redone from the page's unit prices: tree insert about 650,000, verification about 269,000, ciphertext about 31,500, a 96-word `apply` at 2.1M and 10.6M, every dollar figure in the two gas tables.
+- Both scripts reproduce their stored outputs exactly (`results.md`, `sandwich_results.md`).
+- Uniswap v3, from the local source: anyone may create a pool for an address with no code and anyone may initialise it once; a position whose lower tick equals the current price needs none of the quote token; fees are collected only by the position's owner; anyone can add liquidity to another address's position, and the design is right not to read the position's on-chain liquidity or a token balance.
+- The sandwich bound for the price inside the locked range, including the case the script does not model, where the step is sized after the attacker has moved the price. Third-party liquidity in range does not weaken it.
+- The descending auction: I found no profitable manipulation. It follows the Euler fee auction closely (price doubles after a sale, falls linearly, buyer names assets, sale counter and deadline), with a floor and a seven-day feed added. Paying a high price to distort the next sale costs thousands of times what it gains.
+- The Deployer is not circular if it uses CREATE and each constructor reads `msg.sender`: the five hashes do not depend on the Deployer's address, and reverting on a failed creation keeps the nonce order.
+- No batch can approve a deposit that was not a day old at the start of the epoch in which the batch was accepted, even with two thirds captured: `apply` ties `dataTime` to the batch's own epoch through the ring. The minimum of one day and sixteen hours holds against any registry.
+- Skipping a batch, or never applying one, is safe under the page's definition of `words`.
+- Registry capture cannot move funds or stop a depositor's own refund.
+- Nine values are still marked "to confirm", and the 50 briefs add up across the eight groups.
+
+## 6. What I could not check
+
+- Anything on-chain: the seat contract's code and owner, IMD's address and how it sorts against a random address, IMD's bridge ownership, the Chainalysis oracle, whether Uniswap's protocol fee is switched on for 1% pools.
+- Whether two real data sources ever disagree on the flows the criteria use (M-16). It needs a run of the screening program, which does not exist yet.
+- Exact gas for `launch`, for crossing hostile ticks, and for registry calls. My figures in M-1 and M-22 are estimates from the Uniswap source and the page's unit prices.
+- The build plan and its briefs, the earlier review notes and the git history, which I was asked not to read. Some of my guess points may be answered there.
+- The Spend circuit, the Pool's accounting, the reward index and the gas model beyond arithmetic on the page's own inputs. A second reviewer covers them. I noticed nothing in them that contradicts the mechanisms above, other than what is listed.
+- The legal sections, except where they contradict a mechanism (contradiction 13).
+- The canary under real conditions: whether seven seat holders would stake a canary token, and how long a redeploy takes.
