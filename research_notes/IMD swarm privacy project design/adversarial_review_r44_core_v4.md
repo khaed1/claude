@@ -1,5 +1,7 @@
 # Adversarial review of Murmuration v4, revision 4.4: circuit, notes and pool
 
+Status: complete. Written on 11 November 2026 from the published page alone.
+
 ## 1. Header
 
 - Reviewed: "Murmuration v4 specification, revision 4.4", dated 11 November 2026, in its plain-text rendering (1,615 lines). Line numbers below refer to that rendering.
