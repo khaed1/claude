@@ -160,3 +160,62 @@ Commit and reveal "so that copying is not possible"; "individual reveals so nobo
 ### Still for the owner
 
 Nine defaults: minimum age measured at the batch; caps and the stop at 800 ETH; four-year deposit window; two thirds with no fallback and majority-miss removal; screener stake 0.05% with a 30-day wait; reward floor; two-year swarm vest; auction design; relay fee in ETH. Plus the stablecoin exit sizes.
+
+---
+
+## Addendum, 11 November 2026 (later): review of revision 4.2 and the design of revision 4.3
+
+Sources: `adversarial_review_r42_core_v3.md` (C-1 to C-27) and `adversarial_review_r42_mechanisms_v3.md` (M-1 to M-26). Revision 4.2 did not pass: 7 high, 5 ambiguities with a high or worse dangerous reading. I checked the main ones against the page; they hold. IMD's address is `0xd34a99bc…`, so a random token address sorts below it about 82.5% of the time (M-9).
+
+Rule for 4.3: delete mechanisms where possible, add as little as possible, and write down every case a builder would otherwise guess.
+
+### Decisions for 4.3 (working list; the spec is the authority once merged)
+
+Circuit
+- 14 public inputs: `root, nf0, nf1, nf2, C0..C3, publicAmount, publicAsset, relayFee, feeAsset, gRef, extHash`.
+- The fee input (input 2) and output 2 are notes of `feeAsset`, any listed asset, public. `feeAsset = 0` exactly when `relayFee = 0` exactly when `nf2 = 0`; then input 2 and output 2 are empty. When `feeAsset != 0`, `nf2` is always a nullifier (a dummy one if input 2 is empty).
+- Conservation: `t = in0 + in1 - out0 - out1 - publicAmount`, `u = in2 - out2 - relayFee`; `t + u = 0` and `(1 - same) * t = 0` with `same = (asset == feeAsset)`. Value may cross between the two sides only when the assets are equal. (C-17, C-12, C-26)
+- Non-empty inputs have pairwise different positions (C-1). The contract also requires pairwise different nullifiers and never looks up or marks zero.
+- Reward from input 2 uses `weight[feeAsset]`. `0 <= gRef - index < 2^90`.
+- Integer weights per base unit: IMD 1, ETH = IMD per ETH on freeze day (about 807), USDT and USDC = ETH weight * 10^12 / ETH's dollar price (about 3.79e11), token 0. Build asserts the largest possible g is under 2^88; the pool clamps g at 2^90 - 1. (C-9)
+
+Proof obligations (C-2 to C-6, C-18)
+- (a) machine-checked on the constraint system: the relation theorem, lemmas 1 to 10 reworded, and lemma 11 completeness over the reachable state space;
+- (b) checked on the key and the deployed verifier: 15 input points distinct and not the identity, subgroup checks, gamma != delta, key recomputed by a second tool, contribution chain verified, each public input flipped;
+- (c) assumed and named: Groth16 knowledge soundness, one honest ceremony contributor, Poseidon collision and preimage resistance;
+- (d) contract-level: nullifier distinctness, g bound, sum of live note values <= shielded.
+
+Pool
+- Relay fee: `relayFee <= (FEE_K * block.basefee + FEE_TIP) * FEE_GAS` in ETH (4, 1 gwei, 2,000,000), times `FEE_SLACK` (8) and a frozen units-per-ETH constant for other assets. The 0.2% exit fee is charged on the relay fee too. (C-7)
+- ETH payments use a call with a fixed gas allowance (50,000); on failure the amount is credited to `owed[address]`, claimable by anyone for that address. Token payments that fail revert. Relayer is paid before the recipient. (C-8)
+- Third-party refund only when `isRefused(id, depositTime)` and the deposit is at least `REFUND_OPEN` = 21 days old. (C-10, M-4)
+- Ciphertext lengths enforced (1,216 and 96). (C-20)
+- Clocks for caps, emission and the deposit window count from `START`, the time of the first applied batch, read from the registry. Emission runs 730 days from START at a rate proportional to the cap in force. Step index clamped. Initial values listed. (M-12, C-19, C-24)
+- Token address read once from `Distribution.token()` and cached; token operations revert before launch. (C-23)
+
+Registry
+- Epoch: commit 12 h, reveal 8 h, apply-only 4 h. A batch can be applied only during its own epoch; pay for an epoch needs its batch applied. Base for a batch = registry bitmap at the last block before the epoch's start. No cross-epoch ordering exists. (M-18)
+- Words that set a bit first, then words that only clear; at most 96; truncation only when more than 96 words set a bit. Closed deposits are never evaluated or listed. (M-7)
+- `isRefused(id, depositTime)` has the same coverage and age conditions as approval. (M-5)
+- Eviction grounds: seat changed hands; 7 epochs of silence; a strike counter (+1 for each epoch with a majority hash that the screener did not reveal, silence included, -1 for each it did, floor 0) reaching 7. A seat evicted for silence or strikes is barred for 90 epochs. (M-3)
+- `register` on a seat with a live record runs the full eviction first; every state-changing function takes the snapshot first; invariant activeCount == active records. (M-17)
+- Pay owed is keyed by holder, not seat. (M-11)
+- Stake 0.005% of supply, so that 2,000 stakes are 10% of supply. (M-15)
+- Example criteria: a flag names a deposit id and needs more than half of the snapshot; holds are refusal bits that lapse; the hop rule becomes a funded-share hold; inputs limited to logs, receipts and top-level value. (M-2, M-4, M-6, M-16)
+
+Distribution and FeeDistributor
+- `launch` loops a counter into the salt (prevrandao, caller, n) and takes the first candidate that sorts below IMD and has no pool; no price reset. Token is always token0. Start tick rounded down to the 200 grid. Burn address `0x…dEaD`. (M-1, M-9)
+- Staker accumulator scaled by 10^36, rate scaled by 10^18. `notify` books the measured balance increase. (M-10, C-25)
+- Screeners' 40% goes to the registry only when a batch was applied in the previous epoch, otherwise to stakers. (M-3, M-11)
+- Buyback step uses `max(current sqrt price, starting sqrt price)`. (M-8)
+- Auction clock starts at the first `notify`.
+
+Wallet
+- Derivation table from the seed (spend root, view root, X-Wing key, rho, diversifier, ciphertext-1 key bound to nf0 and C1..C3); gap limit 20; empty inputs filled at random. (C-16, C-27)
+- "Unlinkable addresses" claim dropped; announce is optional. (C-11)
+- Always prove against the checkpoint pair; roll first if the window has no checkpoint. (C-14, C-22)
+
+Canary, gate, numbers
+- Lines that need screeners to misbehave move to fork tests; every paying line carries an expected amount; canary constants also include token name and symbol, swarm root, genesis criteria hash and the commit-end wait. (M-13)
+- Risk rows for look-alike deployments, data providers, the seven-screener cliff, launch gas under Glamsterdam, insiders recycling fees, frozen depositors. (M-14, M-16, M-24, M-22, M-26, M-20)
+- Simulation: the recommended stop is the primary schedule, emission is 730 days, weights follow prices, swarm vests over two years. (C-24)
