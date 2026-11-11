@@ -103,7 +103,7 @@ table.wide{min-width:820px}
 
 <div class="wrap">
 <header class="hero">
-  <div class="eyebrow">Specification · version 4.2 · 11 Nov 2026 · Ethereum mainnet · built by the IMD swarm</div>
+  <div class="eyebrow">Specification · version 4.2 · reviewed 11 Nov 2026 and not safe to build from · Ethereum mainnet · built by the IMD swarm</div>
   <h1>Murmuration v4: an immutable, screened privacy pool</h1>
   <p class="lede">A pool where you can hold and send funds privately on Ethereum, with no owner, no pause and no upgrade. Deposits are screened by independent operators using published rules, funds leave only in standard sizes, and the notes are encrypted against future quantum computers. It is built and audited by the IMD swarm and opens behind very low caps. Revision 4.1 attacked the parts of version 4 that had never been reviewed and wrote the result out for a build. Revision 4.2 answers an independent review of that work, which found it could not yet be built from safely. Nothing in it is built or deployed yet.</p>
   <div class="facts">
@@ -179,6 +179,9 @@ table.wide{min-width:820px}
   <div class="callout warn">
     <p><strong>Three things to know before reading further.</strong> The pool starts with no users, and privacy comes from the crowd you hide in, so on launch day it protects less than Railgun or Tornado Cash. It has no external audit: by the owner's decision the swarm audits its own work, and very low caps bound what a failure can cost. And a fee, a token and a pseudonymous founder allocation carry legal exposure that immutability does not remove. Each is covered in its own section.</p>
   </div>
+  <div class="callout warn">
+    <p><strong>Do not build from revision 4.2.</strong> Two independent reviewers read it on 11 November 2026, each given only this page. They found no certain critical fault, seven high ones, and five points where one natural reading by a builder is high or worse. The worst are these. Any holder of shielded ETH can take any amount out through the relay-fee field, with no 0.2% and no standard size. Anyone who gets a transaction in front of the launch, and not only a block builder, can make it revert. A third of screeners can have any depositor refused by flagging, and just over a third can hold the registry to one batch a week for ever. Stakers' income in USDT and USDC rounds to zero. The Uniswap formulas assume an ordering of the two token addresses that the launch leaves to chance. Most of these are in parts that revision 4.2 itself added or changed. The findings are in <code>adversarial_review_r42_core_v3.md</code> and <code>adversarial_review_r42_mechanisms_v3.md</code> in the repository. Revision 4.3 will answer them.</p>
+  </div>
   <h3>What revision 4.2 changes</h3>
   <p>The first version 4 was written in one session and its new parts had not been reviewed. Revision 4.1 reviewed them and redesigned what failed: one circuit instead of three, no fallback rule, a reward index that cannot overpay, a buyback in place of the one-sided liquidity add, caps counted on activated value, and a canary that runs the whole system. An independent reviewer then read revision 4.1 and found one critical fault and six high ones in it. Revision 4.2 answers that review. The owner's decisions are unchanged.</p>
   <ul>
@@ -189,7 +192,7 @@ table.wide{min-width:820px}
     <li><strong>Relayers are paid in ETH</strong> from a small shielded ETH note, and the entry fee is paid on top of the deposit.</li>
     <li><strong>Schedules count seconds from a fixed start</strong>, the reward checkpoint has exact rules, and a wallet can be restored from its seed.</li>
   </ul>
-  <p>The reasons are in <a href="#review">Review of the new parts</a> and <a href="#review2">Independent review of revision 4.1</a>. Nine values still need the owner's confirmation and are listed in <a href="#decisions">Defaults to confirm</a>. The work is broken into 50 jobs in the <a href="#plan">build plan</a>. Revision 4.2 has not itself been reviewed, and no build job should be submitted until it has been.</p>
+  <p>The reasons are in <a href="#review">Review of the new parts</a> and <a href="#review2">Independent review of revision 4.1</a>. Nine values still need the owner's confirmation and are listed in <a href="#decisions">Defaults to confirm</a>. The work is broken into 50 jobs in the <a href="#plan">build plan</a>. Revision 4.2 has since been reviewed and did not pass, as the notice above says. No build job should be submitted from it.</p>
   <p><strong>Decided by the owner since version 4:</strong> exit sizes start at 0.005 ETH (10 November). IMD is a listed asset with full reward weight and a cap of its own (11 November). The asset list is ETH, USDT, USDC, IMD and the pool's own token (11 November).</p>
 </section>
 
@@ -1527,6 +1530,6 @@ RPC_URL=…   POI_NODE_URL=…   IPFS_API=…
 </main>
 
 <footer>
-  <p>Murmuration v4 specification, revision 4.2, 11 November 2026, with the owner's decisions of 10 and 11 November. A proposal for review: no contract, circuit or node described here has been built, audited or deployed, no transaction was made, and nothing was sent to IMD, its developer or any third party. It is not legal advice. Earlier versions, the adversarial review findings and the full changelog are on the history page at <a href="https://claude.ai/artifact/FTpHa2bajd3eY8mhumgTZQ">claude.ai/artifact/FTpHa2bajd3eY8mhumgTZQ</a>.</p>
+  <p>Murmuration v4 specification, revision 4.2, 11 November 2026, with the owner's decisions of 10 and 11 November. A review of the same day found seven high faults in it; see the notice under "What it is". A proposal for review: no contract, circuit or node described here has been built, audited or deployed, no transaction was made, and nothing was sent to IMD, its developer or any third party. It is not legal advice. Earlier versions, the adversarial review findings and the full changelog are on the history page at <a href="https://claude.ai/artifact/FTpHa2bajd3eY8mhumgTZQ">claude.ai/artifact/FTpHa2bajd3eY8mhumgTZQ</a>.</p>
 </footer>
 </div>

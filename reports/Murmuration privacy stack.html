@@ -950,6 +950,27 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
 
 <section id="changelog">
   <h2>Changelog</h2>
+  <p><strong>Review of revision 4.2, 11 November 2026.</strong> Two independent reviewers, each given only the published specification, read revision 4.2. It did not pass. They recorded 53 findings: no certain critical fault, seven high, five ambiguities with a high or worse dangerous reading, and 33 contradictions between sections. The table lists the most serious. No design change has been made yet; a notice has been put on the specification, and revision 4.3 will answer the findings. Sources: <code>adversarial_review_r42_core_v3.md</code> (ids C-1 to C-27) and <code>adversarial_review_r42_mechanisms_v3.md</code> (ids M-1 to M-26).</p>
+  <div class="tbl"><table class="wide">
+    <tr><th>Id</th><th>Severity</th><th>Finding</th><th>Where it came from</th></tr>
+    <tr><td class="n">C-7</td><td><span class="pill hi">High</span></td><td>The relay fee is checked only against the pool's ETH balance and paid to any address named in the call. Any holder of shielded ETH can leave with any amount, with no 0.2% and no standard size</td><td>Added in 4.2</td></tr>
+    <tr><td class="n">C-26, C-17, C-12</td><td><span class="pill hi">High</span></td><td>The fee note must be ETH and counts under the ETH cap. Once one depositor fills that cap, later depositors in other assets cannot get a fee note, and a wallet with a single note or a user paid in another asset cannot make a first one privately</td><td>Added in 4.2</td></tr>
+    <tr><td class="n">C-5</td><td><span class="pill hi">High</span></td><td>Every statement to be proved has the form "if accepted, then sound". A circuit that accepts nothing satisfies them all, and nothing asks that honest spends are accepted</td><td>Reworded in 4.2</td></tr>
+    <tr><td class="n">C-1</td><td><span class="pill hi">Ambiguity, critical reading</span></td><td>The circuit lets the fee input be the same ETH note as an asset input. One passage tells the contract to stop it and another does not. Built from the second, every ETH note doubles per spend</td><td>Added in 4.2</td></tr>
+    <tr><td class="n">C-9</td><td><span class="pill hi">Ambiguity, freezing reading</span></td><td>The integer reward weights and what the pool does when the index reaches its 90-bit limit are not on the page. Two of three possible behaviours stop every spend for good</td><td>Older</td></tr>
+    <tr><td class="n">M-1</td><td><span class="pill hi">High</span></td><td>The token's address is salted with values any transaction in the launch block can read, so anyone who is ordered ahead of the launch can create its pool first and make the launch revert, for about 5M gas each time</td><td>Added in 4.2</td></tr>
+    <tr><td class="n">M-9</td><td><span class="pill hi">Ambiguity, high reading</span></td><td>The Uniswap formulas assume the token's address sorts below IMD's. With a random address that holds about 82% of the time. Otherwise the position cannot be placed as written, or the buyback limit stops binding</td><td>Added in 4.2</td></tr>
+    <tr><td class="n">M-2</td><td><span class="pill hi">High</span></td><td>The example criteria refuse anyone flagged by a third of screeners, or by three seats while nine or fewer are active. The flaggers reveal the honest batch and can never be removed</td><td>Changed in 4.2</td></tr>
+    <tr><td class="n">M-3</td><td><span class="pill hi">High</span></td><td>A bloc of just over a third commits and then does not reveal six days in seven. One batch a week is accepted, for ever, at no cost to the bloc</td><td>Changed in 4.2</td></tr>
+    <tr><td class="n">M-4, C-10</td><td><span class="pill hi">Ambiguity, high reading</span></td><td>A hold cannot be written into a batch. As a refusal bit, anyone can bounce the deposit before it clears. As a lower coverage mark, one fresh large deposit a day stops all activation</td><td>Added in 4.2</td></tr>
+    <tr><td class="n">M-10</td><td><span class="pill hi">High</span></td><td>Staker streams scaled by 10^18 round the income in six-decimal assets to zero at the page's own first-year volumes</td><td>Older</td></tr>
+    <tr><td class="n">M-17</td><td><span class="pill hi">Ambiguity, high reading</span></td><td>Registering a sold seat over a live record can leave the active count too high for good, after which no batch can be accepted</td><td>Changed in 4.2</td></tr>
+    <tr><td class="n">M-8</td><td><span class="pill">Medium</span></td><td>At the bottom of the range anyone can make a buyback step spend dust and use up its 12-hour slot</td><td>Changed in 4.2</td></tr>
+    <tr><td class="n">M-7</td><td><span class="pill">Medium</span></td><td>When more than 96 bitmap words change at once, coverage falls back and every activation stalls</td><td>Added in 4.2</td></tr>
+    <tr><td class="n">C-8</td><td><span class="pill">Medium</span></td><td>What a spend does when paying the recipient fails is unspecified. Under one reading a user can make a relayer burn a million gas, again and again</td><td>Older</td></tr>
+    <tr><td class="n">M-13</td><td><span class="pill">Medium</span></td><td>The canary's checklist needs scripted misbehaviour by real screeners, which the project may neither operate nor coordinate, and it checks that calls happened, not that amounts were right</td><td>Changed in 4.2</td></tr>
+  </table></div>
+  <p>What the reviewers confirmed: total reward claimable cannot exceed what was released, the pool's ledgers close for every call, no capture of the registry can move funds or approve a deposit less than a day and sixteen hours old, the auction design, the range, cap, fee and reward arithmetic, and the gas arithmetic that can be redone from the page.</p>
   <p><strong>Revision 4.2, 11 November 2026.</strong> The answer to an independent review of revision 4.1, and the owner's choice of assets. A separate reviewer, given only the published page, found one critical fault, six high ones, 24 contradictions between sections and 28 points a builder would have had to guess. The owner's decisions are unchanged. Items marked "to confirm" change a default the owner has not confirmed. Revision 4.2 has not itself been reviewed.</p>
   <div class="tbl"><table class="wide">
     <tr><th>#</th><th>Change</th><th>Reason</th><th>Basis</th></tr>
@@ -989,7 +1010,7 @@ RPC_URL=…   PPOI_NODE_URL=…   IPFS_API=…
   </table></div>
   <h3>Not verified in revision 4.2</h3>
   <ul>
-    <li>The changes of revision 4.2. Nobody but their author has read them, and each of the last two reviews found faults in the fixes for the one before.</li>
+    <li>The changes of revision 4.2 were unread when this was written. Two reviewers read them later the same day and found seven high faults; see the block above.</li>
     <li>The gas of a spend with three inputs, the cost of a verifier with 13 inputs, the constraint count of about 31,000 and proving time on a phone. Nothing was built.</li>
     <li>That a launch which creates the token and the Uniswap pool stays under the transaction gas limit when a block builder has placed a block's worth of positions in front of it.</li>
     <li>USDT's source code, and which exit sizes suit USDT and USDC.</li>
