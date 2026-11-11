@@ -197,7 +197,7 @@ Registry
 - Epoch: commit 12 h, reveal 8 h, apply-only 4 h. A batch can be applied only during its own epoch; pay for an epoch needs its batch applied. Base for a batch = registry bitmap at the last block before the epoch's start. No cross-epoch ordering exists. (M-18)
 - Words that set a bit first, then words that only clear; at most 96; truncation only when more than 96 words set a bit. Closed deposits are never evaluated or listed. (M-7)
 - `isRefused(id, depositTime)` has the same coverage and age conditions as approval. (M-5)
-- Eviction grounds: seat changed hands; 7 epochs of silence; a strike counter (+1 for each epoch with a majority hash that the screener did not reveal, silence included, -1 for each it did, floor 0) reaching 7. A seat evicted for silence or strikes is barred for 90 epochs. (M-3)
+- Eviction grounds: seat changed hands; 7 epochs of silence; a strike counter (+2 for each epoch with a majority hash that the screener did not reveal, silence included, -1 for each it did, floor 0) reaching 14. I first wrote +1 and 7; alternating one miss with one success never reaches that, so a group could halve the batches for ever. With +2 and 14 a group is removed after seven misses in a row or for missing more than one day in three. A seat evicted for silence or strikes is barred for 90 epochs. (M-3)
 - `register` on a seat with a live record runs the full eviction first; every state-changing function takes the snapshot first; invariant activeCount == active records. (M-17)
 - Pay owed is keyed by holder, not seat. (M-11)
 - Stake 0.005% of supply, so that 2,000 stakes are 10% of supply. (M-15)
@@ -219,3 +219,9 @@ Canary, gate, numbers
 - Lines that need screeners to misbehave move to fork tests; every paying line carries an expected amount; canary constants also include token name and symbol, swarm root, genesis criteria hash and the commit-end wait. (M-13)
 - Risk rows for look-alike deployments, data providers, the seven-screener cliff, launch gas under Glamsterdam, insiders recycling fees, frozen depositors. (M-14, M-16, M-24, M-22, M-26, M-20)
 - Simulation: the recommended stop is the primary schedule, emission is 730 days, weights follow prices, swarm vests over two years. (C-24)
+
+### As merged
+
+Revision 4.3 was merged, published and the 50 briefs regenerated on 11 November 2026. The changelog rows are R4.3-1 to R4.3-23 on the history page. It has not been reviewed. Not fixed, by choice or because a fixed decision stands in the way: the seven-screener cliff (M-24), a frozen depositor (M-20), insiders recycling fees (M-26), single-seat economics (M-15, beyond the smaller stake), the IMD bridge key (M-25), data providers (M-16, reduced), the buyback below the starting price (M-8 part B, M-21).
+
+Where new faults are most likely, because these parts are new in 4.3: the public fee asset and the ceiling that reads `block.basefee`; value crossing between the fee side and the asset side when the assets are equal; `owed` credits; the strike counter and how it is settled lazily from a 16-slot ring; the pool reading `START` from the registry; the salt loop in `launch`; the 4-hour apply-only window.
