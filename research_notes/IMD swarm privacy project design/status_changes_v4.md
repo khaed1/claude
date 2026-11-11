@@ -641,7 +641,111 @@ So:
 
 ## 4. X-Wing
 
-(pending)
+Read 11 November 2026, 19:58 to 20:00 UTC. All reads are curl downloads of datatracker.ietf.org (the
+document page, its `doc.json`, `/api/v1/doc/document/...`, the history page), of www.ietf.org/archive/id
+(draft texts), of www.iana.org (registries) and of www.rfc-editor.org/queue.xml. Quotes are verbatim.
+
+### 4.1 Result
+
+- **Draft 11 of 23 September 2026 is still the latest version.** There is no draft 12. The pin is current.
+- **It is not an RFC and is not close to one.** It is an individual draft on the Independent Submission
+  stream, in the first state of that stream ("Submission Received", unchanged since 26 May 2025). It was never
+  adopted by CFRG, has had no last call and no IRSG review, and is not in the RFC Editor queue.
+- **The identifier and the sizes are unchanged in the latest text**: HPKE KEM identifier 0x647A, encapsulation
+  key 1,216 bytes, ciphertext 1,120 bytes, decapsulation key 32 bytes, shared secret 32 bytes. IANA's registry
+  still lists 0x647A as X-Wing with those sizes.
+- **One thing to know that the pin does not show.** The IETF HPKE working group's draft asks IANA to replace
+  the 0x647A entry with the name "MLKEM768-X25519", same sizes. The CFRG document that defines that name says
+  it is "identical to the X-Wing construction". The key encapsulation is therefore the same, but the two
+  documents derive an HPKE key pair from input key material differently (4.4). This matters only if the
+  design derives keys through HPKE's `DeriveKeyPair`; it does not change any size or gas figure.
+
+### 4.2 Version and state (verified)
+
+| Fact | Value | Source |
+|---|---|---|
+| Latest revision | "rev": "11", "time": "2026-09-23 18:55:49" | https://datatracker.ietf.org/doc/draft-connolly-cfrg-xwing-kem/doc.json |
+| Expires | "expires": "2027-03-27 18:55:49" | same |
+| Draft state | "state": "Active" | same |
+| Stream | "stream": "ISE"; page: "RFC stream \| Independent Submission" | same; https://datatracker.ietf.org/doc/draft-connolly-cfrg-xwing-kem/ |
+| Stream state | "Stream \| ISE state \| Submission Received" (state 68: "The draft has been sent to the ISE with a request for publication.") | document page; `/api/v1/doc/state/68/` |
+| IESG state | "iesg_state": "I-D Exists" ("The IESG has not started processing this draft, or has stopped processing it without publication.") | `doc.json`; `/api/v1/doc/state/150/` |
+| RFC Editor | "rfceditor_state": null; no entry containing "xwing" among the 166 drafts in the queue | `doc.json`; https://www.rfc-editor.org/queue.xml |
+| RFC number | "rfc": null, "rfc_number": null | https://datatracker.ietf.org/api/v1/doc/document/draft-connolly-cfrg-xwing-kem/?format=json |
+| Group | "group": {"name": "Individual Submissions", "type": "Individual", "acronym": "none"} | `doc.json` |
+| Intended status | page: "Intended RFC status \| (None)"; the draft's own header: "Intended status: Informational" | document page; draft text |
+| Shepherd, area director | "(None)", "(None)" | document page |
+| A draft 12? | https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-12.txt returns HTTP 404 | curl |
+
+History page (https://datatracker.ietf.org/doc/draft-connolly-cfrg-xwing-kem/history/), newest first; there is
+no entry after 23 September 2026:
+
+- "2026-09-23 | 11 | Deirdre Connolly | New version available: draft-connolly-cfrg-xwing-kem-11.txt"
+- "2026-09-03 | 10 | (System) | Document has expired"
+- "2026-03-02 | 10 | Deirdre Connolly | New version available: draft-connolly-cfrg-xwing-kem-10.txt"
+- "2025-05-26 | 07 | Eliot Lear | ISE state changed to Submission Received"
+- "2025-05-26 | 07 | Eliot Lear | Stream changed to ISE from None"
+
+Against the list in the question: CFRG adoption, no (no document named `draft-irtf-cfrg-xwing-*` exists; a
+datatracker search for names containing "xwing" returns only this draft and the expired
+`draft-mahy-mls-xwing-00`); research-group last call, none recorded; IRSG review, not applicable to this
+stream and none recorded; RFC Editor queue, no; published RFC, no.
+
+### 4.3 Identifier and sizes in the latest text (verified)
+
+Text: https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-11.txt, 61,105 bytes, SHA-256
+`1353f61f0d706199d86b6802eab83cabbb5195b2d99fb35bca20f5e4f83db786`, header "23 September 2026",
+"Expires: 27 March 2027".
+
+- Section 5.1: "Decapsulation key (private):  32 bytes", "Encapsulation key (public):  1216 bytes",
+  "Ciphertext:  1120 bytes", "Shared secret:  32 bytes".
+- Section 7: "This document requests/registers a new entry to the "HPKE KEM Identifiers" registry. Value:  25722
+  = 25519 + 203 = 0x647a (please)", "KEM:  X-Wing", "Nsecret:  32", "Nenc:  1120", "Npk:  1216", "Nsk:  32",
+  "Auth:  no".
+- Layout: "pk_X = pk[1184:1216]", "ct_X = ct[1088:1120]". Combiner: "SHA3-256(concat( ss_M, ss_X, ct_X, pk_X,
+  XWingLabel ))", "In hexadecimal, XWingLabel is given by 5c2e2f2f5e5c."
+- Draft 10 against draft 11 (`diff` of the two texts, page headers removed): five differences, none
+  technical. The date, the draft name, the expiry line, the line wrapping of one hexadecimal constant (the
+  same 32-byte value), and an author's affiliation ("SandboxAQ" to "Selkie Cryptography").
+- IANA registry (https://www.iana.org/assignments/hpke/hpke-kem-ids.csv; the registry's XML has
+  "<updated>2026-11-10</updated>"): "0x647A,X-Wing,32,1120,1216,32,no,[draft-connolly-cfrg-xwing-kem-06]". The
+  record is dated 2024-10-22 and was last updated 2026-04-16.
+- The draft also asks for TLS group 25722. The TLS Supported Groups registry
+  (https://www.iana.org/assignments/tls-parameters/tls-parameters-8.csv) has no entry 25722; it has
+  "4588,X25519MLKEM768,Y,Y,[RFC 10024]", a different construction. Not relevant to the design.
+
+### 4.4 The same identifier in two other documents (verified)
+
+- https://www.ietf.org/archive/id/draft-ietf-hpke-pq-05.txt (IETF HPKE working group, "Intended status:
+  Standards Track", 6 July 2026; datatracker state "WG Document"), section 8.2: "IANA is requested to replace
+  the entry for the value 0x647a and add two entries for values 0x0050 and 0x0051 with the following values",
+  with the row "|0x647a| MLKEM768-X25519 | 32 |1120|1216|32 |no | RFCXXXX |". Section 4: "MLKEM768-X25519:
+  KEM\x64\x7a (hex: 4b454d647a)".
+- https://www.ietf.org/archive/id/draft-irtf-cfrg-concrete-hybrid-kems-04.txt (IRTF stream, 6 July 2026;
+  datatracker IRTF state "Waiting for Document Shepherd"), section 4.2: "This hybrid KEM combines ML-KEM-768
+  with X25519 using the CG framework from [HYBRID-KEMS]. It is identical to the X-Wing construction from
+  [XWING-SPEC]." "Label: \.//^\ (hex: 5C2E2F2F5E5C)", "Nek:  1216", "Ndk:  32", "Nct:  1120", "Nss:  32". Its
+  reference [XWING-SPEC] is draft 10 of the X-Wing draft.
+- So the route by which this KEM is heading to an RFC is these two documents, not the X-Wing draft itself. If
+  the working-group draft is published, the IANA name of 0x647A becomes MLKEM768-X25519 and its reference
+  changes; value and sizes stay.
+- One difference that touches implementations. X-Wing draft 11, section 5.6: "def DeriveKeyPair(ikm): sk =
+  SHAKE256(ikm, 32*8) return GenerateKeyPairDerand(sk)". Working-group draft, section 4: "def
+  DeriveKeyPair(ikm): seed = SHAKE256.LabeledDerive(ikm, "DeriveKeyPair", "", 32) return
+  KEM.DeriveKeyPair(seed)". The same input key material gives different key pairs under the two documents.
+  Encapsulation and decapsulation with a given key pair are the same. A design that stores or derives the
+  32-byte decapsulation key directly, and never calls HPKE's `DeriveKeyPair`, is not affected.
+
+### 4.5 Not verified
+
+- Whether the Independent Submissions Editor is still processing the draft or has parked it in favour of the
+  two documents above. The datatracker shows no stream event since 26 May 2025 and no conflict-review
+  document; the editor's own tracking is not public here.
+- That MLKEM768-X25519 is bit-for-bit X-Wing rests on the CFRG draft's statement ("identical"). Test vectors
+  of the two documents were not compared.
+- Whether IANA will act on the working-group draft's request before that draft is approved. Today the entry
+  is unchanged.
+- Mailing-list discussion (cfrg, hpke) was not read.
 
 ## 5. USDT's verified source on Ethereum
 
