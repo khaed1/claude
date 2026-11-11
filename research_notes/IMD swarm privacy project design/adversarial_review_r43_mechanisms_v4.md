@@ -195,6 +195,60 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 **Confidence.** Certain as arithmetic. How often it bites depends on how many operators flag.
 
+### Q-9. Medium. Refund by others tests the deposit's age, not how long it has been refused, and the 21 days depend on a file no contract can see
+
+**Where.** Lines 77 and 110: "A deposit that has stayed refused for three weeks can also be sent back by anyone." Line 650: "Anyone, once the deposit is at least 21 days old param and `Registry.isRefused(id, depositTime)`. ... The 21 days are longer than any hold or flag, so a refusal that is going to lapse cannot be turned into a forced refund." Line 168: "Refused in the first N batches that cover the deposit and cleared in the next." Line 1314: "It must stay longer than the longest hold and the life of a flag." Line 177: "The file is not in any contract, so screeners can adopt another".
+
+**How it works.** The registry stores a bit, not the day the bit was set. The contract therefore lets anyone refund a deposit that is 21 days old and refused in the current batch, even if it was refused for the first time today. Three ways an honest deposit gets there:
+
+1. Waiting at a full cap. The page expects caps to bind for up to 90 days at a time (lines 286 and 1508), and an approved deposit can wait in the queue for the next step. The first day a majority flags it, a rival for the same cap space sends it back. Without the refund it would have been delayed by the 14-day life of the flag. With it, the place is lost.
+2. A hold counted in batches during a blockade. A 7-batch hold starts one to two days after the deposit. A group of 14 in 30 can block 8 days in a row and then 43% of days (Q-3). Seven applied batches then take about 12 more days, and the clearing batch lands on about day 23. From day 21 anyone can bounce the deposit. If "N batches" is read as N epochs this path closes, and a hold that falls inside a blockade is never set at all. The page does not say which.
+3. A longer hold in a later file. Two thirds of the seats can adopt a file with a 30-epoch hold. Every deposit it holds becomes refundable by anyone after day 21. The contract's constant cannot follow the file.
+
+**Who and cost.** Anyone, for one transaction, once the conditions hold. Path 1 needs a majority to flag, path 2 a group of nearly half, path 3 a careless or hostile change of file.
+
+**Consequence.** The depositor gets the funds back at the depositing address and loses the place in the queue and the gas. Nothing is lost for good, so this is medium. The sentence "cannot be turned into a forced refund" is true only while batches arrive daily and the file keeps its present numbers.
+
+**Smallest fix.** Remove refund by others. The depositor can always refund, refused deposits are outside the caps, and a deposit that sits in `pending` for ever costs nobody anything. That removes `isRefused`, one parameter, one transition of the state machine and this whole class of fault (section 6). If it is kept, the registry has to record the epoch in which each refusal began, which is a second bitmap or a per-deposit slot.
+
+**Confidence.** Certain for the age test and path 3. Path 2 depends on reading.
+
+### Q-10. Medium. The 96-word rule lets a depositor with capital starve clearances and buy a head start at `START`
+
+**Where.** Lines 737 to 739: "Words that set a bit come first, then words that only clear bits... At most 96 words. If more than 96 words set a bit, the batch lists the first 96 of them and lowers upTo to just below the first deposit of the first one left out. Words that only clear bits and do not fit wait for the next day." Line 161: the hold on a deposit "> 10 ETH" from an address first funded within 72 hours.
+
+**How it works.** A depositor can make the rules set a bit in a word of its choice: a deposit of just over 10 ETH from a fresh address is held, and holding sets a bit. Filler deposits of 0.005 ETH move the deposit counter 256 ids to the next word. All of it is refundable in full.
+
+- Starving clearances. Ninety-six held deposits a day in 96 different words use the whole batch. No word that only clears a bit fits, so no hold of anyone else's is lifted while this goes on. One wave is 961 ETH for one to two days plus 24,576 fillers (about 1.2 billion gas, 0.25 ETH at 0.2 gwei). Kept up for three weeks it turns every 3-epoch and 7-epoch hold in the pool into a deposit that anyone may send back (Q-9).
+- A head start. Deposits wait for a month before `START`. A depositor who places its own deposit first and 97 held deposits in the 97 words after it limits the first batch to the ids below the 97th word. Everything later waits a day, and whoever is covered first fills the 25 ETH cap. Rewards for a cap step go to whoever fills it (line 1508).
+- Cost of `apply`. A full batch is "about 2.1M today and 10.6M under Glamsterdam" (line 904). The screeners' whole pay is about $31 a day (line 1034). At the 30-day mean gas price on the page, 0.418 gwei, a full batch costs about $2 today and $9 after the fork, and at 5 gwei over $100. On such days nobody is paid for applying, and a batch that is not applied is dropped.
+
+**Who and cost.** Someone with about 1,000 to 2,000 ETH for days at a time and a few hundred dollars of gas a day. That is real money, which is why this is medium.
+
+**Consequence.** Delay of activation for others, holds that never clear while the flood lasts, and a bought first place at each opening.
+
+**Smallest fix.** Reserve part of the batch for clearances (for example at most 64 words that set a bit and at least 32 that clear), and let the hold rule exempt nothing by size alone. No mechanism has to be removed.
+
+**Confidence.** Certain as to the rule. Whether anyone would pay for it is a guess.
+
+### Q-11. Low. Three terms of the example criteria do not do what the table says
+
+**Where.** Line 169: "`fundedByListed` | Of the value in the deposited asset that the depositor received in the 7 days before the deposit, the share that came straight from listed addresses. A share, so that dust sent by a listed address changes nothing". Line 170: "`firstFunded` | The time of the first block in which the depositor received a listed asset". Line 152: "inputs": "logs, receipts and the value of top-level transactions only". Line 171: the file in force is "The one whose hash more than two thirds of the snapshot's seats have signalled, counting each seat's latest signal up to the base block. Until one has, the file named in the parameter file".
+
+**How it works.**
+
+1. Dust does change something. The share is taken over what the address received in the last 7 days, not over the deposit or the balance. An address that held its ETH for a month and received nothing this week has a denominator of zero. One wei from a listed address makes the share 100% and the deposit is held for 7 batches. With no inflow at all the share is 0 divided by 0, which the page does not define, and two programs that treat it differently produce different batches.
+2. Both hold rules are avoided with one contract hop when the asset is ETH. ETH sent from inside a contract call appears in no log and is not the value of a top-level transaction. An address funded that way has no "first funded" time and no listed funder. The page says internal transfers are left out so that nodes agree (line 179). It does not say that the two rules meant to hold "large and freshly funded deposits" (line 1502) then hold only the careless.
+3. The file in force can fall back. Read as written, the test is made each epoch on the current snapshot. If a file was adopted by 14 of 20 seats and 2 new seats join without signalling, 14 of 22 is under two thirds, no file has the quorum, and the rule says the parameter file is in force again: the lists of the freeze day, months or years old. A group of just over a third that registers and stays silent can roll the criteria back this way. The other reading, that an adopted file stays until another reaches two thirds, is not what the sentence says.
+
+**Who and cost.** For 1, the holder of a listed address, at the cost of dust. For 2, any depositor. For 3, new seats amounting to a few percent of the registry.
+
+**Consequence.** Wrong holds, avoidable holds, and a criteria file that can move backwards. All three are in a file that is in no contract, so they are low: they can be corrected without touching the build. The third decides what every node computes, so it has to be settled before the screening program is written.
+
+**Smallest fix.** Take the share over the larger of the 7-day inflow and the deposit's value. Say on the page that the ETH hold rules see top-level transfers only. Define the file in force as the last file to have reached two thirds.
+
+**Confidence.** Certain for 1 and 2. For 3, depends on reading.
+
 ## 3. Contradictions between sections
 
 (pending)
