@@ -1,6 +1,6 @@
 # Adversarial review of Murmuration specification r4.2: circuit, notes, pool contract, reward index (third review, core)
 
-Status: IN PROGRESS. Note file created before reading; findings are appended in batches as the page is read.
+Status: COMPLETE. 27 findings (C-1 to C-27), ranked summary and the six required sections are under "Final sections" at the end. Final grades are the ones given there.
 
 Scope: the Spend circuit, "what the proofs must show", keys/notes/restore, the Pool contract, the reward index, state machines, gas and limits, and privacy claims. Whole-page contradictions, builder guesses and number mismatches are recorded too. Fixed owner decisions are not reopened.
 
@@ -172,3 +172,130 @@ Source read: `spec_r42.txt` (plain-text rendering of `reports/Murmuration v4 spe
 - Mechanism. The first relayer holds ciphertext A from the attempt it refused or sat on. The retry lands with ciphertext B. With any stream-based AEAD and a fixed nonce (the only reading the 96 bytes allow), A xor B equals record A xor record B. The fields that did not change cancel to zero. The fee-change field gives (F − feeA) xor (F − feeB) with both fees public, which gives away most low bits of the fee-note balance F; if the user also changed the amount, the change value leaks the same way. If the first attempt was mined and reverted (stale checkpoint, expired root, the grief in C-8), its calldata is public and everyone can do this, not only the relayer. The one-time authentication key is reused as well.
 - Fix. Derive the key from the seed, the first nullifier and the three commitments C[1], C[2], C[3] (all in the `Spent` event, so restore still works), or seal with a nonce-misuse-resistant mode (a synthetic-IV construction fits 80 + 16 bytes exactly and leaks only whether two records are equal). Say which in `[#b-notes]`.
 
+
+---
+
+## Final sections
+
+Grades below are final and replace the grade in a detail entry where they differ (C-3 and C-4 are Low here). Counts: 0 certain critical; 3 high (C-7, C-26, C-5); 7 medium (C-17, C-12, C-8, C-27, C-10, C-11, C-2); 6 ambiguities, two of them with a critical or pool-freezing dangerous reading (C-1, C-9, then C-16, C-19, C-20, C-23); 10 low (C-3, C-4, C-6, C-13, C-14, C-15, C-18, C-21, C-22, C-25). C-24 collects number mismatches and is not graded.
+
+### 1. The most serious findings, ranked by damage times likelihood
+
+1. **C-7, High, certain as designed. The relay fee is an ETH exit with no 0.2%, no standard size and no limit.** `relayFee` is checked only against "The pool's ETH balance", and the relayer is any address named in `ext`. Any holder of shielded ETH can leave with any amount, fee-free, by naming an address of their own as relayer. It defeats two of the owner's fixed decisions for ETH (0.2% out, exits in standard sizes) and the page's headline "funds leave only in standard sizes". Fix: the contract bounds `relayFee` by a multiple of `block.basefee` times a gas ceiling plus a small tip allowance; stated in the table, the `spend` row, the invariants and the wallet rules.
+2. **C-1, ambiguity with a critical reading. Input 2 can be the same ETH note as input 0 or 1, and only one of two contract passages says the contract must stop it.** The circuit permits it (same position, same nullifier). The public-input table says nf[2] is checked against "The spent set when non-zero"; the `spend` row says "unused and distinct". A check-all-then-mark-all implementation of the table doubles every ETH note per spend until `shielded[ETH]` is gone. Fix: state pairwise distinctness over the three nullifiers and "zero is never looked up or marked" in both places and in the invariants, and also add the two inequalities to the circuit (a few constraints), since the circuit is the part that can never be corrected.
+3. **C-26, High, expected state of the pool. Fee notes sit under the ETH cap, so a full ETH cap shuts newcomers in every asset out of relaying.** The page expects one depositor to fill the 25 ETH cap. After that no ETH deposit of any size can be activated, so a later USDT, USDC or IMD depositor cannot obtain a fee note, and every spend they make shows one of their accounts. Cheap to cause on purpose: the capital comes back and earns rewards. No fix is free. Options, in my order of preference: (a) for withdrawals only, where the asset is public anyway, let the relayer be paid a public amount of the withdrawn asset out of the shielded remainder (not out of the payout, so payouts stay uniform), charged the 0.2% and bounded to a fraction of the size; this changes the circuit and must be settled before the ceremony; (b) a small cap-exempt lane for fee-size ETH deposits, which stops this being the default state but can itself be filled for about $90 of gas; (c) at the least, say on the page that with a full ETH cap newcomers in other assets have no private path.
+4. **C-5, High. Every statement in the proof list is satisfied by a circuit that accepts nothing, and no statement asks that honest spends are accepted.** All eleven are "if accepted, then sound". The page's own risk table names "statements that are true of anything" as the known failure of agent-written proofs, and extra constraints make soundness proofs easier. In an immutable pool an over-constrained corner (a range that is one bit short, an edge of the reward division, a spend type nobody tried) is funds locked for good. The canary covers typical spends, not the reachable extremes. Fix: a completeness lemma over the reachable state space, with the ranges taken from the parameter table, plus the contract-side arithmetic lemma that g stays under its bound.
+5. **C-17 with C-12, Medium, certain. The first fee note cannot be made privately.** Value cannot pass between the fee side and the asset side of a spend even when the asset is ETH, so a wallet with one ETH note can pay relayers and move nothing; and a user who was paid in another asset has no ETH note at all and cannot be given one in the same spend. Both need a second public step (another deposit, or a self-sent spend). Fix: when `asset` is ETH, replace the two conservation equations by their sum (circuit change, a few constraints); let a payer direct the fee change (output 2) to the recipient using a memo convention so the recipient can find it; write the two-deposit rule into the wallet if the circuit stays as it is.
+6. **C-9, ambiguity with a pool-freezing reading. The integer reward weights, IMD's decimals and the proof that g stays under 2^90 are not on the page.** With the stated ratios and a one-billion supply, the worst-case g is about 2^74.8 if ETH's weight is scaled by 800 and about 2^84.5 if it is 1; at the page's own supply limit of 79 billion with scale 1 it is 2^90.8, and on the canary (caps fifty times smaller, same supply) with scale 1 it is 2^90.1. What the pool does at 2^90 is unspecified, and two of the three possible behaviours stop every spend for ever. Fix: publish the integer table, the derived maximum of g for the real build and the canary, and "g clamps and emission stops" as the rule.
+7. **C-8, Medium. What `spend` does when paying the recipient fails is unspecified; under "revert" a user can make a relayer burn about 1.1M gas for about 30k of their own, repeatedly with one proof; under "ignore" the withdrawal is lost.** Relayers are described as near-zero margin. Fix: pay the relayer first, pay the recipient with a fixed gas allowance, and on failure credit an `owed` balance that anyone can push to that address later.
+8. **C-27, Medium. Ciphertext 1 is keyed by seed and first nullifier, so a retried spend seals a different record under the same key.** The first relayer (or everyone, if the first attempt was mined and reverted) can xor the two and learn most of the fee-note balance, and the change value if the amount changed. The page's own retry rule makes this routine. Fix: key on the three commitments as well, or use a nonce-misuse-resistant mode.
+9. **C-10, Medium. Anyone can refund a deposit while its refusal bit is set, so a hold or a refusal that would have been lifted becomes a permanent bounce for about 45k gas.** Those already inside, and anyone queuing at a full cap, have a motive. Fix: third-party refund only for a refused deposit older than a build constant (longer than the longest hold and the flag expiry); state how a hold is encoded in a batch.
+10. **C-11, Medium. "Many unlinkable addresses" does not hold: all addresses of a wallet carry the same announced X-Wing key, and the announcement is a public transaction.** Fix: per-address keys or drop the claim; say who sends `announce` and what that reveals.
+
+### 2. All other findings
+
+Details are in the entries above.
+
+- **C-2, Medium.** Lemma 3 proves only that the position inside the nullifier is the proved one; a circuit with a free `nk` or `rho` in the nullifier passes it and allows unlimited double spends. Reword to bind `nk` to `ownerPk`, `rho` to `ownerCommit`, and to require that a non-empty input always publishes its nullifier.
+- **C-16, ambiguity.** The derivations from "the seed" (spend key, X-Wing key, each keyed hash, the diversifier of own outputs, the counter gap, how empty inputs are filled, HPKE suite and info string) are not given. Two wallets built from this page will not restore each other's notes, a deterministic choice for empty inputs makes a restored wallet's spends revert, and a view-only wallet cannot be built without a separate view root.
+- **C-19, ambiguity.** The schedule arithmetic has no stated clamp. Without the stop, or with a formula that evaluates the current step's cap on every `roll`, checked arithmetic overflows 13 to 16 years out and `roll`, hence `spend`, reverts for ever. Initial values of `gTime`, `window`, `gCur`, `rootCur` are not given; a zero `gTime` makes the first advance count decades of seconds.
+- **C-23, ambiguity.** How the Pool learns the token's address (created at launch, unknown before) and what token operations do before launch are not in the Pool section. The no-return-value wrapper must also require code at the target.
+- **C-20, ambiguity, low.** Ciphertext lengths are not said to be enforced, against "every spend publishes the same 1,312 bytes".
+- **C-3, Low.** Lemma 8 says "every public output is determined" while the page calls all 13 values public inputs and never says which are outputs; read literally it is false for `extHash`, `gRef`, `root` (all inputs empty) and `publicAsset` (amount zero).
+- **C-4, Low.** The top statement ("for every proof the verifier accepts") and lemma 10 are proof-system properties, not constraint-system properties; what is machine-checkable is "every satisfying assignment satisfies the relation" plus facts about the public columns and the key. The hash model the proofs assume is not stated.
+- **C-6, Low.** No lemma says input 2 is an ETH note; "non-empty" is not defined inside lemma 2.
+- **C-18, Low.** Lemma 9 omits the packing, the emptiness test, the position and the index difference; lemma 10 speaks of one input at a time where the property is about the whole vector; nothing rules out vacuity.
+- **C-13, Low.** A disclosure receipt cannot let its reader "check the nullifier on-chain" without `nk`, which is wallet-wide and lets a former payer watch later spends.
+- **C-14, Low.** The root and checkpoint a wallet proves against are public; a mixed policy reveals that an input is less than an hour old and links the steps of a split withdrawal.
+- **C-15, Low.** "No claim to observe" is true of the conversion; withdrawing reward tokens is public and bounds value times time.
+- **C-21, Low.** The verifying-key check list lacks G2 subgroup checks, identity checks, distinct input points and verification of the contribution chain.
+- **C-22, Low.** `roll` inside `spend`: a proof built before the first checkpoint of a window can expire minutes later at the hour boundary; the first transaction of each window pays for the checkpoint, which a relayer's quote must assume.
+- **C-25, Low.** Outgoing transfers are not measured. If USDT's fee is switched on, `notify(asset, amount)` books more than the distributor received.
+- **C-24.** Number mismatches, listed in section 3 and in the entry.
+
+Suspicions not confirmed (not findings):
+- A depositor at a listed address making tens of thousands of minimum deposits a day to exhaust the 96 changed words per batch and push `upTo` down for everyone behind. It follows from the batch rule as written but belongs to the registry review, and I did not cost it properly.
+- If a hold is encoded by keeping `upTo` below the held deposit, one large refundable deposit from a fresh address every three days stalls all activations. Depends on an encoding the page does not give.
+- Someone else copying a pending deposit's `ownerCommit` into a deposit of their own gives the first wallet an unsolicited note. Harmless on-chain; the restore rule must expect several `Deposited` events with one `ownerCommit`, some never activated.
+- A block builder who knows the next timestamp can prove against a checkpoint that will only exist after the `roll` inside its own spend. It earns up to the current second and never more than was emitted.
+- The first 64 entries of `roots` and the first checkpoint roots are zero. A zero root is accepted for an all-empty spend only, which spends nothing.
+
+### 3. Contradictions between sections
+
+1. Third nullifier. `[#b-circuit]` public inputs: "nf[2] | ... | The spent set when non-zero. Must be zero exactly when relayFee is zero" against `[#b-contracts]` Pool `spend`: "the nullifiers are unused and distinct". (C-1.) A third passage supports the safe reading only by implication: `[#b-gas]` "Spend sent by its owner | ... | Two slots, one per nullifier" although storage says "spent[nullifier] | bool | One new slot per input" and there are three inputs.
+2. Standard sizes. Header: "funds leave only in standard sizes"; `#pool` design table: "Public withdrawals only in a 1, 2, 5 series per asset"; `#decisions`: "A remainder under 0.005 ETH, about $11, cannot leave by itself" against `[#b-circuit]`: "relayFee | ETH paid to the relayer, in wei ... | The pool's ETH balance" and `spend`: "for a relay fee, lowers the ETH balance". (C-7.)
+3. Addresses. `[#b-notes]`: "d: a diversifier, so one wallet can hand out many unlinkable addresses" against the next lines: "Short form: ownerPk and keccak256(key). The key is announced once through Pool.announce". (C-11.)
+4. Which schedule. `#decisions`: "The build specification is written to the recommended value" (caps "Stop after five doublings") against `#token`: "about 0.55% a year on a full pool" and `#sim`: "a full pool pays ... 251 tokens", "half of them arrive in the last 90 days", cap rows "630 to 720 | 3,200 ETH". The same section's last bullet gives the stop's own figures: "504 tokens per ETH per day ... 1.09% a year". (C-24.)
+5. Two years. `#token`: "Private rewards for shielded time, over two years" and "Emissions run two years" against `[#parameters]`: "Emission | 8 steps of 90 days" and `[#b-contracts]`: "spread over eight cap steps ... zero afterwards" (720 days; the other schedules are 730).
+6. Ciphertexts. `[#b-notes]`: "Every spend publishes the same 1,312 bytes whatever it does" against the next bullet: "The pool does not check ciphertexts." (C-20.)
+7. When an activated note is spendable. `[#b-states]`: "A note made by activation carries the exact index of its block and becomes spendable at the next roll" against `activate`: "Calls roll. ... Advances the reward index to now, computes the commitment with that exact index". When the activation is the first call of its window the roll has just set `gCur` to that same index, so the note is spendable at once. The canary line "of a freshly activated note before and after a roll" does not say whether "before" must fail.
+8. Fee note. `#risks`: "A relayed spend needs a small shielded ETH note for the fee ... | Low | The wallet keeps a fee note topped up" against `activate`: "For a capped asset, requires shielded + value to fit under the cap" and constraint 11's two separate equations. (C-26, C-17, C-12.)
+9. Disclosure. `[#spec-disclose]`: "A receipt is narrower than a viewing key because it covers one transaction" and "checks the nullifier on-chain" against `[#b-notes]`: "nullifier = H4(TAG_NF, nk, pos, rho)" with one `nk` per wallet. (C-13.)
+10. Claims. Header and `#overview`: "there is no claim to observe" against `[#parameters]`: exit sizes "1,000 to 100,000,000 of the token", which are public withdrawals of reward. (C-15.)
+11. Exit sizes settled or not. `#pool` design table lists "1 to 1,000,000 USDT or USDC" as the design and gives no token sizes; `[#parameters]`: "Still to confirm: 1 to 1,000,000 USDT or USDC, and 1,000 to 100,000,000 of the token"; the `#decisions` row mentions the stablecoin sizes as open and omits the token's.
+12. State left behind. `[#b-gas]`: "Activate | ... | None that lasts. Tree writes overwrite existing slots" against the storage table's `roots[64]` and `filled[32]`, whose first writes (the first 64 inserts, and each level's first fill) create slots at 22,100 or 110,020 gas. Small, but it moves the early activation and spend figures.
+13. Who can be seen. `#lifecycle`: "Observers see that a transaction happened and nothing about who" and `#visibility` against `[#b-gas]` "Spend sent by its owner" and `relayFee` "Zero for a self-sent spend": a self-sent spend shows its sender, and C-26, C-17 and C-12 make self-sending the only path for many users.
+
+### 4. Points a builder would have to guess
+
+Circuit and proofs
+1. Whether nf[2] must differ from nf[0] and nf[1], whether zero is ever looked up or marked, whether nf[0] or nf[1] may be zero. (C-1)
+2. Which of the 13 public values are "outputs" in lemma 8; what replaces lemma 10 and the top statement at constraint-system level; how the hash is modelled; whether completeness is to be proved. (C-3, C-4, C-5)
+3. The integer weight of each asset per base unit, IMD's decimals, and the largest g. (C-9)
+4. The exact range of constraint 7 ("between 0 and 2^90": 90 bits, or 2^90 inclusive).
+5. Whether the fee side and asset side may be merged when the asset is ETH. (C-17)
+
+Pool contract
+6. A bound on `relayFee`. (C-7)
+7. What happens when the payment to the recipient or relayer fails; how much gas each call forwards; which is paid first. (C-8)
+8. Whether `relayer` must be zero when `relayFee` is zero, and whether `recipient` may be zero when something leaves.
+9. Whether ciphertext lengths are enforced. (C-20)
+10. What g does at 2^90; whether the step is clamped in every formula; initial `gTime`, `window`, `gCur`, `gPrev`, `rootCur`, `rootPrev`; behaviour before GENESIS; how `emission(step)` per second is rounded. (C-9, C-19)
+11. How the Pool finds the token address and what the token asset does before launch; an explicit upper bound on a token deposit's value (it has no cap; the note field is 96 bits). (C-23)
+12. Whether a third-party refund forwards all gas to the depositor, and how a hold is encoded in a batch. (C-10)
+13. Whether `announce` computes the key hash itself, and what "keys" (plural) contains.
+14. Which `Spent` fields are indexed (a wallet looks spends up by any of three nullifiers; an event has three indexed slots).
+15. Addresses and code hashes of the three Poseidon contracts, and whether they are called or delegate-called.
+16. Whether `notify` trusts its `amount` argument. (C-25)
+
+Wallet
+17. Every derivation from the seed, the HPKE suite, the AEAD and nonce of ciphertext 1, the address encoding. (C-16, C-27)
+18. The diversifier for a wallet's own outputs 1 to 3; the counter gap on restore; how empty inputs are filled.
+19. Which root and which checkpoint to prove against, and what to do when no checkpoint exists yet in the current window. (C-14, C-22)
+20. How the first fee note is obtained, and what the wallet does when the ETH cap is full. (C-17, C-12, C-26)
+21. Who sends `announce`, and whether each address has its own key. (C-11)
+22. What a disclosure receipt contains for this pool. (C-13)
+23. How a relayer quote is bound in time (the proof fixes the fee; the page says a spike "leaves it relaying at a loss or refusing" and gives no expiry rule).
+24. Whether the canary's "freshly activated note before ... a roll" is a test that must fail.
+
+### 5. Claims on the page that I checked and found correct
+
+1. Total reward claimable cannot exceed `released`. By induction over notes: any value that earns over an interval was counted in `weighted` for that whole interval (activation adds to `weighted` at the instant the note's exact index is taken; outputs start at the same `gRef` where their inputs stopped; value that leaves stops earning at `gRef`, which is never later than the moment `weighted` drops). The index is rounded down, `earned` is rounded down, `released` is rounded up. It rests on one unstated invariant: for each asset the sum of live note values is at most `shielded[asset]`.
+2. "Checkpoints always round against the spender", and the loss is small: only value that leaves loses reward, for at most about two hours.
+3. A proof against a checkpoint root and `gCur` stays valid until two more rolls; filling the 64-root window cannot block exits for longer than the wait for the next roll. Sustained flushing costs the attacker about 70M gas per flush.
+4. An activated note becomes spendable no later than the next roll, including after emissions end (equality passes constraint 7) and after any idle period (one roll is enough).
+5. The zero conventions close as specified: nf[2] = 0 exactly when input 2 is empty exactly when `relayFee` = 0; a fee input cannot carry another asset or skip its nullifier if constraints 4 and 6 are implemented as written.
+6. An empty input carries nothing: zero value, zero accrued, zero earned. A note with value zero and accrued non-zero is not empty and must prove membership.
+7. The position inside the nullifier defeats duplicate commitments (two identical commitments at two positions are two notes with two nullifiers), and a sender who knows `rho` and the position cannot compute the recipient's nullifier without `nk`.
+8. Spending needs `sk`; `nk` and `spk` are not enough. A relayer or copier cannot change recipient, relayer, fee, amounts or ciphertexts (all are public inputs or inside `extHash`, which also binds chain id and pool address).
+9. Domain separation: no H3 or H4 use can collide with another by construction (tags 1 to 5 first, `packed` at or above 6 x 2^200, leaf bundles start with a hash output). `packed` fields do not overlap and stay below p.
+10. Bit widths of constraints 11 and 12 (sums under 2^99) and of constraint 8 (left side under p whenever 2 x weight + weightEth is under about 2^67.6; right side under 2^161). With a one-billion supply the real pool's g stays under 2^85 for every weight scale.
+11. Sizes: 1,120 + 80 + 16 = 1,216; payload fields sum to 80; ciphertext 1's fields sum to 80 plus 16; 1,312 in total; 13 public inputs and 14 key points; 2^96 / 10^18 is about 79 billion.
+12. The constraint estimate: my own count from hash sizes (about 243, 264 and 300 constraints for H2, H3, H4) and range checks gives about 31,800.
+13. Pool ledgers close for deposit, activation, refund, exit, relay fee and sweep; unactivated deposits cannot be reached by a spend; a token spend is limited to `tokenIn + released − tokenOut`.
+14. Activation timing: one day sixteen hours to two days sixteen hours, from the epoch rule and the reveal window.
+15. Gas arithmetic that can be redone from the page: 32 x 18,624 + 51,826 = 647,794; 182,441 + 13 x 6,626 = 268,579; 1,312 x 24 = 31,488; 3 x 97,920 = 293,760; 24,576 bytes at 200 and 1,530 gas give 5.36M and 38.2M with calldata; 96 slots give 2.12M and 10.56M of which 1.16M is execution; every dollar figure at 0.2 gwei and $2,130.
+16. The simulation: re-ran `murmuration_economics.py`; its output matches every table on the page (251 and 504 tokens, 0.55% and 1.09%, 0.39%, 5.9%, 50.2%, the IMD share table, the one-sided range table). Also: 17 ETH sizes, at most 16 withdrawals under 1,000 ETH, $5.1M at the stop, about $41M without.
+17. Harvest-now-decrypt-later: note contents are hidden by the hybrid ciphertext, a seed-derived symmetric key, and hashes with a 31-byte `rho`; the Groth16 proof leaks nothing about the witness even to a quantum reader. Only soundness is at risk, as the page says.
+18. The canary reaches the largest g the code can see (its caps are 50 times smaller for the same supply), so it does exercise the index range, which is also why C-9 shows up there first.
+
+### 6. What I could not check
+
+- That the three poseidon-solidity contracts exist on mainnet, their sizes (23,478, 14,189, 19,260 bytes) and per-call gas. No chain access was used.
+- The EIP-8037, EIP-8038 and EIP-7976 numbers and the reservoir rule above 2^24; the X-Wing draft number and date and the HPKE identifier. Outside what I can verify offline.
+- The gas model's working (it is in a research note I was told not to read). I could not reproduce the 80,305 for a deposit from the parts on the page: an ETH deposit comes to about 58k by my count and a token deposit to well over 100k.
+- Whether the build-plan briefs already settle any guess listed in section 4 (not read, by instruction).
+- IMD's decimals, and so the smallest workable weight scale.
+- That an X-Wing ciphertext does not identify the recipient's key. The design needs this for payments to one recipient to be unlinkable; the page does not state it as a requirement. I believe it holds for ML-KEM and X25519 and did not verify it for the combiner.
+- The claims about the Lean framework and its exporter, the proving time, and everything in the registry, distributor, auction, buyback, launch and deployer beyond reading them for contradictions (covered by the second reviewer).
+- The source HTML was opened only to search for wording on nullifier distinctness and payment failure; the text rendering was not garbled where I read it (superscripts are flattened: "290" is 2^90, "296" is 2^96, "1018" is 10^18, "224" is 2^24).
