@@ -94,6 +94,41 @@ Add to the canary list: a payment from one wallet to an address of another, spen
 
 **Confidence.** Certain that the two passages contradict each other. The loss depends on reading.
 
+### P-3. Medium. Lemma 11 is false as written, is not a property of the constraint system, and its natural repair is empty where it matters. Two more statements in part A cannot be proved as worded
+
+A *constraint system* is the list of equations the proof system enforces. A statement about it can be machine-checked. A statement about which states the Pool contract can reach cannot be read off it.
+
+**Where.**
+
+- Line 616: "A. Machine-checked on the constraint system that goes into the ceremony."
+- Line 628, lemma 11: "For every state the pool can reach, with values, indexes and checkpoints anywhere in the ranges the parameter table allows, the honest witness satisfies the constraints. This covers ... the ends of every range."
+- Line 596, constraint 3: "Every `value`, `accrued`, `claim`, `earned` ... fits in 96 bits. `gRef` and each input's `index` fit in 90 bits."
+- Line 634, part D: "For each asset the values of all unspent notes add up to at most `shielded`, which is what keeps `earned` inside 96 bits."
+- Line 515: "The build script computes the largest possible value from the parameter file and fails unless it is under 2^88."
+- Line 626, lemma 9: "No sum, product or difference reaches the field modulus in constraints 8, 9, 12, 13 and 14".
+
+**How it fails, with numbers.**
+
+1. *Lemma 11 is false over the ranges.* Take values every one of which is inside the ranges the page gives: an ETH note of 800 ETH (the cap), weight 807, `index = 0`, `gRef = 2^88 − 1` (inside the 90-bit range and inside the build's own limit for the index). The honest `earned` is 807 × 8×10^20 × 2^88 ÷ 2^64 ≈ 2^103. It does not fit in 96 bits, so constraint 3 cannot be satisfied (`arith.py`). "Anywhere in the ranges" and "the ends of every range" therefore name spends the circuit rejects. The lemma is true only for states the pool can actually reach, where total reward earned is at most `released`, which is at most the users' 45%, which is under 2^96 whenever the supply rule of line 512 holds. I checked that bound on paper and in a model (`model.py`, 40 random runs over the full schedule: largest `earned` seen 2^85).
+2. *That bound is a fact about the Pool, not about the circuit.* It needs three things the constraint system does not contain: that note values add up to at most `shielded`, how the pool advances `g`, and the supply limit. The page puts it in part D (tests, fuzzing, audits) at line 634 and at the same time puts lemma 11, which depends on it, in part A (machine-checked). The build plan has no job that models the Pool contract in the proof checker.
+3. *The build's check is not the one that matters.* A parameter file that passes "`g` under 2^88" tells nothing about `earned`: 2^88 with an 800 ETH note gives 2^103. The check that does the work is supply × 10^18 < 2^96.
+4. *What a proof writer will do.* The statement cannot be proved as worded, so the job that freezes the formal statements has to add a hypothesis. The easy one is "the witness passes the circuit's range checks". With that hypothesis the lemma says nothing about any range check: a circuit whose check on `value` is 88 bits wide instead of 96, or whose check on `gRef − index` is 80 bits instead of 90, satisfies the relation theorem (88 bits implies 96), satisfies lemmas 1 to 10, and satisfies this lemma 11. That is the fault the lemma was added to exclude ("a constraint that is one bit too tight would lock notes for good", line 628). The page itself lists "added assumptions" as the known failure of agent-written proofs (line 1462).
+5. *Lemma 9 is false for constraint 14.* `publicAsset` has no range check in constraint 3 and is free when both public amounts are zero, so `asset − publicAsset` wraps around the modulus in satisfying assignments (asset 1, `publicAsset` 7). It does no harm, because the other factor is then zero. But the lemma as worded cannot be proved, and what constraint 14 needs is narrower: that `publicAmount + relayFee` does not wrap.
+6. *Lemma 3, second sentence* ("Two satisfying assignments that spend the same position publish the same nullifier") is false for two assignments with different `root` values, and with the same root it holds only under the hash assumption of part C. It needs both said.
+
+**Who and cost.** Nobody attacks this. It decides whether the proofs, which replace an external audit, exclude a circuit that locks notes.
+
+**Consequence.** As the page stands, the one lemma that answers last round's high finding (C-5, "Nothing required honest spends to work") either cannot be proved or is proved in a form that lets a too-tight range check through. The canary and the comparison against the Circom copy would catch a gross error (a 64-bit check fails on the first IMD note). They would not catch one in a range the canary never reaches: the canary's largest ETH exit is 10 ETH and its `g` ends near 2^80.5. I rate it medium because a lock needs a second error, in the circuit, on top of the weak statement.
+
+**Smallest fix.** Split lemma 11 and write its hypotheses down.
+
+- 11a, part A, machine-checked. For every tree and every one or two notes in it with one `sk` and one asset, every `gRef`, and every choice of outputs, `claim` and public amounts for which these *integer* statements hold, the frozen witness generator produces an assignment that satisfies the constraint system: each value, `accrued` and `claim` is under 2^96; each `index ≤ gRef < 2^90`; `weight × (value₀ × (gRef − index₀) + value₁ × (gRef − index₁)) < 2^160`; the two conservation equalities hold over the integers; the positions differ. No hypothesis may mention a signal of the circuit. The witness generator is frozen with the statements, or "the honest witness" can be chosen to suit the proof.
+- 11b, part D, argued on paper and fuzzed. In every reachable state those statements hold for every spend an honest wallet can form. The only one that is not immediate is the 2^160 bound. It follows from: note values add up to at most `shielded`; an input's index is at most `g`; reward earned in total is at most `released ≤ USERS`; and supply × 10^18 < 2^96.
+- Reword lemma 9 for constraint 14 to "`publicAmount + relayFee` is under the modulus", and lemma 3 to "under one root, and assuming no hash collision".
+- In part B, add a paired test to the single-input test: a valid proof must fail when `publicAmount` is raised by δ and `relayFee` lowered by δ. The single-input test at line 630 passes even when the two inputs share a key point, which is the failure lemma 10 is about ("pairwise different" at the same line does catch it).
+
+**Confidence.** Certain for items 1, 3, 5 and 6 (arithmetic and a counter-example each). Likely for item 4.
+
 (more findings pending)
 
 ## 3. Contradictions between sections
