@@ -7,7 +7,7 @@ Everything here is a model of the DESIGN, not a forecast. Inputs are the owner's
 defaults (25 ETH cap doubling every 90 days), and prices of 10 Nov 2026 (ETH $2,130, IMD $2.64).
 Token supply is set to 1e9 for readable numbers; every result in % of supply or in IMD is supply-independent.
 """
-from math import sqrt
+from math import sqrt   # noqa: E402
 
 # ---------------------------------------------------------------- inputs
 ETH_USD, IMD_USD = 2130.0, 2.64
@@ -18,8 +18,11 @@ FEE_IN = FEE_OUT = 0.002
 SPLIT = dict(stakers=0.40, screeners=0.40, liquidity=0.20)
 CAP0_ETH, CAP_PERIOD_DAYS, CAP_PERIODS = 25.0, 90, 8      # v4 default: 25 ETH, doubling every 90 days, two years
 IMD_CAP0 = 2500.0                 # IMD's own cap at the start, doubling with the others to 80,000 (owner's decision, 11 Nov 2026)
-# ETH, USDC and DAI at equal dollar caps, plus IMD at full reward weight with its smaller cap (the reward token has weight 0)
+STABLE_CAP0 = 50_000.0            # USDT and USDC caps at the start, in dollars; each weighs 1/2,000 ETH per unit, so 25 ETH-equivalent
+# Asset list decided by the owner on 11 Nov 2026: ETH, USDT, USDC, IMD and the pool's own token (weight 0).
+# WEIGHTED_ASSETS is capacity in units of the ETH cap, for the reward arithmetic. USD_STEP0 is the dollar value the pool can hold at the first step.
 WEIGHTED_ASSETS = 3 + IMD_CAP0 * IMD_USD / ETH_USD / CAP0_ETH
+USD_STEP0 = CAP0_ETH * ETH_USD + 2 * STABLE_CAP0 + IMD_CAP0 * IMD_USD
 BLOCKS_PER_DAY = 7200
 P0 = START_VALUATION_IMD / SUPPLY                         # IMD per token at the bottom of the range
 X0 = ALLOC["pool"] * SUPPLY                               # tokens placed one-sided
@@ -198,11 +201,11 @@ def part3():
 
     print("\n### What the caps allow\n")
     print("Railgun turns its balance over about 1.18 times a month ($125M of shield plus unshield volume on $106M). "
-          f"The table applies that rate, and a rate five times higher, to a pool that is full at every cap: ETH, USDC and DAI at equal dollar caps and IMD at its own cap of {IMD_CAP0:,.0f} IMD doubling in step.\n")
+          f"The table applies that rate, and a rate five times higher, to a pool that is full at every cap: 25 ETH, 50,000 USDT, 50,000 USDC and {IMD_CAP0:,.0f} IMD at the start, all doubling in step.\n")
     rows = []
     for q in range(CAP_PERIODS):
         cap_eth = CAP0_ETH * 2 ** q
-        tvl = cap_eth * ETH_USD * WEIGHTED_ASSETS
+        tvl = USD_STEP0 * 2 ** q
         for_turn = []
         for turn in (1.18, 5.9):
             vol = tvl * turn; fee = vol * FEE_IN
@@ -211,11 +214,11 @@ def part3():
     print(table(["Days", "Cap per asset, ETH", "Most the pool can hold", "Volume at 1.18x", "Fee per month", "IMD to liquidity",
                  "Volume at 5.9x", "Fee per month", "IMD to liquidity"], rows))
     # cumulative liquidity added over two years if full and at Railgun turnover
-    cum = sum(CAP0_ETH * 2**q * ETH_USD * WEIGHTED_ASSETS * 1.18 * FEE_IN * SPLIT["liquidity"] / IMD_USD * (CAP_PERIOD_DAYS/30)
+    cum = sum(USD_STEP0 * 2**q * 1.18 * FEE_IN * SPLIT["liquidity"] / IMD_USD * (CAP_PERIOD_DAYS/30)
               for q in range(CAP_PERIODS))
     def first_day(target, turn=1.18):
         for q in range(CAP_PERIODS):
-            if CAP0_ETH * 2**q * ETH_USD * WEIGHTED_ASSETS * turn >= target: return f"day {q*CAP_PERIOD_DAYS}"
+            if USD_STEP0 * 2**q * turn >= target: return f"day {q*CAP_PERIOD_DAYS}"
         return "never inside the two-year schedule"
     print(f"\nA pool that is full at every cap for two years and turns over like Railgun adds about {fmt(cum)} IMD "
           f"(${fmt(cum*IMD_USD)}) to the market in total. At that turnover a full pool first reaches $1M a month at {first_day(1e6)}, "
@@ -263,14 +266,14 @@ def part4():
     for q, w in enumerate(w2):
         cap_total2 = caps2[q] * WEIGHTED_ASSETS
         emis = budget * w / sum(w2); per = emis / (cap_total2 * CAP_PERIOD_DAYS)
-        rows.append([f"{q*CAP_PERIOD_DAYS}-{(q+1)*CAP_PERIOD_DAYS}", fmt(caps2[q]), "$" + fmt(cap_total2*ETH_USD), f"{w/sum(w2)*100:.1f}%",
+        rows.append([f"{q*CAP_PERIOD_DAYS}-{(q+1)*CAP_PERIOD_DAYS}", fmt(caps2[q]), "$" + fmt(USD_STEP0 * caps2[q] / CAP0_ETH), f"{w/sum(w2)*100:.1f}%",
                      fmt(per, 1), f"{per*P0*IMD_USD/ETH_USD*365*100:.2f}%", f"{per*P0*IMD_USD/ETH_USD*365*100*4:.2f}%"])
     print(table(["Days", "Cap per asset, ETH", "Most at risk, all assets", "Share of user tokens", "Tokens per ETH per day, full pool",
                  "Yield a year at start price", "At 4x"], rows))
-    v4_tail = CAP0_ETH * 2 ** CAP_PERIODS * WEIGHTED_ASSETS * ETH_USD
+    v4_tail = USD_STEP0 * 2 ** CAP_PERIODS
     print(f"\nUnder the v4 default the cap is 3,200 ETH per asset in the last quarter of year two and 6,400 ETH from day 720, "
           f"which is ${fmt(v4_tail)} across the assets, and v4 does not say where the doubling stops. "
-          f"With a stop at 800 ETH the most that can be at risk is ${fmt(800*WEIGHTED_ASSETS*ETH_USD)}.\n")
+          f"With a stop at 800 ETH the most that can be at risk is ${fmt(USD_STEP0 * 32)}.\n")
 
 def part5():
     print("## 5. IMD as a listed asset with full reward weight\n")
@@ -285,7 +288,7 @@ def part5():
         share = imd_eq / max(w, floor)
         released = min(1.0, w / floor)
         rows.append([label, f"{share*100:.1f}%", f"{released*100:.0f}%"])
-    print(table(["ETH, USDC and DAI are", "Share of the period's emission earned by a full IMD cap", "Share of the emission released"], rows))
+    print(table(["ETH, USDT and USDC are", "Share of the period's emission earned by a full IMD cap", "Share of the emission released"], rows))
     print(f"\nIMD is {imd_eq/cap_total*100:.1f}% of capacity. The same ratios hold at every cap step. At the stop, the IMD cap is "
           f"{IMD_CAP0*32/7_080_000*100:.1f}% of IMD's total supply of about 7.08 million.\n")
 

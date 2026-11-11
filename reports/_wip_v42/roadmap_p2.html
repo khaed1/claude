@@ -1,0 +1,26 @@
+  <div class="phase">
+    <div class="when">Phase 2<small>12 to 24 months</small></div>
+    <div>
+      <h3>Proofs, canary, ceremony and launch of the pool</h3>
+      <ul>
+        <li>The 50 jobs of the <a href="#plan">build plan</a>: contracts, the circuit, machine-checked proofs, reviews and IMD audits.</li>
+        <li>A lawyer's review of the fee, the token, the public pool and the founder allocation, before the canary.</li>
+        <li>A public trusted-setup ceremony for the one circuit, and a check of its output.</li>
+        <li>The canary: the whole system on mainnet for 90 days with a compressed clock and small caps, funded by the project and exercised by a published script.</li>
+        <li>Deployment through the deterministic deployment proxy and the one-time deployer, and a launch transaction that creates the token and places the public pool against IMD.</li>
+        <li>The wallet module ships the pool beside Railgun and Privacy Pools.</li>
+      </ul>
+      <p>The pool launches only when all seven conditions hold. There is no date. Nothing on-chain enforces this gate: anyone can deploy a build once it is public. The final build, with its <code>GENESIS</code> time, is therefore not published until the conditions hold.</p>
+      <ol>
+        <li>Every IMD audit and review finding is public and closed, for the six contracts and for the circuit.</li>
+        <li>The circuit has machine-checked proofs of the top statement and its ten lemmas, against statements the owner has signed off after an independent review of the statements themselves. The proved constraint system is the one in the ceremony, and public analyser runs are clean.</li>
+        <li>A lawyer has reviewed the fee, the token, the public pool and the founder allocation. This comes before the canary, which places a token pool of its own.</li>
+        <li>The canary has run 90 days on mainnet without loss, every line of its script has a transaction hash, and the fork tests it cannot replace are published. A fix made after the canary starts restarts it.</li>
+        <li>The final build differs from the canary build only in the listed constants, shown by a bytecode comparison anyone can repeat.</li>
+        <li>Three months on testnet for the software. On mainnet, where the seats are, at least 15 seats have published matching daily batches over Privacy Pools v1's deposits for 30 days. A testnet has no seats and no real flows, so it cannot show this.</li>
+        <li>A wallet with real users ships the pool, and a wallet restored from its seed alone recovers every note in the canary.</li>
+      </ol>
+      <p><span class="pill">Dependencies</span> IMD's audit quality, which this launch tests · the <code>clean</code> proof framework and its Poseidon proofs · at least seven seat holders willing to screen the canary · Glamsterdam and Hegotá dates · the Storm retrial in April 2027 and the EU rules that apply from 10 July 2027<br><span class="pill ok">Gate</span> The seven conditions above</p>
+    </div>
+  </div>
+</section>

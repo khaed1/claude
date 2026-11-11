@@ -1,0 +1,28 @@
+<section id="lifecycle">
+  <h2>How a payment moves</h2>
+  <pre class="mermaid">
+sequenceDiagram
+  participant U as Wallet
+  participant P as Pool contract
+  participant S as Screeners
+  participant B as Relayer
+  U->>P: Deposit from a public address, the amount plus 0.2% (nothing is shielded yet)
+  S->>S: Each day, commit and then reveal the batch of covered and refused deposits
+  S->>P: Batch accepted at two thirds and applied
+  U->>P: Activate after about two days (the note enters the tree)
+  U->>B: Private transfer or withdrawal, encrypted
+  B->>P: Submit and pay gas
+  P-->>B: Relay fee in ETH, from the user's shielded fee note
+  P-->>U: New shielded notes, reward carried inside them
+  P-->>U: Withdrawal in a standard size, minus exactly 0.2%
+  </pre>
+  <ol>
+    <li><strong>Deposit.</strong> You send the amount you want shielded plus 0.2%, from a public address, together with a hidden commitment to the key that will own it. The deposit is public. Nothing is shielded yet.</li>
+    <li><strong>Screening.</strong> Once a day the screeners agree on a batch. It covers every deposit that was at least a day old when the day began, and says which of them are refused. A batch needs two thirds of the active screeners.</li>
+    <li><strong>Activation.</strong> When a batch covers your deposit without refusing it, you activate it from the same address, and a note of exactly the amount enters the tree. From deposit to activation takes about two days: at least one day and sixteen hours, at most two days and sixteen hours, when screeners reveal on time.</li>
+    <li><strong>Refund.</strong> At any time before activation you can take the deposit and its 0.2% back, to the address it came from. No screening decision can stop it. A refused deposit can also be sent back by anyone.</li>
+    <li><strong>Private use.</strong> An activated note is an ordinary shielded note. You can hold it, split it and pay other users. Observers see that a transaction happened and nothing about who, how much or which asset.</li>
+    <li><strong>Relaying.</strong> Your wallet hands the encrypted transaction to a relayer picked at random, so your own address never pays the gas. The relayer is paid in ETH out of a small shielded ETH note you keep for the purpose. The fee is public, like a gas payment, and says nothing about what was moved.</li>
+    <li><strong>Withdrawal.</strong> Funds leave to any address in standard sizes. The recipient receives the size minus 0.2%, the same amount for everyone who withdraws that size. A larger amount leaves as several standard withdrawals, spread over time by the wallet.</li>
+  </ol>
+</section>
