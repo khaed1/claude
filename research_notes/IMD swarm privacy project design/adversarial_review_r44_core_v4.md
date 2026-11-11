@@ -129,7 +129,37 @@ A *constraint system* is the list of equations the proof system enforces. A stat
 
 **Confidence.** Certain for items 1, 3, 5 and 6 (arithmetic and a counter-example each). Likely for item 4.
 
-### P-4. Low. Slots that are empty are made indistinguishable for inputs only. Nothing says what an empty output or an unused ciphertext 0 contains
+### P-4. Medium, depends on reading. A refund is the one ETH payment with no fallback. If it is sent with the 50,000-gas allowance, a depositing contract whose receiving code costs more can never be refunded, and Glamsterdam's storage prices put ordinary contracts in that group
+
+**Where.**
+
+- Line 520: "ETH payments | By `call` with a gas allowance of 50,000 param. If the call fails the amount is credited to `owed[address]` and the transaction goes on. ... The one exception is a refund, which reverts if its payment fails".
+- Line 660: `refund` "Reverts if that payment fails, so the record stays."
+- Line 663: `claimOwed` sends "with all remaining gas".
+- Line 121: "Screening failure or capture can never trap funds". Line 88: "No screening decision can stop it."
+- Line 177: "A shared deposit contract is one depositor for all of its users".
+- Line 903: "A new storage slot | 22,100, then 110,020".
+
+**The two readings.** Line 520 states the exception only for what happens on failure. Read literally, a refund is still sent with 50,000 gas, and reverts when that is not enough. The other reading is that a refund forwards all remaining gas, as `claimOwed` does. The page does not say.
+
+**How it works under the first reading.**
+
+1. A contract deposits 20 ETH for its users. Its code for receiving ETH records the receipt in a fresh storage slot. Today that costs about 22,100 gas plus overhead and fits in the allowance.
+2. Glamsterdam's state pricing (line 903) raises a fresh slot to 110,020 gas. The same receiving code now needs more than the 52,300 gas it is given (50,000 plus the stipend for a transfer of value).
+3. The deposit is refused, or the cap is full and stays full, which line 297 calls the most likely failure. The contract calls `refund`. The payment fails, `refund` reverts, the record stays. A refund by a third party after 21 days fails the same way.
+4. The pool cannot be changed. If the depositing contract cannot be changed either, the 20 ETH and its fee stay in `pending` until the deposit can be activated, and for good if it stays refused.
+
+Every other ETH payment survives this: a withdrawal or relay fee that fails is credited to `owed` and claimed later with all gas. The refund alone has neither the fallback nor the gas.
+
+**Who and cost.** No attacker. It falls on depositors that are contracts with more than trivial receiving code: shared deposit contracts, some smart wallets, and after the fork anything that writes one fresh slot on receipt.
+
+**Consequence.** Under the first reading, the two sentences quoted from lines 88 and 121 are false for those depositors, and the cause is a gas constant in a contract that cannot follow a fork. The page already accepts one case with no way out (a depositor frozen by a stablecoin issuer, line 859). This would be a second, for ETH, that it does not mention. Unactivated deposits are outside the caps, so the amount is not bounded by them.
+
+**Smallest fix.** Treat a refund like every other ETH payment: if the 50,000-gas call fails, clear the record, credit `owed[depositor]` and let `claimOwed` deliver it with all gas. The "one exception" then disappears from line 520 and the invariant at line 692 is unchanged (the credit is recorded for the depositor and can go nowhere else). Or state that a refund forwards all remaining gas. Either way add a canary line: a refund to a contract whose receiving code uses more than 50,000 gas.
+
+**Confidence.** Certain that the page admits both readings. The lock depends on reading and on the gas figures of line 903, which the page calls provisional.
+
+### P-5. Low. Slots that are empty are made indistinguishable for inputs only. Nothing says what an empty output or an unused ciphertext 0 contains
 
 **Where.**
 
@@ -145,11 +175,11 @@ A *constraint system* is the list of equations the proof system enforces. A stat
 
 **Consequence.** Under that reading the claim at line 274 fails and owner-sent spends show their asset. No funds are at risk.
 
-**Smallest fix.** One sentence beside line 553: every output, used or not, has an `ownerCommit` made from a fresh or derived `rho` (give output 0 the same derivation as outputs 1 and 2 when the sender keeps it), and ciphertext 0 is always a real encryption, to the sender's own key when there is no recipient. A string of random bytes is not enough: about half of all 32-byte strings are not valid X25519 public keys, so random filler can be told from real ciphertexts over many spends.
+**Smallest fix.** One sentence beside line 553: every output, used or not, has an `ownerCommit` made from a fresh or derived `rho` (give output 0 the same derivation as outputs 1 and 2 when the sender keeps it), and ciphertext 0 is always a real encryption, to the sender's own key when there is no recipient. A string of random bytes is not enough: a real ciphertext contains an X25519 public key, which is always a point on the curve, and about half of all random 32-byte strings are not, so random filler can be told from real ciphertexts over many spends.
 
 **Confidence.** Depends on reading.
 
-### P-5. Low. A quote's expiry is not in the proof. A relayer that was handed a spend can land it until two more checkpoints have been taken, which in a quiet pool is never
+### P-6. Low. A quote's expiry is not in the proof. A relayer that was handed a spend can land it until two more checkpoints have been taken, which in a quiet pool is never
 
 **Where.**
 
@@ -174,7 +204,7 @@ A *constraint system* is the list of equations the proof system enforces. A stat
 
 **Confidence.** Certain.
 
-### P-6. Low. Under the wallet's proving rule a note can be spent only after the next hourly checkpoint, so one note supports one spend an hour. The state table says the opposite
+### P-7. Low. Under the wallet's proving rule a note can be spent only after the next hourly checkpoint, so one note supports one spend an hour. The state table says the opposite
 
 **Where.**
 
