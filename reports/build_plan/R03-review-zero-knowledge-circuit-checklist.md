@@ -11,9 +11,10 @@ IMD's audit template does not contain, because that template is written for Soli
 assigned but not constrained; missing range checks before additions and comparisons; bit decompositions that
 allow an alias above the modulus; equality checks done on hints; selectors not forced to be boolean; public
 inputs unused in any constraint; nullifier not bound to the note it spends; empty inputs able to carry value
-or reward; a fee input able to carry an asset other than ETH; an empty fee input with a non-zero nullifier;
-domain separation between hashes; division by a value that can be zero; differences between the witness
-generator and the constraints.
+or reward; a fee input able to carry an asset other than feeAsset; a zero feeAsset with a non-zero nullifier
+or a non-empty fee note; the same note in two inputs; value crossing between the fee side and the asset side
+when the assets differ; domain separation between hashes; division by a value that can be zero; differences
+between the witness generator and the constraints.
 
 ## Paths the job may write
 

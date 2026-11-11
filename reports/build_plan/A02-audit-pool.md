@@ -10,7 +10,8 @@ Audit the named contracts at the pinned commit against the build specification. 
 deployed: there is no owner, pause or upgrade, so every finding that would normally be fixed by an admin is a
 permanent loss. What worries us most: any path that moves a deposit to anyone but its depositor, lets a spend
 take more than was activated, pays more reward than released, pays a recipient or relayer the proof did not
-name, bypasses the cap or the screening check, or leaves funds unable to move. Check every invariant listed
+name, lets more leave through the relay fee than its ceiling, accepts one note twice in a spend, bypasses the
+cap or the screening check, makes roll revert, or leaves funds unable to move. Check every invariant listed
 for these contracts in the build specification and say for each whether it holds, with the test or trace that
 shows it. Token behaviours to assume: USDT returns no value on transfer and its owner can pause it, blocklist
 any address and switch on a transfer fee that is zero today; USDC can blocklist any address including these

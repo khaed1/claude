@@ -8,12 +8,13 @@
 
 Write the same Spend circuit in Circom 2 with circomlib's Poseidon, by an agent that has not seen the clean
 implementation. It is never deployed. It exists so that two independent implementations can be compared:
-differential.mjs feeds the same inputs to both witness generators and compares all thirteen public outputs.
+differential.mjs feeds the same inputs to both witness generators and compares all fourteen public values.
 Work only from the pinned commit of the project repository and the build specification (`reports/Murmuration
 v4 specification.html`, section "Build specification"). Solidity 0.8.30, Foundry, optimizer on, no ffi, no
 network. No owner, admin, pause, upgrade or setter may appear in any contract. Every duration is in seconds of
-block.timestamp counted from Params.GENESIS; no schedule may count blocks. If the specification is ambiguous,
-stop and report the ambiguity instead of choosing.
+block.timestamp; no schedule may count blocks. Screening epochs count from Params.GENESIS; caps, emissions and
+the deposit window count from START, which the registry records at its first applied batch. If the
+specification is ambiguous, stop and report the ambiguity instead of choosing.
 
 ## Paths the job may write
 

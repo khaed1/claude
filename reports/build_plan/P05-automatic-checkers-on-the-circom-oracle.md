@@ -12,8 +12,10 @@ circuit for one hour. Picus and CIVER are expected to time out on Poseidon and o
 `unknown` where they do. Work only from the pinned commit of the project repository and the build
 specification (`reports/Murmuration v4 specification.html`, section "Build specification"). Solidity 0.8.30,
 Foundry, optimizer on, no ffi, no network. No owner, admin, pause, upgrade or setter may appear in any
-contract. Every duration is in seconds of block.timestamp counted from Params.GENESIS; no schedule may count
-blocks. If the specification is ambiguous, stop and report the ambiguity instead of choosing.
+contract. Every duration is in seconds of block.timestamp; no schedule may count blocks. Screening epochs
+count from Params.GENESIS; caps, emissions and the deposit window count from START, which the registry records
+at its first applied batch. If the specification is ambiguous, stop and report the ambiguity instead of
+choosing.
 
 ## Paths the job may write
 
@@ -32,7 +34,7 @@ blocks. If the specification is ambiguous, stop and report the ambiguity instead
 
 IMD's verifier checks only structure and paths for this job: it does not build or run non-Foundry code.
 Acceptance therefore rests on the make target named below, which the paired review job re-runs and anyone can
-run. These tools find bugs. They do not establish the top statement or its lemmas, which is what P04 is for.
+run. These tools find bugs. They do not establish the relation or its lemmas, which is what P04 is for.
 
 ## Inputs
 

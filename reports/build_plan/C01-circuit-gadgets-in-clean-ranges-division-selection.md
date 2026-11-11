@@ -8,12 +8,15 @@
 
 Implement as clean circuits, reusing clean's proved bit-decomposition and comparator ports: range checks of 2,
 32, 64, 90 and 96 bits; exact division by 2^64 with a 64-bit remainder; the asset table lookup that maps an
-asset id (1 to 5) to its constant weight and rejects zero and unlisted ids; and the packed word TAG_NOTE*2^200
-+ accrued*2^104 + value*2^8 + asset. Constraint generation only; proofs are P01. Work only from the pinned
-commit of the project repository and the build specification (`reports/Murmuration v4 specification.html`,
-section "Build specification"). Solidity 0.8.30, Foundry, optimizer on, no ffi, no network. No owner, admin,
-pause, upgrade or setter may appear in any contract. Every duration is in seconds of block.timestamp counted
-from Params.GENESIS; no schedule may count blocks. If the specification is ambiguous, stop and report the
+asset id (1 to 5) to its constant weight and rejects unlisted ids, in two forms: one that rejects zero (for
+asset) and one that maps zero to weight zero (for feeAsset); an equality test that yields a constrained
+boolean; the emptiness test on value + 2^96*accrued; and the packed word TAG_NOTE*2^200 + accrued*2^104 +
+value*2^8 + asset. Constraint generation only; proofs are P01. Work only from the pinned commit of the project
+repository and the build specification (`reports/Murmuration v4 specification.html`, section "Build
+specification"). Solidity 0.8.30, Foundry, optimizer on, no ffi, no network. No owner, admin, pause, upgrade
+or setter may appear in any contract. Every duration is in seconds of block.timestamp; no schedule may count
+blocks. Screening epochs count from Params.GENESIS; caps, emissions and the deposit window count from START,
+which the registry records at its first applied batch. If the specification is ambiguous, stop and report the
 ambiguity instead of choosing.
 
 ## Paths the job may write

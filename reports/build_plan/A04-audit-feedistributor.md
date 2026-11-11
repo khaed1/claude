@@ -9,12 +9,13 @@
 Audit the named contracts at the pinned commit against the build specification. They are immutable once
 deployed: there is no owner, pause or upgrade, so every finding that would normally be fixed by an admin is a
 permanent loss. What worries us most: staking reward sniping, a blocked or underpriced basket sale, IMD
-leaving except through the pool swap, a buyback step that a third party can enlarge, and extraction around a
-step. Check every invariant listed for these contracts in the build specification and say for each whether it
-holds, with the test or trace that shows it. Token behaviours to assume: USDT returns no value on transfer and
-its owner can pause it, blocklist any address and switch on a transfer fee that is zero today; USDC can
-blocklist any address including these contracts and is upgradeable; IMD is a plain bridged token with no fee,
-pause or blocklist; the project token is plain.
+leaving except through the pool swap, income in a six-decimal asset lost to rounding, a buyback step that a
+third party can enlarge or shrink, and extraction around a step. Check every invariant listed for these
+contracts in the build specification and say for each whether it holds, with the test or trace that shows it.
+Token behaviours to assume: USDT returns no value on transfer and its owner can pause it, blocklist any
+address and switch on a transfer fee that is zero today; USDC can blocklist any address including these
+contracts and is upgradeable; IMD is a plain bridged token with no fee, pause or blocklist; the project token
+is plain.
 
 ## Contracts named
 
