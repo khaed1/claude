@@ -1,0 +1,106 @@
+  <h3 id="b-states">State machines</h3>
+  <h4>A deposit</h4>
+  <pre class="mermaid">
+stateDiagram-v2
+  [*] --> Pending: deposit
+  Pending --> Covered: a batch covers it and does not refuse it
+  Pending --> Refused: a batch refuses it
+  Covered --> Refused: a later batch refuses it
+  Refused --> Covered: a later batch clears it
+  Covered --> Activated: activate, by the depositor
+  Pending --> Refunded: refund, by the depositor
+  Covered --> Refunded: refund, by the depositor
+  Refused --> Refunded: refund, by the depositor, or by anyone after 21 days
+  Activated --> [*]
+  Refunded --> [*]
+  </pre>
+  <div class="tbl"><table>
+    <tr><th>Transition</th><th>Guard</th><th>Effect</th></tr>
+    <tr><td>deposit</td><td>After launch and before the deposit window closes. Listed asset. Value between the smallest exit size and the current cap. Exactly the value plus 0.2% arrives</td><td>Record hash stored. <code>pending</code> rises. Nothing is shielded and no reward accrues</td></tr>
+    <tr><td>Covered or Refused</td><td>A batch has been applied whose epoch began at least a day after the deposit. Read from the registry at the moment it is needed, so only the current state counts. A hold is a refusal that a later batch clears</td><td>None in the pool</td></tr>
+    <tr><td>activate</td><td>Caller is the depositor. Covered and not refused. The value fits under the cap</td><td>The 0.2% goes to fees. A note of exactly the deposited value, with the exact reward index, enters the tree. Record cleared. Final</td></tr>
+    <tr><td>refund</td><td>Not yet activated. The depositor in any state, for ever. Anyone when the deposit is refused and at least 21 days old</td><td>Value and fee back to the depositor. Record cleared. Final</td></tr>
+  </table></div>
+  <p>When screeners reveal and apply on time, a deposit can be activated between a day and a half and three days after it is made. It takes longer when they do not, at a full cap, under a hold, and in the first 33 days after launch. The batch that covers a deposit uses data up to the start of the second epoch after it, so screeners always have at least one full day, and up to two, in which a flag or a list update still counts. One case has no way out: a depositor that cannot receive its own asset back, such as an address a stablecoin issuer has frozen. That deposit stays in the pool, unactivated, for good.</p>
+  <h4>A note</h4>
+  <pre class="mermaid">
+stateDiagram-v2
+  [*] --> Created: activate or spend inserts its leaf
+  Created --> Spendable: a checkpoint at or above its index exists
+  Spendable --> Spent: spend records its nullifier
+  Spent --> [*]
+  </pre>
+  <div class="tbl"><table>
+    <tr><th>State</th><th>On-chain meaning</th><th>Notes</th></tr>
+    <tr><td>Created</td><td>Its commitment is one of four in a leaf of the tree</td><td>A note made by a spend carries that spend's checkpoint and can be spent in the next transaction against a recent root. A note made by activation carries the exact index of its block. It can be spent at once if its activation was the first call of its hourly window, and otherwise after the next roll, which anyone can trigger once the hour has turned</td></tr>
+    <tr><td>Spendable</td><td>A root that contains the leaf is among the last 64 or is one of the two checkpoint roots, and <code>gCur</code> is at least the note's index</td><td>A proof built against the checkpoint root and <code>gCur</code> stays valid until two more rolls have happened, however many leaves are added. Filling the 64-root window with empty spends therefore cannot block exits</td></tr>
+    <tr><td>Spent</td><td>Its nullifier is in the spent set</td><td>Final. Nothing links the nullifier to the leaf</td></tr>
+  </table></div>
+  <p>Empty inputs are never in the tree. A note whose ciphertext was posted wrongly is Created for ever and nobody can spend it. Reward stops growing for everyone when emissions end, and a note keeps what it has accrued. Reward on a small balance may never be worth the gas of withdrawing it.</p>
+  <h4>Rules for the wallet and the relayer</h4>
+  <p>These are not enforced by any contract. A wallet or relayer that ignores them loses privacy or gas, so they are part of the specification of both.</p>
+  <ul>
+    <li><strong>One proving policy.</strong> The wallet always proves against the checkpoint root and <code>gCur</code>. If the current hourly window has no checkpoint yet, it calls <code>roll</code> first, or has the relayer do it. It waits for the next roll before spending a note newer than the checkpoint. Mixing recent roots and checkpoint roots would tell observers which spends use notes less than an hour old.</li>
+    <li><strong>Fee asset.</strong> The wallet pays the relayer in ETH whenever it holds an ETH note, and keeps a small one for the purpose. Otherwise it pays in the asset it is spending and tells the user that this shows the asset.</li>
+    <li><strong>Quotes.</strong> A relayer's quote names an asset, an amount and an expiry. The wallet refuses a quote above the fee ceiling less a margin for a falling base fee. The quote allows for the checkpoint write that the first transaction of an hour pays for.</li>
+    <li><strong>One relayer at a time.</strong> The wallet does not give the same inputs to a second relayer until the first quote has expired. Two transactions with the same nullifiers cost the second relayer its gas.</li>
+    <li><strong>Before relaying,</strong> a relayer simulates the spend. A payment in ETH that the recipient refuses does not make the spend fail: the amount waits in <code>owed</code>.</li>
+    <li><strong>Edges.</strong> The wallet deposits in standard sizes by default, spreads exits over time, warns before several exits go to one address, and warns before reward tokens are withdrawn to an address linked to other exits, because a withdrawal of reward tokens shows how much value was held for how long.</li>
+  </ul>
+
+  <h3 id="b-gas">Size, gas and state pricing</h3>
+  <p>Figures are a model built from measured parts, not measurements of this code, which does not exist yet. The Glamsterdam column uses EIP-8037, EIP-8038 and EIP-7976 as they stand in Last Call on 10 November 2026. Their authors have said the numbers may still be revised after the audit reports due on 13 November and the developer call of 19 November. Dollar figures are at 0.2 gwei and ETH at $2,130. The working is in <code>gas_model_and_pq_cost_v3.md</code>. The spend and activation rows were adjusted by hand for the changes of revisions 4.2 and 4.3.</p>
+  <div class="tbl"><table>
+    <tr><th>Transaction</th><th>Gas today</th><th>Under Glamsterdam</th><th>Cost today and after</th><th>State it creates</th></tr>
+    <tr><td>Deposit of ETH</td><td class="n">about 50,000</td><td class="n">about 140,000</td><td class="n">$0.02, $0.06</td><td>One slot, cleared again at activation or refund</td></tr>
+    <tr><td>Deposit of a token</td><td class="n">80,000 to 110,000</td><td class="n">190,000 to 230,000</td><td class="n">$0.03 to $0.05, $0.08 to $0.10</td><td>The same. The low figure models a plain transfer at 30,000. USDT and USDC cost more</td></tr>
+    <tr><td>Activate</td><td class="n">about 780,000</td><td class="n">about 860,000</td><td class="n">$0.33, $0.37</td><td>None that lasts, after the tree's first writes</td></tr>
+    <tr><td>Spend sent by its owner</td><td class="n">about 1,102,000</td><td class="n">about 1,322,000</td><td class="n">$0.47, $0.56</td><td>Two slots, one per nullifier</td></tr>
+    <tr><td>Spend through a relayer paid in ETH</td><td class="n">about 1,149,000</td><td class="n">about 1,483,000</td><td class="n">$0.49, $0.63</td><td>Three slots. 293,760 of the Glamsterdam figure is state gas. A fee paid in a token adds that token's transfer</td></tr>
+  </table></div>
+  <div class="tbl"><table>
+    <tr><th>Part</th><th>Gas</th><th>Source</th></tr>
+    <tr><td>One tree insert: 32 <code>H2</code> calls and one <code>H4</code></td><td class="n">about 650,000</td><td>poseidon-solidity: 18,624 per <code>H2</code>, 35,117 per <code>H3</code>, 51,826 per <code>H4</code> on a warm call, confirmed by simulation against the contracts already on mainnet</td></tr>
+    <tr><td>Groth16 verification, 14 public inputs</td><td class="n">about 275,000</td><td>182,441 plus 6,626 per input, extrapolated from deployed snarkjs verifiers with 4 and 8 inputs</td></tr>
+    <tr><td>A new storage slot</td><td class="n">22,100, then 110,020</td><td>EIP-8037: 97,920 state gas on top of the write</td></tr>
+    <tr><td>Overwriting a cold slot</td><td class="n">5,000, then 12,100</td><td>EIP-8038</td></tr>
+    <tr><td>The checkpoint, in the first call of each hour</td><td class="n">25,000 to 70,000</td><td>Five or six storage writes. Whoever sends that call pays for it</td></tr>
+    <tr><td>The 1,312 bytes of ciphertext in a spend</td><td class="n">about 31,500, both</td><td>16 gas per byte as calldata and 8 per byte in the log. The calldata floor of EIP-7623 and EIP-7976 applies only to transactions that do little besides carry data, and a spend is not one</td></tr>
+    <tr><td>Deploying 24 KiB of code</td><td class="n">5.36M, then 38.21M</td><td>EIP-8037 charges 1,530 state gas per byte. It fits one transaction and one 60M block. The transaction must set a gas limit above 2<sup>24</sup> so the state gas has room</td></tr>
+    <tr><td><code>launch</code></td><td class="n">about 6M, then about 45M</td><td>An estimate. Under the draft rules nearly all of it is the state charge for the 22,142 bytes of a Uniswap v3 pool and for the token. It fits a 60M block with little room, and it is the one call that cannot be split</td></tr>
+  </table></div>
+  <ul>
+    <li><strong>Version 4 overstated the cost of post-quantum encryption.</strong> It priced each note at about 70,000 gas "at the calldata floor". A spend pays the ordinary rate and publishes one recipient ciphertext, so the whole encryption overhead is about 31,500 gas, under 3% of a spend, today and under Glamsterdam.</li>
+    <li><strong>The tree's first writes.</strong> The first 64 inserts each fill a new slot of the root window, and each tree level is filled once. Those early activations and spends cost one or two new slots more than the table says.</li>
+    <li><strong>The hash contracts.</strong> The pool calls the three poseidon-solidity contracts that already exist on mainnet, pinned by code hash, so it deploys none. They are 23,478, 14,189 and 19,260 bytes. Their README says they are unaudited, so the build checks them against the circuit with shared test vectors and the audit reads the generator.</li>
+    <li><strong>Size limit.</strong> The build fails if any contract's deployed code exceeds 24,576 bytes. Estimates: Pool 18 to 22 KiB, ScreenerRegistry 15 to 19, FeeDistributor 11 to 14, Distribution 9 to 12 including the token's creation code, Verifier about 4, Token under 3. The Pool is the one to watch.</li>
+    <li><strong>Transaction limit.</strong> The build fails if any call can exceed 16,777,216 execution gas with the worst state that others can create. The heaviest calls are a relayed spend, <code>apply</code> with a full 96-word batch (about 2.1M today and 10.6M under Glamsterdam, of which 1.2M is execution gas), and <code>launch</code>, whose execution gas is a few million whatever anyone else does, because it crosses no ticks and its loop costs about 5,000 gas per candidate.</li>
+    <li><strong>No refunds are relied on.</strong> Clearing a deposit record earns a refund under both rule sets. No limit or estimate in the code depends on it.</li>
+    <li><strong>Deployment.</strong> About 65 KiB of new code: roughly 14M gas today and 100M under Glamsterdam across the transactions, under $50 either way at 0.2 gwei.</li>
+  </ul>
+
+  <h3 id="b-deploy">Deployment and the canary</h3>
+  <ol>
+    <li><strong>Build.</strong> One reproducible build produces the creation code of the contracts, the circuit and a parameter file. The ceremony runs on that circuit, and the verifier's code is generated from its output. The final build fixes <code>GENESIS</code>. It differs from the build that was audited and run as the canary in a short list of named constants and nothing else, and a job checks that by comparing bytecode.</li>
+    <li><strong>Deployer.</strong> A small contract is created through the deterministic deployment proxy at <code>0x4e59…956C</code>. Its constructor fixes five creation-code hashes in order. Its only function, <code>deploy(i, code)</code>, creates contract <code>i</code> with CREATE if <code>code</code> matches hash <code>i</code> and every earlier one exists, and reverts if creation fails. No constructor takes an argument and none calls another contract. Each contract takes the Deployer to be whoever created it and works out the other four addresses from that and the fixed order, so the hashes do not depend on themselves. Anyone can send these transactions, and nobody can deploy anything else through it.</li>
+    <li><strong>One contract per transaction:</strong> the Deployer, then Verifier, ScreenerRegistry, FeeDistributor, Pool and Distribution. Under Glamsterdam pricing they do not fit in one transaction or one block.</li>
+    <li><strong>Launch.</strong> From <code>GENESIS</code>, anyone calls <code>Distribution.launch()</code>, which creates the token and the public pool in one transaction. Whoever sends it can also be the first buyer in the same transaction, and nothing in a permissionless launch prevents that. Screeners then buy their stake, register and wait 30 days. The first batch can be applied about 33 days after launch, and that moment is <code>START</code>.</li>
+    <li><strong>Publication.</strong> The build page lists the salt and the six addresses. The wallet module has the Pool's address built in and shows it. This matters because every constant but <code>GENESIS</code> is public long before launch: anyone can assemble a build that is identical apart from that time, deploy it early and launch it, and nothing on-chain says which deployment is the project's. The address is the only difference a user can check.</li>
+  </ol>
+  <h4>The canary</h4>
+  <p>The canary is the whole system from the same source. These constants differ and nothing else does: the salt, <code>GENESIS</code>, the token's name and symbol, the swarm list's Merkle root (a test list), a cap step of 10 days instead of 90, an emission period of 81 days and a deposit window of 85, starting caps of 0.5 ETH, 1,000 USDT, 1,000 USDC and 50 IMD, and a screener wait of 3 days instead of 30. Its nodes also start from a different criteria file, which is a value in the parameter file and in no contract: the canary's file refuses one published test address, so that a refusal can be seen. In the 90 days after its <code>START</code> the canary passes every cap step, the end of emissions and the close of deposits. It has its own token and its own pool against IMD, which anyone could buy from, so the lawyer's review comes before the canary.</p>
+  <p>It needs seven registered seats before anything can be activated. The project cannot supply or arrange them and can only wait, and one holder could supply all seven. Because the schedules count from <code>START</code>, the wait costs nothing.</p>
+  <p>The project takes part as a user and nothing else. It deposits, spends and withdraws from its own funds, at least 10 ETH in value, which is enough to fill every cap through the third step. It runs no screener and no relayer. Lines it can complete by itself, each with the amount that must be paid checked to the base unit:</p>
+  <ul class="check">
+    <li>Every external function of the Pool, the FeeDistributor, the Distribution contract and the Token.</li>
+    <li>Spends of every kind: two real inputs; one real and one empty; through a relayer paid in ETH from a fee note; through a relayer paid in the spend's own asset by a wallet that holds a single note; sent by the owner; with a reward claim; against the previous checkpoint; of token notes; of a freshly activated note; and a withdrawal of every asset at its smallest and largest reachable size.</li>
+    <li>A deposit refunded by its depositor. An activation that fails at a full cap and succeeds after a withdrawal.</li>
+    <li>A payment in ETH to a contract that refuses it, credited and later claimed.</li>
+    <li>A basket sale, a sale that leaves one asset out, buyback steps down to an empty balance, and a staker's claim in USDT.</li>
+    <li>A wallet restored from its seed alone that recovers every note.</li>
+    <li>Spends and refunds after deposits have closed and emissions have ended.</li>
+  </ul>
+  <p>Lines that depend on what screeners do. They are recorded when they happen on mainnet, and each is also run on a fork so that the result does not wait on anyone's behaviour: a batch applied every day; the test address's deposit refused, and sent back by a third party after 21 days; a day with no accepted batch; a screener removed for silence, one for strikes and one whose seat was sold; and the pay each screener receives.</p>
+  <p>Paths that cannot be reached on mainnet in the time, run on a fork of mainnet state with the results published: a launch with pools already created for its first candidates; <code>launch</code> under the gas rules in force; a batch in which more than 96 words set a bit; a stablecoin issuer freezing the pool, and freezing a depositor; the end of the two-year vesting; the 30-day screener wait and the 90-day bar; and the end of commits after deposits close.</p>
+  <p>What the canary shows: the deployment procedure works, the contracts and the circuit agree on mainnet for the spends in the list, the amounts paid are the amounts specified, and nobody who looked took a few thousand dollars. What it does not show: that the circuit is sound, how the registry behaves with screeners who work against it, or what happens at real volumes. The proofs are for the first, and the caps limit the cost if the proofs are wrong.</p>
+</section>

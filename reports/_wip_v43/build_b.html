@@ -1,0 +1,190 @@
+  <h3 id="b-contracts">The six contracts</h3>
+  <p>None has an owner, a pause, an upgrade path or a setter for any parameter. Every state-changing function is guarded against re-entry. They call three Poseidon hash contracts that already exist on mainnet. A one-time deployer creates five of them and then has no function left, and the Distribution contract creates the token at launch. Each of the five works out the others' addresses from the Deployer's address. Each reads the token's address from <code>Distribution.token()</code> the first time it needs it and keeps it. Until the token exists, deposits, registrations, stakes and fee sweeps revert.</p>
+
+  <div class="svc">
+    <h4>1. Pool</h4>
+    <p>Holds every asset. Takes deposits, activates them, verifies spends, keeps the note tree, the spent set, the caps and the reward index.</p>
+    <div class="tbl"><table>
+      <tr><th>Storage</th><th>Type</th><th>Meaning</th></tr>
+      <tr><td><code>deposits[id]</code></td><td>bytes32</td><td>Hash of depositor, asset, note value, <code>ownerCommit</code> and deposit time. Cleared when the deposit is activated or refunded. One slot per open deposit</td></tr>
+      <tr><td><code>depositCount</code></td><td>uint64</td><td>Next deposit id, from 1</td></tr>
+      <tr><td><code>pending[asset]</code>, <code>shielded[asset]</code>, <code>fees[asset]</code></td><td>uint128 each</td><td>Unactivated deposits with their fee, value inside the tree, and fees not yet swept. <code>shielded</code> is kept for ETH, USDT, USDC and IMD only</td></tr>
+      <tr><td><code>tokenIn</code>, <code>tokenOut</code></td><td>uint128</td><td>For the reward token, which has no <code>shielded</code> figure because rewards enter the tree privately: note value activated, and amount that has left</td></tr>
+      <tr><td><code>filled[32]</code>, <code>nextLeaf</code>, <code>roots[64]</code>, <code>rootPos</code></td><td>uint256[32], uint32, uint256[64], uint8</td><td>The append-only tree and its last 64 roots. A root of zero is never known</td></tr>
+      <tr><td><code>spent[nullifier]</code></td><td>bool</td><td>One new slot per nullifier that is not zero</td></tr>
+      <tr><td><code>g</code>, <code>gTime</code>, <code>weighted</code>, <code>released</code></td><td>uint128, uint64, uint128, uint128</td><td>The reward index, the time it was last advanced to, the weighted total shielded, and reward released so far. All start at zero, and <code>gTime</code> is set to <code>START</code> when the pool first learns it</td></tr>
+      <tr><td><code>window</code>, <code>gCur</code>, <code>gPrev</code>, <code>rootCur</code>, <code>rootPrev</code></td><td>uint64, uint128, uint128, uint256, uint256</td><td>The last hourly window in which a checkpoint was taken, the last two checkpoints, and the tree root saved with each. The checkpoints start at zero and the two roots at the root of the empty tree</td></tr>
+      <tr><td><code>lastSweep[asset]</code></td><td>uint64</td><td>Time of the last fee sweep</td></tr>
+      <tr><td><code>owed[address]</code></td><td>uint256</td><td>ETH that could not be delivered to a recipient or a relayer, waiting for <code>claimOwed</code></td></tr>
+      <tr><td><code>start</code>, <code>token</code></td><td>uint64, address</td><td>Copies of the registry's <code>START</code> and of the token's address, read once each</td></tr>
+    </table></div>
+    <div class="tbl"><table>
+      <tr><th>Function</th><th>Who</th><th>What it does</th></tr>
+      <tr><td><code>deposit(asset, value, ownerCommit)</code></td><td>Anyone, from launch until the deposit window closes</td><td>Requires a listed asset, a value of at least the asset's smallest exit size and, for a capped asset, at most its current cap, and <code>ownerCommit &lt; p</code>. Pulls <code>value + value / 500</code> and checks that exactly that arrived: for ETH <code>msg.value</code> must equal it, and for a token <code>msg.value</code> must be zero. Stores the record hash, adds to <code>pending</code>, returns the id</td></tr>
+      <tr><td><code>activate(id, record)</code></td><td>The depositor only</td><td>Calls <code>roll</code>. Requires the record to match and <code>Registry.isApproved(id, depositTime)</code>. For a capped asset, requires <code>shielded + value</code> to fit under the cap. Advances the reward index to now, computes the commitment with that exact index, inserts the leaf <code>H4(commitment, 0, 0, 0)</code>, moves <code>value</code> to <code>shielded</code> (or <code>tokenIn</code>) and <code>value / 500</code> to <code>fees</code>, clears the record</td></tr>
+      <tr><td><code>refund(id, record)</code></td><td>The depositor at any time before activation. Anyone, once the deposit is at least 21 days old <span class="pill">param</span> and <code>Registry.isRefused(id, depositTime)</code></td><td>Clears the record and returns the value and its fee to the depositor. Reverts if that payment fails, so the record stays. The 21 days are longer than any hold or flag, so a refusal that is going to lapse cannot be turned into a forced refund</td></tr>
+      <tr><td><code>roll()</code></td><td>Anyone</td><td>Reads <code>START</code> from the registry if the pool does not have it yet, and does nothing more while it is zero. If no checkpoint has been taken in the current hourly window: advances the reward index to now, then sets <code>gPrev = gCur</code>, <code>rootPrev = rootCur</code>, <code>gCur = g</code>, <code>rootCur</code> to the current root, and records the window. One roll per call, however many windows have passed. Otherwise does nothing. It can never revert</td></tr>
+      <tr><td><code>spend(proof, inputs, ext)</code></td><td>Anyone</td><td>In this order. Calls <code>roll</code>. Checks every row of the public-input table. Verifies the proof. Marks <code>nf[0]</code>, <code>nf[1]</code> and, when it is not zero, <code>nf[2]</code>. Inserts one leaf. If anything leaves, advances the reward index, then for a public amount requires a standard size and enough balance (for the token: <code>tokenOut + amount ≤ tokenIn + released</code>) and lowers the balance, and for a relay fee requires it to be under the ceiling and lowers the balance of <code>feeAsset</code> in the same way. One five-hundredth of each amount that leaves goes to <code>fees</code>. Emits. Last, pays the relayer and then the recipient what is left of each amount</td></tr>
+      <tr><td><code>claimOwed(address)</code></td><td>Anyone</td><td>Sends <code>owed[address]</code> to that address with all remaining gas and clears it. Reverts if the payment fails</td></tr>
+      <tr><td><code>sweepFees(asset)</code></td><td>Anyone, at most once a day per asset, and only when the fees are at least the asset's smallest exit size</td><td>Sends the asset's accrued fees to the distributor and calls its <code>notify(asset)</code></td></tr>
+      <tr><td><code>announce(key)</code></td><td>Anyone</td><td>Requires 1,216 bytes. Emits the key and its <code>keccak256</code> so that a short address can refer to it. Writes no storage</td></tr>
+      <tr><td><code>cap(asset)</code>, <code>feeCeiling(asset)</code>, <code>checkpoints()</code>, <code>isKnownRoot(root)</code></td><td>Views</td><td>What a wallet needs to build a proof</td></tr>
+    </table></div>
+    <p><strong>The fee ceiling.</strong> In ETH it is <code>(4 × block.basefee + 1 gwei) × 2,000,000</code> <span class="pill">param</span>: enough for a relayer when gas is anywhere near normal, and never enough to be worth using as a way out. In another asset it is eight times that <span class="pill">param</span>, converted at a rate frozen in the build: the number of base units one ETH bought on the freeze day, and for the pool's token the rate at the starting valuation. The factor of eight is room for prices to move. The 0.2% exit fee is charged on the relay fee like on everything else that leaves, so nothing is saved by leaving through it.</p>
+    <p><strong>Events.</strong> <code>Deposited(id, depositor, asset, value, ownerCommit)</code>, <code>Activated(id, leafIndex, commitment, index, value)</code>, <code>Refunded(id)</code>, <code>CheckpointRolled(window, g, root)</code>, <code>Spent(nf0, nf1, nf2, leafIndex, C0, C1, C2, C3, gRef, publicAsset, publicAmount, recipient, feeAsset, relayFee, relayer, ct0, ct1)</code> with the three nullifiers indexed, <code>Owed(address, amount)</code>, <code>FeesSwept(asset, amount)</code>, <code>KeyAnnounced(keyHash, key)</code>.</p>
+    <p><strong>The reward index.</strong> Advanced before any change to a shielded balance, and at every roll. Nothing is advanced before <code>START</code> or after emissions end.</p>
+<pre><code>t         = now − START
+step      = min(t / 90 days, LAST_STEP)                 // the same clamp in every formula. LAST_STEP is 5 with the recommended stop
+cap(a)    = cap0(a) × 2^step
+rate      = USERS × 2^step / D   while t &lt; 730 days, and 0 afterwards        // tokens per second; USERS is the users' 45%
+            D = the sum of 2^step over every second of the 730 days, a constant
+g        += seconds × rate × 2^64 / max(weighted, floor)       // piece by piece across step changes, rounded down, held at 2^90 − 1
+released += seconds × rate × weighted / max(weighted, floor)   // rounded up, and never above USERS
+weighted  = the sum over ETH, USDT, USDC and IMD of weight[a] × shielded[a]
+floor     = a quarter of the sum of weight[a] × cap(a)</code></pre>
+    <p><strong>Invariants.</strong></p>
+    <ul class="check">
+      <li>For each capped asset, the pool's balance is at least <code>pending + shielded + fees</code>, plus <code>owed</code> in total for ETH. For the reward token it is at least <code>pending + fees + tokenIn − tokenOut</code> plus the reward budget not yet withdrawn.</li>
+      <li>A spend can never take out more of a capped asset than <code>shielded</code>, and never more of the reward token than <code>tokenIn + released − tokenOut</code>.</li>
+      <li>For each capped asset, the values of all unspent notes add up to at most <code>shielded</code>.</li>
+      <li><code>shielded[asset]</code> never exceeds the asset's cap at the time it last grew. Caps never fall.</li>
+      <li>Only its depositor can activate a deposit. A refund goes to the depositor whoever calls it. Each deposit ends in exactly one of the two.</li>
+      <li>A nullifier is marked once and never cleared. Zero is never marked. The tree only grows, by one leaf per activation or spend.</li>
+      <li><code>g</code> never decreases and stays under 2<sup>90</sup>. <code>released</code> never exceeds the users' 45%. <code>gCur</code> and <code>gPrev</code> are never above <code>g</code>.</li>
+      <li>Nothing leaves through the relay fee beyond the ceiling in force in that block.</li>
+      <li>After the deposit window closes no deposit is created. Activation, refund, roll, spend and <code>claimOwed</code> have no end date, and no state the pool can reach makes <code>roll</code> revert.</li>
+      <li>No function sends an asset anywhere except: a refund to its depositor, a withdrawal to the recipient and a relay fee to the relayer named in a verified proof, a credit to the address it was recorded for, and fees to the distributor.</li>
+      <li>No proof is accepted before the Verifier exists: a call to an address without code counts as a failed verification.</li>
+    </ul>
+  </div>
+
+  <div class="svc">
+    <h4>2. Verifier</h4>
+    <p>The Groth16 verifier for <code>Spend</code>, generated from the ceremony's output. One view function, <code>verify(proof, inputs[14])</code>. No storage. Its invariant is that it accepts exactly the proofs the verification key accepts, which is tested against the reference verifier with valid, altered and malformed proofs, including public inputs at or above the field modulus. The checks on the key itself are part B of <a href="#b-circuit">what must be shown</a>.</p>
+  </div>
+
+  <div class="svc">
+    <h4>3. ScreenerRegistry</h4>
+    <p>Decides which deposits may be activated. Holds screener stakes, the screeners' share of fees and the screeners' 15% of the token. It cannot reach anything in the pool. If it fails, deposits stop and nothing already shielded is affected.</p>
+    <p><strong>An epoch</strong> is one day from <code>GENESIS</code>, in three parts: commit in the first 12 hours, reveal in the next 8, and 4 hours in which nothing but <code>apply</code> is left to do. A batch can be applied only during its own epoch. A batch that is accepted and not applied by the end of its day is dropped and pays nobody, and the next day's batch covers the same deposits. So no batch ever depends on another, and the order in which things land cannot matter.</p>
+    <p><strong>The snapshot.</strong> Every state-changing function begins by closing the previous epoch if that has not been done. Closing records that epoch's majority hash, releases its pay if its batch was applied, folds new screeners into <code>activeCount</code>, and fixes the number that counts for the new epoch.</p>
+    <div class="tbl"><table>
+      <tr><th>Storage</th><th>Meaning</th></tr>
+      <tr><td><code>screeners[seatId]</code></td><td>Holder, operator key, epoch registered, epoch active from, last commitment and its epoch, last revealed hash and its epoch, the last epoch settled, and a strike count</td></tr>
+      <tr><td><code>barredUntil[seatId]</code></td><td>The epoch before which a seat cannot be registered again, set when it is evicted for silence or strikes</td></tr>
+      <tr><td><code>unbonding[holder]</code></td><td>Stake waiting to be returned, one total per holder, and the epoch it is released. Adding to it restarts the 14 epochs for the whole amount</td></tr>
+      <tr><td><code>activeCount</code>, <code>joining</code>, <code>snapEpoch</code>, <code>snapActive</code></td><td>Active screeners, those who become active at the next epoch, and the number fixed for the current epoch</td></tr>
+      <tr><td><code>tally[epoch][batchHash]</code>, <code>leadHash</code>, <code>leadCount</code></td><td>Matching reveals, and the hash with the most this epoch</td></tr>
+      <tr><td><code>ring[16]</code></td><td>For the last 16 epochs, each slot tagged with its epoch and cleared when reused: the accepted hash if any, whether it was applied, the majority hash if any, how many revealed the accepted hash, and the pay per head in each asset</td></tr>
+      <tr><td><code>dataTime</code>, <code>screenedThrough</code>, <code>denied[word]</code>, <code>lastApplied</code>, <code>start</code></td><td>The start time of the epoch of the last applied batch, the highest deposit id it covers, a bitmap of refused deposits (256 per slot), the epoch of the last applied batch, and the time of the first apply ever, which is <code>START</code></td></tr>
+      <tr><td><code>pot[asset]</code>, <code>owed[holder][asset]</code>, <code>paidEpochs</code></td><td>Fees waiting for the next paid epoch, pay credited to each holder, and how many shares of the token budget have been paid</td></tr>
+    </table></div>
+    <div class="tbl"><table>
+      <tr><th>Function</th><th>Who</th><th>What it does</th></tr>
+      <tr><td><code>register(seatId, operator)</code></td><td>The seat's owner</td><td>Requires <code>ownerOf(seatId)</code> on the IMD seat contract to be the caller and the seat not to be barred. If the seat still has a record under an earlier holder, that record is evicted first, in full. If it has a record under the caller, reverts. Takes the stake <span class="pill">param</span></td></tr>
+      <tr><td><code>activate(seatId)</code></td><td>The holder or operator, from 30 epochs after registering</td><td>Checks the seat is still held. Adds the screener to <code>joining</code>. It counts from the next epoch, so a screener is active no sooner than 31 epochs after registering. There is no shortcut at launch</td></tr>
+      <tr><td><code>commit(seatId, hash)</code></td><td>The operator, in the first 12 hours of an epoch</td><td>Requires an active screener whose seat is still held by the registered holder. A seat call that reverts counts as not held. Settles the screener. Stores <code>keccak256(batchHash, seatId, salt)</code>. Once per epoch</td></tr>
+      <tr><td><code>reveal(seatId, batchHash, salt)</code></td><td>The operator, in hours 12 to 20 of the same epoch</td><td>The same requirements, and a matching commitment. Adds one to the tally and updates the lead. When a hash reaches two thirds of the snapshot, rounded up, and the snapshot is at least seven, it is the accepted batch of the epoch. Reveals after acceptance still count. Once per epoch</td></tr>
+      <tr><td><code>apply(batch)</code></td><td>Anyone, from acceptance until the epoch ends</td><td>Requires the batch to hash to the accepted batch of the current epoch, not yet applied, with at most 96 words. Sets <code>dataTime</code> to the start of the epoch, <code>screenedThrough</code> to the batch's <code>upTo</code>, overwrites the listed bitmap words, and sets <code>lastApplied</code>. The first apply ever records <code>START</code></td></tr>
+      <tr><td><code>isApproved(id, depositTime)</code></td><td>View, called by the pool</td><td><code>id ≤ screenedThrough</code>, <code>depositTime + 1 day ≤ dataTime</code>, and the deposit's bit is clear</td></tr>
+      <tr><td><code>isRefused(id, depositTime)</code></td><td>View, called by the pool</td><td>The same two conditions, and the deposit's bit is set. A bit set for a deposit that no batch has yet covered means nothing</td></tr>
+      <tr><td><code>flag(seatId, depositId)</code>, <code>signalCriteria(seatId, hash)</code></td><td>The operator of an active screener</td><td>Emit an event and store nothing. Flags and criteria signals are inputs to the published criteria</td></tr>
+      <tr><td><code>requestExit(seatId)</code>, <code>withdrawStake()</code></td><td>The holder</td><td>Settles, stops counting at once, moves the stake to <code>unbonding</code>. It is returned 14 epochs later</td></tr>
+      <tr><td><code>evict(seatId)</code></td><td>Anyone</td><td>Settles, then removes the screener if one of three things is true: the seat has changed hands; it has not revealed for 7 epochs, counted from the later of its last reveal and its first active epoch; it has 14 strikes. Moves the stake to <code>unbonding</code> for the holder who posted it. For the last two grounds the seat is barred for 90 epochs</td></tr>
+      <tr><td><code>fund(asset)</code></td><td>The distributor</td><td>Adds what arrived to the pot: the registry's balance of the asset less everything it already accounts for</td></tr>
+      <tr><td><code>withdrawPay(assets)</code></td><td>Any holder</td><td>Pays out what is owed to the caller</td></tr>
+    </table></div>
+<pre><code>// What screeners agree on, once per one-day epoch.
+Batch {                   // hashed as keccak256(abi.encode(...)) of the fields in this order
+  uint32  epoch;
+  bytes32 criteriaHash;   // the published criteria file in force
+  uint64  upTo;           // highest deposit id that was at least one day old at the epoch's start
+  Word[]  words;          // { index, mask }: the new value of each bitmap word that has to change
+  bytes32 dataCid;        // CIDv1, raw, sha2-256, of a canonical JSON file: every refusal and the rule that caused it
+}
+// Data: finalized blocks up to the last block whose timestamp is before the epoch's start. The registry's bitmap is read at that block.
+// Only deposits that are still open are evaluated. A deposit that was activated or refunded is never looked at again, and its bit is written as 0.
+// A word is listed when the bit of at least one open, covered deposit in it has to change. Words that set a bit come first, then words that only clear bits, each group in ascending order.
+// At most 96 words. If more than 96 words set a bit, the batch lists the first 96 of them and lowers upTo to just below the first deposit of the first one left out.
+// Words that only clear bits and do not fit wait for the next day.</code></pre>
+    <p><strong>Strikes.</strong> When an epoch is closed, its lead hash becomes the majority hash if more than half of the snapshot revealed it. An accepted batch is always the majority hash. For each epoch that has a majority hash, a screener that was active and revealed it loses one strike, down to zero, and a screener that was active and did not, whether it revealed something else or nothing, gains two. Fourteen strikes allow eviction. That is seven misses in a row, or missing more than one day in three for long enough. An epoch with no majority hash changes nobody's count. Strikes are worked out when a screener is settled, from the ring, and a screener is settled at every commit, exit, withdrawal of pay and eviction attempt.</p>
+    <p>This is what bounds a blockade by a minority. A group that is more than a third and less than half can stop acceptance on any day by revealing nothing or by revealing something else. The honest majority's hash is still recorded that day, so each member gains two strikes. A week of blocking gets the group removed, and so does any pattern that blocks more than one day in three. What the rule cannot prevent is a delay of one day now and then. It also means a group that holds a majority for a week can remove everyone else.</p>
+    <p><strong>Pay.</strong> An epoch pays when its batch was both accepted and applied. At its closing, the pot and one share of the 15% are divided equally among the screeners who revealed the accepted hash, with any remainder left in the pot, and the amount per head is written to the ring. Each of them is credited when next settled, within 16 epochs, to the holder's address and not to the seat. The 15% is paid in 730 equal shares, one per paid epoch, so a day without a batch delays its share and does not destroy it. After the 730th there is no token share. An epoch that does not pay leaves its fees in the pot.</p>
+    <p><strong>After deposits close.</strong> The registry takes no commits from 30 epochs <span class="pill">param</span> after the deposit window closes. Whatever is left of the 15% then stays locked for good.</p>
+    <p><strong>Events.</strong> <code>Registered</code>, <code>ScreenerActive</code>, <code>Committed</code>, <code>Revealed</code>, <code>BatchAccepted(epoch, batchHash, agreed)</code>, <code>MajorityRecorded(epoch, hash)</code>, <code>BatchApplied(epoch, upTo, dataTime)</code>, <code>Flag(seatId, depositId)</code>, <code>CriteriaSignal(seatId, hash)</code>, <code>ExitRequested</code>, <code>Evicted(seatId, reason)</code>, <code>PayWithdrawn</code>.</p>
+    <p><strong>Invariants.</strong></p>
+    <ul class="check">
+      <li>A batch is accepted only with matching reveals from at least two thirds of the snapshot, rounded up, and only when the snapshot is at least seven. At most one batch is accepted per epoch.</li>
+      <li>Only <code>apply</code> writes <code>dataTime</code>, <code>screenedThrough</code> or <code>denied</code>, only during the epoch of the batch it applies, and at most once per epoch.</li>
+      <li>No deposit is approved, and none is refused, unless it was at least one day old at the start of the epoch of the last applied batch. No batch, however it was produced, can decide a deposit made after that time.</li>
+      <li><code>activeCount</code> equals the number of records that are active. It changes only when an epoch is closed, on an exit and on an eviction.</li>
+      <li>A screener commits and reveals at most once per epoch, only while active, and only while the registered holder still owns the seat.</li>
+      <li>A stake leaves only to the holder who posted it, 14 epochs after exit or eviction. Nothing can reduce it.</li>
+      <li>For each asset, the registry's balance is at least the pot plus everything owed plus, for the token, the stakes, the unbonding stakes and the unpaid part of the 15%. Total token pay never exceeds the 15%.</li>
+      <li>A ring slot is read only when its tag matches the epoch asked for.</li>
+      <li>The registry has no function that moves funds held by the pool.</li>
+    </ul>
+  </div>
+
+  <div class="svc">
+    <h4>4. FeeDistributor</h4>
+    <p>Receives the pool's fees and splits each receipt 40, 40 and 20. Holds staked tokens. Sells the 20% for IMD and spends the IMD in the locked pool.</p>
+    <div class="tbl"><table>
+      <tr><th>Storage</th><th>Meaning</th></tr>
+      <tr><td><code>staked[user]</code>, <code>totalStaked</code></td><td>Staked tokens</td></tr>
+      <tr><td><code>stream[asset]</code></td><td>For each asset's seven-day stream: the rate, scaled by 10<sup>18</sup>; the end time; the last update; and the reward per staked token, scaled by 10<sup>36</sup>. The scales are what keep a six-decimal asset from rounding to nothing against a stake counted in 10<sup>-18</sup> tokens</td></tr>
+      <tr><td><code>paid[user][asset]</code>, <code>owed[user][asset]</code></td><td>Each staker's position in each stream</td></tr>
+      <tr><td><code>basketStream[asset]</code>, <code>basket[asset]</code></td><td>The 20% on its way into the basket, released evenly over seven days, and the part already released and waiting to be sold</td></tr>
+      <tr><td><code>accounted[asset]</code></td><td>The sum of every amount above for the asset. A receipt is the balance less this figure</td></tr>
+      <tr><td><code>auction</code></td><td>Sale counter, starting price and start time</td></tr>
+      <tr><td><code>buybackImd</code></td><td>IMD set aside for the buyback: auction proceeds, the 20% of fees paid in IMD, and the position's IMD trading fees. Kept apart from IMD owed to stakers</td></tr>
+      <tr><td><code>lastBuyback</code></td><td>Time of the last buyback step</td></tr>
+    </table></div>
+    <div class="tbl"><table>
+      <tr><th>Function</th><th>Who</th><th>What it does</th></tr>
+      <tr><td><code>notify(asset)</code></td><td>The pool</td><td>Takes the receipt to be what actually arrived: the balance less <code>accounted</code>. Adds 40% to the asset's staker stream: what is left of the stream plus the new amount, paid evenly over the next seven days. Sends 40% to the registry with <code>fund</code> if the registry's last applied batch is from this epoch or the one before, and otherwise adds it to the staker stream. Adds 20% to the basket stream. For the reward token the 20% is burned, and for IMD it is added to <code>buybackImd</code>. With nothing staked, whatever would go to stakers follows the 20%</td></tr>
+      <tr><td><code>stake(amount)</code>, <code>unstake(amount)</code>, <code>claim(assets)</code></td><td>Anyone</td><td>Standard reward-per-token accounting, one stream per asset. No lock. While nothing is staked a stream's clock stops and resumes at the next stake, so nothing is stranded</td></tr>
+      <tr><td><code>buy(assets, to, saleId, deadline, maxPay)</code></td><td>Anyone, after the first receipt</td><td>The price falls in a straight line from the starting price to a floor over one day and stays at the floor until someone buys. The buyer names assets by id, pays the price in IMD, which is added to <code>buybackImd</code>, and receives the released basket balance of each asset named. It must receive something. If a named asset's transfer fails the whole call reverts, and the buyer leaves that asset out. The next starting price is twice the price paid, and never under a minimum <span class="pill">param</span> that is above the floor. The first sale's clock starts at the first <code>notify</code></td></tr>
+      <tr><td><code>buyback()</code></td><td>Anyone, at most once per 12 hours</td><td>Swaps IMD for the token in the locked pool with no price limit. The amount is the smaller of <code>buybackImd</code> and half of the pool's fee rate times the locked position's virtual IMD reserve. That reserve is the position's liquidity, a constant recorded at launch, times the larger of the pool's current square-root price and the starting square-root price. A token balance or the pool's total liquidity is never used. The bought tokens go to the burn address. Does nothing and keeps the timer when the amount is zero</td></tr>
+      <tr><td><code>fundBuyback(amount)</code></td><td>Anyone</td><td>Pulls IMD from the caller into <code>buybackImd</code>. The Distribution contract uses it</td></tr>
+    </table></div>
+    <p><strong>Events.</strong> <code>Notified(asset, toStakers, toScreeners, toBasket)</code>, <code>Staked</code>, <code>Unstaked</code>, <code>Claimed</code>, <code>BasketSold(saleId, buyer, price)</code>, <code>Buyback(imdIn, tokensBurned)</code>.</p>
+    <p><strong>Invariants.</strong></p>
+    <ul class="check">
+      <li>Every receipt is split 40, 40 and 20, with any rounding remainder going to the basket stream.</li>
+      <li>For each asset, the balance is at least <code>accounted</code>: the unpaid staker stream plus everything owed plus the basket and its stream, plus the staked tokens for the token and <code>buybackImd</code> for IMD.</li>
+      <li>A staker stream pays out everything put into it, to within one base unit per update, for any asset and any amount staked.</li>
+      <li>Staked tokens return only to the staker who staked them.</li>
+      <li><code>buybackImd</code> falls only through a swap in the locked pool, and no function sends it to an address. IMD owed to stakers and screeners is accounted apart from it.</li>
+      <li>A buyback step never exceeds half of the pool's fee rate times the locked position's virtual IMD reserve at the larger of the current and the starting price, and at most one step runs per 12 hours.</li>
+      <li>A buyer receives only assets it named, and only their released basket balance.</li>
+    </ul>
+  </div>
+
+  <div class="svc">
+    <h4>5. Distribution</h4>
+    <p>Creates the token, gives the supply out once, and owns the locked liquidity position. The token is always the lower of the two addresses in its Uniswap pool, so there is one set of formulas and the canary runs the same path as mainnet.</p>
+    <div class="tbl"><table>
+      <tr><th>Function</th><th>Who</th><th>What it does</th></tr>
+      <tr><td><code>launch()</code></td><td>Anyone, once, from <code>GENESIS</code></td><td>Tries counters <code>n</code> from 0 to 255. For each, the candidate address is the CREATE2 address of the Token with the salt <code>keccak256(abi.encode(block.prevrandao, msg.sender, n))</code>. It takes the first candidate that is numerically below IMD's address and for which Uniswap's factory has no pool with IMD at the 1% tier, and reverts if there is none. It creates the Token there, sends 45% to the pool and 15% to the registry, creates the pool, sets the starting price, and adds the 25% as one position from the starting tick to the highest usable tick, held by this contract. It records the token, the pool and the position's liquidity. The starting tick is the starting price rounded down to the pool's tick spacing of 200</td></tr>
+      <tr><td><code>token()</code>, <code>pool()</code>, <code>liquidity()</code>, <code>launchTime()</code></td><td>Views</td><td>Read by the other contracts. Zero before launch</td></tr>
+      <tr><td><code>claimFounder()</code></td><td>Anyone</td><td>Sends the founder address fixed in the build whatever has vested and not been paid. Vested is zero until 30 days after launch, and from then on 5% of supply times the smaller of the time since launch and 730 days, over 730 days. The first month's share is therefore paid at the end of the cliff</td></tr>
+      <tr><td><code>claimSwarm(index, account, amount, proof)</code></td><td>Anyone</td><td>Checks the entry against the Merkle root fixed in the build, with leaves <code>keccak256(bytes.concat(keccak256(abi.encode(index, account, amount))))</code>, and sends the vested part to <code>account</code>. Linear from launch over the swarm period <span class="pill">param</span></td></tr>
+      <tr><td><code>collect()</code></td><td>Anyone</td><td>Collects the position's trading fees. The IMD goes to the distributor through <code>fundBuyback</code>. The token part goes to the burn address</td></tr>
+    </table></div>
+    <p><strong>Why the launch cannot be blocked.</strong> Someone who sees the launch transaction can work out every candidate address and create pools for them first. Each pool costs about 4.5M gas to create, so at most about thirteen fit in a block, and the candidates change with every block and every caller. The launch needs one free candidate out of 256. About one candidate in six is skipped for sorting above IMD, whose address begins <code>0xd34a</code>. With no pool in existence when the position is placed, there is no price to reset and no interference to bound.</p>
+    <p><strong>Storage.</strong> <code>token</code>, <code>pool</code>, <code>liquidity</code>, <code>launchTime</code>, <code>founderClaimed</code>, <code>swarmClaimed[index]</code>. <strong>Events.</strong> <code>Launched(token, pool, liquidity)</code>, <code>FounderClaimed(amount)</code>, <code>SwarmClaimed(index, account, amount)</code>, <code>FeesCollected(imd, tokenBurned)</code>.</p>
+    <p><strong>Invariants.</strong></p>
+    <ul class="check">
+      <li><code>launch</code> runs once. Afterwards the five shares add up to the whole supply.</li>
+      <li>The token's address is below IMD's, and its pool did not exist before the launch transaction.</li>
+      <li>No code path reduces the position's liquidity. The contract never calls the pool's <code>burn</code> with a non-zero amount.</li>
+      <li>The founder's and each swarm entry's payout never exceeds the vested amount, and never exceeds the allocation.</li>
+      <li>The position's fees can go only to the distributor and the burn address.</li>
+    </ul>
+  </div>
+
+  <div class="svc">
+    <h4>6. Token</h4>
+    <p>A plain ERC-20 with 18 decimals, created by the Distribution contract at launch. The whole supply <span class="pill">param</span> is created for its creator in the constructor. There is no owner, no mint, no burn function, no fee on transfer and no blocklist. Its invariants are that total supply never changes and that no address has any power another does not. The name and symbol are constants of the build, and the canary's are different from the final ones.</p>
+  </div>
