@@ -265,7 +265,7 @@ What would break it (arithmetic: state bytes at the peak are 26,925 + 3 × 64 = 
 
 ## 2. The `clean` framework's Poseidon proofs
 
-Read 11 November 2026, 19:41 to 19:50 UTC. "git" means `git fetch` and `git ls-remote` on
+Read 11 November 2026, 19:41 to 19:46 UTC. "git" means `git fetch` and `git ls-remote` on
 https://github.com/Verified-zkEVM/clean.git (including `refs/pull/*`). `github.com` pages and
 `api.github.com` return HTTP 403 to curl here, so pull-request state, titles and review comments come from
 WebFetch (the summarising tool) and are marked as such. Nothing was built: no Lean toolchain is installed in
@@ -308,7 +308,7 @@ Verified (git, 19:41 UTC):
 | Lean version | Branch `lean-toolchain`: "leanprover/lean4:v4.33.1". `main`: "leanprover/lean4:v4.35.0" |
 | Size of the change | 17 files, 2,517 insertions, 2,217 deletions against the fork point |
 
-From WebFetch of https://github.com/Verified-zkEVM/clean/pull/465 (19:43 UTC):
+From WebFetch of https://github.com/Verified-zkEVM/clean/pull/465 (between 19:41 and 19:46 UTC):
 - Title "Generalize verified Poseidon circuit to arities 1 through 16", state Open, author martin-ochoa, opened
   17 September 2026, head `poseidon-n-arity`, base `main`, 3 commits, no labels.
 - Review by mitschabaude, 21 September 2026, state "Commented": "very nice, close to mergeable from my side".
@@ -395,7 +395,7 @@ Verified (git):
   of failing." The README lists a test that "compiles full **Poseidon1** to WASM, runs `snarkjs wtns
   calculate` on three inputs, and checks each witness against the Lean ground truth".
 - Open pull requests on the exporter (heads from git; open state from WebFetch of
-  https://github.com/Verified-zkEVM/clean/pulls?q=is%3Apr+R1CS+sort%3Aupdated-desc, 19:46 UTC):
+  https://github.com/Verified-zkEVM/clean/pulls?q=is%3Apr+R1CS+sort%3Aupdated-desc, same window):
 
 | PR | Head, date | Title | What it adds |
 |---|---|---|---|
@@ -405,7 +405,7 @@ Verified (git):
 | #472 | `2b61ab18`, 2026-09-28 | "feat(operations): certified constraint simplification on Operations" | `Clean/Circuit/Simplify.lean` (1,142 lines), `SimplifyFormal.lean` (482) |
 
   All four fork from `main` at 16 September and are 488 commits behind it, on Lean v4.33.1. WebFetch of
-  https://github.com/Verified-zkEVM/clean/pull/473 (19:47 UTC): Open, no human review; an automated Copilot
+  https://github.com/Verified-zkEVM/clean/pull/473 (same window): Open, no human review; an automated Copilot
   review of 28 September says "Changes recommended" with two findings, "Verify fieldPrime matches the
   abstract field size" and "Bind serialized fieldPrime to the coefficient field"; last activity 29 September.
 - Row count of an exported Poseidon (my derivation from the sources, not a measurement). The exporter turns
@@ -413,8 +413,8 @@ Verified (git):
   `(lc, [(0, (1 : F))], [])`. The branch's Poseidon binds every output of every mixing layer with `<==`
   (`Poseidon/Linear.lean`: "let output : Vector (Expression F) t <== Vector.ofFn ..."). So the exported row
   count is about the witness count: 496 at width 3, 577 at width 4, 701 at width 5. Of these, the
-  multiplications are 3 × (8t + nPartial): 243, 264 and 300. Circom at its default optimisation removes linear
-  constraints and keeps roughly the multiplications. A circuit exported from this framework without #471 or
+  multiplications are 3 × (8t + nPartial): 243, 264 and 300. Circom with full simplification (`--O2`) removes
+  linear constraints and keeps roughly the multiplications. A circuit exported from this framework without #471 or
   #472 therefore has about twice the Poseidon rows of the circomlib circuit. If the design's "about 22,000
   constraints" assumes circomlib's count and the deployed circuit is this framework's export, the figure
   needs rechecking.
@@ -435,7 +435,209 @@ Verified (git):
 
 ## 3. Uniswap's protocol fee on v3 pools at the 1% tier, Ethereum mainnet
 
-(pending)
+Read 11 November 2026, 19:47 to 19:57 UTC. "RPC" means `eth_call` or `eth_getLogs` against
+https://ethereum-rpc.publicnode.com and https://eth.drpc.org (historical calls on drpc). "Sourcify" means
+`https://sourcify.dev/server/v2/contract/1/<address>?fields=all` (curl). Forum text is from the Discourse
+JSON of gov.uniswap.org (curl), so quotes are verbatim.
+
+### 3.1 Result
+
+- **The factory is owned by a fee adapter, not by the governance timelock.** `owner()` =
+  `0xf2371551Fe3937Db7c750f4DfABe5c2fFFdcBf5A`, the contract `V3OpenFeeAdapter`. Governance (the timelock)
+  owns the adapter and is its fee setter.
+- **A protocol fee is on for every v3 fee tier on mainnet.** Tier defaults: 0.01% and 0.05% pools pay 1/4 of
+  the swap fee to the protocol; 0.30% and 1% pools pay 1/6. These values have not changed since the adapter
+  was deployed in February 2026.
+- **It is not automatic at pool creation.** A new pool starts with `feeProtocol` 0. Anyone can call
+  `triggerFeeUpdate(pool)` on the adapter, which sets the pool to its tier's default. In practice one
+  unlabelled account does this for every new 1% pool 13 to 23 minutes after creation: all 18 pools created at
+  the 1% tier in the last 50,000 blocks now read `feeProtocol` 102.
+- **Existing 1% pools read `slot0().feeProtocol` = 102**, that is 6 for each token: 1/6.
+- **What a position should expect: it loses 1/6 (16.67%) of the fees it would otherwise earn.** A 1% pool's
+  liquidity providers receive 0.8333% of swap volume; the protocol receives 0.1667%. Treat the first minutes
+  after launch at the full 1% as a bonus that cannot be relied on.
+- **The swapper's cost does not change.** The swapper pays the pool's fixed 1%; the protocol's share is
+  subtracted from that amount afterwards.
+- **The share can change by governance vote.** The pool's own code allows only 0 or between 1/10 and 1/4.
+  So the worst case for a locked position is 1/4 (25%) of its fees, and nothing in the pool or the position
+  can prevent it. The design's fee figures should use 5/6 of the 1% fee, with 3/4 as the floor.
+
+### 3.2 Who owns the factory (verified)
+
+- `UniswapV3Factory.owner()` at block 26,393,867 (2026-11-11T19:46:47Z), RPC, both endpoints:
+  `0xf2371551fe3937db7c750f4dfabe5c2fffdcbf5a`. `eth_getCode` at that address returns 7,266 bytes.
+- Verified source: Sourcify reports "match: exact_match" (creation and runtime), contract
+  `src/feeAdapters/V3OpenFeeAdapter.sol:V3OpenFeeAdapter`, solc 0.8.29, verified 2026-02-23T15:19:09Z,
+  deployed in block 24,520,406 by transaction `0xf99405e6eff4bd1a8224e73d426cad3540550a537c200cb3964f4eeb24fc512a`.
+  https://eth.blockscout.com/api/v2/smart-contracts/0xf2371551fe3937db7c750f4dfabe5c2fffdcbf5a (curl) agrees:
+  name "V3OpenFeeAdapter", "is_fully_verified": true, constructor arguments `_factory`
+  `0x1F98431c8aD98523631AE4a59f267346ea31F984` and `_tokenJar` `0xf38521f130fcCF29dB1961597bc5d2B60F995f85`.
+- The contract's own description (verified source): "A permissionless contract that allows anyone to trigger
+  protocol fee updates for pools." "This is a simplified version of V3FeeAdapter that removes Merkle proof
+  authorization." "This contract will be the set owner on the Uniswap V3 Factory." "Fee resolution uses a
+  waterfall pattern: pool override → fee tier default → global default".
+- State of the adapter (RPC, block 26,393,873): `owner()` = `0x1a9c8182c09f50c8318d769245bea52c32be35bc` (the
+  Uniswap governance timelock); `feeSetter()` = the same address; `FACTORY()` = the v3 factory; `TOKEN_JAR()` =
+  `0xf38521f130fccf29db1961597bc5d2b60f995f85`.
+- History of the factory's owner (historical `owner()` calls on drpc, bisected to the block):
+
+| From block | Time (UTC) | Owner | Transaction that changed it |
+|---|---|---|---|
+| before 24,106,378 | | `0x1a9c8182…35bc` (timelock) | |
+| 24,106,378 | 2025-12-27 20:33:11 | `0x5e74c9f42eed283bff3744fbd1889d398d40867d` (`V3FeeAdapter`, the list-based adapter) | `0x091f0083242a777d55821c1189e568d6d033d9da501b75087dc736fa143d2c1e`, `GovernorBravo.execute(93)` |
+| 24,596,885 | 2026-03-06 07:19:59 | `0xf2371551…bf5a` (`V3OpenFeeAdapter`) | `0xd6c4c93eaaac3b6cf144853655f91b326c5e3019b022baeec08eaf74c8af9833`, `GovernorBravo.execute(94)` |
+
+### 3.3 Governance records (verified)
+
+On chain, Governor Bravo `0x408ED6354d4973f66138C91495F2f2FCbd8724C3` (RPC, `proposals(id)`, `state(id)`,
+`getActions(id)`; `proposalCount()` = 102, every proposal from 92 to 102 reads state Executed):
+
+- Proposal 93 ("UNIfication"): for 125,342,017, against 742, abstain 1,500,007; eta 2025-12-27T20:32:23Z. Action
+  2 targets the v3 factory with calldata `13af4035…5e74c9f42eed283bff3744fbd1889d398d40867d`, which is
+  `setOwner(V3FeeAdapter)`. Action 4 calls `setFeeTo` on the v2 factory.
+- Proposal 94: for 62,837,439, against 4,968; eta 2026-03-06T06:51:35Z. Action 3 targets the old adapter
+  `0x5e74c9f4…867d` with calldata `f3cc660c…f2371551fe3937db7c750f4dfabe5c2fffdcbf5a`, which is
+  `setFactoryOwner(V3OpenFeeAdapter)`.
+- None of proposals 95 to 102 has the adapter `0xf2371551…` as a target or in its calldata. No proposal is
+  pending.
+
+Forum (curl of the topic JSON; both first posts were last edited 2026-11-10, and the revision record shows
+only a category change, no change to the text):
+
+- https://gov.uniswap.org/t/unification-proposal/25881 (posted 2025-11-10 by haydenadams): "Uniswap v3 has
+  fixed swap fee tiers on mainnet, with protocol fees that are adjustable by governance and set at the
+  individual pool level. Protocol fees for 0.01% and 0.05% pools would initially be set to 1/4th of LP fees.
+  For 0.30% and 1% pools, protocol fees would be set to 1/6th of LP fees." And: "we propose fees roll out over
+  time, starting with v2 pools and a set of v3 pools that make up 80-95% of LP fees on Ethereum mainnet."
+- https://gov.uniswap.org/t/temp-check-protocol-fee-expansion-eight-more-chains-and-remaining-mainnet-v3-pools/26035
+  (posted 2026-02-18 by haydenadams): "Enable protocol fees on all v3 pools via a new tier-based
+  v3OpenFeeAdapter on mainnet and the above L2s". "Protocol fees are set uniformly across all pools sharing
+  the same LP fee tier." "Any pool automatically gets the default protocol fee for its tier, no governance
+  action is needed. This means if this proposal passes, protocol fees will be active on every v3 pool.
+  Governance retains the ability to override fees on individual pools."
+- Same topic, post 5 (eek637, 2026-03-03): "The correct address is
+  `0xf2371551Fe3937Db7c750f4DfABe5c2fFFdcBf5A`. The only difference between the contracts is a global default
+  fee setting."
+- Future fee changes use a shorter process (UNIfication post): "we propose governance votes on fee parameters
+  skip the RFC process and move straight to Snapshot followed by an onchain vote." The February post calls
+  this "a five-day Snapshot followed by an onchain vote".
+- A forum search for "setFeeTierDefault", "setPoolOverride" and for v3 fee-tier proposals after 1 June 2026
+  returned no proposal to change the mainnet v3 levels. The open fee topics are about other chains and v4
+  ("[Temp Check] Protocol Fee Expansion: Arc", "[Temp Check] Activate v4 Protocol Fees").
+
+Repository https://github.com/Uniswap/protocol-fees (git clone, head `eacc9c0`, 2026-11-05):
+`script/deployers/V3OpenMainnetDeployer.sol` has "uint8 constant DEFAULT_FEE_10000 = 6 << 4 | 6; // 1/6 for
+1.00% tier" and "uint8 constant DEFAULT_FEE_3000 = 6 << 4 | 6; // 1/6 for 0.30% tier", "DEFAULT_FEE_100 = 4 <<
+4 | 4; // 1/4 for 0.01% tier", "DEFAULT_FEE_500 = 4 << 4 | 4; // 1/4 for 0.05% tier". The README lists
+`V3OpenFeeAdapter` on mainnet at `0xf2371551Fe3937Db7c750f4DfABe5c2fFFdcBf5A`.
+
+### 3.4 The levels in force, and who can change them (verified)
+
+Adapter state, RPC, block 26,393,873:
+
+| Fee tier (`fee`) | `feeTierDefaults(tier)` | Meaning | Share of the swap fee |
+|---|---|---|---|
+| 100 (0.01%) | 68 = 0x44 | 4 for token0, 4 for token1 | 1/4 |
+| 500 (0.05%) | 68 = 0x44 | 4, 4 | 1/4 |
+| 3000 (0.30%) | 102 = 0x66 | 6, 6 | 1/6 |
+| 10000 (1%) | 102 = 0x66 | 6, 6 | 1/6 |
+| global `defaultFee()` | 68 | used only for a tier with no default | 1/4 |
+
+- `feeTiers(0..3)` = 100, 500, 3000, 10000; `feeTiers(4)` reverts. The factory's
+  `feeAmountTickSpacing(10000)` = 200.
+- Unchanged since deployment: the same five values and the same `feeSetter` read at blocks 24,520,500
+  (2026-02-23), 24,596,885, 24,900,000, 25,200,000, 25,500,000, 25,800,000, 26,100,000, 26,300,000 and
+  26,393,912 (historical calls, drpc).
+- Who can change them (verified source): `setFeeTierDefault`, `setDefaultFee`, `setPoolOverride`,
+  `clearFeeTierDefault` and `clearPoolOverride` carry `onlyFeeSetter`; `setFeeSetter` and `setFactoryOwner`
+  carry `onlyOwner`. Both roles are the timelock. A change reaches a pool only when someone calls the trigger
+  again.
+- Hard limits. Adapter: "V3 fees are packed uint8 with two 4-bit values, each must be 0 or in range [4, 10]".
+  Pool (source of the 1% USDC/WETH pool `0x7BeA39867e4169DBe237d55C8242a8f2fcDcc387`, Sourcify "match", solc
+  0.7.6; identical text at https://raw.githubusercontent.com/Uniswap/v3-core/v1.0.0/contracts/UniswapV3Pool.sol):
+  "function setFeeProtocol(uint8 feeProtocol0, uint8 feeProtocol1) external override lock onlyFactoryOwner {
+  require( (feeProtocol0 == 0 || (feeProtocol0 >= 4 && feeProtocol0 <= 10)) && (feeProtocol1 == 0 ||
+  (feeProtocol1 >= 4 && feeProtocol1 <= 10)) );". So the protocol's share of a pool's swap fee is 0 or between
+  1/10 and 1/4, per token.
+
+### 3.5 New pools: the trigger (verified)
+
+- A pool starts at zero. Pool source, `initialize`: "feeProtocol: 0,". The factory's `createPool` does not
+  set it.
+- The trigger is open to anyone. Adapter source: "function triggerFeeUpdate(address pool) external {
+  _setProtocolFee(pool); }", documented "Triggers a fee update for a single pool. Permissionless." The same
+  holds for `triggerFeeUpdate(address token0, address token1)`, `batchTriggerFeeUpdate` and
+  `batchTriggerFeeUpdateByPool`. `_setProtocolFee` skips a pool that is not initialized ("if (sqrtPriceX96 ==
+  0) return;") and otherwise calls "IUniswapV3PoolOwnerActions(pool).setFeeProtocol(feeValue % 16, feeValue >>
+  4);".
+- What happens in practice (RPC `eth_getLogs`, blocks 26,343,876 to 26,393,876, about seven days):
+  - 18 `PoolCreated` events at fee 10000. All 18 pools read `slot0().feeProtocol` = 102 today.
+  - Each was triggered between 66 and 113 blocks after creation (median 96), about 13 to 23 minutes.
+  - All 73 `FeeUpdateTriggered` events in the window have the same caller,
+    `0x87c4d68b2a3c929f5d9c4bc594c95ca5c1df5ce2`, an account with no code (nonce 1,082), calling
+    `batchTriggerFeeUpdateByPool` (selector `0x08f4779e`).
+  - Example, the newest 1% pool `0x124c31ffc8e47352cb3dbb8e663bb62d26530741`: created and initialized in
+    block 26,392,942 (16:40:59 UTC) with `feeProtocol` 0; still 0 at block 26,393,025; 102 from block
+    26,393,026 (16:57:47 UTC), transaction
+    `0xfedacbb19aa1074034a1b6eb4e540d10ad6f6ee8d79f925a7a1cacbfa7092a4b`. That is 1,008 seconds.
+- For the design: the pool that `launch` creates will carry no protocol fee in its creation block and for
+  some minutes after. The launch contract cannot keep it that way. Anyone, including a competitor or the
+  account above, can switch it to 1/6 in the next block.
+
+### 3.6 `slot0().feeProtocol` on existing 1% pools (verified, RPC, block 26,393,873)
+
+| Pool | Address | `fee` | `feeProtocol` | token0, token1 |
+|---|---|---|---|---|
+| PEPE/WETH | `0xf239009a101b6b930a527deaab6961b6e7dec8a6` | 10000 | 102 | 6, 6 |
+| SHIB/WETH | `0x5764a6f2212d502bc5970f9f129ffcd61e5d7563` | 10000 | 102 | 6, 6 |
+| WETH/USDT | `0xc5af84701f98fa483ece78af83f11b6c38aca71d` | 10000 | 102 | 6, 6 |
+| USDC/WETH | `0x7bea39867e4169dbe237d55c8242a8f2fcdcc387` | 10000 | 102 | 6, 6 |
+| LINK/WETH | `0x3a0f221ea8b150f3d3d27de8928851ab5264bb65` | 10000 | 102 | 6, 6 |
+
+For comparison: USDC/WETH 0.05% `0x88e6a0c2…5640` reads 68 (4, 4); USDC/WETH 0.30% `0x8ad599c3…e6d8` reads
+102; USDC/USDT 0.01% `0x3416cf6c…27c6` reads 68. For every pool above the adapter's `getFee(pool)` equals the
+pool's value and `poolOverrides(pool)` is 0. The USDC/WETH 1% pool read 0 at block 24,106,377 and 102 from
+block 24,106,500 (historical calls), so it was in the first list of December 2025.
+
+### 3.7 What the fee takes, and from whom (verified in the pool's source)
+
+Pool source (`swap`), the swap step is computed with the pool's fixed fee and the protocol's share is taken
+out of the fee afterwards:
+
+- "(state.sqrtPriceX96, step.amountIn, step.amountOut, step.feeAmount) = SwapMath.computeSwapStep( ...,
+  state.liquidity, state.amountSpecifiedRemaining, fee );"
+- "// if the protocol fee is on, calculate how much is owed, decrement feeAmount, and increment protocolFee
+  if (cache.feeProtocol > 0) { uint256 delta = step.feeAmount / cache.feeProtocol; step.feeAmount -= delta;
+  state.protocolFee += uint128(delta); }"
+
+So:
+
+- The swapper pays `amountIn + feeAmount` whatever `feeProtocol` is. The price and the 1% charged are the
+  same with the protocol fee on or off.
+- With `feeProtocol` 6 the liquidity providers' fee growth is credited with `feeAmount − floor(feeAmount /
+  6)`. A position loses 1/6 = 16.67% of its fee income: 0.8333% of input volume instead of 1%. Because of the
+  rounding down, the protocol takes very slightly less than 1/6 on small swap steps.
+- The same division applies to flash-loan fees ("uint256 fees0 = feeProtocol0 == 0 ? 0 : paid0 /
+  feeProtocol0;").
+- Fees already credited to a position are not touched. `collectProtocol` pays out only the separately
+  accounted `protocolFees`; the adapter's `collect` is callable by anyone and sends them to the token jar.
+- Range of outcomes for a locked position under the pool's immutable code: 100% of the fee (protocol fee
+  off or not yet triggered), 5/6 (today), 3/4 (the maximum governance can set).
+
+### 3.8 Not verified
+
+- Who operates `0x87c4d68b…5ce2`, and whether it will keep running. If it stopped, a pool would stay at zero
+  until anyone else called the trigger.
+- The complete event history of the adapter (`FeeTierDefaultUpdated`, `PoolOverrideUpdated` and so on). Public
+  endpoints refused log queries over old blocks, and Blockscout's log API returned "Too many requests". The
+  claim "unchanged since deployment" rests on nine historical reads and on the targets of proposals 95 to 102,
+  not on a full event scan. A change that was later reverted between two sampled blocks would not show.
+- The text of on-chain proposals 93 and 94 (the `ProposalCreated` descriptions) was not read; their actions
+  were decoded from `getActions`. The Snapshot votes were not read.
+- Pool overrides: only the eight pools in 3.6 were checked for an override. Whether any pool has one was not
+  scanned.
+- Whether governance intends to change the 1% tier's level. No proposal was found; absence of evidence only.
+- `etherscan.io` returns HTTP 403 here; nothing in this section depends on it.
 
 ## 4. X-Wing
 
