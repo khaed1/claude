@@ -782,7 +782,7 @@ k1  = HKDF(viewRoot, "ct1" ‖ nf0 ‖ C1 ‖ C2, 32 bytes)
 
   <h3 id="b-circuit">The circuit</h3>
   <p>There is one circuit, <code>Spend</code>. It takes two notes of one asset with one owner. It produces two notes of that asset, one note of the reward token, and two optional public amounts in that asset: an amount that leaves the pool, and a fee for the relayer. A private transfer has a public amount of zero. A withdrawal has a standard size as its public amount. A deposit needs no proof. Estimated size is about 21,000 constraints with circomlib's Poseidon, to be measured by the build job, as is proving time on a mid-range phone. The exporter of the proof framework writes more rows per hash, so the system that goes to the ceremony may be about twice that.</p>
-  <p>The relayer is paid out of the notes being spent, by the owner's decision of 11 November 2026. There is no separate fee note. A spend that pays a relayer therefore shows which asset moved and nothing else about it: not the amount moved, the sender or the recipient. A spend that its owner sends from a public address pays no relay fee and shows no asset.</p>
+  <p>The relayer is paid out of the notes being spent, by the owner's decision of 11 November 2026. There is no separate fee note. A spend that pays a relayer therefore shows which asset moved and nothing else about it: not the amount moved, the sender or the recipient. A spend that its owner sends from a public address needs no relay fee, and a spend with no relay fee and no withdrawal shows no asset.</p>
   <h4>Public inputs (11)</h4>
   <div class="tbl"><table>
     <tr><th>Name</th><th>Meaning</th><th>Checked by the pool against</th></tr>
@@ -864,7 +864,7 @@ k1  = HKDF(viewRoot, "ct1" ‖ nf0 ‖ C1 ‖ C2, 32 bytes)
       <tr><td><code>g</code>, <code>gTime</code>, <code>weighted</code>, <code>released</code></td><td>uint128, uint64, uint128, uint128</td><td>The reward index, the time it was last advanced to, the weighted total shielded, and reward released so far. All start at zero, and <code>gTime</code> is set to <code>START</code> when the pool first learns it</td></tr>
       <tr><td><code>window</code>, <code>gCur</code>, <code>gPrev</code>, <code>rootCur</code>, <code>rootPrev</code></td><td>uint64, uint128, uint128, uint256, uint256</td><td>The last hourly window in which a checkpoint was taken, the last two checkpoints, and the tree root saved with each. <code>window</code> starts at a value that means none, so the first roll after <code>START</code> takes a checkpoint. The checkpoints start at zero and the two roots at the root of the empty tree</td></tr>
       <tr><td><code>lastSweep[asset]</code></td><td>uint64</td><td>Time of the last fee sweep</td></tr>
-      <tr><td><code>owed[address]</code></td><td>uint256</td><td>ETH that could not be delivered to a recipient or a relayer, waiting for <code>claimOwed</code></td></tr>
+      <tr><td><code>owed[address]</code></td><td>uint256</td><td>ETH that could not be delivered to a recipient, a relayer or a refunded depositor, waiting for <code>claimOwed</code></td></tr>
       <tr><td><code>start</code>, <code>token</code></td><td>uint64, address</td><td>Copies of the registry's <code>START</code> and of the token's address, read once each</td></tr>
     </table></div>
     <div class="tbl"><table>
