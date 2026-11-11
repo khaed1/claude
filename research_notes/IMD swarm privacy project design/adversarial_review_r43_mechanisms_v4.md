@@ -165,7 +165,7 @@ Reading B: the registry keeps a total of pay written to the ring and not yet cre
 
 **How it works.** The bar is set only by an eviction on the silence or strike ground. Three ways round it, all one transaction:
 
-1. A blocker at 12 or 13 strikes calls `requestExit`, and registers the same seat again at once. New record, no strikes, no bar, active again in 31 epochs.
+1. A blocker at 12 or 13 strikes calls `requestExit`, and registers the same seat again at once. New record, no strikes, no bar, active again in 31 epochs. (This assumes an exit deletes the record. If it does not, path 3 does the same.)
 2. A blocker at 14 strikes that sees an `evict` call waiting does the same ahead of it.
 3. A blocker moves the seat to a second wallet. The first ground, "the seat has changed hands", is now true as well. The page does not say which ground decides when two hold. Registering from the second wallet evicts the old record "in full" on the first ground, with no bar.
 
@@ -195,7 +195,7 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 **Consequence.** The fresh-theft path the page offers as its answer to "Can a thief get a deposit approved, spend once, and be untouchable?" (line 293) works only if more than half of all seats act by hand inside two days. The page's open question 6 asks whether enough screeners will flag. It does not say that the count is taken over seats that never will.
 
-**Smallest fix.** In the criteria file, not in a contract: a flag by a smaller share, for example a fifth of the snapshot, holds the deposit for a few epochs, once per deposit, and a flag by a majority refuses it. A hold costs the depositor days and cannot be turned into a forced refund while it is shorter than 21 days, so a fifth gains the power to delay and not to refuse. Add the seat-ownership check to `flag` and `signalCriteria`, or have the criteria file ignore events from seats whose owner has changed.
+**Smallest fix.** In the criteria file, not in a contract: a flag by a smaller share, for example a fifth of the snapshot, holds the deposit for a few epochs, once per deposit, and a flag by a majority refuses it. A hold costs the depositor days and cannot be turned into a forced refund while it is shorter than 21 days, so a fifth gains the power to delay and not to refuse. Add the seat-ownership check to `flag` and `signalCriteria`, or have the criteria file ignore events from seats whose owner has changed. Removing a mechanism does not answer this: flags are the only path for fresh information.
 
 **Confidence.** Certain as arithmetic. How often it bites depends on how many operators flag.
 
@@ -249,7 +249,7 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 **Consequence.** Wrong holds, avoidable holds, and a criteria file that can move backwards. All three are in a file that is in no contract, so they are low: they can be corrected without touching the build. The third decides what every node computes, so it has to be settled before the screening program is written.
 
-**Smallest fix.** Take the share over the larger of the 7-day inflow and the deposit's value. Say on the page that the ETH hold rules see top-level transfers only. Define the file in force as the last file to have reached two thirds.
+**Smallest fix.** Take the share over the larger of the 7-day inflow and the deposit's value. Say on the page that the ETH hold rules see top-level transfers only. Define the file in force as the last file to have reached two thirds. Nothing needs removing.
 
 **Confidence.** Certain for 1 and 2. For 3, depends on reading.
 
@@ -263,7 +263,7 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 **Consequence.** A month without activation, or a tolerated blockade. Rated low because the page accepts the cliff and the launch gate asks for fifteen seats.
 
-**Smallest fix.** None inside the decided rules. State it beside the cliff, and make the fifteen seats of the launch gate a condition on registered seats in the real registry, not on seats screening another pool.
+**Smallest fix.** None inside the decided rules. State it beside the cliff, and make the fifteen seats of the launch gate a condition on registered seats in the real registry, not on seats screening another pool. The minimum of seven and the strike rule are both decided, so neither can be removed to answer it.
 
 **Confidence.** Certain.
 
@@ -277,7 +277,7 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 **Consequence.** Delay only, and the holder can end it by evicting its own stale records in one go. The invariant on line 759 is wrong as worded.
 
-**Smallest fix.** Key the waiting stake by holder and release epoch, `unbonding[holder][epoch]`, so that an addition never moves an amount that is already waiting.
+**Smallest fix.** Key the waiting stake by holder and release epoch, `unbonding[holder][epoch]`, so that an addition never moves an amount that is already waiting. The restart rule is the mechanism to remove here.
 
 **Confidence.** Certain.
 
@@ -291,7 +291,7 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 **Consequence.** Up to the founder's 5% misdirected in the worst case.
 
-**Smallest fix.** One counter, `swarmPaid`, and one comparison in `claimSwarm`.
+**Smallest fix.** One counter, `swarmPaid`, and one comparison in `claimSwarm`. This adds a check and removes nothing.
 
 **Confidence.** Certain.
 
@@ -305,7 +305,7 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 **Consequence.** That asset's fees pile up in the pool. Users and other assets are not affected, so it fails safe.
 
-**Smallest fix.** If the transfer to the registry fails, add the amount to the staker stream. Add the case to the risk row.
+**Smallest fix.** If the transfer to the registry fails, add the amount to the staker stream. Add the case to the risk row. Cut 4 in section 6 does not remove this, since the registry would still receive the 40%.
 
 **Confidence.** Certain for USDC. USDT blocks transfers from a frozen address, not to one.
 
@@ -322,7 +322,7 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 **Consequence.** Lumpy sales, and one windfall per thaw at the buyback's expense.
 
-**Smallest fix.** Feed an asset back through its 7-day basket stream when it becomes transferable again, and accept the first edge as a cost of pricing in IMD.
+**Smallest fix.** Feed an asset back through its 7-day basket stream when it becomes transferable again, and accept the first edge as a cost of pricing in IMD. Paying the 20% in kind to stakers, with no auction, would remove both edges and the buyback with them, which the owner's 20% decision rules out.
 
 **Confidence.** Certain as mechanics. Likelihood is low.
 
