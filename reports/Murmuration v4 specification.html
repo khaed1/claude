@@ -999,7 +999,7 @@ stateDiagram-v2
   </ul>
 
   <h3 id="b-gas">Size, gas and state pricing</h3>
-  <p>Figures are a model built from measured parts, not measurements of this code, which does not exist yet. The Glamsterdam column uses EIP-8037, EIP-8038 and EIP-7976 as they stand in Last Call on 10 November 2026. Their authors have said the numbers may still be revised after the audit reports due on 13 November and the developer call of 19 November. Dollar figures are at 0.2 gwei and ETH at $2,130. The working is in <code>gas_model_and_pq_cost_v3.md</code>. The spend and activation rows were adjusted by hand for the changes of revisions 4.2 and 4.3.</p>
+  <p>Figures are a model built from measured parts, not measurements of this code, which does not exist yet. The Glamsterdam column uses EIP-8037, EIP-8038 and EIP-7976 as they stand in Last Call on 10 November 2026. Their authors have said the numbers may still be revised after the audit reports due on 13 November and the developer call of 19 November. Dollar figures are at 0.2 gwei and ETH at $2,130. The working is in <code>gas_model_and_pq_cost_v3.md</code>. The spend and activation rows were adjusted by hand for the changes of revisions 4.2, 4.3 and 4.4.</p>
   <div class="tbl"><table>
     <tr><th>Transaction</th><th>Gas today</th><th>Under Glamsterdam</th><th>Cost today and after</th><th>State it creates</th></tr>
     <tr><td>Deposit of ETH</td><td class="n">about 50,000</td><td class="n">about 140,000</td><td class="n">$0.02, $0.06</td><td>One slot, cleared again at activation or refund</td></tr>
@@ -1295,12 +1295,12 @@ RPC_URL=…   POI_NODE_URL=…   IPFS_API=…
   <p>A seat holder running a node never receives a user's private information, so there is nothing of that kind to expose. What each duty does and does not see:</p>
   <div class="tbl"><table>
     <tr><th>Duty</th><th>Sees</th><th>Cannot see</th></tr>
-    <tr><td>Relayer, private transfer</td><td>An encrypted transaction and the fee it is paid, which is public. When the fee is not in ETH, the asset the sender is spending</td><td>Sender, recipient and amount, and the asset when the fee is in ETH</td></tr>
+    <tr><td>Relayer, private transfer</td><td>An encrypted transaction, the fee it is paid and the asset the fee is paid in, which is the asset being spent. All three are public</td><td>Sender, recipient and amount</td></tr>
     <tr><td>Relayer, withdrawal</td><td>The destination address and the standard amount, a few seconds before they become public anyway</td><td>Which deposit the funds came from</td></tr>
     <tr><td>Mirror</td><td>That someone downloaded the pool's public files</td><td>Which notes belong to whom</td></tr>
     <tr><td>Screener</td><td>Deposits, which are public to everyone</td><td>Anything inside the pool</td></tr>
   </table></div>
-  <p>No operator can see a balance, who pays whom inside the pool, how much, or the link between a deposit and a withdrawal. None holds a user's keys, and none can move funds. A user who sends a spend without a relayer shows the sending account to everyone.</p>
+  <p>No operator can see a balance, who pays whom inside the pool, how much, or the link between a deposit and a withdrawal. Everyone can see which asset a relayed spend moved. None holds a user's keys, and none can move funds. A user who sends a spend without a relayer shows the sending account to everyone.</p>
   <h3>What a dishonest operator can do, and the answer to each</h3>
   <div class="tbl"><table>
     <tr><th>Behaviour</th><th>Mitigation</th><th>What remains</th></tr>
