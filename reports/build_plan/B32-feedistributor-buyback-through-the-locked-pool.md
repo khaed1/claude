@@ -7,7 +7,7 @@
 ## Objective
 
 Implement buyback(): at most once per 25 blocks, swap IMD for the token in the Uniswap v3 pool created by
-Distribution, exact input, recipient the burn address. The amount is min(IMD held, FEE * virtualImdReserve /
+Distribution, exact input, recipient the burn address. The amount is min(buybackImd, FEE * virtualImdReserve /
 2) where virtualImdReserve is computed from pool.liquidity() and slot0.sqrtPriceX96 for IMD's side of the
 pair, and FEE is the pool's fee rate. Implement uniswapV3SwapCallback, which pays only when called by that
 pool. Tests run against the real Uniswap v3 core bytecode. Work only from the pinned commit of the project
@@ -32,7 +32,7 @@ of choosing.
 2. A second buyback within 25 blocks reverts.
 3. The swap callback reverts for any caller but the pool, and pays exactly the amount owed.
 4. Sandwich test: for 200 fuzzed attacker sizes, buying before a step and selling after it loses money net of the two fees.
-5. IMD leaves the contract only inside the callback; a test enumerates every external function and checks the IMD balance.
+5. buybackImd falls only inside the callback; a test enumerates every external function and checks it, and IMD owed to stakers is untouched by a buyback.
 6. Bought tokens arrive at the burn address and the pool's IMD balance rises by the amount spent.
 7. The adversarial review step reports no high or critical finding, or each one is fixed and re-reviewed.
 

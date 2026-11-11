@@ -183,22 +183,24 @@ job("B30", "FeeDistributor: split and staking streams", "build", "impl_tests_rev
     ["src/FeeDistributor.sol", "test/DistributorStaking.t.sol"],
     """Implement notify(asset, amount), callable by the Pool only, splitting each receipt 40/40/20: 40% into that
     asset's staker stream restarted to pay evenly over the next 50,400 blocks, 40% sent to the registry with fund,
-    20% to basket[asset]; for the project token the 20% goes to the burn address; with nothing staked the stakers'
-    40% goes to the basket. Implement stake, unstake and claim with reward-per-token accounting per asset. """ + COMMON,
+    20% to basket[asset]; for the project token the 20% goes to the burn address, and for IMD it is added to buybackImd,
+    a balance kept apart from IMD owed to stakers; with nothing staked the stakers' 40% follows the 20%. Implement
+    fundBuyback(amount), which pulls IMD from the caller into buybackImd, and stake, unstake and claim with
+    reward-per-token accounting per asset. """ + COMMON,
     ["The three parts of every notify add up to the amount, with any remainder in the basket (fuzz).",
      "A staker who stakes one block before a notify and unstakes one block after earns at most 2/50,400 of that receipt's staker share.",
      "Two stakers with equal stake over the same blocks earn equal amounts within 1 wei per asset.",
      "For each asset, balance >= unpaid stream + sum owed + basket after every call (invariant test).",
      "Staked tokens return only to their staker; unstake of more than staked reverts.",
-     "notify from any address but the Pool reverts.",
+     "notify from any address but the Pool reverts. For IMD the 20% lands in buybackImd, never in the basket, and buybackImd never overlaps IMD owed to stakers (invariant test).",
      "The adversarial review step reports no high or critical finding, or each one is fixed and re-reviewed."],
     contracts=["src/FeeDistributor.sol"], notes=FOUNDRY)
 
 job("B31", "FeeDistributor: basket auction", "build", "impl_tests", ["implement-and-test"], ["B30"],
     ["src/FeeDistributor.sol", "test/DistributorAuction.t.sol"],
     """Implement buy(assets, to, saleId, deadline, maxPay): the price falls linearly from the starting price to
-    Params.AUCTION_FLOOR over 7,200 blocks and stays at the floor; the buyer pays the price in IMD, which stays in
-    this contract for buyback; the buyer receives basket[asset] of each asset named; the next starting price is
+    Params.AUCTION_FLOOR over 7,200 blocks and stays at the floor; the buyer pays the price in IMD, which is added to
+    buybackImd; the buyer receives basket[asset] of each asset named; the next starting price is
     twice the price paid and at least Params.AUCTION_MIN_START. The design follows Euler's FeeFlowController
     (GPL-2.0-or-later, audited) with two changes: a non-zero floor, and explicit basket balances instead of whole
     balances. """ + COMMON,
@@ -214,7 +216,7 @@ job("B32", "FeeDistributor: buyback through the locked pool", "build", "impl_tes
     ["implement-and-test", "write-foundry-tests", "adversarial-review"], ["B31", "B40"],
     ["src/FeeDistributor.sol", "src/interfaces/IUniswapV3.sol", "test/DistributorBuyback.t.sol"],
     """Implement buyback(): at most once per 25 blocks, swap IMD for the token in the Uniswap v3 pool created by
-    Distribution, exact input, recipient the burn address. The amount is min(IMD held, FEE * virtualImdReserve / 2)
+    Distribution, exact input, recipient the burn address. The amount is min(buybackImd, FEE * virtualImdReserve / 2)
     where virtualImdReserve is computed from pool.liquidity() and slot0.sqrtPriceX96 for IMD's side of the pair, and
     FEE is the pool's fee rate. Implement uniswapV3SwapCallback, which pays only when called by that pool. Tests run
     against the real Uniswap v3 core bytecode. """ + COMMON,
@@ -222,7 +224,7 @@ job("B32", "FeeDistributor: buyback through the locked pool", "build", "impl_tes
      "A second buyback within 25 blocks reverts.",
      "The swap callback reverts for any caller but the pool, and pays exactly the amount owed.",
      "Sandwich test: for 200 fuzzed attacker sizes, buying before a step and selling after it loses money net of the two fees.",
-     "IMD leaves the contract only inside the callback; a test enumerates every external function and checks the IMD balance.",
+     "buybackImd falls only inside the callback; a test enumerates every external function and checks it, and IMD owed to stakers is untouched by a buyback.",
      "Bought tokens arrive at the burn address and the pool's IMD balance rises by the amount spent.",
      "The adversarial review step reports no high or critical finding, or each one is fixed and re-reviewed."],
     contracts=["src/FeeDistributor.sol"], notes=FOUNDRY + " The Uniswap v3 core artifacts are vendored as files because the job has no network.")
@@ -249,7 +251,7 @@ job("B41", "Distribution: vesting, swarm claims, fee collection", "build", "impl
     """Implement claimFounder (nothing for the first 216,000 blocks after launch, then linear to 5,256,000 blocks, to
     the fixed founder address), claimSwarm(index, account, amount, proof) against the fixed Merkle root with leaves
     keccak256(abi.encode(index, account, amount)) double-hashed, linear over Params.SWARM_VEST from launch, and
-    collect(): burn(0) then collect on the position, IMD to the FeeDistributor, token part to the burn address. """ + COMMON,
+    collect(): burn(0) then collect on the position, IMD to the FeeDistributor through fundBuyback, token part to the burn address. """ + COMMON,
     ["Founder payout at 0, 215,999, 216,000, 2,628,000 and 5,256,000 blocks equals 0, 0, 216000/5256000, 1/2 and all of the 5%.",
      "A swarm entry can never be paid more than its vested amount or its allocation; a wrong proof, index or amount reverts.",
      "The sum of all swarm claims in a fuzzed tree never exceeds the 10%.",
@@ -313,7 +315,7 @@ for fid, title, dep, harness, inv in [
       "screenedThrough never falls", "token and fee balances cover pots, owed and stakes", "a stake is returned once, to its holder"]),
     ("F04", "Fuzz: distributor", "B32", "test/fuzz/Distributor.fuzz.sol",
      ["each receipt is split 40/40/20 with the remainder in the basket", "balances cover streams, owed and basket",
-      "IMD only ever decreases through the swap callback", "a buyback step is at most half of fee rate times reserves"]),
+      "buybackImd only ever decreases through the swap callback", "a buyback step is at most half of fee rate times reserves"]),
 ]:
     job(fid, title, "build", "fuzz", ["write-foundry-tests"], [dep], [harness],
         f"""Write one Foundry invariant harness, {harness}, with handler functions for every external function of the
@@ -583,7 +585,7 @@ for aid, title, dep, contracts, worry in [
         deployed: there is no owner, pause or upgrade, so every finding that would normally be fixed by an admin is a
         permanent loss. What worries us most: {worry}. Check every invariant listed for these contracts in the build
         specification and say for each whether it holds, with the test or trace that shows it. Token behaviours to
-        assume: USDC can blocklist any address including these contracts; DAI is plain; the project token is plain. """,
+        assume: USDC can blocklist any address including these contracts; DAI is plain; IMD is a plain bridged token with no fee, pause or blocklist; the project token is plain. """,
         ["The judge's coverage record has one row per external function: holds, finding, or unreached.",
          "Each invariant of the build specification for these contracts has a verdict and evidence.",
          "Every finding has a severity, file and line, a reproduction, and where possible a Foundry proof.",

@@ -7,14 +7,14 @@
 ## Objective
 
 Implement buy(assets, to, saleId, deadline, maxPay): the price falls linearly from the starting price to
-Params.AUCTION_FLOOR over 7,200 blocks and stays at the floor; the buyer pays the price in IMD, which stays in
-this contract for buyback; the buyer receives basket[asset] of each asset named; the next starting price is
-twice the price paid and at least Params.AUCTION_MIN_START. The design follows Euler's FeeFlowController
-(GPL-2.0-or-later, audited) with two changes: a non-zero floor, and explicit basket balances instead of whole
-balances. Work only from the pinned commit of the project repository and the build specification
-(`reports/Murmuration v4 specification.html`, section "Build specification"). Solidity 0.8.30, Foundry,
-optimizer on, no ffi, no network. No owner, admin, pause, upgrade or setter may appear in any contract. If the
-specification is ambiguous, stop and report the ambiguity instead of choosing.
+Params.AUCTION_FLOOR over 7,200 blocks and stays at the floor; the buyer pays the price in IMD, which is added
+to buybackImd; the buyer receives basket[asset] of each asset named; the next starting price is twice the
+price paid and at least Params.AUCTION_MIN_START. The design follows Euler's FeeFlowController (GPL-2.0-or-
+later, audited) with two changes: a non-zero floor, and explicit basket balances instead of whole balances.
+Work only from the pinned commit of the project repository and the build specification (`reports/Murmuration
+v4 specification.html`, section "Build specification"). Solidity 0.8.30, Foundry, optimizer on, no ffi, no
+network. No owner, admin, pause, upgrade or setter may appear in any contract. If the specification is
+ambiguous, stop and report the ambiguity instead of choosing.
 
 ## Contracts named
 

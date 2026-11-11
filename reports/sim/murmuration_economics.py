@@ -17,7 +17,9 @@ ALLOC = dict(users=0.45, pool=0.25, screeners=0.15, swarm=0.10, founder=0.05)
 FEE_IN = FEE_OUT = 0.002
 SPLIT = dict(stakers=0.40, screeners=0.40, liquidity=0.20)
 CAP0_ETH, CAP_PERIOD_DAYS, CAP_PERIODS = 25.0, 90, 8      # v4 default: 25 ETH, doubling every 90 days, two years
-WEIGHTED_ASSETS = 3               # ETH, USDC, DAI at equal dollar caps (the reward token has weight 0)
+IMD_CAP0 = 2500.0                 # IMD's own cap at the start, doubling with the others to 80,000 (owner's decision, 11 Nov 2026)
+# ETH, USDC and DAI at equal dollar caps, plus IMD at full reward weight with its smaller cap (the reward token has weight 0)
+WEIGHTED_ASSETS = 3 + IMD_CAP0 * IMD_USD / ETH_USD / CAP0_ETH
 BLOCKS_PER_DAY = 7200
 P0 = START_VALUATION_IMD / SUPPLY                         # IMD per token at the bottom of the range
 X0 = ALLOC["pool"] * SUPPLY                               # tokens placed one-sided
@@ -196,7 +198,7 @@ def part3():
 
     print("\n### What the caps allow\n")
     print("Railgun turns its balance over about 1.18 times a month ($125M of shield plus unshield volume on $106M). "
-          f"The table applies that rate, and a rate five times higher, to a pool that is full at every cap, with {WEIGHTED_ASSETS} assets at equal dollar caps.\n")
+          f"The table applies that rate, and a rate five times higher, to a pool that is full at every cap: ETH, USDC and DAI at equal dollar caps and IMD at its own cap of {IMD_CAP0:,.0f} IMD doubling in step.\n")
     rows = []
     for q in range(CAP_PERIODS):
         cap_eth = CAP0_ETH * 2 ** q
@@ -242,14 +244,14 @@ def part4():
     print("### An under-filled pool: the naive rule against a floor\n")
     cap_total = CAP0_ETH * WEIGHTED_ASSETS; emis0 = budget * 1 / wsum
     rows = []
-    for shielded in (0.001, 0.1, 1, 7.5, 18.75, 37.5, 75):
+    for shielded in (0.001, 0.1, 1, cap_total * 0.10, cap_total * 0.25, cap_total * 0.50, cap_total):
         naive = emis0 / (shielded * CAP_PERIOD_DAYS)
         floor = emis0 / (max(shielded, cap_total * 0.25) * CAP_PERIOD_DAYS)
         released = min(1.0, shielded / (cap_total * 0.25))
         rows.append([fmt(shielded, 3), f"{shielded/cap_total*100:.3f}%", fmt(naive, 1),
                      f"{naive*P0*IMD_USD/ETH_USD*365*100:,.1f}%", fmt(floor, 1), f"{floor*P0*IMD_USD/ETH_USD*365*100:.2f}%",
                      f"{released*100:.1f}%"])
-    print(f"First 90 days, {fmt(emis0)} tokens to emit, pool capacity {fmt(cap_total)} ETH across assets.\n")
+    print(f"First 90 days, {fmt(emis0)} tokens to emit, pool capacity {fmt(cap_total, 1)} ETH-equivalent across assets.\n")
     print(table(["ETH shielded in total", "Use of capacity", "v4 rule: tokens per ETH per day", "Yield a year at start price",
                  "With a 25% floor", "Yield a year", "Share of emission released"], rows))
     print("\nUnder the v4 rule a single depositor of 0.001 ETH would collect the whole period's emission. With a floor on the "
@@ -263,18 +265,35 @@ def part4():
         emis = budget * w / sum(w2); per = emis / (cap_total2 * CAP_PERIOD_DAYS)
         rows.append([f"{q*CAP_PERIOD_DAYS}-{(q+1)*CAP_PERIOD_DAYS}", fmt(caps2[q]), "$" + fmt(cap_total2*ETH_USD), f"{w/sum(w2)*100:.1f}%",
                      fmt(per, 1), f"{per*P0*IMD_USD/ETH_USD*365*100:.2f}%", f"{per*P0*IMD_USD/ETH_USD*365*100*4:.2f}%"])
-    print(table(["Days", "Cap per asset, ETH", "Most at risk, three assets", "Share of user tokens", "Tokens per ETH per day, full pool",
+    print(table(["Days", "Cap per asset, ETH", "Most at risk, all assets", "Share of user tokens", "Tokens per ETH per day, full pool",
                  "Yield a year at start price", "At 4x"], rows))
     v4_tail = CAP0_ETH * 2 ** CAP_PERIODS * WEIGHTED_ASSETS * ETH_USD
     print(f"\nUnder the v4 default the cap is 3,200 ETH per asset in the last quarter of year two and 6,400 ETH from day 720, "
-          f"which is ${fmt(v4_tail)} across three assets, and v4 does not say where the doubling stops. "
+          f"which is ${fmt(v4_tail)} across the assets, and v4 does not say where the doubling stops. "
           f"With a stop at 800 ETH the most that can be at risk is ${fmt(800*WEIGHTED_ASSETS*ETH_USD)}.\n")
+
+def part5():
+    print("## 5. IMD as a listed asset with full reward weight\n")
+    imd_eq = IMD_CAP0 * IMD_USD / ETH_USD
+    cap_total = CAP0_ETH * 3 + imd_eq
+    floor = cap_total / 4
+    print(f"IMD is listed with the same reward per dollar as ETH at today's prices and a cap of its own: {IMD_CAP0:,.0f} IMD at the start "
+          f"(${IMD_CAP0*IMD_USD:,.0f}, {imd_eq:.2f} ETH-equivalent), doubling with the other caps to {IMD_CAP0*32:,.0f} IMD (${IMD_CAP0*32*IMD_USD:,.0f}).\n")
+    rows = []
+    for label, others in (("full", 1.0), ("half full", 0.5), ("a quarter full", 0.25), ("a tenth full", 0.10), ("empty", 0.0)):
+        w = CAP0_ETH * 3 * others + imd_eq
+        share = imd_eq / max(w, floor)
+        released = min(1.0, w / floor)
+        rows.append([label, f"{share*100:.1f}%", f"{released*100:.0f}%"])
+    print(table(["ETH, USDC and DAI are", "Share of the period's emission earned by a full IMD cap", "Share of the emission released"], rows))
+    print(f"\nIMD is {imd_eq/cap_total*100:.1f}% of capacity. The same ratios hold at every cap step. At the stop, the IMD cap is "
+          f"{IMD_CAP0*32/7_080_000*100:.1f}% of IMD's total supply of about 7.08 million.\n")
 
 def main():
     print("# Murmuration v4 economics: simulation results\n")
     print(f"Generated by `reports/sim/murmuration_economics.py`. Prices of 10 November 2026: ETH ${ETH_USD:,.0f}, IMD ${IMD_USD}. "
           f"Supply assumed {SUPPLY:,} tokens for readable numbers. This is arithmetic on the design, not a forecast.\n")
-    part1(); part2(); part3(); part4()
+    part1(); part2(); part3(); part4(); part5()
 
 if __name__ == "__main__":
     main()

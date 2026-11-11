@@ -12,7 +12,8 @@ permanent loss. What worries us most: any path that moves a deposit to anyone bu
 take more than was activated, pays more reward than released, bypasses the cap or the minimum age, or leaves
 funds unable to move. Check every invariant listed for these contracts in the build specification and say for
 each whether it holds, with the test or trace that shows it. Token behaviours to assume: USDC can blocklist
-any address including these contracts; DAI is plain; the project token is plain.
+any address including these contracts; DAI is plain; IMD is a plain bridged token with no fee, pause or
+blocklist; the project token is plain.
 
 ## Contracts named
 

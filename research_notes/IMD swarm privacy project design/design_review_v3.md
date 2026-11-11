@@ -81,3 +81,25 @@ Railgun's turnover); reward 261 tokens per ETH per day on a full pool, 0.57% a y
 - That a v3 position from the start tick to the maximum tick behaves as the unbounded closed form to within rounding
   (it should; the simulation uses a top of 10^12 times the start).
 - The reward arithmetic bounds (weight < 2^64, value < 2^96, index < 2^90, product < 2^251) are by hand, not machine-checked.
+
+## 5. Addendum, 10 and 11 November 2026: owner's decisions after revision 4.1
+
+- **Exit sizes start at 0.005 ETH** (10 Nov). Seventeen sizes; any amount under 1,000 ETH leaves in at most 16 withdrawals
+  (checked by enumerating every multiple of 0.005). A remainder under 0.005 ETH cannot leave by itself.
+- **IMD is a listed asset with full reward weight** (11 Nov). My first recommendation was to leave it out; then to list it
+  with zero weight, because I had described the owner key's power over the LayerZero bridge peers as a way to mint. The
+  owner pointed out that IMD cannot mint and has a fixed supply of about 7.08M across chains (4.22M on Ethereum on 11 Nov,
+  `totalSupply()`; `owner()` is still the code-less key `0x047f…54b7`). The precise statement is that one key administers
+  the bridge on Ethereum. With that, full weight is defensible if the cap is small:
+  - cap 2,500 IMD rising to 80,000 (about 1.1% of supply), which is 4.0% of the pool's weighted capacity at every step;
+  - a full IMD cap earns 4.0% of emissions when the other assets are full, 7.6% at half, 14.2% at a quarter, and 15.9% at
+    most, because the divisor floor is a quarter of capacity (`reports/sim/results.md`, section 5);
+  - the reward token is priced in IMD, so a fall in IMD's dollar price does not raise the reward per IMD shielded;
+  - an equal-dollar cap (about 645,000 IMD at the stop) was rejected: a circuit failure could put 9% of supply on a market
+    with about $1.14M of liquidity.
+- **Consequence in the FeeDistributor:** fees paid in IMD cannot sensibly be auctioned for IMD, so their 20% goes straight
+  to `buybackImd`, an explicit balance kept apart from IMD owed to stakers; `fundBuyback(amount)` lets the Distribution
+  contract add the position's IMD trading fees. The invariant "IMD leaves only through the swap" becomes "`buybackImd`
+  falls only through the swap".
+- **Residual risks recorded in the spec:** the weight is a price ratio frozen at deployment; one key administers IMD's
+  bridge; IMD's deposits and withdrawals will be few, so its privacy at the edges is weak.

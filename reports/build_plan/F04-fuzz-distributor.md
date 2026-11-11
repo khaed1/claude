@@ -26,7 +26,7 @@ ambiguous, stop and report the ambiguity instead of choosing.
 
 1. Invariant holds over 1,000,000 calls: each receipt is split 40/40/20 with the remainder in the basket.
 2. Invariant holds over 1,000,000 calls: balances cover streams, owed and basket.
-3. Invariant holds over 1,000,000 calls: IMD only ever decreases through the swap callback.
+3. Invariant holds over 1,000,000 calls: buybackImd only ever decreases through the swap callback.
 4. Invariant holds over 1,000,000 calls: a buyback step is at most half of fee rate times reserves.
 5. The handler reaches every external function at least 1,000 times (call summary in the output).
 

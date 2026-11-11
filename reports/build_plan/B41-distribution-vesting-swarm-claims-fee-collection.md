@@ -9,8 +9,8 @@
 Implement claimFounder (nothing for the first 216,000 blocks after launch, then linear to 5,256,000 blocks, to
 the fixed founder address), claimSwarm(index, account, amount, proof) against the fixed Merkle root with
 leaves keccak256(abi.encode(index, account, amount)) double-hashed, linear over Params.SWARM_VEST from launch,
-and collect(): burn(0) then collect on the position, IMD to the FeeDistributor, token part to the burn
-address. Work only from the pinned commit of the project repository and the build specification
+and collect(): burn(0) then collect on the position, IMD to the FeeDistributor through fundBuyback, token part
+to the burn address. Work only from the pinned commit of the project repository and the build specification
 (`reports/Murmuration v4 specification.html`, section "Build specification"). Solidity 0.8.30, Foundry,
 optimizer on, no ffi, no network. No owner, admin, pause, upgrade or setter may appear in any contract. If the
 specification is ambiguous, stop and report the ambiguity instead of choosing.

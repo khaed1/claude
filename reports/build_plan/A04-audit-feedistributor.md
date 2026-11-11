@@ -12,7 +12,7 @@ permanent loss. What worries us most: staking reward sniping, a blocked or under
 leaving except through the pool swap, and extraction around a buyback step. Check every invariant listed for
 these contracts in the build specification and say for each whether it holds, with the test or trace that
 shows it. Token behaviours to assume: USDC can blocklist any address including these contracts; DAI is plain;
-the project token is plain.
+IMD is a plain bridged token with no fee, pause or blocklist; the project token is plain.
 
 ## Contracts named
 

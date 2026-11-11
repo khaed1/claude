@@ -11,7 +11,8 @@ deployed: there is no owner, pause or upgrade, so every finding that would norma
 permanent loss. What worries us most: acceptance of an invalid proof, malleable or out-of-range public inputs,
 and precompile call handling. Check every invariant listed for these contracts in the build specification and
 say for each whether it holds, with the test or trace that shows it. Token behaviours to assume: USDC can
-blocklist any address including these contracts; DAI is plain; the project token is plain.
+blocklist any address including these contracts; DAI is plain; IMD is a plain bridged token with no fee, pause
+or blocklist; the project token is plain.
 
 ## Contracts named
 

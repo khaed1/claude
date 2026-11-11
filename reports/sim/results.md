@@ -88,20 +88,20 @@ Volume is the dollar value crossing the pool's edge in a month, deposits plus wi
 
 ### What the caps allow
 
-Railgun turns its balance over about 1.18 times a month ($125M of shield plus unshield volume on $106M). The table applies that rate, and a rate five times higher, to a pool that is full at every cap, with 3 assets at equal dollar caps.
+Railgun turns its balance over about 1.18 times a month ($125M of shield plus unshield volume on $106M). The table applies that rate, and a rate five times higher, to a pool that is full at every cap: ETH, USDC and DAI at equal dollar caps and IMD at its own cap of 2,500 IMD doubling in step.
 
 | Days | Cap per asset, ETH | Most the pool can hold | Volume at 1.18x | Fee per month | IMD to liquidity | Volume at 5.9x | Fee per month | IMD to liquidity |
 |---|---|---|---|---|---|---|---|---|
-| 0-90 | 25 | $159,750 | $188,505 | $377 | 29 | $942,525 | $1,885 | 143 |
-| 90-180 | 50 | $319,500 | $377,010 | $754 | 57 | $1,885,050 | $3,770 | 286 |
-| 180-270 | 100 | $639,000 | $754,020 | $1,508 | 114 | $3,770,100 | $7,540 | 571 |
-| 270-360 | 200 | $1,278,000 | $1,508,040 | $3,016 | 228 | $7,540,200 | $15,080 | 1,142 |
-| 360-450 | 400 | $2,556,000 | $3,016,080 | $6,032 | 457 | $15,080,400 | $30,161 | 2,285 |
-| 450-540 | 800 | $5,112,000 | $6,032,160 | $12,064 | 914 | $30,160,800 | $60,322 | 4,570 |
-| 540-630 | 1,600 | $10,224,000 | $12,064,320 | $24,129 | 1,828 | $60,321,600 | $120,643 | 9,140 |
-| 630-720 | 3,200 | $20,448,000 | $24,128,640 | $48,257 | 3,656 | $120,643,200 | $241,286 | 18,279 |
+| 0-90 | 25 | $166,350 | $196,293 | $393 | 30 | $981,465 | $1,963 | 149 |
+| 90-180 | 50 | $332,700 | $392,586 | $785 | 59 | $1,962,930 | $3,926 | 297 |
+| 180-270 | 100 | $665,400 | $785,172 | $1,570 | 119 | $3,925,860 | $7,852 | 595 |
+| 270-360 | 200 | $1,330,800 | $1,570,344 | $3,141 | 238 | $7,851,720 | $15,703 | 1,190 |
+| 360-450 | 400 | $2,661,600 | $3,140,688 | $6,281 | 476 | $15,703,440 | $31,407 | 2,379 |
+| 450-540 | 800 | $5,323,200 | $6,281,376 | $12,563 | 952 | $31,406,880 | $62,814 | 4,759 |
+| 540-630 | 1,600 | $10,646,400 | $12,562,752 | $25,126 | 1,903 | $62,813,760 | $125,628 | 9,517 |
+| 630-720 | 3,200 | $21,292,800 | $25,125,504 | $50,251 | 3,807 | $125,627,520 | $251,255 | 19,034 |
 
-A pool that is full at every cap for two years and turns over like Railgun adds about 21,849 IMD ($57,683) to the market in total. At that turnover a full pool first reaches $1M a month at day 270, $10M a month at day 540, and $100M a month: never inside the two-year schedule.
+A pool that is full at every cap for two years and turns over like Railgun adds about 22,752 IMD ($60,066) to the market in total. At that turnover a full pool first reaches $1M a month at day 270, $10M a month at day 540, and $100M a month: never inside the two-year schedule.
 
 ## 4. User reward per unit of shielded value
 
@@ -109,30 +109,30 @@ v4 default: emissions follow the caps, so a full pool pays the same number of to
 
 | Days | Cap per asset, ETH | Share of user tokens | Tokens emitted | Tokens per ETH per day, full pool | Yield a year at start price | At 4x | At 16x |
 |---|---|---|---|---|---|---|---|
-| 0-90 | 25 | 0.39% | 1,764,706 | 261.4 | 0.57% | 2.27% | 9.08% |
-| 90-180 | 50 | 0.78% | 3,529,412 | 261.4 | 0.57% | 2.27% | 9.08% |
-| 180-270 | 100 | 1.57% | 7,058,824 | 261.4 | 0.57% | 2.27% | 9.08% |
-| 270-360 | 200 | 3.14% | 14,117,647 | 261.4 | 0.57% | 2.27% | 9.08% |
-| 360-450 | 400 | 6.27% | 28,235,294 | 261.4 | 0.57% | 2.27% | 9.08% |
-| 450-540 | 800 | 12.55% | 56,470,588 | 261.4 | 0.57% | 2.27% | 9.08% |
-| 540-630 | 1,600 | 25.10% | 112,941,176 | 261.4 | 0.57% | 2.27% | 9.08% |
-| 630-720 | 3,200 | 50.20% | 225,882,353 | 261.4 | 0.57% | 2.27% | 9.08% |
+| 0-90 | 25 | 0.39% | 1,764,706 | 251.1 | 0.55% | 2.18% | 8.72% |
+| 90-180 | 50 | 0.78% | 3,529,412 | 251.1 | 0.55% | 2.18% | 8.72% |
+| 180-270 | 100 | 1.57% | 7,058,824 | 251.1 | 0.55% | 2.18% | 8.72% |
+| 270-360 | 200 | 3.14% | 14,117,647 | 251.1 | 0.55% | 2.18% | 8.72% |
+| 360-450 | 400 | 6.27% | 28,235,294 | 251.1 | 0.55% | 2.18% | 8.72% |
+| 450-540 | 800 | 12.55% | 56,470,588 | 251.1 | 0.55% | 2.18% | 8.72% |
+| 540-630 | 1,600 | 25.10% | 112,941,176 | 251.1 | 0.55% | 2.18% | 8.72% |
+| 630-720 | 3,200 | 50.20% | 225,882,353 | 251.1 | 0.55% | 2.18% | 8.72% |
 
 Half of all user rewards (50.2%) are paid in the last 90 days and 5.9% in the first year.
 
 ### An under-filled pool: the naive rule against a floor
 
-First 90 days, 1,764,706 tokens to emit, pool capacity 75 ETH across assets.
+First 90 days, 1,764,706 tokens to emit, pool capacity 78.1 ETH-equivalent across assets.
 
 | ETH shielded in total | Use of capacity | v4 rule: tokens per ETH per day | Yield a year at start price | With a 25% floor | Yield a year | Share of emission released |
 |---|---|---|---|---|---|---|
-| 0.001 | 0.001% | 19,607,843.1 | 42,578.3% | 1,045.8 | 2.27% | 0.0% |
-| 0.100 | 0.133% | 196,078.4 | 425.8% | 1,045.8 | 2.27% | 0.5% |
-| 1.000 | 1.333% | 19,607.8 | 42.6% | 1,045.8 | 2.27% | 5.3% |
-| 7.500 | 10.000% | 2,614.4 | 5.7% | 1,045.8 | 2.27% | 40.0% |
-| 18.750 | 25.000% | 1,045.8 | 2.3% | 1,045.8 | 2.27% | 100.0% |
-| 37.500 | 50.000% | 522.9 | 1.1% | 522.9 | 1.14% | 100.0% |
-| 75.000 | 100.000% | 261.4 | 0.6% | 261.4 | 0.57% | 100.0% |
+| 0.001 | 0.001% | 19,607,843.1 | 42,578.3% | 1,004.3 | 2.18% | 0.0% |
+| 0.100 | 0.128% | 196,078.4 | 425.8% | 1,004.3 | 2.18% | 0.5% |
+| 1.000 | 1.280% | 19,607.8 | 42.6% | 1,004.3 | 2.18% | 5.1% |
+| 7.810 | 10.000% | 2,510.7 | 5.5% | 1,004.3 | 2.18% | 40.0% |
+| 19.525 | 25.000% | 1,004.3 | 2.2% | 1,004.3 | 2.18% | 100.0% |
+| 39.049 | 50.000% | 502.1 | 1.1% | 502.1 | 1.09% | 100.0% |
+| 78.099 | 100.000% | 251.1 | 0.5% | 251.1 | 0.55% | 100.0% |
 
 Under the v4 rule a single depositor of 0.001 ETH would collect the whole period's emission. With a floor on the divisor, the rate per ETH never exceeds four times the full-pool rate and the unreleased part stays locked for good.
 
@@ -140,16 +140,30 @@ Under the v4 rule a single depositor of 0.001 ETH would collect the whole period
 
 Caps of 25, 50, 100, 200, 400 and then 800 ETH from day 450 onward. Emissions follow the caps, so the last three periods pay equally.
 
-| Days | Cap per asset, ETH | Most at risk, three assets | Share of user tokens | Tokens per ETH per day, full pool | Yield a year at start price | At 4x |
+| Days | Cap per asset, ETH | Most at risk, all assets | Share of user tokens | Tokens per ETH per day, full pool | Yield a year at start price | At 4x |
 |---|---|---|---|---|---|---|
-| 0-90 | 25 | $159,750 | 0.8% | 524.9 | 1.14% | 4.56% |
-| 90-180 | 50 | $319,500 | 1.6% | 524.9 | 1.14% | 4.56% |
-| 180-270 | 100 | $639,000 | 3.1% | 524.9 | 1.14% | 4.56% |
-| 270-360 | 200 | $1,278,000 | 6.3% | 524.9 | 1.14% | 4.56% |
-| 360-450 | 400 | $2,556,000 | 12.6% | 524.9 | 1.14% | 4.56% |
-| 450-540 | 800 | $5,112,000 | 25.2% | 524.9 | 1.14% | 4.56% |
-| 540-630 | 800 | $5,112,000 | 25.2% | 524.9 | 1.14% | 4.56% |
-| 630-720 | 800 | $5,112,000 | 25.2% | 524.9 | 1.14% | 4.56% |
+| 0-90 | 25 | $166,350 | 0.8% | 504.1 | 1.09% | 4.38% |
+| 90-180 | 50 | $332,700 | 1.6% | 504.1 | 1.09% | 4.38% |
+| 180-270 | 100 | $665,400 | 3.1% | 504.1 | 1.09% | 4.38% |
+| 270-360 | 200 | $1,330,800 | 6.3% | 504.1 | 1.09% | 4.38% |
+| 360-450 | 400 | $2,661,600 | 12.6% | 504.1 | 1.09% | 4.38% |
+| 450-540 | 800 | $5,323,200 | 25.2% | 504.1 | 1.09% | 4.38% |
+| 540-630 | 800 | $5,323,200 | 25.2% | 504.1 | 1.09% | 4.38% |
+| 630-720 | 800 | $5,323,200 | 25.2% | 504.1 | 1.09% | 4.38% |
 
-Under the v4 default the cap is 3,200 ETH per asset in the last quarter of year two and 6,400 ETH from day 720, which is $40,896,000 across three assets, and v4 does not say where the doubling stops. With a stop at 800 ETH the most that can be at risk is $5,112,000.
+Under the v4 default the cap is 3,200 ETH per asset in the last quarter of year two and 6,400 ETH from day 720, which is $42,585,600 across the assets, and v4 does not say where the doubling stops. With a stop at 800 ETH the most that can be at risk is $5,323,200.
+
+## 5. IMD as a listed asset with full reward weight
+
+IMD is listed with the same reward per dollar as ETH at today's prices and a cap of its own: 2,500 IMD at the start ($6,600, 3.10 ETH-equivalent), doubling with the other caps to 80,000 IMD ($211,200).
+
+| ETH, USDC and DAI are | Share of the period's emission earned by a full IMD cap | Share of the emission released |
+|---|---|---|
+| full | 4.0% | 100% |
+| half full | 7.6% | 100% |
+| a quarter full | 14.2% | 100% |
+| a tenth full | 15.9% | 54% |
+| empty | 15.9% | 16% |
+
+IMD is 4.0% of capacity. The same ratios hold at every cap step. At the stop, the IMD cap is 1.1% of IMD's total supply of about 7.08 million.
 
