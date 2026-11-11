@@ -1,13 +1,17 @@
 # Adversarial review of Murmuration v4, revision 4.3: registry, launch, fees and canary
 
-Status: IN PROGRESS. This note is written as the review proceeds; sections below fill in as findings are confirmed.
+Status: complete. Written by a reviewer who was given only the page and told to break it.
 
 ## 1. Header
 
 - Reviewed: "Murmuration v4 specification, revision 4.3", plain-text rendering (1,604 lines), dated 11 November 2026. No other file was read. Line numbers below are lines of that text file.
 - Area: Screening (with the example criteria file), Token and fee, build-specification contracts 3 ScreenerRegistry, 4 FeeDistributor, 5 Distribution and 6 Token, the deposit state machine as far as screening decides it, Deployment and the canary, Economics simulated, and the related rows of Parameters, Defaults, Risks, and the gas of `launch` and `apply`.
-- Scripts used for the arithmetic and the simulations are in the session scratchpad under `review_r43/mech/` (`strikes.py`, `econ.py`, `ledger.py`, `misc.py`). They are not part of the repository.
-- Verdict: (pending, see the end of the run)
+- Scripts used for the arithmetic and the simulations are in the session scratchpad under `review_r43/mech/` (`strikes.py`, `strikes_fix.py`, `econ.py`, `ledger.py`, `misc.py`). They are not part of the repository.
+- Findings are listed most severe first. Each gives the passage it rests on, the steps, who can do it and at what cost, what breaks, the smallest fix, and how sure I am.
+- Verdict:
+  - Revision 4.3 does not pass in this area. There is one high finding, Q-1, which is certain: no flag can count in the first batch, so funds known to be stolen can fill the opening caps. Two more findings, Q-2 and Q-3, are high under one of two natural readings of the registry's bookkeeping.
+  - Counts: 0 critical, 1 high, 2 high if misread, 7 medium, 7 low. Also 13 contradictions between sections and 22 points a builder would have to guess.
+  - The launch loop, the address derivation, the arithmetic on the page, the canary's schedule, the stream scales, the auction and the buyback all held (section 5). The faults are in the registry, and six of them are in bookkeeping that could be removed (section 6).
 
 Terms used below. An *epoch* is one day counted from `GENESIS`. The *snapshot* is the number of active screeners fixed for an epoch. A *strike* is a point against a screener that did not reveal the majority's batch. The *ring* is the registry's record of the last 16 epochs. To *settle* a screener is to work out its strikes and credit its pay from the ring. The *pot* is the screeners' share of fees waiting to be paid.
 
