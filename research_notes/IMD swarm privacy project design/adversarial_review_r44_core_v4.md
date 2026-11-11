@@ -118,7 +118,7 @@ A *constraint system* is the list of equations the proof system enforces. A stat
 
 **Who and cost.** Nobody attacks this. It decides whether the proofs, which replace an external audit, exclude a circuit that locks notes.
 
-**Consequence.** As the page stands, the one lemma that answers last round's high finding (C-5, "Nothing required honest spends to work") either cannot be proved or is proved in a form that lets a too-tight range check through. The canary and the comparison against the Circom copy would catch a gross error (a 64-bit check fails on the first IMD note). They would not catch one in a range the canary never reaches: the canary's largest ETH exit is 10 ETH and its `g` ends near 2^80.5. I rate it medium because a lock needs a second error, in the circuit, on top of the weak statement.
+**Consequence.** As the page stands, the one lemma that answers last round's high finding (C-5, "Nothing required honest spends to work") either cannot be proved or is proved in a form that lets a too-tight range check through. The canary and the comparison against the Circom copy would catch a gross error (a 64-bit check fails on the first IMD note). They would not catch one in a range the canary never reaches: the canary's largest ETH exit is 10 ETH, so a 64-bit check on `publicAmount` (18.4 ETH) passes there and blocks every ETH exit of 20 ETH or more on mainnet, and the canary's `g` ends near 2^80.5. I rate it medium because a lock needs a second error, in the circuit, on top of the weak statement.
 
 **Smallest fix.** Split lemma 11 and write its hypotheses down.
 
@@ -129,7 +129,70 @@ A *constraint system* is the list of equations the proof system enforces. A stat
 
 **Confidence.** Certain for items 1, 3, 5 and 6 (arithmetic and a counter-example each). Likely for item 4.
 
-(more findings pending)
+### P-4. Low. Slots that are empty are made indistinguishable for inputs only. Nothing says what an empty output or an unused ciphertext 0 contains
+
+**Where.**
+
+- Line 553: "Empty inputs are filled with fresh random numbers every time: `rho`, `leafIndex` and `slot`." No matching rule for outputs.
+- Line 587: "The sender computes each `ownerCommit` from an address and a `rho`." With no recipient there is no address.
+- Line 559: "The pool checks the two lengths and nothing else about the ciphertexts."
+- Line 274: "Every spend has that output slot whether it is used or not, so nobody can tell a claim from a payment."
+- Line 566: "A spend that its owner sends from a public address ... shows no asset."
+
+**How it works.** An empty output's commitment is `H3(packed(asset, 0, 0), gRef, ownerCommit)`. `gRef` is public and `packed(asset, 0, 0)` has five possible values. If a builder fills the `ownerCommit` of an unused output with a constant (zero is the obvious one), anyone computes the five candidates for each checkpoint and reads off, for every spend: that output 0 has no recipient, which asset the spend is in (also for an owner-sent spend, which line 566 says shows none), and for output 2 that there is no claim, which by elimination marks the spends that do claim. Outputs 1 and 2 are probably safe, because line 544 derives their `rho` without conditions. Output 0 has no rule. The same holds for ciphertext 0: a wallet that posts 1,216 zero bytes when there is no recipient marks those spends at a glance.
+
+**Who and cost.** Any observer, for free, if the builder chooses a constant.
+
+**Consequence.** Under that reading the claim at line 274 fails and owner-sent spends show their asset. No funds are at risk.
+
+**Smallest fix.** One sentence beside line 553: every output, used or not, has an `ownerCommit` made from a fresh or derived `rho` (give output 0 the same derivation as outputs 1 and 2 when the sender keeps it), and ciphertext 0 is always a real encryption, to the sender's own key when there is no recipient. A string of random bytes is not enough: about half of all 32-byte strings are not valid X25519 public keys, so random filler can be told from real ciphertexts over many spends.
+
+**Confidence.** Depends on reading.
+
+### P-5. Low. A quote's expiry is not in the proof. A relayer that was handed a spend can land it until two more checkpoints have been taken, which in a quiet pool is never
+
+**Where.**
+
+- Line 884: "A relayer's quote names an amount of the asset being spent and an expiry."
+- Line 885: "The wallet does not give the same inputs to a second relayer until the first quote has expired."
+- Line 578: `extHash` covers the chain id, the pool, the recipient, the relayer and the two ciphertext hashes. No deadline.
+- Line 873: "A proof built against the checkpoint root and `gCur` stays valid until two more rolls have happened".
+- Line 1229: "A relayer refuses or delays ... What remains: A short delay".
+
+**How it works.**
+
+1. At 10:10 a wallet hands relayer R1 a proof that withdraws 1 ETH to X with a fee of 0.0001 ETH. The quote expires at 10:15. R1 keeps the proof and sends nothing.
+2. At 10:16 the wallet, following line 885, proves again with the same notes for relayer R2 (and may by now pay a different recipient or amount).
+3. R1 watches for R2's transaction and lands its own first. R1 is paid its fee. R2's transaction reverts at the nullifier check and R2 pays for about 65,000 gas.
+4. If the pool is quiet, as it will be in its first weeks, no roll happens unless someone calls one, and R1's proof stays valid for days.
+
+**Who and cost.** Any relayer, at no cost: it is paid for the spend it lands.
+
+**Consequence.** Bounded. The spend that lands is one the user signed, so nothing is stolen. A relayer can make its competitors lose a little gas on every request it stalls, the wallet cannot treat a handed-over spend as cancelled, and "a short delay" understates what a stalling relayer can do.
+
+**Smallest fix.** Add a `deadline` timestamp to `extHash` and one comparison in `spend`. It costs no constraint and no public input. Otherwise say in the wallet rules that notes given to a relayer stay committed until their nullifiers appear or two later rolls have been seen.
+
+**Confidence.** Certain.
+
+### P-6. Low. Under the wallet's proving rule a note can be spent only after the next hourly checkpoint, so one note supports one spend an hour. The state table says the opposite
+
+**Where.**
+
+- Line 882: "The wallet always proves against the checkpoint root and `gCur`. ... It waits for the next roll before spending a note newer than the checkpoint."
+- Line 872: "A note made by a spend carries that spend's checkpoint and can be spent in the next transaction against a recent root."
+- Line 91: "A larger amount leaves as several standard withdrawals, spread over time by the wallet." Line 1312: "A full exit of any amount under 1,000 ETH takes at most 16 withdrawals."
+
+**How it works.** Every spend replaces its inputs with new notes, and new notes are "newer than the checkpoint". A wallet holding one note of 999.995 ETH needs 16 withdrawals. Each leaves a change note that the rule forbids spending until the next roll, which can come no sooner than the next hour. The exit takes 16 hours, or about 5 if the wallet first splits the note in two at each step. A user who pays two people within an hour from one note waits up to an hour for the second payment, and so does anyone who wants to pass on a payment just received.
+
+**Who and cost.** Every user of a wallet that follows the rule.
+
+**Consequence.** A usability cost the page does not state, and two passages a wallet builder cannot both follow. Under the other reading (recent roots for fresh notes) the leak named at line 882 returns: observers can tell which spends use notes less than an hour old.
+
+**Smallest fix.** Keep line 882, change line 872 to say that the contract permits it and the wallet does not do it, and state the one-spend-per-note-per-hour cost where exits and payments are described. If the 64 recent roots are then used by no conforming wallet, consider removing them: they cost 64 storage slots, a write on every insert and a lookup of up to 64 cold reads (see section 4).
+
+**Confidence.** Certain.
+
+(findings complete below this line when the header says so)
 
 ## 3. Contradictions between sections
 
