@@ -82,9 +82,34 @@ With 15 honest screeners the threshold is 10. Eight phantom screeners make the s
 
 **Consequence.** Activation is delayed on up to almost half of all days, for ever, instead of the third the page states, and the first unbroken blockade is 8 or 9 days, not 7. At exactly half the stop is total. This is a delay and not a loss, and a group this large is one or two seats from the majority that the page already says controls the registry, which is why it is rated medium and not high.
 
-**Smallest fix.** Drop the credit of one strike on a day when no batch was accepted. Then every blocked day costs the whole group something or nothing, rotation gains nothing, and the bound is one day in three for every group size. Record the majority hash when a hash has at least half, not more than half, or state that exactly half is a known deadlock. No mechanism needs to be removed for this.
+**Smallest fix.** Two changes to constants and one to the rule, checked in `strikes_fix.py`. Give the credit of one strike only on a day when a batch was accepted, and make a miss cost three, with removal at 21. Then a group of any size under half blocks at most one day in three (25% of days for a bare third, 33% for 50 of 101). Dropping the credit on blocked days alone is not enough: at two strikes a miss, a group of 14 in 30 still blocks 39% of days. For exactly half, record the majority hash when a hash has at least half of the snapshot, or state on the page that an even split is a deadlock with no penalty. No mechanism needs to be removed for this.
 
 **Confidence.** Certain for cases 1 and 2 (simulated from the rule as written). Case 3 depends on how reliable honest screeners are.
+
+### Q-4. Medium. Blocked days still pay the blockers, and stakers gain when a batch fails
+
+**Where.** Line 447, under "What revision 4.3 takes out": "The pot that carried blocked days forward to whoever revealed next." Line 433: "Fees from a day with no applied batch go to stakers." Against the build specification, line 746: "An epoch that does not pay leaves its fees in the pot", and line 779: `notify` "Sends 40% to the registry with `fund` if the registry's last applied batch is from this epoch or the one before, and otherwise adds it to the staker stream."
+
+**How it works.** The pot was not taken out. What changed is the test in `notify`, and that test looks at yesterday, not at today.
+
+1. Day 1 and day 2: batches applied. Day 3: a group blocks.
+2. Any time on day 3, a member calls `Pool.sweepFees` for each asset. The last applied batch is from "the one before" (day 2), so the screeners' 40% goes to the pot. A sweep is allowed once a day per asset, so nobody can sweep again that day.
+3. Day 3 closes unpaid. The fees stay in the pot.
+4. Day 4: the group reveals, the batch is applied, and the pot, day 3's fees included, is divided among day 4's revealers. The blockers are among them.
+
+So a group that blocks one day in three (or more, by Q-3) loses no fee income for the blocked days. The token share is only delayed (line 746), so it loses nothing there either. The fees go to stakers only when a sweep lands on the day after a failed day and before that day's `apply`, and screeners can always prevent that by sweeping late on the failed day. In a long blockade the rule does work from the second day on.
+
+The same test gives stakers a reason to want batches to fail. A party with 60% of the stake and 40% of the revealing seats gains a fifth of the screeners' 40% on every sweep it can route to stakers. The sums are small at these caps ($5 a day in the first step), but the direction of the incentive is wrong: the party that can block a batch can also be the party that is paid when it is blocked.
+
+One more leak from the same rule. On the day after the last batch ever (commits end 30 epochs after the deposit window closes, or the registry falls below seven and never recovers), the test still passes, a sweep sends 40% to the pot, and no paid epoch ever comes. Line 215 says "One rule covers a blockade, a dead registry and the time after deposits close." It leaves one day of screener fees stranded each time the registry stops.
+
+**Who and cost.** Any blocking group, at the cost of one sweep transaction per asset on each blocked day.
+
+**Consequence.** The answer to M-3 ("the pot paid them for the blocked days") holds for a continuous blockade and not for an intermittent one, which is the kind the strike rule permits for ever. Two summary lines on the page are false as built.
+
+**Smallest fix.** Remove the test from `notify` and remove the carry: `fund` adds to a pot that is paid only to the revealers of the epoch in which the fees arrived, and at the closing of an epoch whose batch was not applied the pot is sent back to the distributor's staker stream. That is one rule in one contract, and it removes the cross-contract read of `lastApplied`. It could also be answered by removing the screeners' fee share from the registry altogether (section 6).
+
+**Confidence.** Certain.
 
 ## 3. Contradictions between sections
 
