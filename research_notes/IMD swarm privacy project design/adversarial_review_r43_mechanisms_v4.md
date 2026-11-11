@@ -343,7 +343,7 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 | 1 | Line 447, taken out in 4.3: "The pot that carried blocked days forward to whoever revealed next." | Line 746: "An epoch that does not pay leaves its fees in the pot." | B. The pot still carries. See Q-4 |
 | 2 | Line 433: "Fees from a day with no applied batch go to stakers." Line 215: "When no batch was applied the day before, it goes to stakers instead." | Line 779: 40% goes to the registry "if the registry's last applied batch is from this epoch or the one before". | B. Fees swept on the failed day itself go to the pot |
 | 3 | Lines 77 and 110: a deposit "that has stayed refused for three weeks" can be sent back by anyone. | Line 650: "once the deposit is at least 21 days old" and refused now. | B. The registry cannot know how long a bit has been set. See Q-9 |
-| 4 | Line 773: "`accounted[asset]` | The sum of every amount above for the asset", where `buybackImd` is listed below it. | Line 790: `accounted` is "... plus the staked tokens for the token and `buybackImd` for IMD." | B. Built from A, each IMD sweep would split the waiting buyback money 40, 40, 20 a second time and the buyback would spend IMD owed to stakers. Medium if misread |
+| 4 | Line 773: `accounted[asset]` is "The sum of every amount above for the asset", and `buybackImd` is listed below it. | Line 790: `accounted` is "... plus the staked tokens for the token and `buybackImd` for IMD." | B. Built from A, each IMD sweep would split the waiting buyback money 40, 40, 20 a second time and the buyback would spend IMD owed to stakers. Medium if misread |
 | 5 | Line 760: "Total token pay never exceeds the 15%." | Lines 746 and 779: the pot also receives 40% of fees paid in the token, and pays them to screeners. | B. The invariant should say "token pay from the budget" |
 | 6 | Line 759: a stake leaves "14 epochs after exit or eviction". | Line 705: "Adding to it restarts the 14 epochs for the whole amount". | B. See Q-13 |
 | 7 | Line 744: "any pattern that blocks more than one day in three" gets the group removed. Line 111: a minority "can cost a day now and then". | Line 742: a member that reveals the majority hash loses a strike on any day that has one, blocked days included. | B. The bound is the group's share. See Q-3 |
@@ -381,7 +381,48 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 ## 5. What held
 
-(pending)
+Each line says what was attacked and why it stood.
+
+**Launch**
+
+- The launch cannot be blocked by creating pools first. Of 256 candidates about 211 sort below IMD's address (`0xd34a` of `0x10000` is 82.5%). Creating a Uniswap v3 pool costs about 4.5M gas, so 13 fit a 60M block and 3 fit one transaction under the 16.7M cap. Under the draft Glamsterdam prices one pool is about 34M gas and cannot share a block with a 45M launch at all. The candidates depend on `block.prevrandao`, which the proposer of the slot before can know one block early, and on the sender, which nobody knows before the transaction is seen. The best-placed adversary removes 13 candidates and leaves 198.
+- The launch cannot be crowded out for long. To keep a 45M transaction out of a 60M block an adversary has to buy the whole block at a higher tip, and full blocks raise the base fee by an eighth each time: about ten times after 20 blocks.
+- The loop's gas is as stated: two hashes and one cold read of the factory per candidate, under 5,000 gas, about 1.3M for all 256.
+- One orientation. With the token as the lower address the price is IMD per token, the 25% sits above the starting tick, and a pool initialised exactly at that tick takes no IMD when the position is placed. For a supply of one billion the starting tick is −99,600 (a valuation of about 47,300 IMD after rounding down, 1.5% under 48,000). The position's liquidity is about 1.7 × 10^24 against a limit per tick of about 3.8 × 10^34.
+- A stranger can add liquidity to the Distribution contract's own position, because Uniswap lets anyone mint to any owner. That only donates tokens to a position nobody can withdraw, and the buyback step uses the liquidity recorded at launch.
+- The Deployer is not circular. Its address depends on the five code hashes, the five contracts read their creator and compute the others from it, and the nonces are fixed at 1 to 5 because a failed creation reverts.
+
+**Arithmetic on the page** (`econ.py`)
+
+- The range: 12,000 × f / (1 − f) IMD, price 1 / (1 − f)², every row of the table, and the 6% ceiling (0.25 × f × (1 − f) peaks at 6.25%).
+- Stakes: 14.4, 18.6, 29.3, 89.7 and 558 IMD for the 1st, 100th, 250th, 500th and 700th; 833 stakes in all; 220 IMD for fifteen; 1,222 for 77; 57.7 after half the pool is bought; $68 after a quarter.
+- Emission: 0.77% of the users' share in the first 90 days, 12.2% in the first year, 510 tokens per ETH-equivalent per day, 1.11% a year at the start. The unlock table matches to two decimals with 30-day months.
+- Fees: every row of both tables, 11,194 IMD to the buyback over 730 days, $26 a day for the screeners' 15% and $5.03 for their 40% in the first step.
+- IMD's share of rewards: all five rows.
+- The canary: cap steps on days 10 to 50, emissions end on day 81, deposits close on day 85, all inside 90 days of its `START`. The end of commits falls on day 115 and is correctly listed as a fork test. The caps are worth $3,197 at the start and $102,304 at the last step, and 10 ETH fills them through the third level ($12,788).
+- `apply` with 96 new words: 2.12M gas today, 10.56M under Glamsterdam.
+
+**Fee distributor** (`misc.py`)
+
+- The new scales work. A stream of 0.4 USDT pays out 399,999 of 400,000 units whether the total stake is one base unit or 79 billion tokens. The largest intermediate value, for an amount of 2^96, is 216 bits.
+- Staking for a block around a sweep earns nothing extra, since every receipt is spread over seven days.
+- The auction sells at fair value when fees flow steadily: at 0.95, 30 and 505 IMD a day it settles on sales at 1.0, 15.5 and 253 IMD. A buyer who buys dust to reset the price pays the full price for it. Nothing lowers the price except time.
+- The buyback step is 60 IMD per 12 hours at the starting price, against at most about 15 arriving. Pushing the price up before a step enlarges the step in proportion, and the round trip still costs the attacker 2% in pool fees against a gain of at most 1%. A step of one wei sent to use up the 12 hours delays later money by 12 hours and no more.
+- A transfer fee on USDT would not break the books of the distributor or the registry, since both count what arrived.
+
+**Registry**
+
+- No capture approves a deposit younger than a day and a half: approval needs the deposit to be a day old at the epoch's start and no reveal lands before hour 12.
+- No batch decides a deposit made after its epoch began, whatever `upTo` and the bitmap say. A bit set for a deposit not yet covered is ignored.
+- At most one batch is accepted per epoch, because twice the threshold is more than the snapshot. The threshold and the blocking size were checked for 7 to 15 screeners.
+- A commitment cannot be copied from the chain: it includes the seat id, and reveals start after commits close.
+- Lazy settlement cannot be used to dodge strikes. A reveal needs a commit in the same epoch and a commit settles. Anyone can force a settlement by calling `evict`. A screener that neither commits nor reveals falls to the 7-epoch rule. Strikes stop at zero, so good days cannot be banked.
+- Waves of seats that take turns being active do not beat plain capture: for two waves to block in turn the holder needs more than two thirds of the registry anyway, and for three or more the arithmetic has no solution.
+- One seat is one record. Starving the `ownerOf` call of gas to make a seat look "not held" does not work: the caller keeps only a 64th of the gas, too little to finish the eviction.
+- A dropped batch fails safe. Strikes are counted on the majority hash whether or not the batch is applied, the next day covers the same deposits, and `START` is set only by an applied batch. Keeping `apply` out of 1,200 consecutive slots is beyond any builder.
+- The batch is a function of the chain as far as I could test it: the base block is finalized, the bitmap is read there, and since a batch is applied in its own epoch or never, the bitmap at the base block is final. The snapshot count follows from the state at the base block.
+- Tokens or ETH sent straight to the registry or the distributor are counted at the next receipt and are a gift.
+- A refund by the depositor needs no call to the registry, so no registry state can stop it, provided the two conditions are tested in that order.
 
 ## 6. What I would cut
 
