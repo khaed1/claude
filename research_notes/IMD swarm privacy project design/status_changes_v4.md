@@ -687,8 +687,8 @@ no entry after 23 September 2026:
 - "2025-05-26 | 07 | Eliot Lear | Stream changed to ISE from None"
 
 Against the list in the question: CFRG adoption, no (no document named `draft-irtf-cfrg-xwing-*` exists; a
-datatracker search for names containing "xwing" returns only this draft and the expired
-`draft-mahy-mls-xwing-00`); research-group last call, none recorded; IRSG review, not applicable to this
+datatracker search for names containing "xwing" returns only this draft and `draft-mahy-mls-xwing-00`,
+whose state is "Replaced"); research-group last call, none recorded; IRSG review, not applicable to this
 stream and none recorded; RFC Editor queue, no; published RFC, no.
 
 ### 4.3 Identifier and sizes in the latest text (verified)
@@ -749,4 +749,292 @@ Text: https://www.ietf.org/archive/id/draft-connolly-cfrg-xwing-kem-11.txt, 61,1
 
 ## 5. USDT's verified source on Ethereum
 
-(pending)
+Read 11 November 2026, 20:00 to 20:05 UTC. Contract `0xdAC17F958D2ee523a2206206994597C13D831ec7`. Line
+numbers refer to the 447-line file `TetherToken.sol` as served by Sourcify. Code quotes are verbatim.
+
+### 5.1 Result
+
+- **The verified source was obtained from two routes and both give the same file.** Sourcify's API version 2
+  now answers (the old endpoint is the one that returns 403). The on-chain bytecode equals the bytecode
+  compiled from this source except inside the trailing metadata hash.
+- **`transfer`, `transferFrom` and `approve` return nothing.** A caller that expects a boolean reverts. A
+  simulated call of each returned empty data.
+- **A transfer fee exists in the code and is off.** `basisPointsRate` = 0 and `maximumFee` = 0 today. The
+  owner can set at most 19 basis points, capped at 49 USDT per transfer. The sender is debited the full
+  amount; the recipient receives the amount less the fee.
+- **The owner can pause all transfers, blacklist any address, destroy a blacklisted address's balance, and
+  redirect every call to another contract (`deprecate`).** Today `paused` = false, `deprecated` = false,
+  `upgradedAddress` = the zero address.
+- **After deprecation `balanceOf` forwards to the new contract, and so do `transfer`, `transferFrom`,
+  `approve`, `allowance` and `totalSupply`.** The fee limits above then no longer bind.
+- **For the design:** nothing here changes a figure. It confirms the token behaviours the specification must
+  handle, adds two it may not list (a failed transfer burns all the gas it was given; a blacklisted pool can
+  still receive deposits), and gives the exact limits of the fee (5.7).
+
+### 5.2 Where the source came from, and why it is the right code (verified)
+
+| Route | Result |
+|---|---|
+| https://sourcify.dev/server/v2/contract/1/0xdAC17F958D2ee523a2206206994597C13D831ec7?fields=all (curl) | HTTP 200. "match": "match", "creationMatch": "match", "runtimeMatch": "match", "verifiedAt": "2024-08-08T13:56:23Z"; contract `TetherToken.sol:TetherToken`, solc "0.4.18+commit.9cf6e910", optimizer off; deployment transaction `0x2f1c5c2b44f771e942a8506148e256f94f1a464babc938ae0690c6e34cd79190`, block 4,634,748. One source file, 14,888 bytes |
+| https://eth.blockscout.com/api/v2/smart-contracts/0xdAC17F958D2ee523a2206206994597C13D831ec7 (curl) | HTTP 200. "name": "TetherToken", "compiler_version": "v0.4.18+commit.9cf6e910", "is_verified": true, "is_partially_verified": true, "optimization_enabled": false. Constructor arguments decoded as 100000000000, "Tether USD", "USDT", 6. Source 14,888 bytes |
+| https://sourcify.dev/server/files/any/1/<address> (the endpoint of the earlier session) | HTTP 403: "This compatibility endpoint is only served to browsers. Use GET /server/v2/contract/{chainId}/{address}?fields=... instead." |
+| https://api.etherscan.io/api?module=contract&action=getsourcecode | "You are using a deprecated V1 endpoint"; not used |
+
+- The two files are byte-identical: SHA-256
+  `36bf0b5747dfe7f79a03c9bc09af63e93e352d3c61199fbf025fd2c962b485f8` for both.
+- Bytecode check (RPC `eth_getCode` at block 26,393,944, 2026-11-11T20:02:11Z, on
+  https://ethereum-rpc.publicnode.com and https://eth.drpc.org): 11,075 bytes, keccak-256
+  `b44fb4e949d0f78f87f79ee46428f23a2a5713ce6fc6e0beb3dda78c2ac1ea55`, equal to Sourcify's `onchainBytecode`.
+  Sourcify's `recompiledBytecode` is also 11,075 bytes and differs from it in 31 bytes, all between offsets
+  11,041 and 11,072, inside the 43-byte metadata trailer (`a165627a7a72305820…0029`). Bytes 0 to 11,031 are
+  equal. So the executable code is exactly what this source compiles to. The metadata hash differs, which
+  is why both services call the match partial; that hash covers the source text and settings, not the code.
+
+### 5.3 `transfer`, `transferFrom`, `approve`: what they return and require (verified)
+
+None of the three declares a return value. The interface (lines 81, 91, 92): "function transfer(address to,
+uint value) public;", "function transferFrom(address from, address to, uint value) public;", "function
+approve(address spender, uint value) public;".
+
+`transfer`, outer function (lines 336 to 343):
+
+```
+function transfer(address _to, uint _value) public whenNotPaused {
+    require(!isBlackListed[msg.sender]);
+    if (deprecated) {
+        return UpgradedStandardToken(upgradedAddress).transferByLegacy(msg.sender, _to, _value);
+    } else {
+        return super.transfer(_to, _value);
+    }
+}
+```
+
+and the inner one it calls (lines 122 to 135):
+
+```
+function transfer(address _to, uint _value) public onlyPayloadSize(2 * 32) {
+    uint fee = (_value.mul(basisPointsRate)).div(10000);
+    if (fee > maximumFee) {
+        fee = maximumFee;
+    }
+    uint sendAmount = _value.sub(fee);
+    balances[msg.sender] = balances[msg.sender].sub(_value);
+    balances[_to] = balances[_to].add(sendAmount);
+    if (fee > 0) {
+        balances[owner] = balances[owner].add(fee);
+        Transfer(msg.sender, owner, fee);
+    }
+    Transfer(msg.sender, _to, sendAmount);
+}
+```
+
+`transferFrom`, outer (lines 346 to 353): "function transferFrom(address _from, address _to, uint _value)
+public whenNotPaused { require(!isBlackListed[_from]); if (deprecated) { return
+UpgradedStandardToken(upgradedAddress).transferFromByLegacy(msg.sender, _from, _to, _value); } else { return
+super.transferFrom(_from, _to, _value); } }". Inner (lines 167 to 188):
+
+```
+function transferFrom(address _from, address _to, uint _value) public onlyPayloadSize(3 * 32) {
+    var _allowance = allowed[_from][msg.sender];
+    ...
+    uint fee = (_value.mul(basisPointsRate)).div(10000);
+    if (fee > maximumFee) {
+        fee = maximumFee;
+    }
+    if (_allowance < MAX_UINT) {
+        allowed[_from][msg.sender] = _allowance.sub(_value);
+    }
+    uint sendAmount = _value.sub(fee);
+    balances[_from] = balances[_from].sub(_value);
+    balances[_to] = balances[_to].add(sendAmount);
+    if (fee > 0) {
+        balances[owner] = balances[owner].add(fee);
+        Transfer(_from, owner, fee);
+    }
+    Transfer(_from, _to, sendAmount);
+}
+```
+
+`approve`, outer (lines 365 to 371): "function approve(address _spender, uint _value) public
+onlyPayloadSize(2 * 32) { if (deprecated) { return
+UpgradedStandardToken(upgradedAddress).approveByLegacy(msg.sender, _spender, _value); } else { return
+super.approve(_spender, _value); } }". Inner (lines 195 to 205), the approve-to-zero rule:
+
+```
+require(!((_value != 0) && (allowed[msg.sender][_spender] != 0)));
+
+allowed[msg.sender][_spender] = _value;
+Approval(msg.sender, _spender, _value);
+```
+
+The short-address modifier (lines 112 to 115): "modifier onlyPayloadSize(uint size) { require(!(msg.data.length
+< size + 4)); _; }".
+
+What each requires:
+
+| Function | Reverts when | Notes |
+|---|---|---|
+| `transfer` | `paused`; the caller is blacklisted; calldata shorter than 68 bytes; balance below `_value` | The recipient is not checked against the blacklist. No check that `_to` is non-zero |
+| `transferFrom` | `paused`; `_from` is blacklisted; calldata shorter than 100 bytes; allowance or balance below `_value` | Neither the caller (the spender) nor `_to` is checked against the blacklist. An allowance of 2^256 − 1 is never reduced |
+| `approve` | calldata shorter than 68 bytes; `_value` is non-zero while the current allowance is non-zero | Not blocked by `paused` or by the blacklist |
+
+- The balance and allowance checks are SafeMath's `sub`, which uses `assert` (line 25: "assert(b <= a);").
+  With this compiler `assert` is the INVALID opcode, which consumes all the gas the call was given.
+- The payload-size check is a lower bound only. Longer calldata is accepted.
+- Simulated calls (`eth_call` with `from` an address holding no USDT, both endpoints, 20:02 UTC):
+  `transfer(to, 0)` returned "0x"; `transferFrom(from, to, 0)` returned "0x"; `approve(spender, 0)` and
+  `approve(spender, 5)` returned "0x"; `transfer(to, 1)` with no balance failed with "EVM error:
+  InvalidFEOpcode"; `transferFrom(from, to, 1)` with no allowance failed with "invalid opcode: INVALID";
+  `transfer` with 67 bytes of calldata failed with "execution reverted" and empty data.
+
+### 5.4 The fee and its hard limits (verified)
+
+`setParams` (lines 425 to 434):
+
+```
+function setParams(uint newBasisPoints, uint newMaxFee) public onlyOwner {
+    // Ensure transparency by hardcoding limit beyond which fees can never be added
+    require(newBasisPoints < 20);
+    require(newMaxFee < 50);
+
+    basisPointsRate = newBasisPoints;
+    maximumFee = newMaxFee.mul(10**decimals);
+
+    Params(basisPointsRate, maximumFee);
+}
+```
+
+- `basisPointsRate` can be at most 19, that is 0.19% of the amount.
+- `maximumFee` can be at most 49 × 10^6 base units, that is 49 USDT per transfer (`decimals` = 6).
+- The fee is `min(_value × basisPointsRate / 10000, maximumFee)`, rounded down. It applies to `transfer` and
+  to `transferFrom` alike.
+- Who pays: the sender is debited `_value` in full ("balances[msg.sender] = balances[msg.sender].sub(_value);").
+  The recipient is credited `_value − fee`. The fee is credited to `owner`.
+- The cap of 49 USDT is reached at a transfer of about 25,790 USDT when the rate is 19 basis points.
+- These limits are in this contract only. They do not bind a contract that `deprecate` points to.
+
+### 5.5 Pause, blacklist, `destroyBlackFunds` (verified)
+
+- Pause (lines 250 to 253): "function pause() onlyOwner whenNotPaused public { paused = true; Pause(); }".
+  `unpause` is the mirror. The modifier (line 235): "require(!paused);". It is applied to the outer
+  `transfer` and `transferFrom` only. `approve`, `balanceOf` and the owner's functions work while paused.
+- Blacklist (lines 277 to 285): "function addBlackList (address _evilUser) public onlyOwner {
+  isBlackListed[_evilUser] = true; AddedBlackList(_evilUser); }" and "function removeBlackList (address
+  _clearedUser) public onlyOwner { isBlackListed[_clearedUser] = false; RemovedBlackList(_clearedUser); }".
+  Readable by anyone: "mapping (address => bool) public isBlackListed;" and "function
+  getBlackListStatus(address _maker) external constant returns (bool)".
+- Effect of being blacklisted: the address cannot call `transfer` and cannot be the `_from` of a
+  `transferFrom`. It can still receive.
+- `destroyBlackFunds` (lines 287 to 293):
+
+```
+function destroyBlackFunds (address _blackListedUser) public onlyOwner {
+    require(isBlackListed[_blackListedUser]);
+    uint dirtyFunds = balanceOf(_blackListedUser);
+    balances[_blackListedUser] = 0;
+    _totalSupply -= dirtyFunds;
+    DestroyedBlackFunds(_blackListedUser, dirtyFunds);
+}
+```
+
+  It sets the balance to zero and lowers the supply. It emits no `Transfer` event.
+
+### 5.6 `deprecate` and forwarding (verified)
+
+"function deprecate(address _upgradedAddress) public onlyOwner { deprecated = true; upgradedAddress =
+_upgradedAddress; Deprecate(_upgradedAddress); }" (lines 383 to 387). There is no check on the address and no
+guard against calling it again with another address.
+
+| Call on the old contract after deprecation | Forwards? | To |
+|---|---|---|
+| `balanceOf(who)` | Yes | "UpgradedStandardToken(upgradedAddress).balanceOf(who)" (lines 356 to 362) |
+| `transfer(_to, _value)` | Yes | "transferByLegacy(msg.sender, _to, _value)" |
+| `transferFrom(_from, _to, _value)` | Yes | "transferFromByLegacy(msg.sender, _from, _to, _value)" |
+| `approve(_spender, _value)` | Yes | "approveByLegacy(msg.sender, _spender, _value)" |
+| `allowance(_owner, _spender)` | Yes | "StandardToken(upgradedAddress).allowance(_owner, _spender)" |
+| `totalSupply()` | Yes | "StandardToken(upgradedAddress).totalSupply()" |
+| the public mappings `balances(address)`, `allowed(address,address)`, and `_totalSupply()` | No | they read the old storage |
+
+- The old contract's own checks still run first: `whenNotPaused` and the blacklist test on `transfer` and
+  `transferFrom` come before the forward. The fee code and the payload-size check of the inner functions are
+  skipped for `transfer` and `transferFrom`, because the inner functions are not called.
+- The forwarded functions still return nothing to the caller: the old functions have no return type.
+- What the new contract does with balances, fees and failures is not defined here. The only constraint in
+  this source is the comment on the interface (lines 304 and 305): "those methods are called by the legacy
+  contract and they must ensure msg.sender to be the contract address".
+
+### 5.7 What an immutable pool must tolerate, and what could strand its USDT
+
+The pool pulls with `transferFrom`, pays with `transfer`, and reads its own balance before and after.
+
+Must tolerate (each follows from the code above):
+
+1. **No return data.** Call with a low-level call and treat success with empty return data as success. An
+   interface that declares `returns (bool)` reverts on every call. That alone would strand all USDT in a pool
+   that pays out through such an interface.
+2. **A fee on deposit.** With the fee on, `transferFrom(user, pool, v)` raises the pool's balance by
+   `v − fee`, `fee` at most `min(0.19% of v, 49 USDT)`. The pool must credit the measured increase. If it
+   instead requires the increase to equal `v`, deposits revert while a fee is set; nothing is lost.
+3. **A fee on payout that falls on the recipient.** `transfer(recipient, v)` lowers the pool's balance by
+   exactly `v`; the recipient gets `v − fee`. The pool's own before-and-after check still balances. The pool
+   must not check the recipient's balance. A payout split in two transfers (for example recipient and
+   relayer) pays the fee twice.
+4. **Reverts that burn gas.** Insufficient allowance or balance fails with the INVALID opcode and consumes
+   all gas forwarded to the token. The pool cannot cheaply catch a failed pull and continue.
+5. **Pause.** While `paused`, deposits and payouts of USDT both revert. The pool must keep working for its
+   other assets, and USDT must become usable again without any action by the pool once unpaused.
+6. **Blacklisted counterparties.** A blacklisted depositor's `transferFrom` reverts. A blacklisted recipient
+   does not make the pool's `transfer` revert, so a recipient cannot block a payout by being blacklisted.
+7. **The allowance rule, on the user's side.** A user who already has a non-zero allowance to the pool must
+   set it to zero before setting a new one. The pool itself never needs `approve` in the flow described.
+8. **Calldata length.** Standard ABI encoding gives 68 and 100 bytes, which pass.
+9. **`balanceOf`, not `balances`.** After a deprecation only `balanceOf` reflects the live token.
+10. **More gas after a deprecation.** Every call then makes a second external call. The pool must not
+    forward a fixed gas amount to the token.
+
+What could strand the pool's USDT (none can be prevented by an immutable pool; all are powers of the token's
+owner, `0xc6cde7c39eb2f0f0095f41570af89efc2c1ea828`, a contract):
+
+1. **Blacklisting the pool's address.** Every `transfer` from the pool reverts ("require(!isBlackListed[msg.sender]);").
+   Deposits into the pool keep succeeding, because only `_from` is checked, so users can keep paying into a
+   pool that can no longer pay out. A pool can refuse deposits in that state by reading
+   `isBlackListed(address(this))` first.
+2. **`destroyBlackFunds(pool)`** after blacklisting. The pool's balance becomes zero. The pool's notes for USDT
+   are then unbacked and the loss is permanent.
+3. **Pause without unpause.** Funds are intact but cannot move for as long as the owner chooses.
+4. **`deprecate` to a contract that behaves differently.** Examples: it does not credit the pool's old
+   balance; it reverts for contract callers; it charges a fee above the limits in 5.4; its `balanceOf`
+   reverts, which makes the pool's balance check revert; or the owner points `upgradedAddress` at an address
+   with no code, after which every forwarded call reverts. The owner can repoint it again at any time.
+5. **A fee combined with a strict check in the pool.** If the pool requires its balance to rise by exactly
+   the stated amount on deposit, a fee stops deposits only. If it requires anything exact about the
+   recipient's side on payout, a fee stops payouts.
+
+### 5.8 Current state (verified, RPC, block 26,393,944, 2026-11-11T20:02:11Z, two endpoints agreeing)
+
+| Getter | Value |
+|---|---|
+| `basisPointsRate()` | 0 |
+| `maximumFee()` | 0 |
+| `paused()` | false (0) |
+| `deprecated()` | false (0) |
+| `upgradedAddress()` | `0x0000000000000000000000000000000000000000` |
+| `owner()` and `getOwner()` | `0xc6cde7c39eb2f0f0095f41570af89efc2c1ea828` (5,705 bytes of code) |
+| `decimals()` | 6 |
+| `totalSupply()` | 84,296,691,994,493,958 base units, that is 84,296,691,994.49 USDT |
+| `MAX_UINT()` | 2^256 − 1 |
+
+### 5.9 Not verified
+
+- Whether `setParams`, `pause` or `deprecate` has ever been called. A search for the `Params`, `Deprecate` and
+  `Pause` events timed out on Blockscout, and public RPC endpoints refuse log queries over old blocks. Today's
+  values are consistent with never, but do not prove it.
+- Who controls the owner contract and how many signatures it needs. Only its address and code size were read.
+- The match is partial at both services: the metadata hash of the recompiled code differs from the one on
+  chain. The executable bytes were compared and are equal; the original source file may differ from this one
+  in comments, whitespace or file name.
+- No contract named as a future `upgradedAddress` exists on chain, so nothing can be said about its
+  behaviour.
+- Etherscan's page was not read (`etherscan.io` returns 403 here; its API version 1 is retired).
+- The gas-burning behaviour of `assert` is inferred from the compiler version and confirmed by the simulated
+  calls' error text, not by measuring gas in a mined transaction.
