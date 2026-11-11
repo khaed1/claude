@@ -45,6 +45,8 @@ The same route removes "dust": a 7 USDT or 0.004 ETH remainder, which lines 333 
 
 Per day there is no bound in the contract. At the gas target of 30M per block, 27 spends fit in a block, 194,400 a day: about 460 ETH a day by the ETH route and about $7.8M a day in each of the other assets, more than the whole pool holds at the stop on the caps ($5.1M). Above the target the base fee rises and the ceiling rises with it.
 
+**Across prices.** For an asset other than ETH the ceiling is a number of that asset's units fixed by the frozen rate, so its worth moves with the asset's price. If the pool's token trades at 16 times its starting valuation (three quarters of the public pool bought, line 961), its ceiling is worth about $650 a spend at today's base fee, some 6,000 times the gas. If an asset falls, the ceiling falls with it: relaying stops paying when the asset is worth about a 370th of its frozen rate at today's base fee, and about a 50th to a 70th from 1 gwei up, which is the figure the page gives (line 668).
+
 **Who can move the base fee, and what it buys.** Anyone who pays to fill blocks. Raising it from 0.05 to 20 gwei takes 51 full blocks and burns about 10 ETH; to 100 gwei, 65 blocks and about 51 ETH. It buys a larger ceiling per spend (0.162 ETH or $2,760 at 20 gwei). It is not worth paying for: the same ceilings arrive for nothing in every natural spike, and the 0.2% is charged either way. Nobody can push the ceiling below 0.002 ETH, so relaying in ETH cannot be priced out from below.
 
 **Who and cost.** Any holder of shielded funds, for gas of 0.26% of the amount (assets other than ETH) or 2.1% (ETH) at today's base fee, on top of the 0.2%.
@@ -117,6 +119,8 @@ A *constraint system* is the list of equations the proof system enforces. A stat
 5. *Lemma 9 is false for constraint 14.* `publicAsset` has no range check in constraint 3 and is free when both public amounts are zero, so `asset − publicAsset` wraps around the modulus in satisfying assignments (asset 1, `publicAsset` 7). It does no harm, because the other factor is then zero. But the lemma as worded cannot be proved, and what constraint 14 needs is narrower: that `publicAmount + relayFee` does not wrap.
 6. *Lemma 3, second sentence* ("Two satisfying assignments that spend the same position publish the same nullifier") is false for two assignments with different `root` values, and with the same root it holds only under the hash assumption of part C. It needs both said.
 
+7. *Part C names one property of Groth16 and the page relies on two.* Line 632 assumes "that Groth16 proofs can only be made by someone who knows a satisfying assignment". A relayer who is handed a proof is in a different position: it has seen a valid proof made with the witness it lacks. That it cannot turn this proof into one for another recipient, relayer or split is a second property (a proof seen for one statement does not help to prove another). Groth16 has it, under the same kind of assumption, exactly when the public-input columns are independent, which is what lemma 10 checks. It should be named in part C, because every claim that a relayer cannot alter a spend rests on it and not on the first.
+
 **Who and cost.** Nobody attacks this. It decides whether the proofs, which replace an external audit, exclude a circuit that locks notes.
 
 **Consequence.** As the page stands, the one lemma that answers last round's high finding (C-5, "Nothing required honest spends to work") either cannot be proved or is proved in a form that lets a too-tight range check through. The canary and the comparison against the Circom copy would catch a gross error (a 64-bit check fails on the first IMD note). They would not catch one in a range the canary never reaches: the canary's largest ETH exit is 10 ETH, so a 64-bit check on `publicAmount` (18.4 ETH) passes there and blocks every ETH exit of 20 ETH or more on mainnet, and the canary's `g` ends near 2^80.5. I rate it medium because a lock needs a second error, in the circuit, on top of the weak statement.
@@ -128,7 +132,9 @@ A *constraint system* is the list of equations the proof system enforces. A stat
 - Reword lemma 9 for constraint 14 to "`publicAmount + relayFee` is under the modulus", and lemma 3 to "under one root, and assuming no hash collision".
 - In part B, add a paired test to the single-input test: a valid proof must fail when `publicAmount` is raised by δ and `relayFee` lowered by δ. The single-input test at line 630 passes even when the two inputs share a key point, which is the failure lemma 10 is about ("pairwise different" at the same line does catch it).
 
-**Confidence.** Certain for items 1, 3, 5 and 6 (arithmetic and a counter-example each). Likely for item 4.
+- Add to part C: a proof seen for one set of public inputs does not help anyone without the witness to make a proof for another.
+
+**Confidence.** Certain for items 1, 3, 5, 6 and 7 (arithmetic, a counter-example, or the text of line 632). Likely for item 4.
 
 ### P-4. Medium, depends on reading. A refund is the one ETH payment with no fallback. If it is sent with the 50,000-gas allowance, a depositing contract whose receiving code costs more can never be refunded, and Glamsterdam's storage prices put ordinary contracts in that group
 
@@ -252,10 +258,10 @@ Every other ETH payment survives this: a withdrawal or relay fee that fails is c
 3. The other private inputs of an empty input. L553 names `rho`, `leafIndex` and `slot`. `index` must be at most `gRef` or constraint 8 fails, and `d`, `others` and `path` need values too. A wallet that randomises `index` cannot make a spend with one real input.
 4. Where `accrued` goes when the payment is to someone else. If the wallet splits it in proportion, the payee learns how much reward the payer had earned, which is the "value held for how long" that L887 warns about. If there is no change, it has to go into an output with value zero and `accrued` above zero (allowed: that output is not empty), or be claimed.
 5. The asset of output 1. Ciphertext 1 (L558) does not carry it and an owner-sent spend shows none. A restored wallet has to take it from the inputs it spent or try the five ids against `C1`.
-6. That the wallet must recompute `C0` from the decrypted payload, `gRef` and its own key before it counts a payment, and whether the encryption binds `C0` or `nf0` as associated data. L557 gives the info string and nothing else.
+6. That the wallet must recompute `C0` from the decrypted payload, `gRef` and its own key before it counts a payment, and whether the encryption binds `C0` or `nf0` as associated data. L557 gives the info string and nothing else. A wallet that skips the check can be shown a payment that does not exist.
 7. The 44 spare bytes of ciphertext 1. They must stay zero, or be covered by the key derivation, because the nonce is zero: the same key with two different plaintexts breaks the cipher. As specified it is safe (same key means same `C1` and `C2`, so the same plaintext).
 8. Whether hourly window 0 counts as already taken. `window` starts at zero (L652) and the first window after `START` is number 0. Either answer is safe: under one the first note waits for the next hour, under the other it can be spent at once.
-9. The formulas while the pool's copy of `START` is still zero. Written as `t = now − START` (L675) they give a `t` of about 57 years: step 5, caps at 32 times, no emission, and a deposit window that has closed. L518 says what is wanted ("Before START the caps are those of the first step ... deposits are open"), so each formula needs a branch.
+9. The formulas while the pool's copy of `START` is still zero. Written as `t = now − START` (L675) they give a `t` of about 57 years: step 5, caps at 32 times, no emission, and a deposit window that has closed. L518 says what is wanted ("Before START the caps are those of the first step ... deposits are open"), so each formula needs a branch. Without it deposits are rejected until the first batch. If the screening program produces no batch while there are no deposits, the pool never opens.
 10. Whether `deposit` reads `START` from the registry. Only `roll` is said to (L661). If not, `deposit` works from a stale zero until the first `roll`, `activate` or `spend` after the first batch. Harmless, since every activation rolls first.
 11. The unit of `rate` (L678, "tokens per second"). It must be base units per second. In whole tokens it is 0.44 at step 0 and rounds to nothing.
 12. The gas forwarded with a refund (P-4).
@@ -312,6 +318,14 @@ Each item names the attack tried and why it failed. Scripts are in `/tmp/claude-
 - *A token issuer.* A freeze of the pool traps that asset, as the page says. One consequence of revision 4.4 is not on the page: a frozen or paused asset also loses relaying for private transfers inside the pool, because the relayer's fee is a transfer of that asset. Its holders can still move it privately only by sending the spend from a public address.
 - *A depositor who never activates.* The deposit sits in `pending`, outside the caps and outside the reward divisor, and affects nobody. Many open deposits cost their maker gas and refundable capital.
 - *A recipient contract.* It can refuse a payment, which then waits in `owed`, and it can burn its 50,000 gas. It cannot make a spend fail or change any state of the pool.
+
+**What a wallet restored from its seed recovers, under the derivations of lines 537 to 546.**
+
+- Its deposits, by trying counters against `Deposited` events, with the position and index from `Activated`. Deposits by someone else that copied its `ownerCommit` show up as its own. That is harmless and the wallet must not offer to activate or refund them.
+- Outputs 1 and 2 of its own spends: values from ciphertext 1, `rho` and `d` from `nf0` and the slot, the index from `gRef`, the position from the event. The asset of output 1 by trial (section 4, item 5).
+- Payments received, by trying its encryption key on every ciphertext 0. Spending them needs the diversifier (P-2).
+- Which notes are spent, by computing each nullifier and looking it up.
+- Not recovered: whom it paid and the memos it sent (the amounts can be worked out from the inputs and the change), the addresses it handed out, and spends it gave to a relayer that have not landed (P-6).
 
 **Privacy claims.**
 
