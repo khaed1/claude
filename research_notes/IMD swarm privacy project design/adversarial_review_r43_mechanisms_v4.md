@@ -13,7 +13,29 @@ Terms used below. An *epoch* is one day counted from `GENESIS`. The *snapshot* i
 
 ## 2. Findings
 
-### Q-1. High if misread. "Closing the previous epoch" after a day with no registry call
+### Q-1. High. No flag can count in the first batch, and the first batch covers every deposit of the first month
+
+**Where.** Line 720: "`flag(seatId, depositId)`, `signalCriteria(seatId, hash)` | The operator of an active screener | Emit an event and store nothing." Line 714: "a screener is active no sooner than 31 epochs after registering. There is no shortcut at launch". Line 156: flags are "events up to the base block, from seats in this epoch's snapshot", and the base block is "the last block whose timestamp is before the epoch's start" (line 151). Line 648: `deposit` is open to "Anyone, from launch". Against the claims on line 109, "Screeners always have between one and two days to refuse stolen funds", and line 175, "whatever a screener learns in the first day after a deposit can still stop it."
+
+**How it works.** A flag is the only way knowledge that is on no list gets into a batch (line 176). Only an active screener can post one. The first screeners become active at the start of epoch 31 at the earliest. The first batch is the batch of that same epoch, and it reads flags only up to the last block of epoch 30, when nobody was active and every call to `flag` reverted. So the first batch contains no flag by construction. It covers every deposit made from launch to the end of epoch 29.
+
+1. Day 5 after launch: a protocol is drained. The thief's addresses are public within hours and on no sanctions list (the page itself says designations take weeks, line 295).
+2. Day 6: the thief deposits 25 ETH, 50,000 USDT and 50,000 USDC, the whole of the first-step caps, in amounts of 10 ETH or less or from addresses funded more than 72 hours before, so the one hold rule that could apply does not. The deposits are refundable and cost gas only.
+3. Days 6 to 30: every registered seat holder knows. None can flag.
+4. Day 31: the published program outputs a batch that covers those deposits and refuses none of them. An honest node commits and reveals it. A screener that reveals anything else gains two strikes if a majority follows the program.
+5. Day 31, after hour 12: the batch is applied, which sets `START`. The thief activates and fills the ETH, USDT and USDC caps. Honest depositors who have waited a month find the caps full until day 90 unless the thief leaves.
+
+Flags posted on day 31 count from the batch of day 32. By then the notes are in the tree and "cannot be removed afterwards" (line 185). The same holds on the canary, with a wait of 3 days, and again whenever a registry that has lost all its active screeners starts up with new ones. `signalCriteria` has the same guard, so the first batch also has to use the criteria file frozen in the build, months old by then, whatever the seats think of it.
+
+**Who and cost.** Anyone holding funds that are known to be stolen and not yet listed. The cost is the gas of three deposits and the 0.2% entry fee at activation.
+
+**Consequence.** About $153,000 of identified stolen funds can be the pool's first and only crowd on the day it opens, with the screeners unable to refuse it under their own published rule. The size is bounded by the first-step caps, and the 3-epoch hold still catches a careless thief. It is rated high because it is a free way round the one part of screening that deals with fresh thefts, the two sentences quoted above are false for every deposit of the first month, and the page's legal position rests on screening being real from the first activation (lines 196 and 1336).
+
+**Smallest fix.** Either of two, and neither adds a mechanism. In the contract: let `flag` and `signalCriteria` be called for any registered seat, since they store nothing and the criteria file already filters by snapshot; flags posted during the 30-day wait then count in the first batch. Or in the node software: the first batch a node commits to covers nothing (`upTo` is 0), so `START` is set by an empty batch and the second day's batch, which can read a day of flags, is the first to approve anything.
+
+**Confidence.** Certain.
+
+### Q-2. High if misread. "Closing the previous epoch" after a day with no registry call
 
 **Where.** Line 700: "Every state-changing function begins by closing the previous epoch if that has not been done. Closing records that epoch's majority hash, releases its pay if its batch was applied, folds new screeners into `activeCount`, and fixes the number that counts for the new epoch." Storage, lines 706 to 707: "`activeCount`, `joining`, `snapEpoch`, `snapActive`" and "`tally[epoch][batchHash]`, `leadHash`, `leadCount` | Matching reveals, and the hash with the most this epoch". The lead hash, the accepted hash and the applied flag are single variables. Only the tally is keyed by epoch.
 
@@ -43,7 +65,7 @@ Reading B leaves two smaller holes. An epoch closed more than 16 epochs late wri
 
 **Confidence.** Depends on reading. The storage list (a `snapEpoch` field) suggests the author means reading B, and the sentence says reading A.
 
-### Q-2. High if misread. The active count can still be inflated, through `joining` and through `activate`
+### Q-3. High if misread. The active count can still be inflated, through `joining` and through `activate`
 
 **Where.** Line 714: "`activate(seatId)` | The holder or operator, from 30 epochs after registering | Checks the seat is still held. Adds the screener to `joining`. It counts from the next epoch". Line 706: "`activeCount`, `joining`, `snapEpoch`, `snapActive` | Active screeners, those who become active at the next epoch, and the number fixed for the current epoch". Line 721: `requestExit` "Settles, stops counting at once, moves the stake to `unbonding`". Line 757: "`activeCount` equals the number of records that are active. It changes only when an epoch is closed, on an exit and on an eviction."
 
@@ -68,7 +90,7 @@ With 15 honest screeners the threshold is 10. Eight phantom screeners make the s
 
 **Confidence.** Depends on reading. The invariant on line 757 is stated, so a fuzzing job that checks it would catch both paths. The function table as written does not prevent either.
 
-### Q-3. Medium. The strike rule bounds a blockade at the group's share of seats, not at one day in three, and not at all at exactly half
+### Q-4. Medium. The strike rule bounds a blockade at the group's share of seats, not at one day in three, and not at all at exactly half
 
 **Where.** Line 742: "For each epoch that has a majority hash, a screener that was active and revealed it loses one strike, down to zero, and a screener that was active and did not, whether it revealed something else or nothing, gains two... An epoch with no majority hash changes nobody's count." Line 744: "A week of blocking gets the group removed, and so does any pattern that blocks more than one day in three." The same claim is on lines 111, 182 and 1504.
 
@@ -78,7 +100,7 @@ With 15 honest screeners the threshold is 10. Eight phantom screeners make the s
 2. Exactly half. With 7 of 14 or 15 of 30, the honest half is not "more than half of the snapshot", so there is no majority hash on any day. Nobody gains a strike, the group reveals junk once a week to avoid the silence rule, and no batch is ever accepted. Neither side can remove the other.
 3. Thin honest days. A strike needs the honest screeners who reveal the same batch to be more than half of the whole snapshot. With a group of 45%, two absent or out-of-step honest screeners in 30 make the day free for the blockers. They can decide at 19:59, after seeing the honest reveals, whether withholding will cost anything.
 
-**Who and cost.** Seat holders with between a third and a half of the active seats. Against 16 honest screeners, 14 seats at 0.70 ETH are about 9.8 ETH of resalable capital and 14 stakes. Finding Q-4 shows the blocked days cost them no fee income either.
+**Who and cost.** Seat holders with between a third and a half of the active seats. Against 16 honest screeners, 14 seats at 0.70 ETH are about 9.8 ETH of resalable capital and 14 stakes. Finding Q-5 shows the blocked days cost them no fee income either.
 
 **Consequence.** Activation is delayed on up to almost half of all days, for ever, instead of the third the page states, and the first unbroken blockade is 8 or 9 days, not 7. At exactly half the stop is total. This is a delay and not a loss, and a group this large is one or two seats from the majority that the page already says controls the registry, which is why it is rated medium and not high.
 
@@ -86,7 +108,7 @@ With 15 honest screeners the threshold is 10. Eight phantom screeners make the s
 
 **Confidence.** Certain for cases 1 and 2 (simulated from the rule as written). Case 3 depends on how reliable honest screeners are.
 
-### Q-4. Medium. Blocked days still pay the blockers, and stakers gain when a batch fails
+### Q-5. Medium. Blocked days still pay the blockers, and stakers gain when a batch fails
 
 **Where.** Line 447, under "What revision 4.3 takes out": "The pot that carried blocked days forward to whoever revealed next." Line 433: "Fees from a day with no applied batch go to stakers." Against the build specification, line 746: "An epoch that does not pay leaves its fees in the pot", and line 779: `notify` "Sends 40% to the registry with `fund` if the registry's last applied batch is from this epoch or the one before, and otherwise adds it to the staker stream."
 
@@ -97,7 +119,7 @@ With 15 honest screeners the threshold is 10. Eight phantom screeners make the s
 3. Day 3 closes unpaid. The fees stay in the pot.
 4. Day 4: the group reveals, the batch is applied, and the pot, day 3's fees included, is divided among day 4's revealers. The blockers are among them.
 
-So a group that blocks one day in three (or more, by Q-3) loses no fee income for the blocked days. The token share is only delayed (line 746), so it loses nothing there either. The fees go to stakers only when a sweep lands on the day after a failed day and before that day's `apply`, and screeners can always prevent that by sweeping late on the failed day. In a long blockade the rule does work from the second day on.
+So a group that blocks one day in three (or more, by Q-4) loses no fee income for the blocked days. The token share is only delayed (line 746), so it loses nothing there either. The fees go to stakers only when a sweep lands on the day after a failed day and before that day's `apply`, and screeners can always prevent that by sweeping late on the failed day. In a long blockade the rule does work from the second day on.
 
 The same test gives stakers a reason to want batches to fail. A party with 60% of the stake and 40% of the revealing seats gains a fifth of the screeners' 40% on every sweep it can route to stakers. The sums are small at these caps ($5 a day in the first step), but the direction of the incentive is wrong: the party that can block a batch can also be the party that is paid when it is blocked.
 
@@ -111,7 +133,7 @@ One more leak from the same rule. On the day after the last batch ever (commits 
 
 **Confidence.** Certain.
 
-### Q-5. Medium. Pay written to the ring is in no ledger, so `fund` has two readings and unsettled pay is stranded
+### Q-6. Medium. Pay written to the ring is in no ledger, so `fund` has two readings and unsettled pay is stranded
 
 **Where.** Line 746: "the pot and one share of the 15% are divided equally among the screeners who revealed the accepted hash, with any remainder left in the pot, and the amount per head is written to the ring. Each of them is credited when next settled, within 16 epochs". Line 723: `fund` "Adds what arrived to the pot: the registry's balance of the asset less everything it already accounts for". Line 760: "the registry's balance is at least the pot plus everything owed plus, for the token, the stakes, the unbonding stakes and the unpaid part of the 15%." Line 708: a ring slot holds "how many revealed the accepted hash, and the pay per head in each asset". It does not hold how many have been credited.
 
@@ -123,7 +145,7 @@ Reading B: the registry keeps a total of pay written to the ring and not yet cre
 
 - a screener that reveals and then exits, is evicted or has its seat registered by a buyer in the same epoch. Its record is settled up to the day before and then ends, and the epoch it revealed in closes later;
 - a screener that reveals, stops, and is not touched by anyone for 16 epochs;
-- every revealer of an epoch closed late (Q-1, reading B).
+- every revealer of an epoch closed late (Q-2, reading B).
 
 **Who and cost.** No attacker is needed. A holder with k of n revealing seats can also destroy k/n of a day's pay by exiting all of them after the reveal. It gains nothing by it.
 
@@ -133,7 +155,7 @@ Reading B: the registry keeps a total of pay written to the ring and not yet cre
 
 **Confidence.** Certain that the state is unnamed. Which reading a builder takes depends on the builder.
 
-### Q-6. Medium. The 90-epoch bar does not bind a screener that leaves first
+### Q-7. Medium. The 90-epoch bar does not bind a screener that leaves first
 
 **Where.** Line 722: `evict` "removes the screener if one of three things is true: the seat has changed hands; it has not revealed for 7 epochs...; it has 14 strikes... For the last two grounds the seat is barred for 90 epochs". Line 721: `requestExit` "Settles, stops counting at once, moves the stake to `unbonding`". Line 713: `register` over an earlier holder's record "is evicted first, in full". Line 182: "A seat removed this way cannot register again for 90 days."
 
@@ -152,28 +174,6 @@ Strikes live in the record and a record ends on exit, so strikes are reset by th
 **Smallest fix.** Either keep strikes and the bar on the seat and not on the record (`strikes[seatId]`, kept across exit and re-registration, and a bar on any exit or eviction with, say, 8 strikes or more), or remove the bar and its storage and say plainly that the penalty for a blockade is the 31-day wait. The second is the smaller design.
 
 **Confidence.** Certain for paths 1 and 2. Path 3 depends on how `evict` orders its grounds.
-
-### Q-7. High. No flag can count in the first batch, and the first batch covers every deposit of the first month
-
-**Where.** Line 720: "`flag(seatId, depositId)`, `signalCriteria(seatId, hash)` | The operator of an active screener | Emit an event and store nothing." Line 714: "a screener is active no sooner than 31 epochs after registering. There is no shortcut at launch". Line 156: flags are "events up to the base block, from seats in this epoch's snapshot", and the base block is "the last block whose timestamp is before the epoch's start" (line 151). Line 648: `deposit` is open to "Anyone, from launch". Against the claims on line 109, "Screeners always have between one and two days to refuse stolen funds", and line 175, "whatever a screener learns in the first day after a deposit can still stop it."
-
-**How it works.** A flag is the only way knowledge that is on no list gets into a batch (line 176). Only an active screener can post one. The first screeners become active at the start of epoch 31 at the earliest. The first batch is the batch of that same epoch, and it reads flags only up to the last block of epoch 30, when nobody was active and every call to `flag` reverted. So the first batch contains no flag by construction. It covers every deposit made from launch to the end of epoch 29.
-
-1. Day 5 after launch: a protocol is drained. The thief's addresses are public within hours and on no sanctions list (the page itself says designations take weeks, line 295).
-2. Day 6: the thief deposits 25 ETH, 50,000 USDT and 50,000 USDC, the whole of the first-step caps, in amounts of 10 ETH or less or from addresses funded more than 72 hours before, so the one hold rule that could apply does not. The deposits are refundable and cost gas only.
-3. Days 6 to 30: every registered seat holder knows. None can flag.
-4. Day 31: the published program outputs a batch that covers those deposits and refuses none of them. An honest node commits and reveals it. A screener that reveals anything else gains two strikes if a majority follows the program.
-5. Day 31, after hour 12: the batch is applied, which sets `START`. The thief activates and fills the ETH, USDT and USDC caps. Honest depositors who have waited a month find the caps full until day 90 unless the thief leaves.
-
-Flags posted on day 31 count from the batch of day 32. By then the notes are in the tree and "cannot be removed afterwards" (line 185). The same holds on the canary, with a wait of 3 days.
-
-**Who and cost.** Anyone holding funds that are known to be stolen and not yet listed. The cost is the gas of three deposits and the 0.2% entry fee at activation.
-
-**Consequence.** About $153,000 of identified stolen funds can be the pool's first and only crowd on the day it opens, with the screeners unable to refuse it under their own published rule. The size is bounded by the first-step caps, and the 3-epoch hold still catches a careless thief. It is rated high because it is a free way round the one part of screening that deals with fresh thefts, the two sentences quoted above are false for every deposit of the first month, and the page's legal position rests on screening being real from the first activation (lines 196 and 1336).
-
-**Smallest fix.** Either of two, and neither adds a mechanism. In the contract: let `flag` and `signalCriteria` be called for any registered seat, since they store nothing and the criteria file already filters by snapshot; flags posted during the 30-day wait then count in the first batch. Or in the node software: the first batch a node commits to covers nothing (`upTo` is 0), so `START` is set by an empty batch and the second day's batch, which can read a day of flags, is the first to approve anything.
-
-**Confidence.** Certain.
 
 ### Q-8. Medium. The flag quorum is a share of the whole snapshot, so seats that do nothing vote against every flag
 
@@ -202,7 +202,7 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 **How it works.** The registry stores a bit, not the day the bit was set. The contract therefore lets anyone refund a deposit that is 21 days old and refused in the current batch, even if it was refused for the first time today. Three ways an honest deposit gets there:
 
 1. Waiting at a full cap. The page expects caps to bind for up to 90 days at a time (lines 286 and 1508), and an approved deposit can wait in the queue for the next step. The first day a majority flags it, a rival for the same cap space sends it back. Without the refund it would have been delayed by the 14-day life of the flag. With it, the place is lost.
-2. A hold counted in batches during a blockade. A 7-batch hold starts one to two days after the deposit. A group of 14 in 30 can block 8 days in a row and then 43% of days (Q-3). Seven applied batches then take about 12 more days, and the clearing batch lands on about day 23. From day 21 anyone can bounce the deposit. If "N batches" is read as N epochs this path closes, and a hold that falls inside a blockade is never set at all. The page does not say which.
+2. A hold counted in batches during a blockade. A 7-batch hold starts one to two days after the deposit. A group of 14 in 30 can block 8 days in a row and then 43% of days (Q-4). Seven applied batches then take about 12 more days, and the clearing batch lands on about day 23. From day 21 anyone can bounce the deposit. If "N batches" is read as N epochs this path closes, and a hold that falls inside a blockade is never set at all. The page does not say which.
 3. A longer hold in a later file. Two thirds of the seats can adopt a file with a 30-epoch hold. Every deposit it holds becomes refundable by anyone after day 21. The contract's constant cannot follow the file.
 
 **Who and cost.** Anyone, for one transaction, once the conditions hold. Path 1 needs a majority to flag, path 2 a group of nearly half, path 3 a careless or hostile change of file.
@@ -221,13 +221,13 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 - Starving clearances. Ninety-six held deposits a day in 96 different words use the whole batch. No word that only clears a bit fits, so no hold of anyone else's is lifted while this goes on. One wave is 961 ETH for one to two days plus 24,576 fillers (about 1.2 billion gas, 0.25 ETH at 0.2 gwei). Kept up for three weeks it turns every 3-epoch and 7-epoch hold in the pool into a deposit that anyone may send back (Q-9).
 - A head start. Deposits wait for a month before `START`. A depositor who places its own deposit first and 97 held deposits in the 97 words after it limits the first batch to the ids below the 97th word. Everything later waits a day, and whoever is covered first fills the 25 ETH cap. Rewards for a cap step go to whoever fills it (line 1508).
-- Cost of `apply`. A full batch is "about 2.1M today and 10.6M under Glamsterdam" (line 904). The screeners' whole pay is about $31 a day (line 1034). At the 30-day mean gas price on the page, 0.418 gwei, a full batch costs about $2 today and $9 after the fork, and at 5 gwei over $100. On such days nobody is paid for applying, and a batch that is not applied is dropped.
+- Cost of `apply`. A full batch is "about 2.1M today and 10.6M under Glamsterdam" (line 904). The screeners' whole pay is about $31 a day (line 1034). At the 30-day mean gas price on the page, 0.418 gwei, a full batch costs about $2 today and $9 after the fork, and at 5 gwei about $22 today and over $100 after it. On such days nobody is paid for applying, and a batch that is not applied is dropped.
 
 **Who and cost.** Someone with about 1,000 to 2,000 ETH for days at a time and a few hundred dollars of gas a day. That is real money, which is why this is medium.
 
 **Consequence.** Delay of activation for others, holds that never clear while the flood lasts, and a bought first place at each opening.
 
-**Smallest fix.** Reserve part of the batch for clearances (for example at most 64 words that set a bit and at least 32 that clear), and let the hold rule exempt nothing by size alone. No mechanism has to be removed.
+**Smallest fix.** Reserve part of the batch for clearances, for example at most 64 words that set a bit and at least 32 that clear. No mechanism has to be removed, and removing refund by others (Q-9) takes away the worst outcome.
 
 **Confidence.** Certain as to the rule. Whether anyone would pay for it is a guess.
 
@@ -273,7 +273,7 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 **Consequence.** Delay only, and the holder can end it by evicting its own stale records in one go. The invariant on line 759 is wrong as worded.
 
-**Smallest fix.** Keep one unbonding entry per seat, which needs no new storage beyond a release epoch in the record.
+**Smallest fix.** Key the waiting stake by holder and release epoch, `unbonding[holder][epoch]`, so that an addition never moves an amount that is already waiting.
 
 **Confidence.** Certain.
 
@@ -332,7 +332,7 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 **Consequence.** The first-come rewards of each step go to a screener by construction. The page admits the race and not that one party always wins it.
 
-**Smallest fix.** None that is small. It is another reason for the empty first batch proposed in Q-7, after which the first approval is at least a public event a day ahead.
+**Smallest fix.** None that is small: it follows from `apply` being open to the revealer. Record it beside the cap race in the risk table.
 
 **Confidence.** Certain.
 
@@ -340,29 +340,29 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 | # | Passage A | Passage B | Which a builder would follow |
 | --- | --- | --- | --- |
-| 1 | Line 447, taken out in 4.3: "The pot that carried blocked days forward to whoever revealed next." | Line 746: "An epoch that does not pay leaves its fees in the pot." | B. The pot still carries. See Q-4 |
+| 1 | Line 447, taken out in 4.3: "The pot that carried blocked days forward to whoever revealed next." | Line 746: "An epoch that does not pay leaves its fees in the pot." | B. The pot still carries. See Q-5 |
 | 2 | Line 433: "Fees from a day with no applied batch go to stakers." Line 215: "When no batch was applied the day before, it goes to stakers instead." | Line 779: 40% goes to the registry "if the registry's last applied batch is from this epoch or the one before". | B. Fees swept on the failed day itself go to the pot |
 | 3 | Lines 77 and 110: a deposit "that has stayed refused for three weeks" can be sent back by anyone. | Line 650: "once the deposit is at least 21 days old" and refused now. | B. The registry cannot know how long a bit has been set. See Q-9 |
 | 4 | Line 773: `accounted[asset]` is "The sum of every amount above for the asset", and `buybackImd` is listed below it. | Line 790: `accounted` is "... plus the staked tokens for the token and `buybackImd` for IMD." | B. Built from A, each IMD sweep would split the waiting buyback money 40, 40, 20 a second time and the buyback would spend IMD owed to stakers. Medium if misread |
 | 5 | Line 760: "Total token pay never exceeds the 15%." | Lines 746 and 779: the pot also receives 40% of fees paid in the token, and pays them to screeners. | B. The invariant should say "token pay from the budget" |
 | 6 | Line 759: a stake leaves "14 epochs after exit or eviction". | Line 705: "Adding to it restarts the 14 epochs for the whole amount". | B. See Q-13 |
-| 7 | Line 744: "any pattern that blocks more than one day in three" gets the group removed. Line 111: a minority "can cost a day now and then". | Line 742: a member that reveals the majority hash loses a strike on any day that has one, blocked days included. | B. The bound is the group's share. See Q-3 |
-| 8 | Line 182: "A seat removed this way cannot register again for 90 days." | Lines 721 and 713: exit and re-registration by a new holder set no bar. | B. See Q-6 |
+| 7 | Line 744: "any pattern that blocks more than one day in three" gets the group removed. Line 111: a minority "can cost a day now and then". | Line 742: a member that reveals the majority hash loses a strike on any day that has one, blocked days included. | B. The bound is the group's share. See Q-4 |
+| 8 | Line 182: "A seat removed this way cannot register again for 90 days." | Lines 721 and 713: exit and re-registration by a new holder set no bar. | B. See Q-7 |
 | 9 | Line 914: "The build page lists the salt and the six addresses." | Line 802: the token's address depends on `block.prevrandao` and the caller of `launch`. | B. Five addresses can be published before launch. The token's is read from `Distribution.token()` |
-| 10 | Line 109: "Screeners always have between one and two days to refuse stolen funds". | Lines 714 and 720: nobody can flag before the first screeners are active. | B. See Q-7 |
+| 10 | Line 109: "Screeners always have between one and two days to refuse stolen funds". | Lines 714 and 720: nobody can flag before the first screeners are active. | B. See Q-1 |
 | 11 | Line 241: "Revision 4.3 had recommended 0.005%", on the page of revision 4.3. Line 1031 says "recommended in revision 4.3" beside the decided 0.03%. | Line 53: the stake is 0.03%, decided. | The decided value. Wording only |
 | 12 | Line 808: "About one candidate in six is skipped". | Line 1561: a random address sorts below IMD's "about 82.5% of the time". | Either. 17.5% is nearer one in 5.7 |
-| 13 | Line 700: closing "releases its pay". | Line 746: the pay is written to the ring and "credited when next settled". | B. Nothing is released at closing. See Q-5 |
+| 13 | Line 700: closing "releases its pay". | Line 746: the pay is written to the ring and "credited when next settled". | B. Nothing is released at closing. See Q-6 |
 
 ## 4. Points a builder would have to guess
 
-1. Which epoch is closed after a gap, and from which epoch a screener folded late counts (Q-1).
-2. What `fund` subtracts: whether pay written to the ring and not yet credited is "accounted for" (Q-5).
-3. Whether `activate` can be called twice, and what exit or eviction does to a record in `joining` (Q-2).
+1. Which epoch is closed after a gap, and from which epoch a screener folded late counts (Q-2).
+2. What `fund` subtracts: whether pay written to the ring and not yet credited is "accounted for" (Q-6).
+3. Whether `activate` can be called twice, and what exit or eviction does to a record in `joining` (Q-3).
 4. What happens to a record on exit. If it is kept, `register` "reverts" for the same holder for ever. If it is deleted, the pay for the epoch of the exit has no record to be credited to.
 5. Which seats `withdrawPay(assets)` settles. The registry has no index from a holder to its seats, so the call needs seat ids.
 6. That `snapActive` must not move when a screener exits mid-epoch. "Stops counting at once" could be read as lowering it, and then a group that reveals and exits lowers the threshold under its own reveals: 40% of a snapshot could accept a batch.
-7. Whether `evict` sets the bar when the strike ground and "the seat has changed hands" are both true (Q-6).
+7. Whether `evict` sets the bar when the strike ground and "the seat has changed hands" are both true (Q-7).
 8. Who "was active" in an epoch for strikes: the snapshot at its start, including a screener that exited or was evicted during it.
 9. Whether a hold of N counts applied batches, accepted batches or epochs (Q-9).
 10. The set of seats in "this epoch's snapshot". The registry stores a count. The criteria file needs the set, and has to say whether a sold seat that nobody has evicted is in it.
@@ -417,7 +417,7 @@ Each line says what was attacked and why it stood.
 - At most one batch is accepted per epoch, because twice the threshold is more than the snapshot. The threshold and the blocking size were checked for 7 to 15 screeners.
 - A commitment cannot be copied from the chain: it includes the seat id, and reveals start after commits close.
 - Lazy settlement cannot be used to dodge strikes. A reveal needs a commit in the same epoch and a commit settles. Anyone can force a settlement by calling `evict`. A screener that neither commits nor reveals falls to the 7-epoch rule. Strikes stop at zero, so good days cannot be banked.
-- Waves of seats that take turns being active do not beat plain capture: for two waves to block in turn the holder needs more than two thirds of the registry anyway, and for three or more the arithmetic has no solution.
+- Taking turns does not beat plain capture. Waves of seats that are active together need more than two thirds of the registry between them before one wave can block. Waves that are active one at a time need about 48 seats against 15 honest ones, three times the 16 that make a majority.
 - One seat is one record. Starving the `ownerOf` call of gas to make a seat look "not held" does not work: the caller keeps only a 64th of the gas, too little to finish the eviction.
 - A dropped batch fails safe. Strikes are counted on the majority hash whether or not the batch is applied, the next day covers the same deposits, and `START` is set only by an applied batch. Keeping `apply` out of 1,200 consecutive slots is beyond any builder.
 - The batch is a function of the chain as far as I could test it: the base block is finalized, the bitmap is read there, and since a batch is applied in its own epoch or never, the bitmap at the base block is final. The snapshot count follows from the state at the base block.
@@ -426,15 +426,15 @@ Each line says what was attacked and why it stood.
 
 ## 6. What I would cut
 
-Seven of the seventeen findings sit in three things revision 4.3 added to the registry: the lazy settlement from a ring, the bar, and the refund by others with its 21 days. All three can go or shrink without touching a decision of the owner's. In order of what they would save:
+Six of the seventeen findings (Q-2, Q-3, Q-6, Q-7, Q-9 and Q-10) sit in three things the registry gained in revisions 4.2 and 4.3: the lazy settlement from a ring with its counters, the bar, and the refund by others with its 21 days. All three can go or shrink without touching a decision of the owner's. In order of what they would save:
 
-1. **Refund by others.** Remove the second caller of `Pool.refund`, the view `Registry.isRefused`, the parameter of 21 days, the transition "Refused to Refunded by anyone" and the canary line that tests it. The depositor's own refund stays. Cost: a refused deposit whose owner never comes back stays in `pending` for ever. It is outside the caps and earns nothing, so it costs nobody else anything. The page's reason for the rule is that such funds "need not sit in the pool" (line 110), which is tidiness. In exchange Q-9 disappears, the second half of Q-10 loses its teeth, and the contract stops depending on numbers in a file it cannot read.
+1. **Refund by others.** Remove the second caller of `Pool.refund`, the view `Registry.isRefused`, the parameter of 21 days, the transition "Refused to Refunded by anyone" and the canary line that tests it. The depositor's own refund stays. Cost: a refused deposit whose owner never comes back stays in `pending` for ever. It is outside the caps and earns nothing, so it costs nobody else anything. The page's reason for the rule is that such funds "need not sit in the pool" (line 110), which is tidiness. In exchange Q-9 disappears, the worst outcome of Q-10 goes with it, and the contract stops depending on numbers in a file it cannot read.
 
-2. **The ring, the closing step and the `joining` counter.** Replace `ring[16]` by a plain mapping from epoch to one record (majority hash, accepted hash, applied, number of revealers, pay per head) that is written once and never reused. Drop the slot tag, the reuse rule, "within 16 epochs" and the invariant about tags. Drop `joining` and keep only "epoch active from" in the screener's record. A screener is then settled for any past epoch whenever it next calls, with no deadline. Cost: about three to eight storage slots a day for the life of the registry, some 5,000 to 12,000 slots in four years, paid by the first caller of each day (roughly 0.07M to 0.18M gas today and up to 0.9M under Glamsterdam). That removes the expiry cases of Q-5, the late-closing hole of Q-1 and one of the two paths of Q-2. The ring saves state the registry can afford.
+2. **The ring, the closing step and the `joining` counter.** Replace `ring[16]` by a plain mapping from epoch to one record (majority hash, accepted hash, applied, number of revealers, pay per head) that is written once and never reused. Drop the slot tag, the reuse rule, "within 16 epochs" and the invariant about tags. Drop `joining` and keep only "epoch active from" in the screener's record. A screener is then settled for any past epoch whenever it next calls, with no deadline. Cost: about three to eight storage slots a day for the life of the registry, some 5,000 to 12,000 slots in four years, paid by the first caller of each day (roughly 0.07M to 0.18M gas today and up to 0.9M under Glamsterdam). That removes the expiry cases of Q-6, the late-closing hole of Q-2 and one of the two paths of Q-3. The ring saves state the registry can afford.
 
-3. **The bar.** Remove `barredUntil` and the sentence about 90 days. As Q-6 shows, it binds only a screener that waits to be evicted, and the 31-day wait already applies to everyone who leaves. Cost: an evicted blocker is back in 31 days, which is what happens today to any blocker that reads the contract. If the owner wants the 90 days to be real, the strikes and the bar have to live on the seat and survive exit, which is more state, not less.
+3. **The bar.** Remove `barredUntil` and the sentence about 90 days. As Q-7 shows, it binds only a screener that waits to be evicted, and the 31-day wait already applies to everyone who leaves. Cost: an evicted blocker is back in 31 days, which is what happens today to any blocker that reads the contract. If the owner wants the 90 days to be real, the strikes and the bar have to live on the seat and survive exit, which is more state, not less.
 
-4. **The test in `notify` and the carry in the pot.** Send the screeners' 40% to the registry always. At the closing of an epoch whose batch was not applied, the registry returns that epoch's pot to the distributor's staker stream. Remove the distributor's read of `lastApplied` and the rule "this epoch or the one before". Cost: one transfer back on a failed day. This removes Q-4 and the stranded pot at the end of the registry's life, and makes line 433 true.
+4. **The test in `notify` and the carry in the pot.** Send the screeners' 40% to the registry always. At the closing of an epoch whose batch was not applied, the registry returns that epoch's pot to the distributor's staker stream. Remove the distributor's read of `lastApplied` and the rule "this epoch or the one before". Cost: one transfer back on a failed day. This removes Q-5 and the stranded pot at the end of the registry's life, and makes line 433 true.
 
 5. **Per-asset pay, if the owner reopens it.** The page itself records the option on line 1320: sell the whole fee for IMD in the one auction and pay stakers and screeners in IMD. That turns five staker streams, five pots and five pay-per-head figures into one of each and removes `accounted` per asset. The cost is the one the page names: all fee income priced in IMD. It is the largest cut available in this area and it is the owner's call, since payment in the asset received was decided.
 
