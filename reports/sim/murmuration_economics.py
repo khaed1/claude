@@ -14,7 +14,8 @@ Revision 4.3 changes to this script:
     in force; START is taken as 33 days after launch, the earliest it can be;
   - reward weights follow prices on the freeze day (a stablecoin unit weighs 1/2,130 ETH, not 1/2,000);
   - the swarm vests over 730 days in the primary schedule;
-  - a section on what a screener stake costs on the one-sided curve.
+  - a section on what a screener stake costs on the one-sided curve. The stake is 0.03% of supply, decided by
+    the owner on 11 November 2026 after revision 4.3, which had recommended 0.005%.
 """
 from math import sqrt
 
@@ -32,7 +33,7 @@ MULT_STOP = [1, 2, 4, 8, 16, 32, 32, 32]                        # recommended: s
 MULT_NOSTOP = [1, 2, 4, 8, 16, 32, 64, 128]                     # version 4: doubling with no stated end
 LAUNCH_TO_START = 33                                            # days: 30-epoch screener wait plus the first batch
 VEST_DAYS = 730
-STAKE_SHARE = 0.00005                                           # 0.005% of supply per screener (recommended in 4.3)
+STAKE_SHARE = 0.0003                                            # 0.03% of supply per screener (owner's decision, 11 Nov 2026)
 
 # capacity at the first step, in ETH-equivalent at freeze-day prices, and in dollars
 W_ETH = CAP0_ETH
@@ -331,24 +332,30 @@ def part5():
 def part6():
     print("## 6. Screener stake and pay\n")
     stake_tokens = STAKE_SHARE * SUPPLY
-    print(f"A stake is {STAKE_SHARE*100:.3f}% of supply. Stakes can only be bought from the public pool until other tokens circulate, so each one moves the price. "
-          "The table assumes stakes are the only purchases.\n")
+    print(f"A stake is {STAKE_SHARE*100:.2f}% of supply, by the owner's decision. Stakes can only be bought from the public pool until other tokens circulate, "
+          "so each one moves the price. The table assumes stakes are the only purchases.\n")
+    targets = (1, 15, 100, 250, 400, 500, 700, 800, 1000, 2000)
     rows = []
-    for share, label in ((0.00005, "0.005% (recommended)"), (0.0005, "0.05% (revision 4.2)")):
-        st = share * SUPPLY; r = Range(); cost = {}; n = 0; total = 0.0
-        for target in (1, 15, 100, 250, 400, 500, 1000, 2000):
+    for share, label in ((0.0003, "0.03% (decided)"), (0.00005, "0.005% (recommended in revision 4.3)"), (0.0005, "0.05% (revision 4.2)")):
+        st = share * SUPPLY; r = Range(); cost = {}; n = 0; last = 0.0
+        for target in targets:
             ok = True
             while n < target:
                 if r.tokens() <= st * 1.0000001:
                     ok = False; break
-                paid = r.buy_tokens(st); total += paid; n += 1; last = paid
-            cost[target] = (f"{last:,.1f} IMD (${last*IMD_USD:,.0f})" if ok else "cannot be bought")
+                last = r.buy_tokens(st); n += 1
             if not ok: break
-        rows.append([label] + [cost.get(t, "cannot be bought") for t in (1, 15, 100, 250, 400, 500, 1000, 2000)])
-    print(table(["Stake", "1st", "15th", "100th", "250th", "400th", "500th", "1,000th", "2,000th"], rows))
+            cost[target] = f"{last:,.1f} IMD (${last*IMD_USD:,.0f})"
+        rows.append([label] + [cost.get(t, "cannot be bought") for t in targets])
+    print(table(["Stake", "1st", "15th", "100th", "250th", "400th", "500th", "700th", "800th", "1,000th", "2,000th"], rows))
     r = Range(); total = r.buy_tokens(77 * stake_tokens)
-    print(f"\nRegistering 77 seats at launch costs {total:,.0f} IMD (${total*IMD_USD:,.0f}) in stake at the recommended size. "
-          f"All 2,000 seats would take {2000*STAKE_SHARE*100:.0f}% of supply.\n")
+    most = int(X0 // stake_tokens)
+    r15 = Range(); total15 = r15.buy_tokens(15 * stake_tokens)
+    rh = Range(); rh.set_sold_fraction(0.5); first_after_half = rh.buy_tokens(stake_tokens)
+    print(f"\nThe pool holds enough tokens for {most:,} stakes of this size and no more, until rewards, vesting and screener pay put other tokens "
+          f"into circulation. All 2,000 seats would need {2000*STAKE_SHARE*100:.0f}% of supply. Fifteen stakes cost {total15:,.0f} IMD (${total15*IMD_USD:,.0f}) in all. "
+          f"Registering 77 seats at launch costs {total:,.0f} IMD (${total*IMD_USD:,.0f}). If someone has first bought half of the pool's tokens, "
+          f"the next stake costs {first_after_half:,.1f} IMD (${first_after_half*IMD_USD:,.0f}).\n")
     val = START_VALUATION_IMD * IMD_USD
     tok_day = ALLOC["screeners"] * val / 730
     fee_day = USD_STEP0 * 1.18 * FEE_IN * SPLIT["screeners"] / 30

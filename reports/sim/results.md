@@ -191,14 +191,15 @@ IMD is 4.1% of capacity. The same ratios hold at every cap step. At the stop, th
 
 ## 6. Screener stake and pay
 
-A stake is 0.005% of supply. Stakes can only be bought from the public pool until other tokens circulate, so each one moves the price. The table assumes stakes are the only purchases.
+A stake is 0.03% of supply, by the owner's decision. Stakes can only be bought from the public pool until other tokens circulate, so each one moves the price. The table assumes stakes are the only purchases.
 
-| Stake | 1st | 15th | 100th | 250th | 400th | 500th | 1,000th | 2,000th |
-|---|---|---|---|---|---|---|---|---|
-| 0.005% (recommended) | 2.4 IMD ($6) | 2.4 IMD ($6) | 2.5 IMD ($7) | 2.7 IMD ($7) | 2.8 IMD ($7) | 3.0 IMD ($8) | 3.7 IMD ($10) | 6.7 IMD ($18) |
-| 0.05% (revision 4.2) | 24.0 IMD ($63) | 25.5 IMD ($67) | 37.4 IMD ($99) | 95.6 IMD ($252) | 594.1 IMD ($1,568) | cannot be bought | cannot be bought | cannot be bought |
+| Stake | 1st | 15th | 100th | 250th | 400th | 500th | 700th | 800th | 1,000th | 2,000th |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 0.03% (decided) | 14.4 IMD ($38) | 14.9 IMD ($39) | 18.6 IMD ($49) | 29.3 IMD ($77) | 53.1 IMD ($140) | 89.7 IMD ($237) | 558.3 IMD ($1,474) | 8,737.5 IMD ($23,067) | cannot be bought | cannot be bought |
+| 0.005% (recommended in revision 4.3) | 2.4 IMD ($6) | 2.4 IMD ($6) | 2.5 IMD ($7) | 2.7 IMD ($7) | 2.8 IMD ($7) | 3.0 IMD ($8) | 3.2 IMD ($9) | 3.4 IMD ($9) | 3.7 IMD ($10) | 6.7 IMD ($18) |
+| 0.05% (revision 4.2) | 24.0 IMD ($63) | 25.5 IMD ($67) | 37.4 IMD ($99) | 95.6 IMD ($252) | 594.1 IMD ($1,568) | cannot be bought | cannot be bought | cannot be bought | cannot be bought | cannot be bought |
 
-Registering 77 seats at launch costs 188 IMD ($496) in stake at the recommended size. All 2,000 seats would take 10% of supply.
+The pool holds enough tokens for 833 stakes of this size and no more, until rewards, vesting and screener pay put other tokens into circulation. All 2,000 seats would need 60% of supply. Fifteen stakes cost 220 IMD ($581) in all. Registering 77 seats at launch costs 1,222 IMD ($3,225). If someone has first bought half of the pool's tokens, the next stake costs 57.7 IMD ($152).
 
 Pay at the starting valuation: the screeners' 15% is $26 a day in total over 730 accepted epochs, and 40% of the first step's fees on a full pool at Railgun's turnover is $5.03 a day in total. With 15 screeners that is about $2.07 a day each, before gas for a commit and a reveal.
 
