@@ -426,8 +426,29 @@ Each line says what was attacked and why it stood.
 
 ## 6. What I would cut
 
-(pending)
+Seven of the seventeen findings sit in three things revision 4.3 added to the registry: the lazy settlement from a ring, the bar, and the refund by others with its 21 days. All three can go or shrink without touching a decision of the owner's. In order of what they would save:
+
+1. **Refund by others.** Remove the second caller of `Pool.refund`, the view `Registry.isRefused`, the parameter of 21 days, the transition "Refused to Refunded by anyone" and the canary line that tests it. The depositor's own refund stays. Cost: a refused deposit whose owner never comes back stays in `pending` for ever. It is outside the caps and earns nothing, so it costs nobody else anything. The page's reason for the rule is that such funds "need not sit in the pool" (line 110), which is tidiness. In exchange Q-9 disappears, the second half of Q-10 loses its teeth, and the contract stops depending on numbers in a file it cannot read.
+
+2. **The ring, the closing step and the `joining` counter.** Replace `ring[16]` by a plain mapping from epoch to one record (majority hash, accepted hash, applied, number of revealers, pay per head) that is written once and never reused. Drop the slot tag, the reuse rule, "within 16 epochs" and the invariant about tags. Drop `joining` and keep only "epoch active from" in the screener's record. A screener is then settled for any past epoch whenever it next calls, with no deadline. Cost: about three to eight storage slots a day for the life of the registry, some 5,000 to 12,000 slots in four years, paid by the first caller of each day (roughly 0.07M to 0.18M gas today and up to 0.9M under Glamsterdam). That removes the expiry cases of Q-5, the late-closing hole of Q-1 and one of the two paths of Q-2. The ring saves state the registry can afford.
+
+3. **The bar.** Remove `barredUntil` and the sentence about 90 days. As Q-6 shows, it binds only a screener that waits to be evicted, and the 31-day wait already applies to everyone who leaves. Cost: an evicted blocker is back in 31 days, which is what happens today to any blocker that reads the contract. If the owner wants the 90 days to be real, the strikes and the bar have to live on the seat and survive exit, which is more state, not less.
+
+4. **The test in `notify` and the carry in the pot.** Send the screeners' 40% to the registry always. At the closing of an epoch whose batch was not applied, the registry returns that epoch's pot to the distributor's staker stream. Remove the distributor's read of `lastApplied` and the rule "this epoch or the one before". Cost: one transfer back on a failed day. This removes Q-4 and the stranded pot at the end of the registry's life, and makes line 433 true.
+
+5. **Per-asset pay, if the owner reopens it.** The page itself records the option on line 1320: sell the whole fee for IMD in the one auction and pay stakers and screeners in IMD. That turns five staker streams, five pots and five pay-per-head figures into one of each and removes `accounted` per asset. The cost is the one the page names: all fee income priced in IMD. It is the largest cut available in this area and it is the owner's call, since payment in the asset received was decided.
+
+6. **Smaller.** The minimum restart price of the auction (the floor does the same work, one parameter less). `Distribution.collect()` and `fundBuyback`, if the position's trading fees are left where they are: two functions and one cross-contract call fewer, at the cost of about 1% of what buyers pay into the pool never reaching the buyback.
+
+What I would not cut: the salt loop (it is small and it holds), the seven-epoch silence rule (it is the only way to clear dead seats on days with no majority hash), the 96-word limit, and the on-chain flag and signal events.
 
 ## 7. Suspicions not made concrete, and what I did not check
 
-(pending)
+- **Seats held for a moment.** `register`, `activate`, `commit` and `reveal` each test ownership at the moment of the call. If seats can be bought and sold back inside one transaction from a pool, a screener could run records on borrowed seats and tie up no capital in between, as long as nobody evicts the records. I did not check whether any such market for seats exists.
+- **Splitting the honest screeners.** I looked for an input an attacker controls that would make two honest nodes compute different batches (boundary blocks, flags in the base block, the snapshot, the bitmap) and found none, given published test vectors. The screening program does not exist yet, so this is a reading of rules, not a test.
+- **A finality stall longer than 12 hours** would leave every honest node unable to commit. It fails safe, with no majority hash and no strikes.
+- **The sanctions oracle's owner** can list an address that has open deposits in more than 96 words, such as a shared deposit contract, and pull `screenedThrough` back for everyone above it, 96 words a day. It follows from the upTo rule and I did not cost it.
+- **IMD's bridge key.** The page says it could buy every fee basket. With created IMD it could also buy the whole public float, hold most of the stake and so collect 40% of all fees in ETH and stablecoins, and price every later screener stake out of reach. This is a cost of the decided pairing, recorded and not rated.
+- **The launch under Glamsterdam.** Whether a single transaction may carry about 40M of state gas depends on the final text of EIP-8037. The page lists this as a fork test and I could not do better.
+- **Uniswap's protocol fee** on the 1% tier, which the page also leaves open.
+- **Not checked.** The circuit, the fee note, the relay-fee ceiling and the inside of the Pool contract, by instruction. No public reference was consulted during this run: the gas of `createPool`, the behaviour of `prevrandao`, minting to another owner in Uniswap v3 and the transfer rules of USDT and USDC are stated from knowledge of those systems and were not re-read.
