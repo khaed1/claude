@@ -72,7 +72,7 @@ job("B11", "Hash adapter and note tree", "build", "impl_tests", ["implement-and-
     ["src/lib/Hash.sol", "src/lib/NoteTree.sol", "test/NoteTree.t.sol", "test/vectors/poseidon.json"],
     """Implement Hash.sol, which calls the three poseidon-solidity contracts already on mainnet (addresses and code
     hashes in Params) for H2, H3 and H4, and NoteTree.sol: an append-only tree of depth 32 with empty leaf ZERO, one
-    insert per call, the last 64 roots kept in a ring, and leaf = H4(C0, C1, C2, C3). Tests etch the hasher bytecode
+    insert per call, the last 64 roots kept in a ring, and leaf = H4(s0, s1, s2, s3) over four slots (a spend fills slots 0 to 2, an activation slot 0, every other slot is 0). Tests etch the hasher bytecode
     from fixtures. """ + COMMON,
     ["H2, H3 and H4 match every vector in test/vectors/poseidon.json (generated from circomlibjs, at least 64 per width, including 0 and p-1).",
      "Inputs at or above the field modulus revert.",
@@ -133,23 +133,23 @@ job("B14", "Pool: spend and roll", "build", "impl_tests_review",
     ["implement-and-test", "write-foundry-tests", "adversarial-review"], ["B12", "B13"],
     ["src/Pool.sol", "src/interfaces/IVerifier.sol", "test/PoolSpend.t.sol", "test/mocks/MockVerifier.sol"],
     """Add the public roll() and spend(proof, inputs, ext) to the Pool. roll wraps B13's roll and also saves
-    rootPrev = rootCur and rootCur = the current root, emitting CheckpointRolled(window, g, root). The 14 public
-    inputs are, in order: root, nf0, nf1, nf2, C0, C1, C2, C3, publicAmount, publicAsset, relayFee, feeAsset,
-    gRef, extHash. ext is (recipient, relayer, ct0, ct1). spend works in the specification's order and checks
-    every row of its public-input table: the root; nf0 and nf1 non-zero, unused and different; nf2 zero exactly
-    when feeAsset is zero, otherwise unused and different from both, and zero never looked up or marked;
-    publicAsset zero exactly when publicAmount is; relayFee zero exactly when feeAsset is, and at most
-    feeCeiling(feeAsset); gRef equal to gCur or gPrev; extHash recomputed; recipient zero exactly when
-    publicAmount is; relayer zero exactly when relayFee is; ct0 1,216 bytes and ct1 96; every input below p.
-    Then verify, mark, insert H4(C0..C3), advance the index if anything leaves, lower the balance of each asset
-    that leaves (token rule: tokenOut + amount <= tokenIn + released), keep one five-hundredth of each amount
-    as fees, emit Spent, and pay the relayer and then the recipient. feeCeiling in ETH is
+    rootPrev = rootCur and rootCur = the current root, emitting CheckpointRolled(window, g, root). The 11 public
+    inputs are, in order: root, nf0, nf1, C0, C1, C2, publicAmount, publicAsset, relayFee, gRef, extHash.
+    ext is (recipient, relayer, ct0, ct1). spend works in the specification's order and checks every row of
+    its public-input table: the root; nf0 and nf1 non-zero, unused and different; publicAmount zero or a
+    standard size of publicAsset; relayFee at most feeCeiling(publicAsset); publicAsset zero exactly when
+    publicAmount and relayFee are both zero, otherwise a listed asset; gRef equal to gCur or gPrev; extHash
+    recomputed; recipient zero exactly when publicAmount is; relayer zero exactly when relayFee is; ct0 1,216
+    bytes and ct1 96; every input below p. Then verify, mark both nullifiers, insert H4(C0, C1, C2, 0), and if
+    publicAmount + relayFee is not zero advance the index, require the balance of publicAsset to cover the sum
+    (token rule: tokenOut + publicAmount + relayFee <= tokenIn + released) and lower it by the sum, keep one
+    five-hundredth of each of the two amounts as fees, emit Spent, and pay the relayer and then the recipient. feeCeiling in ETH is
     (FEE_K * block.basefee + FEE_TIP) * FEE_GAS; in another asset it is that times FEE_SLACK at the frozen
     units-per-ETH rate. ETH is paid by call with Params.PAY_GAS; a failed payment is credited to owed[address].
     Use a mock verifier in tests; real proofs come in B60. """ + COMMON,
-    ["spend reverts on each broken row of the public-input table, one test per row, including nf2 equal to nf0, nf2 zero with a fee, a non-zero relayer with no fee, and a ciphertext of the wrong length.",
-     "A withdrawal pays the recipient exactly amount - amount/500 for every listed size of every asset. The relayer receives relayFee - relayFee/500 in feeAsset, for ETH and for each token.",
-     "A relay fee above feeCeiling(feeAsset) reverts at any base fee (fuzz), so no sequence of spends moves more through the fee than the ceiling per spend.",
+    ["spend reverts on each broken row of the public-input table, one test per row, including nf1 equal to nf0, a non-zero publicAsset with nothing leaving, a zero publicAsset with a fee, a non-zero relayer with no fee, and a ciphertext of the wrong length.",
+     "A withdrawal pays the recipient exactly amount - amount/500 for every listed size of every asset. The relayer receives relayFee - relayFee/500 in publicAsset, for ETH and for each token, with and without a public amount in the same spend.",
+     "A relay fee above feeCeiling(publicAsset) reverts at any base fee (fuzz), so no sequence of spends moves more through the fee than the ceiling per spend.",
      "Total leaving per asset, public amounts and relay fees together, never exceeds total activated; for the token tokenOut never exceeds tokenIn + released (invariant test with a verifier that accepts everything).",
      "An ETH recipient or relayer that reverts, or uses more than the gas allowance, does not make spend fail: the amount is in owed and claimOwed delivers it. Re-entrancy from either cannot enter any Pool function.",
      "Root flush: after a roll and 65 further spends, a proof against rootCur is accepted; after the next roll it is accepted as rootPrev; after two rolls it is rejected.",
@@ -368,15 +368,15 @@ job("B50", "Deployer and deployment script", "build", "impl_tests", ["implement-
 job("B51", "Verifier and verification-key checks", "build", "impl_tests", ["implement-and-test"], ["C06"],
     ["src/Verifier.sol", "test/Verifier.t.sol", "script/check_vk.py", "test/fixtures/proofs/"],
     """Wrap the snarkjs-generated Groth16 verifier for the Spend circuit as Verifier.sol with one view function
-    verify(proof, inputs[14]). Add script/check_vk.py, which reads a verification key and fails unless: the 15
+    verify(proof, inputs[11]). Add script/check_vk.py, which reads a verification key and fails unless: the 12
     input points are pairwise different and none is the point at infinity; every point is on its curve and the
     G2 points are in the right subgroup; alpha, beta, gamma and delta are not the point at infinity; gamma and
     delta differ; delta is not the generator. Two production verifiers were exploited in February 2026 because
     a setup step was skipped and gamma equalled delta; this check is the guard. """ + COMMON,
-    ["All valid fixture proofs verify; each fixture with any one of the 14 public inputs or one proof byte altered fails.",
+    ["All valid fixture proofs verify; each fixture with any one of the 11 public inputs or one proof byte altered fails, including a fixture in which value is moved between publicAmount and relayFee with their sum unchanged.",
      "A public input equal to or above the field modulus is rejected.",
      "check_vk.py fails on a key with gamma == delta, a point off the curve, a G2 point outside the subgroup, two equal input points, an input point at infinity, and a wrong input count (six bad fixtures).",
-     "Verification of 14 inputs costs under 290,000 gas (snapshot).",
+     "Verification of 11 inputs costs under 270,000 gas (snapshot).",
      "The contract has no storage and no function besides verify."],
     contracts=["src/Verifier.sol"], notes=FOUNDRY + " The fixtures come from C06 and use a development setup, not the ceremony.")
 
@@ -385,7 +385,7 @@ job("B60", "End-to-end tests with real proofs", "build", "single", ["write-found
     """Write end-to-end tests over the contracts deployed through the Deployer and launch() on a fork with real
     Uniswap v3, the real USDT and USDC bytecode and a mock seat contract, using proofs produced by C06 for a
     fixed scenario: deposits in ETH, USDT and IMD; a deposit refused, held past 21 days and refunded by a third
-    party; activation; a self-sent transfer; a transfer relayed for an ETH fee from a fee note; a USDT
+    party; activation; a self-sent transfer; an ETH transfer relayed for a fee in ETH; a USDT
     withdrawal relayed for a USDT fee by a wallet that holds one USDT note; a transfer with an empty input; a
     claim of reward; an ETH withdrawal to a contract that refuses payment, then claimOwed; a fee sweep; a
     basket sale; two buyback steps; a staker claim in USDT; a screener pay withdrawal. """ + COMMON,
@@ -432,8 +432,8 @@ job("C00", "Formal specification of Spend, frozen", "build", "single", ["scaffol
     pinned to a commit. Spec.lean defines, as plain functions over field elements and naturals: key derivation,
     the packed word, the note commitment, the nullifier, the bundle leaf, Merkle root recomputation, the asset
     table with integer weights, earned reward as an integer floor division, and the predicate
-    SpendValid(public, private) that is the conjunction of the sixteen constraints in the build specification,
-    for three inputs (two of the asset, one of feeAsset), four outputs and the 14 public inputs. Challenge.lean
+    SpendValid(public, private) that is the conjunction of the fifteen constraints in the build specification,
+    for two inputs, three outputs and the 11 public inputs. Challenge.lean
     states, with `sorry` proofs, part A of "What must be shown": the relation theorem (every assignment that
     satisfies the constraint system satisfies SpendValid) and the eleven lemmas, the last of which is
     completeness: for every state in the reachable ranges of the parameter table the honest witness satisfies
@@ -441,10 +441,10 @@ job("C00", "Formal specification of Spend, frozen", "build", "single", ["scaffol
     axioms. circuit/SPEC.md restates each statement in plain words and lists parts B, C and D of the
     specification with where each is checked. No proofs in this job. """ + COMMON,
     ["`make lean-spec` (lake build of Spec.lean and Challenge.lean) succeeds with only the twelve expected `sorry` warnings.",
-     "Every constraint 1-16 of the build specification maps to a named definition in Spec.lean, listed in a table in circuit/SPEC.md.",
-     "Conservation and the reward bound are stated over the integers, not the field, with the merged case for asset == feeAsset stated separately.",
+     "Every constraint 1-15 of the build specification maps to a named definition in Spec.lean, listed in a table in circuit/SPEC.md.",
+     "Conservation and the reward bound are stated over the integers, not the field; publicAmount and relayFee enter conservation as a sum, and SPEC.md says which constraints separate them.",
      "The completeness lemma quantifies over explicit ranges taken from params/mainnet.json and params/canary.json, and SPEC.md lists them.",
-     "SPEC.md names, for each of these broken circuits, the statement it violates: no spend authority; a free nk or rho in the nullifier; a free output index; a free output asset; an unbound extHash; a fee input not of feeAsset; the same note in two inputs; a circuit that accepts nothing.",
+     "SPEC.md names, for each of these broken circuits, the statement it violates: no spend authority; a free nk or rho in the nullifier; a free output index; a free output asset; an unbound extHash; publicAmount and relayFee sharing one column because a range check was dropped; a publicAsset that is free when a relay fee is paid; the same note in two inputs; a circuit that accepts nothing.",
      "No theorem has a hypothesis that is false for an honest spend; SPEC.md lists every hypothesis and why it is needed.",
      "The files' sha256 hashes are written to circuit/lean/FROZEN so later jobs can prove against an unchanged statement."],
     notes=STRUCT + " The statements are the trust anchor. R01 reviews them and the owner signs them off before any proof job starts. The first two lists in this specification were too weak: a circuit missing whole constraints satisfied the first, and a circuit that accepts nothing the second.")
@@ -454,8 +454,7 @@ job("C01", "Circuit gadgets in clean: ranges, division, selection", "build", "si
      "circuit/lean/Murmuration/Gadgets/AssetTable.lean", "circuit/lean/Murmuration/Gadgets/Pack.lean", "circuit/lean/test/Gadgets.lean"],
     """Implement as clean circuits, reusing clean's proved bit-decomposition and comparator ports: range checks of 2,
     32, 64, 90 and 96 bits; exact division by 2^64 with a 64-bit remainder; the asset table lookup that maps an asset
-    id (1 to 5) to its constant weight and rejects unlisted ids, in two forms: one that rejects zero (for asset) and one that maps
-    zero to weight zero (for feeAsset); an equality test that yields a constrained boolean; the emptiness test on value + 2^96*accrued; and the packed word TAG_NOTE*2^200 + accrued*2^104 +
+    id (1 to 5) to its constant weight and rejects zero and unlisted ids; the emptiness test on value + 2^96*accrued; and the packed word TAG_NOTE*2^200 + accrued*2^104 +
     value*2^8 + asset. Constraint generation only; proofs are P01. """ + COMMON,
     ["`make lean-gadgets` builds and runs the gadget tests.",
      "Witness tests: each gadget accepts 1,000 random valid inputs and rejects boundary violations (value = 2^96, remainder = 2^64, asset id = 0 and = 6).",
@@ -489,16 +488,15 @@ job("C03", "Merkle membership and bundle gadgets", "build", "single", ["scaffold
 job("C04", "Spend circuit: composition and export", "build", "single", ["scaffold-project"], ["C01", "C03"],
     ["circuit/lean/Murmuration/Spend.lean", "circuit/lean/Export.lean", "circuit/build/spend.r1cs", "circuit/build/spend.wasm",
      "circuit/COUNTS.md", "circuit/vectors/scenarios.json", "Makefile"],
-    """Compose the Spend circuit in clean from the gadgets: the sixteen constraints of the build specification over
-    three inputs (inputs 0 and 1 of the asset, input 2 of feeAsset) and four outputs, with the fourteen public
-    inputs in the order root, nf0, nf1, nf2, C0, C1, C2, C3, publicAmount, publicAsset, relayFee, feeAsset,
-    gRef, extHash. Export the constraint system as .r1cs and the witness generator as Circom-ABI WASM with
+    """Compose the Spend circuit in clean from the gadgets: the fifteen constraints of the build specification over
+    two inputs and three outputs, with the eleven public
+    inputs in the order root, nf0, nf1, C0, C1, C2, publicAmount, publicAsset, relayFee, gRef, extHash. Export the constraint system as .r1cs and the witness generator as Circom-ABI WASM with
     clean's exporter, so that snarkjs can consume them without the Circom compiler. """ + COMMON,
     ["`make circuit` regenerates spend.r1cs and spend.wasm byte for byte from a clean checkout.",
-     "snarkjs r1cs info reports 14 public inputs and a constraint count under 40,000, written to COUNTS.md.",
-     "A valid witness is produced for each of the nine scenarios in circuit/vectors/scenarios.json: self-sent transfer; transfer with one empty input; transfer relayed for an ETH fee note; spend relayed for a fee in its own asset from a single note; claim; withdrawal; relayed withdrawal; token withdrawal; and a spend at the largest values and index the parameter table allows.",
+     "snarkjs r1cs info reports 11 public inputs and a constraint count under 50,000, written to COUNTS.md with the count per gadget.",
+     "A valid witness is produced for each of the nine scenarios in circuit/vectors/scenarios.json: self-sent transfer; transfer with one empty input; relayed transfer of ETH; relayed spend of a token from a single note; claim; withdrawal; relayed withdrawal; token withdrawal; and a spend at the largest values and index the parameter table allows.",
      "For each scenario, changing any single private input makes witness generation or constraint checking fail, or changes a public output.",
-     "No satisfying witness exists with the same non-empty note in two inputs, with a fee input of an asset other than feeAsset, with value crossing sides when asset != feeAsset, or with feeAsset = 0 and a non-empty input 2 or output 2.",
+     "No satisfying witness exists with the same non-empty note in two inputs, with a note at slot 3, with an output of an asset other than the inputs' asset, or with publicAsset different from the asset while publicAmount + relayFee is not zero. The r1cs columns of publicAmount and relayFee are checked to be different.",
      "The public input order matches IVerifier in B14 (a shared JSON file checked by both)."],
     notes=STRUCT + " clean's R1CS exporter dates from September 2026 and has no known production use; C05 exists to test it.")
 
@@ -506,7 +504,7 @@ job("C05", "Independent Circom implementation as a test oracle", "build", "singl
     ["circuit/circom/spend.circom", "circuit/circom/lib/", "circuit/circom/test/differential.mjs", "circuit/circom/package.json", "Makefile"],
     """Write the same Spend circuit in Circom 2 with circomlib's Poseidon, by an agent that has not seen the clean
     implementation. It is never deployed. It exists so that two independent implementations can be compared:
-    differential.mjs feeds the same inputs to both witness generators and compares all fourteen public values. """ + COMMON,
+    differential.mjs feeds the same inputs to both witness generators and compares all eleven public values. """ + COMMON,
     ["`circom --inspect` and circomspect report no warning that is not listed and justified in circuit/circom/WARNINGS.md.",
      "`make differential` runs 10,000 random valid inputs and 2,000 edge cases through both implementations with identical public outputs.",
      "Every invalid input rejected by one implementation is rejected by the other (5,000 mutated inputs).",
@@ -533,7 +531,7 @@ job("C07", "Wallet cryptography library", "build", "single", ["scaffold-project"
     """Implement the wallet-side primitives in TypeScript exactly as "Keys, notes and addresses" in the build
     specification: spendRoot, viewRoot and the X-Wing key from the seed by HKDF-SHA256 with the stated labels;
     sk = spendRoot mod p; spk, nk, ownerPk; commitment and nullifier; rho and the diversifier of deposit n; rho
-    and the diversifier of outputs 1 to 3 from nf0 and the slot; the ciphertext-1 key from nf0 and C1, C2, C3;
+    and the diversifier of outputs 1 and 2 from nf0 and the slot; the ciphertext-1 key from nf0, C1 and C2;
     the long and short address formats. Ciphertext 0 is HPKE base mode with the X-Wing KEM (0x647A,
     draft-connolly-cfrg-xwing-kem-11), HKDF-SHA256 and ChaCha20-Poly1305, info "murmuration/v1/ct0" followed by
     the chain id and pool address: 1,120 bytes of encapsulation, the 80-byte payload (asset 1, value 12,
@@ -596,10 +594,10 @@ job("P04", "Proofs: the relation and its eleven lemmas", "proof", "single", ["sc
     """Prove the twelve theorems of Challenge.lean for the composed Spend circuit: the relation theorem (every
     satisfying assignment satisfies SpendValid) and lemmas 1 to 11 of part A of "What must be shown" in the build
     specification: spend authority; membership; one nullifier per note, as a function of the position, the rho
-    inside ownerCommit and the nk inside ownerPk; no value created per asset, with no position used twice and
-    the merged case when asset equals feeAsset; no reward created; outputs start at the checkpoint; the public
+    inside ownerCommit and the nk inside ownerPk; no value created, with no position used twice and
+    the public amount and the relay fee both counted; no reward created; outputs start at the checkpoint; the public
     asset is true; nothing is left free, in the exact form the specification gives; no wrap-around in
-    constraints 8, 9, 12 and 13, the packed word, the emptiness test and the position; every public input
+    constraints 8, 9, 12, 13 and 14, the packed word, the emptiness test and the position; every public input
     occurs in a surviving constraint and the public columns are linearly independent; and completeness over
     the reachable ranges. circuit/PROOFS.md lists each theorem, its Lean name, its hypotheses and its axioms. """ + COMMON + " " + PROOF_GATE,
     ["`make lean-proofs` passes with --wfail, no `sorry`, and `lake comparator` reports the twelve Challenge theorems proved against the frozen statements.",
@@ -646,14 +644,14 @@ job("R01", "Review: are the frozen statements the right ones", "review", "resear
 job("R02", "Review: circuit and contract interface", "review", "single", ["adversarial-review"], ["B14", "C04"],
     ["docs/reviews/R02-interface.md"],
     """Adversarial review, read-only, of the boundary between the Spend circuit and the Pool: the order and encoding
-    of the fourteen public inputs; reduction of extHash and of every input modulo p on both sides; that the tree,
+    of the eleven public inputs; reduction of extHash and of every input modulo p on both sides; that the tree,
     the bundle leaf and the commitment computed in Solidity equal the circuit's for the same note; that the
     checkpoint and the checkpoint root the Pool accepts are the ones the circuit used; that the zero conventions
     the circuit leaves to the contract are all enforced there; that the standard-size check and the per-asset limit
     use the same asset id as the proof; that the relayer paid is the one bound into extHash; that the fee ceiling
-    and the 0.2% on the fee apply to feeAsset as the proof named it. Try to construct a
+    and the 0.2% on the fee apply to publicAsset as the proof named it, and that no call can move value between publicAmount and relayFee of a proof. Try to construct a
     call that the Pool accepts with a meaning the circuit did not prove. """,
-    ["Each of the fourteen public inputs has a row: produced where, checked where, encoding, and whether a mismatch is possible.",
+    ["Each of the eleven public inputs has a row: produced where, checked where, encoding, and whether a mismatch is possible.",
      "Every check the build specification leaves to the contract has a row naming the line that performs it.",
      "Every finding has a severity, file and line, and a reproduction as a Foundry test or a witness.",
      "The review states explicitly whether a proof for one deployment can be accepted by another, and whether a relayer can change the recipient or the fee.",
@@ -666,9 +664,7 @@ job("R03", "Review: zero-knowledge circuit checklist", "review", "research", ["r
     IMD's audit template does not contain, because that template is written for Solidity. Checklist: signals assigned
     but not constrained; missing range checks before additions and comparisons; bit decompositions that allow an
     alias above the modulus; equality checks done on hints; selectors not forced to be boolean; public inputs unused
-    in any constraint; nullifier not bound to the note it spends; empty inputs able to carry value or reward; a fee input able to carry
-    an asset other than feeAsset; a zero feeAsset with a non-zero nullifier or a non-empty fee note; the same note in two inputs;
-    value crossing between the fee side and the asset side when the assets differ;
+    in any constraint; nullifier not bound to the note it spends; empty inputs able to carry value or reward; public inputs that enter the constraints only as a sum and so share a column; a public asset left free; the same note in two inputs; a note accepted at slot 3;
     domain separation between hashes; division by a value that can be zero; differences between the witness
     generator and the constraints. """,
     ["Each checklist item has a verdict per template with file and line, or 'not applicable' with a reason.",
@@ -684,7 +680,7 @@ job("R04", "Review: ceremony transcript and verification key", "review", "single
     final verification key; confirm the constants in src/Verifier.sol equal that key; confirm spend.r1cs used in
     the ceremony is the file whose hash P04 proved. """,
     ["The full `snarkjs zkey verify` output for the final key is in the report and passes.",
-     "check_vk.py passes: 15 input points pairwise different and none at infinity, subgroup checks, gamma and delta distinct, and the key recomputed from the final ceremony file by a second tool matches.",
+     "check_vk.py passes: 12 input points pairwise different and none at infinity, subgroup checks, gamma and delta distinct, and the key recomputed from the final ceremony file by a second tool matches.",
      "A table shows the hash of spend.r1cs in three places: the P04 build, the ceremony and the fixtures; all equal.",
      "The verifier contract's constants match the key (script output included)."])
 
@@ -792,8 +788,8 @@ job("S03", "Wallet flows for the pool", "build", "single", ["scaffold-project"],
     warning about what it reveals. """ + COMMON,
     ["The end-to-end scenario of B60 is driven entirely through this module against a local chain.",
      "plan.ts splits every multiple of 0.005 ETH below 1,000 ETH into at most 16 standard sizes and never leaves a remainder of 0.005 ETH or more; a deposit of a standard size becomes a note of exactly that size.",
-     "restore.ts, given only the seed, recovers every note of the scenario with its value, accrued reward and index: activated deposits not yet spent, change, fee change and reward notes, including when several deposits carry one ownerCommit.",
-     "A wallet holding a single USDT note completes a relayed withdrawal with change and pays the fee in USDT; a wallet holding an ETH fee note pays in ETH.",
+     "restore.ts, given only the seed, recovers every note of the scenario with its value, accrued reward and index: activated deposits not yet spent, change and reward notes, including when several deposits carry one ownerCommit.",
+     "A wallet holding a single USDT note completes a relayed withdrawal with change and pays the fee in USDT; the wallet warns once per asset that relaying shows the asset, and can send the same spend itself with no relay fee.",
      "Every proof in a 200-spend test uses the checkpoint root and gCur; none mixes policies.",
      "A quote above the ceiling is refused before proving, and a second relayer is not given the same nullifiers while a quote is live.",
      "The module warns when a planned set of exits to one address sums to within 1% of a single deposit by the same wallet."],
