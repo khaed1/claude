@@ -338,11 +338,46 @@ A smaller point in the same place: because `flag` and `signalCriteria` do not ch
 
 ## 3. Contradictions between sections
 
-(pending)
+| # | Passage A | Passage B | Which a builder would follow |
+| --- | --- | --- | --- |
+| 1 | Line 447, taken out in 4.3: "The pot that carried blocked days forward to whoever revealed next." | Line 746: "An epoch that does not pay leaves its fees in the pot." | B. The pot still carries. See Q-4 |
+| 2 | Line 433: "Fees from a day with no applied batch go to stakers." Line 215: "When no batch was applied the day before, it goes to stakers instead." | Line 779: 40% goes to the registry "if the registry's last applied batch is from this epoch or the one before". | B. Fees swept on the failed day itself go to the pot |
+| 3 | Lines 77 and 110: a deposit "that has stayed refused for three weeks" can be sent back by anyone. | Line 650: "once the deposit is at least 21 days old" and refused now. | B. The registry cannot know how long a bit has been set. See Q-9 |
+| 4 | Line 773: "`accounted[asset]` | The sum of every amount above for the asset", where `buybackImd` is listed below it. | Line 790: `accounted` is "... plus the staked tokens for the token and `buybackImd` for IMD." | B. Built from A, each IMD sweep would split the waiting buyback money 40, 40, 20 a second time and the buyback would spend IMD owed to stakers. Medium if misread |
+| 5 | Line 760: "Total token pay never exceeds the 15%." | Lines 746 and 779: the pot also receives 40% of fees paid in the token, and pays them to screeners. | B. The invariant should say "token pay from the budget" |
+| 6 | Line 759: a stake leaves "14 epochs after exit or eviction". | Line 705: "Adding to it restarts the 14 epochs for the whole amount". | B. See Q-13 |
+| 7 | Line 744: "any pattern that blocks more than one day in three" gets the group removed. Line 111: a minority "can cost a day now and then". | Line 742: a member that reveals the majority hash loses a strike on any day that has one, blocked days included. | B. The bound is the group's share. See Q-3 |
+| 8 | Line 182: "A seat removed this way cannot register again for 90 days." | Lines 721 and 713: exit and re-registration by a new holder set no bar. | B. See Q-6 |
+| 9 | Line 914: "The build page lists the salt and the six addresses." | Line 802: the token's address depends on `block.prevrandao` and the caller of `launch`. | B. Five addresses can be published before launch. The token's is read from `Distribution.token()` |
+| 10 | Line 109: "Screeners always have between one and two days to refuse stolen funds". | Lines 714 and 720: nobody can flag before the first screeners are active. | B. See Q-7 |
+| 11 | Line 241: "Revision 4.3 had recommended 0.005%", on the page of revision 4.3. Line 1031 says "recommended in revision 4.3" beside the decided 0.03%. | Line 53: the stake is 0.03%, decided. | The decided value. Wording only |
+| 12 | Line 808: "About one candidate in six is skipped". | Line 1561: a random address sorts below IMD's "about 82.5% of the time". | Either. 17.5% is nearer one in 5.7 |
+| 13 | Line 700: closing "releases its pay". | Line 746: the pay is written to the ring and "credited when next settled". | B. Nothing is released at closing. See Q-5 |
 
 ## 4. Points a builder would have to guess
 
-(pending)
+1. Which epoch is closed after a gap, and from which epoch a screener folded late counts (Q-1).
+2. What `fund` subtracts: whether pay written to the ring and not yet credited is "accounted for" (Q-5).
+3. Whether `activate` can be called twice, and what exit or eviction does to a record in `joining` (Q-2).
+4. What happens to a record on exit. If it is kept, `register` "reverts" for the same holder for ever. If it is deleted, the pay for the epoch of the exit has no record to be credited to.
+5. Which seats `withdrawPay(assets)` settles. The registry has no index from a holder to its seats, so the call needs seat ids.
+6. That `snapActive` must not move when a screener exits mid-epoch. "Stops counting at once" could be read as lowering it, and then a group that reveals and exits lowers the threshold under its own reveals: 40% of a snapshot could accept a batch.
+7. Whether `evict` sets the bar when the strike ground and "the seat has changed hands" are both true (Q-6).
+8. Who "was active" in an epoch for strikes: the snapshot at its start, including a screener that exited or was evicted during it.
+9. Whether a hold of N counts applied batches, accepted batches or epochs (Q-9).
+10. The set of seats in "this epoch's snapshot". The registry stores a count. The criteria file needs the set, and has to say whether a sold seat that nobody has evicted is in it.
+11. `fundedByListed` with no inflow, whether a failed top-level transaction counts, and whether "listed" is read at the base block or at the time of the transfer (Q-11).
+12. What a node does when the call to the sanctions oracle reverts or the oracle is retired. The page notes that its owner can retire it (line 305).
+13. Which file is in force when the quorum is lost, and whether a signal made under a previous holder of the seat counts (Q-11).
+14. Which rule is named in `dataCid` when two rules refuse one deposit.
+15. How a staker stream's clock "stops" when the stake falls to zero in mid-stream: whether the end time is pushed out by the idle time.
+16. In `collect()`, that the tokens burned are the amount the pool returns and never the contract's own balance, which holds the unvested founder and swarm tokens.
+17. In `launch`, the "highest usable tick" (887,200 at a spacing of 200), and what happens to the few base units of the 25% that rounding leaves in the contract.
+18. Whether the window edges are inclusive: a reveal at exactly hour 12 or hour 20, an `apply` in the last second of the epoch.
+19. What registry calls do before `GENESIS`, when the epoch number would be negative.
+20. Whether a seat barred under one holder stays barred for a buyer. As written it does, since the bar is on the seat.
+21. What `notify` does when the transfer to the registry fails (Q-15).
+22. Whether `flag` and `signalCriteria` begin by closing the previous epoch like other state-changing functions, given that they "store nothing".
 
 ## 5. What held
 
