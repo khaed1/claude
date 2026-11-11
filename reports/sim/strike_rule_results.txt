@@ -1,0 +1,8 @@
+N=  15 group=   6 (40.0%)  steady: 25.1% of days blocked, longest run  6 | all-out run before removal ends it: 7 days
+N=  30 group=  11 (36.7%)  steady: 25.1% of days blocked, longest run  6 | all-out run before removal ends it: 7 days
+N=  30 group=  14 (46.7%)  steady: 29.9% of days blocked, longest run  7 | all-out run before removal ends it: 9 days
+N=  31 group=  15 (48.4%)  steady: 31.3% of days blocked, longest run  8 | all-out run before removal ends it: 9 days
+N=  61 group=  30 (49.2%)  steady: 32.4% of days blocked, longest run  8 | all-out run before removal ends it: 10 days
+N= 101 group=  34 (33.7%)  steady: 25.1% of days blocked, longest run  6 | all-out run before removal ends it: 7 days
+N= 101 group=  50 (49.5%)  steady: 33.0% of days blocked, longest run  8 | all-out run before removal ends it: 10 days
+N= 301 group= 149 (49.5%)  steady: 33.1% of days blocked, longest run  8 | all-out run before removal ends it: 10 days
