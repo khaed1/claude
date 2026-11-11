@@ -265,7 +265,173 @@ What would break it (arithmetic: state bytes at the peak are 26,925 + 3 × 64 = 
 
 ## 2. The `clean` framework's Poseidon proofs
 
-(pending)
+Read 11 November 2026, 19:41 to 19:50 UTC. "git" means `git fetch` and `git ls-remote` on
+https://github.com/Verified-zkEVM/clean.git (including `refs/pull/*`). `github.com` pages and
+`api.github.com` return HTTP 403 to curl here, so pull-request state, titles and review comments come from
+WebFetch (the summarising tool) and are marked as such. Nothing was built: no Lean toolchain is installed in
+this container.
+
+### 2.1 Result
+
+- **Not merged.** The branch `poseidon-n-arity` is still 3 commits ahead of `main` and is not an ancestor of
+  it. `main` has not moved since 9 November.
+- **The branch has not moved since 2 November** (commit `df7a54ca`). It is pull request #465, which is open,
+  has one review comment from the maintainer ("close to mergeable from my side", 21 September) and no
+  approval. It no longer merges cleanly: `main` changed `Clean/Circomlib/Poseidon.lean` after the branch's
+  last commit.
+- **`main` has Poseidon (not Poseidon2) over BN254 with circomlib's constants, proved at width 2 only**
+  (one input). Widths 3, 4 and 5 exist on `main` as specifications with test vectors, without circuits or
+  proofs. This is the same state as in `circuit_proof_tooling_v3.md`.
+- **The R1CS exporter on `main` is byte-identical to the version merged on 16 September 2026.** It has no
+  theorem relating the exported constraints to the framework's semantics. A pull request that adds that
+  theorem (#473) has been open and untouched since 28 September.
+- **For the design:** the proof plan's fallback applies. Either build on the unmerged, now-conflicting
+  branch or redo widths 3 to 5. One further point not in the earlier note: the exporter writes one R1CS row
+  per linear constraint, so a Poseidon exported from this framework has about twice the rows of circomlib's
+  optimised circuit (2.4).
+
+### 2.2 The branch and its pull request
+
+Verified (git, 19:41 UTC):
+
+| Fact | Value |
+|---|---|
+| `refs/heads/main` | `a985c76c845e1d69ab320831d535072fcadb7c76`, 2026-11-09T16:23:04+01:00, "Merge pull request #511 from Verified-zkEVM/completeness-exists" |
+| `refs/heads/poseidon-n-arity` | `df7a54ca3e512a7a003e1384b9c2063b585365f0`, 2026-11-02T11:25:03+01:00, author Martin Ochoa, "Addressed comment on removing compatibiliy wrapper and using generic interface" |
+| Earlier commits on the branch | `7fd1f72e` 2026-09-21 "Generate Poseidon constants during Lean elaboration"; `318f90cf` 2026-09-17 "Generalize verified Poseidon circuit to arities 1 through 16" |
+| Is the branch an ancestor of `main`? | No (`git merge-base --is-ancestor` fails) |
+| Ahead and behind | 3 commits ahead of `main`, 488 behind. Fork point `fba2a29f`, 2026-09-16, "Merge pull request #415 from VanshSahay/wasm-ir-compiler-clean" |
+| Pull request | `refs/pull/465/head` = `df7a54ca`, the branch head |
+| GitHub's test merge | `refs/pull/465/merge` = `11f6b84f`, made 2026-11-02T11:25:15+01:00 against `main` at `ce2eee63` (29 October). It has not been refreshed since |
+| Merge against today's `main` | `git merge-tree --write-tree origin/main origin/poseidon-n-arity`: "CONFLICT (content): Merge conflict in Clean/Circomlib/Poseidon.lean". Against `ce2eee63` the same command merges cleanly |
+| Why it conflicts | Two commits on `main` touched that file after `ce2eee63`: `9852171d` (2 November, "Bump Lean and Mathlib to v4.34.1") and `e3c9da78` (3 November, "Merge origin/main into confluent-vector-eval") |
+| Lean version | Branch `lean-toolchain`: "leanprover/lean4:v4.33.1". `main`: "leanprover/lean4:v4.35.0" |
+| Size of the change | 17 files, 2,517 insertions, 2,217 deletions against the fork point |
+
+From WebFetch of https://github.com/Verified-zkEVM/clean/pull/465 (19:43 UTC):
+- Title "Generalize verified Poseidon circuit to arities 1 through 16", state Open, author martin-ochoa, opened
+  17 September 2026, head `poseidon-n-arity`, base `main`, 3 commits, no labels.
+- Review by mitschabaude, 21 September 2026, state "Commented": "very nice, close to mergeable from my side".
+  Inline comment the same day: "can we remove this compat wrapper and just use the generic interface in our
+  existing tests/demos?"
+- Reply by martin-ochoa, 2 November 2026: "Thanks @mitschabaude I have updated this, let me know if this goes
+  in the right direction." No activity after that.
+- The page says at least one approving review is required to merge, and none has been given.
+- The search page https://github.com/Verified-zkEVM/clean/pulls?q=is%3Apr+poseidon lists #465 among 4 open
+  results; no other open pull request generalises the circomlib Poseidon.
+
+What the branch contains (git, files read at `df7a54ca`; not built):
+- `Clean/Circomlib/Poseidon/Generic.lean`: "def circuit {t : ℕ} (params : Params t) : FormalCircuit F
+  (fields (t - 1)) field", with `Spec` "output = Specs.PoseidonOptimized.poseidon params input", and
+  `theorem soundness` and `theorem completeness` stated for every `params`.
+- `Clean/Circomlib/Poseidon.lean`: `Poseidon2.circuit := Circomlib.Poseidon.circuit params_t3`,
+  `Poseidon3.circuit := ... params_t4`, `Poseidon4.circuit := ... params_t5`, up to `Poseidon16`. These are
+  the widths 3, 4 and 5 the design needs.
+- The word `sorry` occurs in none of the 12 Poseidon `.lean` files on the branch; no `axiom` declaration.
+  `native_decide` occurs only in the specification and test-vector files (7 + 27 + 13 uses), not in the
+  circuit proofs.
+- What is proved is agreement with the framework's own optimised specification. `Clean/Circomlib/Poseidon.md`
+  on the branch: "The correspondence with the external circomlib source is an audited regression check rather
+  than a theorem about that external file." Constants are regenerated in Lean and compared with "iden3/circomlib
+  commit `35e54ea21da3e8762557234298dbb553c175ea8d`"; outputs are compared with "iden3/circomlibjs commit
+  `48b3ab37013c5ed21e9ff8a80a5b010795c97094`" on test vectors ("widths 2, 3, and 4" against the
+  non-optimised specification; "[1, 2, ..., n]" for arities 4 to 16).
+- Witness counts stated in the same file: "32 * t + params.nPartial * (t + 4) + 1", "496 local witnesses for
+  `Poseidon2` and 577 for `Poseidon3`". With `nPartial := 60` at width 5 the formula gives 701.
+
+### 2.3 What `main` contains today
+
+Verified (git, files read at `a985c76c`):
+
+- Poseidon files on `main`: `Clean/Circomlib/Poseidon.lean`, `Clean/Circomlib/Poseidon.md`,
+  `Clean/Specs/Poseidon.lean`, `Clean/Specs/PoseidonConstants.lean`, `Clean/Specs/PoseidonOptimized.lean`.
+  The `Poseidon/Generic.lean` family of the branch is absent.
+- It is the original Poseidon with circomlib's parameters over the BN254 scalar field.
+  `Clean/Specs/Poseidon.lean`: "-- BN254 scalar field prime (same as used in circomlib/snarkjs)", "abbrev
+  BN254_PRIME := BN254.scalarFieldSize", "abbrev F := ZMod BN254_PRIME". `Poseidon.md`: "S-box `sigma(x) =
+  x^5` (BN254)" and "The constants `C_t*`, `M_t*` are copied verbatim from circomlib's
+  `poseidon_constants.circom`."
+- Circuit with proofs: one, `Poseidon1` (one input, width 2). `Clean/Circomlib/Poseidon.lean` ends with
+  `namespace Poseidon1 ... def circuit : FormalCircuit F field field`, whose `Spec` is "output =
+  Specs.PoseidonOptimized.poseidon1Opt input". No `sorry` in the file. `Poseidon.md` opens: "This note walks
+  through the structure of the Poseidon arity-1 (t=2) soundness and completeness proof for BN254".
+- Specifications without circuits: `poseidon1` to `poseidon4` (widths 2 to 5) in `Clean/Specs/Poseidon.lean`
+  with 7 circomlibjs test vectors checked by `native_decide`; optimised forms `poseidon1Opt`, `poseidon2Opt`,
+  `poseidon3Opt` (widths 2 to 4) in `PoseidonOptimized.lean`. The constants file defines `C_t2` to `C_t5` and
+  `M_t2` to `M_t5`, but the sparse-round tables only up to `S_t4` and `P_t4`: on `main` there is no optimised
+  specification at width 5.
+- Still true on `main` (`Poseidon.md`): "(There is no formal proof of `poseidon1Opt = poseidon1`; it's
+  validated only against this test set.)"
+- Poseidon2 (the later, different permutation) does not appear in the Lean sources on `main`. The only matches
+  are a Rust test dependency: `backends/plonky3/tests/common/mod.rs`, "use p3_baby_bear::{BabyBear,
+  Poseidon2BabyBear};".
+- Other Poseidon work in open pull requests is for other fields or a different core, not circomlib on BN254:
+  `Clean/Orchard/Poseidon/*` and `Clean/Ironwood/Poseidon/*` (pull request heads #418, #505 and others), and
+  `Clean2/Gadgets/Poseidon.lean` in #476 "Clean 2: a new experimental core" (open, WebFetch), whose header
+  says "Full rounds only."
+- Last commits on `main` to the circomlib Poseidon files: `e3c9da78` (3 November) and `9852171d` (2 November),
+  both toolchain or refactoring merges; the last change of substance is `4b54a19c`, 8 August 2026, "fix:
+  restore real BN254 primality proof via CompPoly v4.32.0".
+
+### 2.4 The R1CS exporter
+
+Verified (git):
+
+- Location on `main`: `Clean/Backends/Circom/` with `Ast.lean` (72 lines), `Binary.lean` (350), `Compile.lean`
+  (1,464), `R1CS.lean` (226), `TestWasmCompile.lean` (495), `TestWasmSemantics.lean` (102) and `README.md`.
+- Unchanged since it was merged. The blob hash of each of the seven files at `fba2a29f` (the merge of pull
+  request #415, 16 September 2026) equals its blob hash on `main` today (for example `R1CS.lean` `450366fe1ef1`,
+  `Compile.lean` `21d6765c1086`). One commit touched `Compile.lean` in between (`9f4f3304`, 12 October) with
+  no net change.
+- No proofs. None of the six `.lean` files contains a `theorem` or `lemma` declaration. The README's claim is
+  about failure modes, not correctness: "Never silently wrong : the compiler is total: every unsupported
+  instruction or unknown label fails at *compile time*".
+- What it emits (README on `main`): "R1CS constraint files in two formats: a pretty-printed JSON object, and
+  the binary `.r1cs` format consumed directly by `snarkjs r1cs info`, `groth16 setup`, and the other `r1cs`
+  subcommands." Limits: "`native` witnesses (Lean closures) | ❌ Not compilable (`.error`)"; "lookups |
+  Ignored by witness generation; `.error` in R1CS export".
+- Tested in continuous integration against snarkjs: `.github/workflows/ci.yml` has "npm install -g snarkjs"
+  and "CleanTests shells out to snarkjs / wasm-validate; without them the affected checks print SKIP instead
+  of failing." The README lists a test that "compiles full **Poseidon1** to WASM, runs `snarkjs wtns
+  calculate` on three inputs, and checks each witness against the Lean ground truth".
+- Open pull requests on the exporter (heads from git; open state from WebFetch of
+  https://github.com/Verified-zkEVM/clean/pulls?q=is%3Apr+R1CS+sort%3Aupdated-desc, 19:46 UTC):
+
+| PR | Head, date | Title | What it adds |
+|---|---|---|---|
+| #473 | `579b26a6`, 2026-09-28, 1 commit | "feat(R1CS): R1CS semantics and soundness of the export" | `R1CSSemantics.lean`, `R1CSSoundness.lean` with `theorem exportConstraints_sound` and `theorem FormalCircuit.r1cs_soundness` ("A satisfying assignment `w` of the constraints exported from `circuit.main input_var` yields the circuit's `Spec`"). No `sorry`. Its README adds: "The converse direction, that every circuit environment extends to an R1CS witness, is not proved yet." |
+| #470 | `440c5b04`, 2026-09-25 | "feat(circom): product absorption in R1CS lowering" | fewer intermediate signals |
+| #471 | `612df062`, 2026-09-28 | "feat(r1cs): certified R1CS constraint simplification" | a simplifier with proofs |
+| #472 | `2b61ab18`, 2026-09-28 | "feat(operations): certified constraint simplification on Operations" | `Clean/Circuit/Simplify.lean` (1,142 lines), `SimplifyFormal.lean` (482) |
+
+  All four fork from `main` at 16 September and are 488 commits behind it, on Lean v4.33.1. WebFetch of
+  https://github.com/Verified-zkEVM/clean/pull/473 (19:47 UTC): Open, no human review; an automated Copilot
+  review of 28 September says "Changes recommended" with two findings, "Verify fieldPrime matches the
+  abstract field size" and "Bind serialized fieldPrime to the coefficient field"; last activity 29 September.
+- Row count of an exported Poseidon (my derivation from the sources, not a measurement). The exporter turns
+  every assertion into a row, including linear ones: in `R1CS.lean` a linear assertion becomes
+  `(lc, [(0, (1 : F))], [])`. The branch's Poseidon binds every output of every mixing layer with `<==`
+  (`Poseidon/Linear.lean`: "let output : Vector (Expression F) t <== Vector.ofFn ..."). So the exported row
+  count is about the witness count: 496 at width 3, 577 at width 4, 701 at width 5. Of these, the
+  multiplications are 3 × (8t + nPartial): 243, 264 and 300. Circom at its default optimisation removes linear
+  constraints and keeps roughly the multiplications. A circuit exported from this framework without #471 or
+  #472 therefore has about twice the Poseidon rows of the circomlib circuit. If the design's "about 22,000
+  constraints" assumes circomlib's count and the deployed circuit is this framework's export, the figure
+  needs rechecking.
+
+### 2.5 Not verified
+
+- Nothing was built. That the branch's proofs check (on Lean v4.33.1) rests on reading the files and on the
+  absence of `sorry`; that they would still check after a rebase onto `main` (v4.35.0) is unknown.
+- Open or closed state, titles, dates and review text of pull requests come from WebFetch only. The heads,
+  dates of commits, diffs and the merge test are from git.
+- Whether the maintainers intend to merge #465, and when. The page shows no statement after 2 November.
+- The exported row counts in 2.4 are derived from a formula in the branch's documentation and from reading
+  the exporter. No `.r1cs` file was produced. The circomlib figures are arithmetic (three multiplications per
+  S-box), not a compiler run.
+- Whether the exporter's handling of `fieldPrime` (the Copilot findings on #473) is a real defect on `main`.
+- The relation between the optimised and the non-optimised specification is still test vectors only, on
+  `main` and on the branch.
 
 ## 3. Uniswap's protocol fee on v3 pools at the 1% tier, Ethereum mainnet
 
