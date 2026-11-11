@@ -60,9 +60,39 @@ I rate this medium and not high. The calibration lists "a way around the standar
 **Smallest fix.** Either of two, and the first costs nothing:
 
 - Keep the formula and correct the page: say that the ceiling is about 0.002 ETH plus eight times the base-fee cost of a spend (eight times that again for other assets), that any amount can leave through it in pieces, and that dust can leave this way. Add to the wallet rule that a quote is refused when it exceeds a multiple of the *current gas cost*, not only when it exceeds the contract ceiling.
-- Or shrink the constant. `(4 × basefee + 0.1 gwei) × 2,000,000` gives 11.5 times the gas cost today and still 7.2 times in a spike. The cost is less room for priority fees when the base fee is near zero: 0.1 gwei of headroom instead of 1.
+- Or shrink the constant. `(4 × basefee + 0.1 gwei) × 2,000,000` gives about 11 times the gas cost today and still 7.2 times in a spike. The cost is less room for priority fees when the base fee is near zero: 0.1 gwei of headroom instead of 1.
 
 **Confidence.** Certain (arithmetic from the page's own figures).
+
+### P-2. Medium, depends on reading. A payer cannot fill in the diversifier that ciphertext 0 must carry, and a restored wallet has no rule for finding it
+
+A *diversifier* (`d`) is the 8-byte value mixed into a wallet's owner key so that one wallet can have many owner keys. To spend a note the owner must know the `d` that note was made with.
+
+**Where.**
+
+- Line 529: "`ownerPk = H4(TAG_PK, spk, nk, d)`". The owner key is a hash, so `d` cannot be read back out of it.
+- Line 548: "Address a payer needs: ownerPk (32 bytes) followed by the recipient's X-Wing public key (1,216 bytes)." No `d`.
+- Line 557: ciphertext 0's "payload is asset (1 byte), value (12), accrued (12), rho (31), diversifier (8) and a memo (16)."
+- Lines 542 and 544 derive `d` for a deposit (`"deposit-d" ‖ n`) and for outputs 1 and 2 of the wallet's own spends (`"out-d" ‖ nf0 ‖ slot`). Nothing derives the `d` of an address handed to a payer.
+- Line 552: "A wallet is rebuilt from its seed and the chain. This is a rule for the wallet, not a suggestion."
+
+**How it works.** Bob gives Alice an address made with some `d_B`. Alice holds `ownerPk_B` and Bob's encryption key and nothing else. She must write 8 bytes of "diversifier" into the payload of ciphertext 0 and has no way to know `d_B`. Two readings follow.
+
+- Reading 1: the address really carries `d` (it would then be 1,256 bytes, not 1,248, and the short address 72, not 64). Alice copies it into the payload. Bob's restored wallet decrypts, reads `d_B`, rebuilds `ownerPk_B`, checks the commitment and can spend. This works for any way of choosing `d_B`, but it is not what line 548 says.
+- Reading 2: the address is as line 548 says. Alice writes zeros. Bob's wallet must find `d_B` by itself. If the builder picked `d_B` at random when the address was made and kept it in the wallet's local storage, a wallet restored from its seed sees the payment, shows the balance, and cannot build `ownerPk_B`. Searching 2^64 values of `d` with a Poseidon hash each is not practical. The note is lost to that user for good.
+
+**Who and cost.** Nobody attacks. It happens to any user who receives a payment at an address and later restores from the seed, under reading 2 with a `d` that is not derived.
+
+**Consequence.** Under the worse reading, received funds are unspendable after a restore. Launch gate 7 ("a wallet restored from its seed alone recovers every note in the canary") catches it only if the canary script includes a payment from a second wallet to an address the first one handed out, and the canary list at line 935 does not name such a spend. I rate it medium and not "high if misread" because line 552 is explicit that restoring from the seed is a rule, so a builder who meets the gap is told to stop and ask.
+
+**Smallest fix.** One of:
+
+- Put `d` in the address (and in the short address) and say the payer copies it into the payload. Then say the wallet derives address diversifiers as `first 8 bytes of HKDF(viewRoot, "addr-d" ‖ m)` for a counter `m`, so nothing depends on local storage either way.
+- Or drop `d` from the design. It hides nothing on-chain that `rho` does not already hide (the only place an owner key reaches the chain is inside `ownerCommit = H3(TAG_OC, ownerPk, rho)`), and line 555 already says it "does nothing for addresses". Without it there is nothing left that a restored wallet cannot derive.
+
+Add to the canary list: a payment from one wallet to an address of another, spent by the second wallet after a restore from its seed.
+
+**Confidence.** Certain that the two passages contradict each other. The loss depends on reading.
 
 (more findings pending)
 
