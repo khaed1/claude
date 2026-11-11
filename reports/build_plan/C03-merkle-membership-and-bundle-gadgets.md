@@ -11,7 +11,9 @@ depth-32 Merkle root recomputation from a leaf, 32 index bits and 32 siblings, w
 (value + 2^96*accrued) * (computedRoot - root) = 0. Work only from the pinned commit of the project repository
 and the build specification (`reports/Murmuration v4 specification.html`, section "Build specification").
 Solidity 0.8.30, Foundry, optimizer on, no ffi, no network. No owner, admin, pause, upgrade or setter may
-appear in any contract. If the specification is ambiguous, stop and report the ambiguity instead of choosing.
+appear in any contract. Every duration is in seconds of block.timestamp counted from Params.GENESIS; no
+schedule may count blocks. If the specification is ambiguous, stop and report the ambiguity instead of
+choosing.
 
 ## Paths the job may write
 

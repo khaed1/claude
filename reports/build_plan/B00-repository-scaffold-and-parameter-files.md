@@ -8,14 +8,18 @@
 
 Create the project layout: Foundry project (solc 0.8.30, optimizer 200 runs, evm version pinned), a Makefile
 with targets check, sizes, gas and vectors, and two parameter files. params/mainnet.json holds every value in
-the specification's parameter table (assets, caps, weights, exit sizes, epoch lengths, stake, emission steps,
-auction constants, seat contract and IMD token addresses). params/canary.json differs only in the cap step
-length, the emission period, the deposit window and the salt. script/gen_params.py writes src/Params.sol from
-a parameter file so that no constant is typed by hand in a contract. Work only from the pinned commit of the
-project repository and the build specification (`reports/Murmuration v4 specification.html`, section "Build
-specification"). Solidity 0.8.30, Foundry, optimizer on, no ffi, no network. No owner, admin, pause, upgrade
-or setter may appear in any contract. If the specification is ambiguous, stop and report the ambiguity instead
-of choosing.
+the specification's parameter table: the five assets with ids 1 to 5 (ETH, USDT, USDC, IMD, token), caps,
+weights, exit sizes, GENESIS, epoch and checkpoint lengths in seconds, stake, emission steps, auction
+constants, the launch reset bound, the seat contract and the USDT, USDC and IMD addresses. params/canary.json
+differs only in the salt, GENESIS, the cap step (10 days), the emission period (80 days), the deposit window
+(85 days), the four starting caps (0.5 ETH, 1,000 USDT, 1,000 USDC, 50 IMD) and the screener wait (3 epochs).
+script/gen_params.py writes src/Params.sol from a parameter file so that no constant is typed by hand in a
+contract. src/lib/Addresses.sol computes the addresses of the five deployed contracts from the Deployer's
+address and their fixed creation order. Work only from the pinned commit of the project repository and the
+build specification (`reports/Murmuration v4 specification.html`, section "Build specification"). Solidity
+0.8.30, Foundry, optimizer on, no ffi, no network. No owner, admin, pause, upgrade or setter may appear in any
+contract. Every duration is in seconds of block.timestamp counted from Params.GENESIS; no schedule may count
+blocks. If the specification is ambiguous, stop and report the ambiguity instead of choosing.
 
 ## Paths the job may write
 
@@ -25,6 +29,7 @@ of choosing.
 - `params/canary.json`
 - `script/gen_params.py`
 - `src/Params.sol`
+- `src/lib/Addresses.sol`
 - `README.md`
 - `.github/workflows/check.yml`
 
@@ -33,8 +38,9 @@ of choosing.
 1. `make check` runs forge build and forge test and exits 0 on the empty project.
 2. `python3 script/gen_params.py params/mainnet.json` reproduces src/Params.sol byte for byte.
 3. `make sizes` fails if any deployed contract exceeds 24,576 bytes.
-4. params/canary.json differs from params/mainnet.json in exactly the four keys named in the objective.
-5. No parameter appears as a literal in src/ outside src/Params.sol (a grep test enforces it).
+4. params/canary.json differs from params/mainnet.json in exactly the keys named in the objective (a test lists the differing keys).
+5. No parameter appears as a literal in src/ outside src/Params.sol, and no source file reads block.number (two grep tests enforce it).
+6. Addresses.sol matches the addresses CREATE gives a contract with nonces 1 to 5 (fuzz over deployer addresses).
 
 ## Notes
 

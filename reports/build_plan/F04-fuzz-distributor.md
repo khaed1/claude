@@ -11,8 +11,9 @@ function of the contract under test and ghost variables for the sums the invaria
 calls. Mock verifiers accept every proof so that the harness explores the contract's own checks. Work only
 from the pinned commit of the project repository and the build specification (`reports/Murmuration v4
 specification.html`, section "Build specification"). Solidity 0.8.30, Foundry, optimizer on, no ffi, no
-network. No owner, admin, pause, upgrade or setter may appear in any contract. If the specification is
-ambiguous, stop and report the ambiguity instead of choosing.
+network. No owner, admin, pause, upgrade or setter may appear in any contract. Every duration is in seconds of
+block.timestamp counted from Params.GENESIS; no schedule may count blocks. If the specification is ambiguous,
+stop and report the ambiguity instead of choosing.
 
 ## Contracts named
 
@@ -24,10 +25,10 @@ ambiguous, stop and report the ambiguity instead of choosing.
 
 ## Acceptance tests
 
-1. Invariant holds over 1,000,000 calls: each receipt is split 40/40/20 with the remainder in the basket.
-2. Invariant holds over 1,000,000 calls: balances cover streams, owed and basket.
+1. Invariant holds over 1,000,000 calls: each receipt is split 40/40/20 with the remainder in the basket stream.
+2. Invariant holds over 1,000,000 calls: balances cover streams, owed, basket and basket stream.
 3. Invariant holds over 1,000,000 calls: buybackImd only ever decreases through the swap callback.
-4. Invariant holds over 1,000,000 calls: a buyback step is at most half of fee rate times reserves.
+4. Invariant holds over 1,000,000 calls: a buyback step is at most half of fee rate times the locked position's virtual reserve, at most once per 43,200 seconds.
 5. The handler reaches every external function at least 1,000 times (call summary in the output).
 
 ## Notes

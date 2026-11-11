@@ -8,12 +8,14 @@
 
 Audit the named contracts at the pinned commit against the build specification. They are immutable once
 deployed: there is no owner, pause or upgrade, so every finding that would normally be fixed by an admin is a
-permanent loss. What worries us most: acceptance of a batch with fewer than two thirds, a way to stop batches
-for ever, loss or theft of stakes or pay, and any way for the registry to affect funds in the Pool. Check
+permanent loss. What worries us most: acceptance of a batch with fewer than two thirds, approval of a deposit
+less than a day old at the batch's data time, a way for a minority to stop batches for ever or to evict honest
+screeners, loss or theft of stakes or pay, and any way for the registry to affect funds in the Pool. Check
 every invariant listed for these contracts in the build specification and say for each whether it holds, with
-the test or trace that shows it. Token behaviours to assume: USDC can blocklist any address including these
-contracts; DAI is plain; IMD is a plain bridged token with no fee, pause or blocklist; the project token is
-plain.
+the test or trace that shows it. Token behaviours to assume: USDT returns no value on transfer and its owner
+can pause it, blocklist any address and switch on a transfer fee that is zero today; USDC can blocklist any
+address including these contracts and is upgradeable; IMD is a plain bridged token with no fee, pause or
+blocklist; the project token is plain.
 
 ## Contracts named
 

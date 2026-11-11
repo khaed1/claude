@@ -6,11 +6,14 @@
 
 ## Objective
 
-Adversarial review of the token's market mechanics on a mainnet fork with the real IMD token and Uniswap v3:
-try to make launch revert or place the position at a wrong price by acting first; try to take value from a
-buyback step by any sequence of swaps and liquidity changes in the same block; try to buy the basket below its
-value by manipulating the auction's state; try to strand an asset in the basket. Report what a third party can
-gain and at what cost. This step may write only the review test file.
+Adversarial review of the token's market mechanics on a mainnet fork with the real IMD token and Uniswap v3.
+As a block builder who sees the launch transaction and can act before it in the same block: try to make launch
+revert, run out of gas, or place the position at a wrong price, with bids above the start and with a block's
+worth of dust positions. As anyone: try to learn the token's address before the launch block; try to take
+value from a buyback step by any sequence of swaps and liquidity changes; try to enlarge a step by adding
+liquidity or sending IMD to the pool; try to buy the basket below its value by manipulating the auction's
+state; try to strand an asset in the basket. Report what a third party can gain and at what cost. This step
+may write only the review test file.
 
 ## Paths the job may write
 
@@ -21,8 +24,9 @@ gain and at what cost. This step may write only the review test file.
 
 1. Each attack attempted is a Foundry test in test/review/Market.t.sol with the attacker's profit asserted.
 2. No attack shows a profit above gas cost, or the finding is filed as high.
-3. The report quantifies the cost to delay launch by pre-creating the pool with real liquidity.
-4. The report lists the IMD token's owner powers that affect this market, including bridge-side minting.
+3. The report states what a block builder must spend to block one launch attempt, and that nobody else can block it.
+4. The report states what the launch caller gains by buying in the same transaction, in tokens and in dollars at the starting valuation.
+5. The report lists the IMD token's owner powers that affect this market, including administration of its bridge peers on Ethereum.
 
 ## Notes
 

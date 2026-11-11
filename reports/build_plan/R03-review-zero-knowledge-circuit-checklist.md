@@ -10,9 +10,10 @@ Panel review, five reviewers, quorum four, of the clean circuit and the Circom o
 IMD's audit template does not contain, because that template is written for Solidity. Checklist: signals
 assigned but not constrained; missing range checks before additions and comparisons; bit decompositions that
 allow an alias above the modulus; equality checks done on hints; selectors not forced to be boolean; public
-inputs unused in any constraint; nullifier not bound to the note it spends; padding inputs able to carry value
-or reward; domain separation between hashes; division by a value that can be zero; differences between the
-witness generator and the constraints.
+inputs unused in any constraint; nullifier not bound to the note it spends; empty inputs able to carry value
+or reward; a fee input able to carry an asset other than ETH; an empty fee input with a non-zero nullifier;
+domain separation between hashes; division by a value that can be zero; differences between the witness
+generator and the constraints.
 
 ## Paths the job may write
 

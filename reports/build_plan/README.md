@@ -2,6 +2,8 @@
 
 Draft job briefs for the IMD swarm, written against the build specification in `reports/Murmuration v4 specification.html`. **None has been submitted, and none should be without the owner's decision.** Everything in a brief becomes public for good once it is.
 
+The briefs were regenerated on 11 November 2026 for revision 4.2 of the specification, which answers an independent review. Two reviews in two days each found faults in the fixes for the one before, so no brief should be submitted until a reviewer who has seen neither has read revision 4.2.
+
 There are 50 briefs. Each is sized for one IMD request under the limits IMD publishes (read 10 November 2026): an objective of at most 8,000 characters, at most six steps of one skill each, at most eight acceptance criteria per step of 500 characters each, at most 16 writable paths, at most four contracts named, and a request body of at most 16 KiB. `generate.py` writes these files and fails if a brief breaks a limit.
 
 ## What IMD checks, and what it does not
@@ -33,7 +35,7 @@ There are 50 briefs. Each is sized for one IMD request under the limits IMD publ
 | B11 | [Hash adapter and note tree](B11-hash-adapter-and-note-tree.md) | Build | `impl_tests` | B00 |
 | B12 | [Pool: deposit, activate, refund](B12-pool-deposit-activate-refund.md) | Build | `impl_tests_review` | B11 |
 | B13 | [Reward index library](B13-reward-index-library.md) | Build | `impl_tests` | B00 |
-| B14 | [Pool: spend](B14-pool-spend.md) | Build | `impl_tests_review` | B12, B13 |
+| B14 | [Pool: spend and roll](B14-pool-spend-and-roll.md) | Build | `impl_tests_review` | B12, B13 |
 | B15 | [Pool: fees, key announcements, size and gas report](B15-pool-fees-key-announcements-size-and-gas-report.md) | Build | `impl_tests` | B14 |
 | B20 | [ScreenerRegistry: membership and stake](B20-screenerregistry-membership-and-stake.md) | Build | `impl_tests_review` | B10 |
 | B21 | [ScreenerRegistry: commit, reveal, accept, apply](B21-screenerregistry-commit-reveal-accept-apply.md) | Build | `impl_tests_review` | B20 |
@@ -76,7 +78,7 @@ There are 50 briefs. Each is sized for one IMD request under the limits IMD publ
 | P01 | [Proofs: range, division, selection and packing gadgets](P01-proofs-range-division-selection-and-packing-gadgets.md) | Proof | `single` | C01, R01 |
 | P02 | [Proofs: Poseidon at widths 3, 4 and 5](P02-proofs-poseidon-at-widths-3-4-and-5.md) | Proof | `single` | C02, R01 |
 | P03 | [Proofs: Merkle membership and bundle](P03-proofs-merkle-membership-and-bundle.md) | Proof | `single` | C03, P02, R01 |
-| P04 | [Proofs: the five capstone theorems](P04-proofs-the-five-capstone-theorems.md) | Proof | `single` | C04, P01, P03 |
+| P04 | [Proofs: the top statement and its ten lemmas](P04-proofs-the-top-statement-and-its-ten-lemmas.md) | Proof | `single` | C04, P01, P03 |
 | P05 | [Automatic checkers on the Circom oracle](P05-automatic-checkers-on-the-circom-oracle.md) | Proof | `single` | C05 |
 
 ## Reviews

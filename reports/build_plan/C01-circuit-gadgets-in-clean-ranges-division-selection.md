@@ -8,12 +8,13 @@
 
 Implement as clean circuits, reusing clean's proved bit-decomposition and comparator ports: range checks of 2,
 32, 64, 90 and 96 bits; exact division by 2^64 with a 64-bit remainder; the asset table lookup that maps an
-asset id to its constant weight and rejects unlisted ids; and the packed word TAG_NOTE*2^200 + accrued*2^104 +
-value*2^8 + asset. Constraint generation only; proofs are P01. Work only from the pinned commit of the project
-repository and the build specification (`reports/Murmuration v4 specification.html`, section "Build
-specification"). Solidity 0.8.30, Foundry, optimizer on, no ffi, no network. No owner, admin, pause, upgrade
-or setter may appear in any contract. If the specification is ambiguous, stop and report the ambiguity instead
-of choosing.
+asset id (1 to 5) to its constant weight and rejects zero and unlisted ids; and the packed word TAG_NOTE*2^200
++ accrued*2^104 + value*2^8 + asset. Constraint generation only; proofs are P01. Work only from the pinned
+commit of the project repository and the build specification (`reports/Murmuration v4 specification.html`,
+section "Build specification"). Solidity 0.8.30, Foundry, optimizer on, no ffi, no network. No owner, admin,
+pause, upgrade or setter may appear in any contract. Every duration is in seconds of block.timestamp counted
+from Params.GENESIS; no schedule may count blocks. If the specification is ambiguous, stop and report the
+ambiguity instead of choosing.
 
 ## Paths the job may write
 
@@ -26,7 +27,7 @@ of choosing.
 ## Acceptance tests
 
 1. `make lean-gadgets` builds and runs the gadget tests.
-2. Witness tests: each gadget accepts 1,000 random valid inputs and rejects boundary violations (value = 2^96, remainder = 2^64, asset id = number of assets).
+2. Witness tests: each gadget accepts 1,000 random valid inputs and rejects boundary violations (value = 2^96, remainder = 2^64, asset id = 0 and = 6).
 3. Constraint counts per gadget are printed and written to circuit/COUNTS.md.
 4. No gadget uses an unconstrained hint whose value is not fixed by a constraint (listed in COUNTS.md with the fixing constraint).
 

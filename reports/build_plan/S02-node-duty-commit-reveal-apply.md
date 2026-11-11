@@ -6,13 +6,16 @@
 
 ## Objective
 
-Implement the screener duty for the node: each epoch run S01, commit in the commit window with a fresh salt
-kept on disk, reveal in the reveal window, call apply when a batch is accepted and not yet applied, and
-withdraw pay on request. The duty runs under its own Unix user with its own operator key and never reads IMD's
-worker files. It makes no call to api.imd.fun. Work only from the pinned commit of the project repository and
-the build specification (`reports/Murmuration v4 specification.html`, section "Build specification"). Solidity
-0.8.30, Foundry, optimizer on, no ffi, no network. No owner, admin, pause, upgrade or setter may appear in any
-contract. If the specification is ambiguous, stop and report the ambiguity instead of choosing.
+Implement the screener duty for the node: call activate once the waiting period has passed; each epoch run
+S01, commit in the first 16 hours with a fresh salt kept on disk, reveal in the last 8 hours, call apply when
+a batch is accepted and not yet applied, and withdraw pay on request. The duty warns its operator when its
+batch differs from the recorded majority hash, and says how many consecutive misses remain before it can be
+evicted. It runs under its own Unix user with its own operator key and never reads IMD's worker files. It
+makes no call to api.imd.fun. Work only from the pinned commit of the project repository and the build
+specification (`reports/Murmuration v4 specification.html`, section "Build specification"). Solidity 0.8.30,
+Foundry, optimizer on, no ffi, no network. No owner, admin, pause, upgrade or setter may appear in any
+contract. Every duration is in seconds of block.timestamp counted from Params.GENESIS; no schedule may count
+blocks. If the specification is ambiguous, stop and report the ambiguity instead of choosing.
 
 ## Paths the job may write
 
@@ -25,8 +28,9 @@ contract. If the specification is ambiguous, stop and report the ambiguity inste
 
 1. Against a local chain with the contracts from B22, ten simulated nodes reach acceptance in every epoch of a 20-epoch test.
 2. A node restarted between commit and reveal still reveals the committed batch (salt persisted).
-3. A node whose RPC returns different data from the others reveals a different hash and the test shows it is not paid.
-4. No outbound request goes to any host other than the configured RPC and IPFS endpoints (network mock).
+3. A node whose RPC returns different data from the others reveals a different hash, is not paid, and logs a warning with its miss count each epoch.
+4. With four of ten nodes revealing junk, no batch is accepted for seven epochs, the four become evictable, and acceptance resumes after they are evicted.
+5. No outbound request goes to any host other than the configured RPC and IPFS endpoints (network mock).
 
 ## Notes
 

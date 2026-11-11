@@ -11,7 +11,8 @@ hashes in Params) for H2, H3 and H4, and NoteTree.sol: an append-only tree of de
 one insert per call, the last 64 roots kept in a ring, and leaf = H4(C0, C1, C2, C3). Tests etch the hasher
 bytecode from fixtures. Work only from the pinned commit of the project repository and the build specification
 (`reports/Murmuration v4 specification.html`, section "Build specification"). Solidity 0.8.30, Foundry,
-optimizer on, no ffi, no network. No owner, admin, pause, upgrade or setter may appear in any contract. If the
+optimizer on, no ffi, no network. No owner, admin, pause, upgrade or setter may appear in any contract. Every
+duration is in seconds of block.timestamp counted from Params.GENESIS; no schedule may count blocks. If the
 specification is ambiguous, stop and report the ambiguity instead of choosing.
 
 ## Contracts named

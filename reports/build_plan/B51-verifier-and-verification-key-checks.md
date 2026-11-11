@@ -7,14 +7,15 @@
 ## Objective
 
 Wrap the snarkjs-generated Groth16 verifier for the Spend circuit as Verifier.sol with one view function
-verify(proof, inputs[11]). Add script/check_vk.py, which reads a verification key and fails unless gamma and
+verify(proof, inputs[13]). Add script/check_vk.py, which reads a verification key and fails unless gamma and
 delta are distinct, neither is the generator, all points are on the curve and in the right subgroup, and the
-number of IC points is 12. Two production verifiers were exploited in February 2026 because a setup step was
+number of IC points is 14. Two production verifiers were exploited in February 2026 because a setup step was
 skipped and gamma equalled delta; this check is the guard. Work only from the pinned commit of the project
 repository and the build specification (`reports/Murmuration v4 specification.html`, section "Build
 specification"). Solidity 0.8.30, Foundry, optimizer on, no ffi, no network. No owner, admin, pause, upgrade
-or setter may appear in any contract. If the specification is ambiguous, stop and report the ambiguity instead
-of choosing.
+or setter may appear in any contract. Every duration is in seconds of block.timestamp counted from
+Params.GENESIS; no schedule may count blocks. If the specification is ambiguous, stop and report the ambiguity
+instead of choosing.
 
 ## Contracts named
 
@@ -29,10 +30,10 @@ of choosing.
 
 ## Acceptance tests
 
-1. All valid fixture proofs verify; each fixture with one public input or one proof byte altered fails.
+1. All valid fixture proofs verify; each fixture with any one of the 13 public inputs or one proof byte altered fails.
 2. A public input equal to or above the field modulus is rejected.
 3. check_vk.py fails on a key with gamma == delta, on a point off the curve, and on a wrong IC count (three bad fixtures).
-4. Verification of 11 inputs costs under 270,000 gas (snapshot).
+4. Verification of 13 inputs costs under 285,000 gas (snapshot).
 5. The contract has no storage and no function besides verify.
 
 ## Notes

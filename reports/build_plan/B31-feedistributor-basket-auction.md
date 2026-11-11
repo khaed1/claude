@@ -6,15 +6,18 @@
 
 ## Objective
 
-Implement buy(assets, to, saleId, deadline, maxPay): the price falls linearly from the starting price to
-Params.AUCTION_FLOOR over 7,200 blocks and stays at the floor; the buyer pays the price in IMD, which is added
-to buybackImd; the buyer receives basket[asset] of each asset named; the next starting price is twice the
-price paid and at least Params.AUCTION_MIN_START. The design follows Euler's FeeFlowController (GPL-2.0-or-
-later, audited) with two changes: a non-zero floor, and explicit basket balances instead of whole balances.
-Work only from the pinned commit of the project repository and the build specification (`reports/Murmuration
-v4 specification.html`, section "Build specification"). Solidity 0.8.30, Foundry, optimizer on, no ffi, no
-network. No owner, admin, pause, upgrade or setter may appear in any contract. If the specification is
-ambiguous, stop and report the ambiguity instead of choosing.
+Implement the basket stream and buy(assets, to, saleId, deadline, maxPay). Each receipt's 20% is released into
+basket[asset] evenly over 604,800 seconds. The price falls linearly from the starting price to
+Params.AUCTION_FLOOR over 86,400 seconds and stays at the floor; the first sale's clock starts at GENESIS. The
+buyer names at least one asset, pays the price in IMD, which is added to buybackImd, and receives the released
+basket balance of each asset named. The next starting price is twice the price paid and at least
+Params.AUCTION_MIN_START. The design follows Euler's FeeFlowController (GPL-2.0-or-later, audited) with three
+changes: a non-zero floor, explicit basket balances instead of whole balances, and the seven-day release. Work
+only from the pinned commit of the project repository and the build specification (`reports/Murmuration v4
+specification.html`, section "Build specification"). Solidity 0.8.30, Foundry, optimizer on, no ffi, no
+network. No owner, admin, pause, upgrade or setter may appear in any contract. Every duration is in seconds of
+block.timestamp counted from Params.GENESIS; no schedule may count blocks. If the specification is ambiguous,
+stop and report the ambiguity instead of choosing.
 
 ## Contracts named
 
@@ -27,12 +30,13 @@ ambiguous, stop and report the ambiguity instead of choosing.
 
 ## Acceptance tests
 
-1. Price at block offsets 0, 3,600, 7,200 and 100,000 equals start, the midpoint, floor and floor.
-2. buy reverts on a stale saleId, a passed deadline, or a price above maxPay.
-3. The buyer receives exactly basket[asset] for each named asset and nothing of the staker streams or stakes.
-4. A sale that names all assets but one whose transfer reverts (blocklist mock) succeeds when that asset is left out.
-5. After a sale at price x the next starting price is max(2x, AUCTION_MIN_START).
-6. Re-entrancy through an ETH payout or a token callback cannot reach buy, claim or unstake.
+1. Price at offsets 0, 43,200, 86,400 and 1,000,000 seconds equals start, the midpoint, floor and floor.
+2. After one notify the released basket at time t is 20% of the receipt times min(t, 604,800)/604,800, within 1 wei.
+3. buy reverts on a stale saleId, a passed deadline, an empty asset list, or a price above maxPay.
+4. The buyer receives exactly the released basket of each named asset and nothing of the unreleased stream, the staker streams or the stakes.
+5. A sale that names all assets but one whose transfer reverts (blocklist mock) succeeds when that asset is left out.
+6. After a sale at price x the next starting price is max(2x, AUCTION_MIN_START).
+7. Re-entrancy through an ETH payout or a token callback cannot reach buy, claim or unstake.
 
 ## Notes
 

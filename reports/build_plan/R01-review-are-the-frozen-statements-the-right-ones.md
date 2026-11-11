@@ -6,12 +6,14 @@
 
 ## Objective
 
-Panel review, five reviewers, quorum four. Read circuit/lean/Murmuration/Spec.lean, Challenge.lean and
-circuit/SPEC.md at the pinned commit and the build specification. Answer for each of the five theorems: does
-the Lean statement say what the plain-words statement says; is any hypothesis stronger than an honest prover
-satisfies; could the statement be true of a circuit that lets value be created; is anything quantified over
-the wrong set (field versus integers, any root versus a known root). Propose a concrete counter-model for each
-weakness found.
+Panel review, five reviewers, quorum four, by agents that have not seen any circuit code. Read
+circuit/lean/Murmuration/Spec.lean, Challenge.lean and circuit/SPEC.md at the pinned commit and the build
+specification. Answer for the top statement and each of the ten lemmas: does the Lean statement say what the
+plain-words statement says; is any hypothesis stronger than an honest prover satisfies; is anything quantified
+over the wrong set (field versus integers, any root versus a known root). Then try to break the list as a
+whole: describe a circuit that satisfies all eleven statements and still lets someone spend a note that is not
+theirs, spend a note twice, create value or reward, change one asset into another, or redirect a payment.
+Propose a concrete counter-model for each weakness found.
 
 ## Paths the job may write
 
@@ -19,10 +21,11 @@ weakness found.
 
 ## Acceptance tests
 
-1. Each theorem gets a verdict: faithful, too weak (with a counter-model), or too strong (with an honest spend that violates a hypothesis).
+1. Each of the eleven statements gets a verdict: faithful, too weak (with a counter-model), or too strong (with an honest spend that violates a hypothesis).
 2. Each constraint 1-14 of the build specification is matched to a definition or reported missing.
-3. The report names every place where Spec.lean differs from the build specification, however small.
-4. Minimum of 3 citations to file and line per theorem.
+3. For each of the six broken circuits named in C00, the report confirms which lemma fails, or reports that none does.
+4. The report names every place where Spec.lean differs from the build specification, however small.
+5. Minimum of 3 citations to file and line per statement.
 
 ## Notes
 

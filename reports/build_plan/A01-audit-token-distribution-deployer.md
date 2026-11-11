@@ -9,10 +9,12 @@
 Audit the named contracts at the pinned commit against the build specification. They are immutable once
 deployed: there is no owner, pause or upgrade, so every finding that would normally be fixed by an admin is a
 permanent loss. What worries us most: any path that creates supply, reduces the locked position, pays the
-founder or a swarm entry early or twice, or lets a third party block or misprice launch. Check every invariant
-listed for these contracts in the build specification and say for each whether it holds, with the test or
-trace that shows it. Token behaviours to assume: USDC can blocklist any address including these contracts; DAI
-is plain; IMD is a plain bridged token with no fee, pause or blocklist; the project token is plain.
+founder or a swarm entry early or twice, lets anyone learn the token address before the launch block, or lets
+a third party block or misprice launch. Check every invariant listed for these contracts in the build
+specification and say for each whether it holds, with the test or trace that shows it. Token behaviours to
+assume: USDT returns no value on transfer and its owner can pause it, blocklist any address and switch on a
+transfer fee that is zero today; USDC can blocklist any address including these contracts and is upgradeable;
+IMD is a plain bridged token with no fee, pause or blocklist; the project token is plain.
 
 ## Contracts named
 

@@ -18,7 +18,7 @@ the ceremony is the file whose hash P04 proved.
 ## Acceptance tests
 
 1. The full `snarkjs zkey verify` output for the final key is in the report and passes.
-2. check_vk.py passes: gamma and delta distinct, all points valid, 12 IC points.
+2. check_vk.py passes: gamma and delta distinct, all points valid, 14 IC points.
 3. A table shows the hash of spend.r1cs in three places: the P04 build, the ceremony and the fixtures; all equal.
 4. The verifier contract's constants match the key (script output included).
 

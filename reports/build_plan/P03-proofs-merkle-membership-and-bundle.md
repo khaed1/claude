@@ -11,7 +11,8 @@ recomputed root equals Spec.merkleRoot(leaf, index, siblings), and that the bund
 commitment at the stated slot. Prove that the conditional check forces membership whenever value or accrued is
 non-zero. Work only from the pinned commit of the project repository and the build specification
 (`reports/Murmuration v4 specification.html`, section "Build specification"). Solidity 0.8.30, Foundry,
-optimizer on, no ffi, no network. No owner, admin, pause, upgrade or setter may appear in any contract. If the
+optimizer on, no ffi, no network. No owner, admin, pause, upgrade or setter may appear in any contract. Every
+duration is in seconds of block.timestamp counted from Params.GENESIS; no schedule may count blocks. If the
 specification is ambiguous, stop and report the ambiguity instead of choosing. The gate is not a green build.
 It is: `lake build --wfail`; an axiom allow-list on every theorem named below (propext, Classical.choice,
 Quot.sound and nothing else unless named here); and `lake comparator` against the frozen Challenge.lean, whose
