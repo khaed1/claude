@@ -153,6 +153,48 @@ Strikes live in the record and a record ends on exit, so strikes are reset by th
 
 **Confidence.** Certain for paths 1 and 2. Path 3 depends on how `evict` orders its grounds.
 
+### Q-7. High. No flag can count in the first batch, and the first batch covers every deposit of the first month
+
+**Where.** Line 720: "`flag(seatId, depositId)`, `signalCriteria(seatId, hash)` | The operator of an active screener | Emit an event and store nothing." Line 714: "a screener is active no sooner than 31 epochs after registering. There is no shortcut at launch". Line 156: flags are "events up to the base block, from seats in this epoch's snapshot", and the base block is "the last block whose timestamp is before the epoch's start" (line 151). Line 648: `deposit` is open to "Anyone, from launch". Against the claims on line 109, "Screeners always have between one and two days to refuse stolen funds", and line 175, "whatever a screener learns in the first day after a deposit can still stop it."
+
+**How it works.** A flag is the only way knowledge that is on no list gets into a batch (line 176). Only an active screener can post one. The first screeners become active at the start of epoch 31 at the earliest. The first batch is the batch of that same epoch, and it reads flags only up to the last block of epoch 30, when nobody was active and every call to `flag` reverted. So the first batch contains no flag by construction. It covers every deposit made from launch to the end of epoch 29.
+
+1. Day 5 after launch: a protocol is drained. The thief's addresses are public within hours and on no sanctions list (the page itself says designations take weeks, line 295).
+2. Day 6: the thief deposits 25 ETH, 50,000 USDT and 50,000 USDC, the whole of the first-step caps, in amounts of 10 ETH or less or from addresses funded more than 72 hours before, so the one hold rule that could apply does not. The deposits are refundable and cost gas only.
+3. Days 6 to 30: every registered seat holder knows. None can flag.
+4. Day 31: the published program outputs a batch that covers those deposits and refuses none of them. An honest node commits and reveals it. A screener that reveals anything else gains two strikes if a majority follows the program.
+5. Day 31, after hour 12: the batch is applied, which sets `START`. The thief activates and fills the ETH, USDT and USDC caps. Honest depositors who have waited a month find the caps full until day 90 unless the thief leaves.
+
+Flags posted on day 31 count from the batch of day 32. By then the notes are in the tree and "cannot be removed afterwards" (line 185). The same holds on the canary, with a wait of 3 days.
+
+**Who and cost.** Anyone holding funds that are known to be stolen and not yet listed. The cost is the gas of three deposits and the 0.2% entry fee at activation.
+
+**Consequence.** About $153,000 of identified stolen funds can be the pool's first and only crowd on the day it opens, with the screeners unable to refuse it under their own published rule. The size is bounded by the first-step caps, and the 3-epoch hold still catches a careless thief. It is rated high because it is a free way round the one part of screening that deals with fresh thefts, the two sentences quoted above are false for every deposit of the first month, and the page's legal position rests on screening being real from the first activation (lines 196 and 1336).
+
+**Smallest fix.** Either of two, and neither adds a mechanism. In the contract: let `flag` and `signalCriteria` be called for any registered seat, since they store nothing and the criteria file already filters by snapshot; flags posted during the 30-day wait then count in the first batch. Or in the node software: the first batch a node commits to covers nothing (`upTo` is 0), so `START` is set by an empty batch and the second day's batch, which can read a day of flags, is the first to approve anything.
+
+**Confidence.** Certain.
+
+### Q-8. Medium. The flag quorum is a share of the whole snapshot, so seats that do nothing vote against every flag
+
+**Where.** Line 157: "quorum": "more than half of the snapshot". Line 176: "the published rule refuses a deposit that more than half of the screeners have flagged." Line 720, as above: the guard on `flag` is "an active screener". Unlike `commit` (line 715) it does not require that the registered holder still owns the seat.
+
+**How it works.** A batch is computed by a program. A flag is not: someone has to decide that a deposit is stolen funds and send a transaction for each seat, within the one to two days the deposit waits. The quorum counts every seat in the snapshot, including seats whose operators run the node and nothing else, seats that are down, and sold seats nobody has evicted.
+
+Take a snapshot of 20: 9 attentive screeners, 6 that only run the program, 5 friendly to a thief. The 9 flag the deposit. The quorum is 11, so the rule does not fire. The honest batch therefore approves the deposit, all 20 reveal it, it is accepted at 14, and the thief activates. Nobody gains a strike, because nobody deviated from the batch. The 5 friends were not even needed: 9 flags of 20 fail without them.
+
+Revision 4.3 raised the quorum from a third to a majority so that a third could not refuse anyone (M-2). The page states the price of that on one side only: "Whatever number of seats can cause a refusal controls who may enter" (line 177). The other side is that half of the seats staying passive lets through anything that is on no list, and passivity is the default behaviour of a node.
+
+A smaller point in the same place: because `flag` and `signalCriteria` do not check that the seat is still held, the operator key of a sold seat keeps its vote on flags and on the criteria file until someone evicts the record.
+
+**Who and cost.** A thief needs nothing but ordinary turnout. To make sure, a quarter of the seats that agree not to flag is enough when another quarter is passive.
+
+**Consequence.** The fresh-theft path the page offers as its answer to "Can a thief get a deposit approved, spend once, and be untouchable?" (line 293) works only if more than half of all seats act by hand inside two days. The page's open question 6 asks whether enough screeners will flag. It does not say that the count is taken over seats that never will.
+
+**Smallest fix.** In the criteria file, not in a contract: a flag by a smaller share, for example a fifth of the snapshot, holds the deposit for a few epochs, once per deposit, and a flag by a majority refuses it. A hold costs the depositor days and cannot be turned into a forced refund while it is shorter than 21 days, so a fifth gains the power to delay and not to refuse. Add the seat-ownership check to `flag` and `signalCriteria`, or have the criteria file ignore events from seats whose owner has changed.
+
+**Confidence.** Certain as arithmetic. How often it bites depends on how many operators flag.
+
 ## 3. Contradictions between sections
 
 (pending)
