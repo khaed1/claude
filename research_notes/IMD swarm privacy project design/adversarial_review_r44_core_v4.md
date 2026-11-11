@@ -1,13 +1,13 @@
 # Adversarial review of Murmuration v4, revision 4.4: circuit, notes and pool
 
-Status: IN PROGRESS. This file is written and committed finding by finding. Until the header below carries a verdict, treat it as incomplete.
-
 ## 1. Header
 
 - Reviewed: "Murmuration v4 specification, revision 4.4", dated 11 November 2026, in its plain-text rendering (1,615 lines). Line numbers below refer to that rendering.
 - Reviewer's area: "How a payment moves", "The pool", "How private rewards work", the build specification from "Conventions" through "Keys, notes and addresses", "The circuit", contract 1 "Pool" and contract 2 "Verifier", "State machines", "Rules for the wallet and the relayer", "Size, gas and state pricing", "What operators can see", and the rows of the parameter, defaults and risk tables that concern them. The pool's interface with the registry (`isApproved`, `isRefused`, `START`) is included.
 - Method: the whole page was read once in full. No other file in the repository was opened. Arithmetic was redone with scripts kept outside the repository.
-- Verdict: pending.
+- Verdict, for this area only. It passes the test the page sets: I found no critical fault, no high fault, and no place where a natural reading by a builder is high or worse. The circuit as fifteen equations, the pool's ledgers, the reward index and the new relay-fee path all held against every attack listed in section 5.
+- Counts: 0 critical, 0 high, 0 high if misread, 4 medium (P-1 to P-4, two of them dependent on reading), 3 low (P-5 to P-7), 15 contradictions between sections, 22 points a builder would have to guess.
+- What should change before a build job is written: the wording of lemma 11 and of two other statements to be proved (P-3), the refund's missing fallback (P-4), the address format (P-2), and the sentences that describe the relay-fee ceiling (P-1). Each fix is a sentence or a few lines. P-4's worse reading locks an unactivated deposit for a narrow class of depositing contracts. I rate it medium because the page already accepts the general case of a depositor that cannot receive its own asset back, but it is the finding closest to high.
 
 ## 2. Findings
 
@@ -254,7 +254,7 @@ Every other ETH payment survives this: a withdrawal or relay fee that fails is c
 6. That the wallet must recompute `C0` from the decrypted payload, `gRef` and its own key before it counts a payment, and whether the encryption binds `C0` or `nf0` as associated data. L557 gives the info string and nothing else.
 7. The 44 spare bytes of ciphertext 1. They must stay zero, or be covered by the key derivation, because the nonce is zero: the same key with two different plaintexts breaks the cipher. As specified it is safe (same key means same `C1` and `C2`, so the same plaintext).
 8. Whether hourly window 0 counts as already taken. `window` starts at zero (L652) and the first window after `START` is number 0. Either answer is safe: under one the first note waits for the next hour, under the other it can be spent at once.
-9. The formulas while the pool's copy of `START` is still zero. Written as `t = now − START` (L675) they give a `t` of 56 years: step 5, caps at 32 times, no emission, and a deposit window that has closed. L518 says what is wanted ("Before START the caps are those of the first step ... deposits are open"), so each formula needs a branch.
+9. The formulas while the pool's copy of `START` is still zero. Written as `t = now − START` (L675) they give a `t` of about 57 years: step 5, caps at 32 times, no emission, and a deposit window that has closed. L518 says what is wanted ("Before START the caps are those of the first step ... deposits are open"), so each formula needs a branch.
 10. Whether `deposit` reads `START` from the registry. Only `roll` is said to (L661). If not, `deposit` works from a stale zero until the first `roll`, `activate` or `spend` after the first batch. Harmless, since every activation rolls first.
 11. The unit of `rate` (L678, "tokens per second"). It must be base units per second. In whole tokens it is 0.44 at step 0 and rounds to nothing.
 12. The gas forwarded with a refund (P-4).
@@ -302,8 +302,15 @@ Each item names the attack tried and why it failed. Scripts are in `/tmp/claude-
 - *Griefing a relayer.* A stale checkpoint, a spent nullifier, an evicted root and a fee above the ceiling are all rejected before the proof is verified, at about 65,000 gas. A recipient that burns its allowance costs the relayer about 72,000 gas more than simulated.
 - *Blocking exits by flooding the root window.* The two checkpoint roots are accepted, and a roll can be taken only once an hour.
 - *`START`.* Reading it lazily gives the same state as reading it at once, because nothing can be shielded before the first activation and every activation rolls first. Before `START` nothing is emitted. Between `START` and the first activation `g` grows against the floor and nothing is released. If the registry never starts, deposits stay refundable and `roll` does nothing.
-- *`roll` reverting.* I found no input that makes it revert: the largest product is under 2^154 in 256-bit arithmetic, the divisor has a floor above zero, and the clamps on `g` and `released` are plain minimums.
+- *`roll` reverting.* I found no input that makes it revert: the largest product is under 2^160 in 256-bit arithmetic, even at the largest supply the page allows, the divisor has a floor above zero, and the clamps on `g` and `released` are plain minimums.
 - *The clamps.* If `g` is held at 2^90 − 1 emission stops, so `released` cannot run ahead in a way that matters. If `released` is held at the users' 45%, the claims it limits were rounded down.
+
+**Other actors.**
+
+- *A block builder.* It can order a `roll` first in an hour, censor, and move a timestamp by seconds. The first lowers the hour's checkpoint slightly for everyone alike. It cannot set the base fee, which follows the protocol's rule, and a roll cannot be repeated inside an hour.
+- *A token issuer.* A freeze of the pool traps that asset, as the page says. One consequence of revision 4.4 is not on the page: a frozen or paused asset also loses relaying for private transfers inside the pool, because the relayer's fee is a transfer of that asset. Its holders can still move it privately only by sending the spend from a public address.
+- *A depositor who never activates.* The deposit sits in `pending`, outside the caps and outside the reward divisor, and affects nobody. Many open deposits cost their maker gas and refundable capital.
+- *A recipient contract.* It can refuse a payment, which then waits in `owed`, and it can burn its 50,000 gas. It cannot make a spend fail or change any state of the pool.
 
 **Privacy claims.**
 
