@@ -1,0 +1,13 @@
+{
+ "clip1": {"n": 1, "title": "Plead", "module": "plead", "next": "Your bar"},
+ "clip2": {"n": 2, "title": "Your bar", "module": "bar", "next": "Appeal"},
+ "clip3": {"n": 3, "title": "Appeal", "module": "appeal", "next": "Objection!"},
+ "clip4": {"n": 4, "title": "Objection!", "module": "objection", "next": "Letters"},
+ "clip5": {"n": 5, "title": "Letters", "module": "letters", "next": "Seasons"},
+ "clip6": {"n": 6, "title": "Seasons", "module": "seasons", "next": "Dead-man"},
+ "clip7": {"n": 7, "title": "Dead-man", "module": "deadman", "next": null},
+ "clip8": {"n": 8, "bonus": true, "title": "Run a keeper", "module": "keeper", "next": null, "link": "Guide: github.com/khaed1/plea → keeper/", "foot": "On Ethereum · @Pleaimd"},
+ "clip9": {"n": 9, "bonus": true, "title": "Claim your PLEA", "module": "claim", "next": null, "foot": "On Ethereum · @Pleaimd"},
+ "clip10": {"n": 10, "bonus": true, "title": "Plead your case", "module": "contest", "next": null, "beats": "beats-contest.json", "pill": "PLEA airdrop", "kicker": "Contest ·", "top": "PLEA AIRDROP · CONTEST", "foot": "72 hours · @Pleaimd"},
+ "clip11": {"n": 11, "bonus": true, "fx": true, "title": "Plead your case", "module": "contest", "next": null, "beats": "beats-contest.json", "pill": "PLEA airdrop", "kicker": "Contest ·", "top": "PLEA AIRDROP · CONTEST", "foot": "72 hours · @Pleaimd"}
+}

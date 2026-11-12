@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLEA X profile mock</title>
+<!-- How X web shows the @Pleaimd profile in its 600 px column, dark mode ("Lights out", #000): the
+     1500 x 500 header at 600 x 200, profile photo B at 134 px with X's 4 px ring in the page colour,
+     overlapping the header's bottom left, then the name and handle. ?theme=light shows X's light mode.
+     The X interface text is set in Inter as a stand-in for X's own font. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;family=Inter:wght@400;500;700;800&amp;display=block">
+<link rel="stylesheet" href="brand.css">
+<style>
+  body { background: #000; }
+  .x { --bg: #000; --fg: #E7E9EA; --fg-2: #71767B; --rule: #2F3336; --btn-bg: #EFF3F4; --btn-fg: #0F1419;
+       width: 600px; background: var(--bg); color: var(--fg); font-family: Inter, system-ui, sans-serif; }
+  .x.light { --bg: #fff; --fg: #0F1419; --fg-2: #536471; --rule: #EFF3F4; --btn-bg: #0F1419; --btn-fg: #fff; }
+  .x__banner { display: block; width: 600px; height: 200px; }
+  .x__top { position: relative; height: 72px; padding: 12px 16px 0; }
+  .x__photo { position: absolute; left: 16px; top: -67px; width: 134px; height: 134px; border-radius: 50%;
+              border: 4px solid var(--bg); background: var(--bg); overflow: hidden; }
+  .x__photo img { display: block; width: 100%; height: 100%; }
+  .x__follow { position: absolute; right: 16px; top: 12px; height: 36px; padding: 0 18px; border-radius: 999px;
+               display: inline-flex; align-items: center; background: var(--btn-bg); color: var(--btn-fg);
+               font-weight: 700; font-size: 15px; }
+  .x__who { padding: 4px 16px 16px; }
+  .x__name { font-size: 20px; font-weight: 800; line-height: 24px; letter-spacing: -0.01em; }
+  .x__handle { font-size: 15px; line-height: 20px; color: var(--fg-2); }
+  .x__tabs { display: flex; border-bottom: 1px solid var(--rule); }
+  .x__tabs span { flex: 1; text-align: center; padding: 16px 0 14px; font-size: 15px; font-weight: 500; color: var(--fg-2); }
+  .x__tabs span.on { color: var(--fg); font-weight: 700; position: relative; }
+  .x__tabs span.on::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 46px; height: 4px; margin-left: -23px; border-radius: 2px; background: #1D9BF0; }
+</style>
+</head>
+<body>
+<div class="x">
+  <img class="x__banner" src="../pleaimd-v2-header-1500x500.png" alt="">
+  <div class="x__top">
+    <div class="x__photo"><img src="../pleaimd-v2-B-1000.png" alt=""></div>
+    <span class="x__follow">Follow</span>
+  </div>
+  <div class="x__who">
+    <div class="x__name">Plea IMD</div>
+    <div class="x__handle">@Pleaimd</div>
+  </div>
+  <div class="x__tabs"><span class="on">Posts</span><span>Replies</span><span>Media</span><span>Likes</span></div>
+</div>
+<script>
+  const q = new URLSearchParams(location.search);
+  if (q.get('theme') === 'light') { document.querySelector('.x').classList.add('light'); document.body.style.background = '#fff'; }
+  if (q.get('photo')) document.querySelector('.x__photo img').src = '../pleaimd-v2-' + q.get('photo') + '-1000.png';
+  window.__ready = Promise.all([...document.images].map((i) => i.decode()));
+</script>
+</body>
+</html>

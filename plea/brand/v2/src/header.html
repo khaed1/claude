@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLEA X header</title>
+<!-- The X header for @Pleaimd, 1500 x 500, in the site's neo-brutal docket style: cream ground, the
+     line in Archivo Expanded 800, an APPROVED and a DENIED verdict stamp (flat state fills, ink text,
+     ink outline, hard shadow, -3deg) and one thin line saying what PLEA is.
+     X lays the profile photo over the bottom left: keep x < 440 and y > 300 empty (?guide shows it,
+     plus a 96 px margin). -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&amp;family=IBM+Plex+Mono:wght@600&amp;display=block">
+<link rel="stylesheet" href="brand.css">
+<style>
+  .header { position: relative; width: 1500px; height: 500px; overflow: hidden; background: var(--paper); }
+
+  .headline {
+    position: absolute; left: 96px; top: 92px; margin: 0;
+    font-family: var(--font-display); font-stretch: var(--display-stretch); font-weight: var(--display-weight);
+    font-size: 70px; line-height: 1.12; letter-spacing: -0.01em; color: var(--ink);
+  }
+  .headline span { display: block; }
+
+  .verdicts { position: absolute; inset: 0; pointer-events: none; }
+  .verdicts .stamp { position: absolute; font-size: 46px; }
+  .verdicts .stamp__sub { font-size: 0.5em; }   /* 23 px: still about 9 px when X shows the header at 600 px */
+  .v-approved { right: 108px; top: 84px; }
+  .v-denied { right: 140px; top: 248px; }
+
+  /* The thin line: an ink rule like the share card's foot, then what PLEA is. It starts at x = 442,
+     right of the photo. */
+  .about {
+    position: absolute; left: 442px; right: 96px; bottom: 64px; margin: 0;
+    padding-top: 18px; border-top: 3px solid var(--ink);
+    font-size: 28px; font-weight: 600; line-height: 1; color: var(--ink-2); text-align: right; white-space: nowrap;
+  }
+
+  .guide { position: absolute; inset: 0; pointer-events: none; }
+  .guide i { position: absolute; display: block; outline: 2px dashed #f0a; }
+  .guide .photo { left: 0; bottom: 0; width: 440px; height: 200px; background: rgba(255,0,160,.12); }
+  .guide .margin { inset: 64px 96px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1 class="headline"><span>buying is open.</span><span>selling needs a plea.</span></h1>
+  <div class="verdicts" aria-hidden="true">
+    <span class="stamp stamp--approved v-approved">Approved<span class="stamp__sub">36 vs need 33</span></span>
+    <span class="stamp stamp--denied v-denied">Denied</span>
+  </div>
+  <p class="about">A meme token on Uniswap v4 · 30 IMD oracle judges score every plea to sell</p>
+  <div class="guide" hidden><i class="photo"></i><i class="margin"></i></div>
+</div>
+<script>if (new URLSearchParams(location.search).has('guide')) document.querySelector('.guide').hidden = false;</script>
+</body>
+</html>

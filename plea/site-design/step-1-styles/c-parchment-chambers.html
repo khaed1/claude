@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>C · Parchment chambers</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..800&amp;family=Geist:wght@400..700&amp;family=Geist+Mono:wght@400..600&amp;display=swap">
+<style>
+body{margin:0;background:#F3ECDF}
+a{color:#8E2A24}a:hover{color:#29231E}
+.c-board{width:1200px;height:1280px;box-sizing:border-box;padding:48px;background:#F3ECDF;color:#29231E;font-family:Geist,sans-serif;font-size:15px;line-height:1.55}
+.c-board *{box-sizing:border-box}
+.c-f{font-family:Fraunces,serif;font-optical-sizing:auto}
+.c-num{font-variant-numeric:tabular-nums}
+.c-mono{font-family:"Geist Mono",monospace;font-variant-numeric:tabular-nums}
+.c-intro{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:40px;align-items:start;margin-bottom:32px}
+.c-tag{display:inline-block;margin:0 0 12px;padding:1px 10px;border:1px solid #B9AC99;border-radius:999px;font-size:12px;color:#6A5E51}
+.c-intro h1{margin:0 0 8px;font-size:42px;line-height:1.05;font-weight:600;letter-spacing:-0.01em}
+.c-mood{margin:0;font-size:17px;color:#6A5E51;max-width:32ch}
+.c-type{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px}
+.c-spec{border:1px solid #B9AC99;border-radius:4px;background:#FCF8F0;padding:10px 12px}
+.c-spec b{display:block;font-size:30px;line-height:1.15;font-weight:600}
+.c-spec span{display:block;font-size:12px;color:#6A5E51;line-height:1.4}
+.c-sw{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:8px}
+.c-chip{border:1px solid #B9AC99;border-radius:3px;height:40px}
+.c-swl{font-size:11px;line-height:1.35;color:#6A5E51;margin-top:4px}
+.c-screen{border:1px solid #B9AC99;border-radius:6px;background:#F3ECDF;overflow:hidden}
+.c-bar{display:flex;align-items:center;gap:22px;padding:14px 24px;background:#FCF8F0;border-bottom:1px solid #B9AC99}
+.c-logo{display:inline-flex;align-items:center;gap:10px;font-size:24px;font-weight:600}
+.c-seal{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:#8E2A24;color:#FCF8F0;font-family:Fraunces,serif;font-style:italic;font-size:19px;font-weight:600;box-shadow:inset 0 0 0 3px #A8433C}
+.c-nav{display:flex;gap:18px;flex:1}
+.c-nav a{color:#29231E;text-decoration:none;font-size:15px;padding:6px 0;border-bottom:2px solid transparent}
+.c-nav a.on{border-bottom-color:#8E2A24;font-weight:600}
+.c-pill{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border:1px solid #B9AC99;border-radius:999px;font-size:13px;white-space:nowrap;background:#FCF8F0}
+.c-dot{width:8px;height:8px;border-radius:50%;background:#2E6B3C}
+.c-main{padding:24px;display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:24px}
+.c-card{position:relative;background:#FCF8F0;border:1px solid #B9AC99;border-radius:4px;padding:24px 26px}
+.c-meta{display:flex;align-items:center;gap:10px;font-size:13px;color:#6A5E51;margin-bottom:14px}
+.c-meta strong{color:#29231E;font-weight:600}
+.c-seat{display:inline-block;padding:0 8px;border:1px solid #8E2A24;border-radius:999px;color:#8E2A24;font-size:12px;font-weight:600}
+.c-stamp{display:inline-flex;flex-direction:column;align-items:center;padding:5px 14px 4px;border:4px double currentColor;border-radius:3px;transform:rotate(-3deg);font-family:Fraunces,serif;font-weight:700;font-size:14px;line-height:1.2;letter-spacing:0.14em;text-transform:uppercase}
+.c-stamp small{font-family:Geist,sans-serif;font-size:12px;letter-spacing:0;text-transform:none;font-weight:600}
+.c-big{position:absolute;top:18px;right:24px;font-size:20px;padding:8px 18px 6px}
+.c-big small{font-size:13px}
+.k-ok{color:#2E6B3C;background:#E3EEDC}.k-no{color:#9B2A23;background:#F5DED8}.k-wait{color:#7F5300;background:#F6E8C8}.k-nv{color:#5E5347;background:#ECE5D8}.k-lap{color:#6A5E51;background:transparent;border-style:dashed;border-width:2px}.k-sold{color:#24507F;background:#DCE6F2}
+.c-quote{margin:46px 0 18px;font-family:Fraunces,serif;font-size:19px;line-height:1.5;font-weight:400;max-width:50ch}
+.c-facts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid #B9AC99;border-bottom:1px solid #B9AC99;margin-bottom:14px}
+.c-fact{padding:8px 10px;border-left:1px solid #E2D8C6}
+.c-fact:first-child{border-left:0;padding-left:0}
+.c-fact span{display:block;font-size:12px;color:#6A5E51}
+.c-fact b{display:block;font-size:16px;font-weight:600}
+.c-fact i{font-style:normal;font-size:12px;color:#2E6B3C;font-weight:600}
+.c-foot{display:flex;flex-wrap:wrap;align-items:center;gap:10px;font-size:14px}
+.c-judge{margin:12px 0 0;font-size:14px;color:#6A5E51;font-style:italic}
+.c-clock{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border:1px solid #29231E;border-radius:4px;font-size:13px}
+.c-clock .c-mono{font-size:15px;font-weight:600}
+.c-buy h2{margin:0 0 16px;font-size:26px;line-height:1.1;font-weight:600}
+.c-lbl{display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-bottom:6px}
+.c-lbl span{color:#6A5E51;font-weight:400}
+.c-field{display:flex;align-items:center;height:52px;border:1px solid #6A5E51;border-radius:4px;background:#FFFFFF;padding:0 14px;margin-bottom:12px}
+.c-field input{flex:1;min-width:0;border:0;outline:0;background:transparent;font-family:"Geist Mono",monospace;font-size:20px;font-weight:500;color:#29231E}
+.c-field b{font-size:14px;font-weight:600}
+.c-field.ro{background:#F3ECDF;border-color:#B9AC99}
+.c-rows{margin:4px 0 16px;font-size:14px}
+.c-rows div{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #E2D8C6}
+.c-rows div:last-child{border-bottom:0}
+.c-rows dt{color:#6A5E51}
+.c-rows dd{margin:0;text-align:right}
+.c-btn{display:flex;align-items:center;justify-content:center;width:100%;height:52px;border:0;border-radius:4px;background:#8E2A24;color:#FCF8F0;font-family:Geist,sans-serif;font-weight:600;font-size:16px;cursor:pointer}
+.c-note{margin:10px 0 0;font-size:13px;color:#6A5E51;text-align:center}
+.c-strip{margin:0 24px;padding:16px 22px;display:flex;align-items:center;gap:22px;border:1px solid #B9AC99;border-radius:4px;background:#FCF8F0}
+.c-strip p{margin:0;font-size:13px;color:#6A5E51;width:100px;line-height:1.35}
+.c-lb{margin:24px;border:1px solid #B9AC99;border-radius:4px;background:#FCF8F0}
+.c-lbh{display:flex;justify-content:space-between;align-items:baseline;padding:14px 22px;border-bottom:1px solid #B9AC99}
+.c-lbh h3{margin:0;font-size:20px;font-weight:600}
+.c-lbh span{font-size:13px;color:#6A5E51}
+.c-lb table{width:100%;border-collapse:collapse;font-size:15px}
+.c-lb th{text-align:left;font-size:12px;font-weight:600;color:#6A5E51;padding:8px 22px;border-bottom:1px solid #B9AC99}
+.c-lb td{padding:10px 22px;border-bottom:1px solid #E2D8C6}
+.c-lb tr:last-child td{border-bottom:0}
+.c-lb .r{text-align:right}
+.c-you td{background:#F5DED8}
+.c-youtag{display:inline-block;margin-left:6px;padding:0 6px;border-radius:3px;background:#8E2A24;color:#FCF8F0;font-size:11px;font-weight:600}
+</style>
+</head>
+<body>
+<div class="c-board">
+  <header class="c-intro">
+    <div>
+      <p class="c-tag">Direction C</p>
+      <h1 class="c-f">Parchment chambers</h1>
+      <p class="c-mood">A private court after hours: parchment, ink and a wax seal; calm, and a little absurd.</p>
+    </div>
+    <div>
+      <div class="c-type">
+        <div class="c-spec"><b class="c-f">Aa</b><span>Fraunces 600: headlines, plea quotes, stamps</span></div>
+        <div class="c-spec"><b style="font-weight:500">Aa</b><span>Geist 400–600: body, labels, buttons</span></div>
+        <div class="c-spec"><b class="c-mono" style="font-weight:500">06:12</b><span>Geist Mono: countdowns, inputs, addresses</span></div>
+      </div>
+      <div class="c-sw">
+        <div><div class="c-chip" style="background:#F3ECDF"></div><div class="c-swl">Paper<br>#F3ECDF</div></div>
+        <div><div class="c-chip" style="background:#FCF8F0"></div><div class="c-swl">Card<br>#FCF8F0</div></div>
+        <div><div class="c-chip" style="background:#29231E"></div><div class="c-swl">Ink<br>#29231E</div></div>
+        <div><div class="c-chip" style="background:#8E2A24"></div><div class="c-swl">Wax<br>#8E2A24</div></div>
+        <div><div class="c-chip" style="background:#2E6B3C"></div><div class="c-swl">Approved<br>#2E6B3C</div></div>
+        <div><div class="c-chip" style="background:#9B2A23"></div><div class="c-swl">Denied<br>#9B2A23</div></div>
+        <div><div class="c-chip" style="background:#7F5300"></div><div class="c-swl">Pending<br>#7F5300</div></div>
+        <div><div class="c-chip" style="background:#5E5347"></div><div class="c-swl">No verdict<br>#5E5347</div></div>
+        <div><div class="c-chip" style="background:#FCF8F0;border:2px dashed #6A5E51"></div><div class="c-swl">Lapsed<br>dashed</div></div>
+        <div><div class="c-chip" style="background:#24507F"></div><div class="c-swl">Sold<br>#24507F</div></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="c-screen" aria-label="Sample screen">
+    <nav class="c-bar" aria-label="Main">
+      <span class="c-logo c-f"><span class="c-seal">P</span>Plea</span>
+      <div class="c-nav">
+        <a href="#buy" class="on">Buy</a><a href="#plead">Plead</a><a href="#wall">Wall</a><a href="#seasons">Seasons</a><a href="#letters">Letters</a>
+      </div>
+      <span class="c-pill"><span class="c-dot"></span>Cabal alive · <span class="c-num">31h 12m</span></span>
+      <span class="c-pill">Season 2 · <span class="c-num">9d 4h</span> · pot <span class="c-num">184.20</span> IMD</span>
+      <span class="c-pill" style="border-color:#29231E;font-weight:600">mira_eth</span>
+    </nav>
+
+    <div class="c-main">
+      <article class="c-card" aria-label="Plea 214">
+        <div class="c-meta"><strong class="c-mono">Plea #214</strong><span>by <strong>mira_eth</strong></span><span class="c-seat">Seat ×1.2</span><span>2 min ago</span></div>
+        <div class="c-stamp c-big k-ok">Approved<small>36 vs need 33</small></div>
+        <p class="c-quote">“I bought at the top like a fool and held through two red weeks. My rent is due Friday and my landlord does not take PLEA. Let me sell a fifth; I keep the rest as a monument to my own judgement.”</p>
+        <div class="c-facts">
+          <div class="c-fact"><span>Share sold</span><b class="c-num">20%</b><i>+16</i></div>
+          <div class="c-fact"><span>Held</span><b class="c-num">3d 4h</b><i>+4</i></div>
+          <div class="c-fact"><span>Profit or loss</span><b class="c-num">−18%</b><i>+13</i></div>
+          <div class="c-fact"><span>24h trend</span><b>flat</b><i>+5</i></div>
+        </div>
+        <div class="c-foot">
+          <span>Fact score <b class="c-num">38</b> → needs <b class="c-num">33</b> of 45</span><span>·</span><span>Sells <b class="c-num">1,240,000</b> PLEA ≈ <b class="c-num">17.56</b> IMD</span><span>·</span><span><b class="c-num">+43</b> points</span>
+        </div>
+        <p class="c-judge">Judged by 30 · 26 agreed · 4m 10s. A judge said: “Honest about the timing, and funny about it.”</p>
+        <div class="c-foot" style="margin-top:12px">
+          <span class="c-clock" style="background:#29231E;color:#FCF8F0">Sell window <span class="c-mono">06:12</span></span>
+          <span class="c-clock">Objections close <span class="c-mono">18:40</span></span>
+        </div>
+      </article>
+
+      <form class="c-card c-buy" aria-label="Buy PLEA">
+        <h2 class="c-f">Buy PLEA</h2>
+        <label class="c-lbl" for="c-pay">You pay <span>Balance <span class="c-num">412.50</span> IMD · <a href="#max">Max</a></span></label>
+        <div class="c-field"><input id="c-pay" value="100.00" inputmode="decimal"><b>IMD</b></div>
+        <label class="c-lbl" for="c-get">You get</label>
+        <div class="c-field ro"><input id="c-get" value="≈ 6,881,240" readonly><b>PLEA</b></div>
+        <dl class="c-rows">
+          <div><dt>Price</dt><dd class="c-num">1M PLEA = 14.16 IMD</dd></div>
+          <div><dt>Fees 2.25%</dt><dd><span class="c-num">0.50</span> IMD back to you as staked IMD</dd></div>
+          <div><dt>Minimum (1% slippage)</dt><dd class="c-num">6,812,427 PLEA</dd></div>
+        </dl>
+        <button type="button" class="c-btn">Buy PLEA</button>
+        <p class="c-note">Buying is open. Selling needs a plea.</p>
+      </form>
+    </div>
+
+    <div class="c-strip">
+      <p>One stamp, six states</p>
+      <span class="c-stamp k-ok">Approved</span>
+      <span class="c-stamp k-no">Denied</span>
+      <span class="c-stamp k-wait">Pending <small>14:32</small></span>
+      <span class="c-stamp k-nv">No verdict</span>
+      <span class="c-stamp k-lap">Lapsed</span>
+      <span class="c-stamp k-sold">Sold</span>
+    </div>
+
+    <div class="c-lb">
+      <div class="c-lbh"><h3 class="c-f">Season 2 leaderboard</h3><span>Pot <span class="c-num">184.20</span> IMD + <span class="c-num">10,000,000</span> PLEA bonus · top 25 with 60+ points</span></div>
+      <table class="c-num">
+        <thead><tr><th>Rank</th><th>Player</th><th>Best three</th><th class="r">Points</th><th class="r">Prize</th></tr></thead>
+        <tbody>
+          <tr><td>#3</td><td>kafka_cat <span class="c-seat">Seat ×1.2</span></td><td>45 · 44 · 43</td><td class="r"><b>132</b></td><td class="r">8.14 IMD + 442,000 PLEA</td></tr>
+          <tr class="c-you"><td>#4</td><td>mira_eth <span class="c-seat">Seat ×1.2</span><span class="c-youtag">You</span></td><td>43 · 40 · 39</td><td class="r"><b>122</b></td><td class="r">8.07 IMD + 438,000 PLEA</td></tr>
+          <tr><td>#5</td><td class="c-mono">0x9c41…e07a</td><td>38 · 36 · 35</td><td class="r"><b>109</b></td><td class="r">7.98 IMD + 433,000 PLEA</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+</body>
+</html>
