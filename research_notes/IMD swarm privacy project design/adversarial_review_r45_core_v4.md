@@ -105,6 +105,36 @@ The same holds for a look-alike deployment a user was led to, and for the output
 
 **Confidence.** Certain for the derivation as written. Which of the two failures a wallet shows depends on the reading of "per-wallet counter".
 
+### X-4. Medium. The proving rule tells the wallet to call `roll` itself before a spend, and in a quiet pool that public call marks the spend that follows
+
+**Where.**
+
+- Wallet rule (line 997): "The wallet proves against the current checkpoint, `rootCur` and `gCur`. If the current hourly window has no checkpoint yet, it calls `roll` first, or has the relayer do it."
+- Note states (line 987): a new note "cannot be spent yet ... The wait ends at the next roll, which anyone can trigger once the hour has turned".
+- What relaying is for (line 107): "so your own address never pays the gas".
+- The claim it touches (line 233): "after activation nothing connects the deposit to what happens inside except the asset".
+
+**How it works.** `roll` is an ordinary transaction from a public account. A proof has to name a checkpoint that already exists, so a checkpoint cannot be taken by the spend that uses it.
+
+1. The pool is quiet: fewer than one transaction an hour, which is the launch state the page describes ("The pool starts with no users", a 25 ETH cap).
+2. Alice activated a deposit from address A at 10:20. Her note is under no checkpoint. Nobody else transacts.
+3. At 14:05 she wants to pay. The current window has no checkpoint, and her note is in neither saved root. Her wallet follows the rule and calls `roll` from the only funded account it has, A. `CheckpointRolled(window, g, root)` is emitted in a transaction signed by A.
+4. At 14:06 a relayed spend lands with `gRef` equal to the `g` of that event. In an hour with one roll and one spend, the spend is A's.
+
+The spend is tied to A, and through A to the deposit, without any operator's help. The more empty the pool, the more often the rule fires: it fires for every spend that is the first activity of its hour, and for every spend of a note made since the last checkpoint.
+
+**The alternative on the page is not specified.** "Has the relayer do it" needs a request before the proof exists, a relayer that pays about 50,000 to 90,000 gas for a call that carries no fee, and a second round trip for the proof. Nothing on the page defines that request, who pays for it, or what the wallet does if the relayer declines. A wallet builder working from the page writes the first option.
+
+**What the wallet could do instead, and the page does not say.** When Alice's notes are already under `rootCur`, no roll is needed at all: a proof against the stale current checkpoint is accepted, because `spend` rolls first and the stale checkpoint becomes the previous one. The outputs take the stale index, so no reward is lost on what stays inside. Only a note newer than the last checkpoint needs someone's transaction in a later hour.
+
+**Who and cost.** Any observer, nothing. Affects users of a quiet pool whose wallet follows the rule from an account of their own.
+
+**Consequence.** Weaker privacy for those users, at the time the crowd is smallest.
+
+**Smallest fix.** Rule: the wallet never calls `roll` from an account linked to the user. It proves against `rootCur` as it stands when its notes are under it and enough of the hour is left, and otherwise asks a relayer for a roll through a defined message whose cost is added to the next quote. State in "What no design choice removes" that a note made in a quiet hour cannot be spent until some later transaction, and that whoever sends it is visible.
+
+**Confidence.** Likely. Certain that the rule as written produces the public call; depends on the wallet which account sends it.
+
 ## 2. Contradictions between sections
 
 | Passage A | Passage B | Which one a builder would follow |
