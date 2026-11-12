@@ -6,11 +6,11 @@
 
 ## Verdict
 
-IN PROGRESS. The review is not finished; this section is rewritten at the end.
+PROVISIONAL (second run; the whole page has now been read once, findings are still being written up and committed one at a time).
 
-- Pass or fail: not yet decided.
-- Counts by severity: not yet counted.
-- Status: skeleton committed before reading; findings are added and committed one at a time.
+- Pass or fail: **does not pass** as it stands. One high-if-misread finding (X-1) is open.
+- Counts so far: critical 0, high 0, high if misread 1, medium 0, low 0. More medium and low findings are being written; no further critical or high candidate has survived a first pass over the circuit, the notes and the pool.
+- Status: X-1 was recorded by a first run that was cut off. This run re-read the specification in full, re-derived X-1 independently and keeps it (see the note at its end).
 
 ## 1. Findings, most severe first
 
@@ -49,6 +49,8 @@ Ids are in order of discovery. Line numbers are those of the text rendering.
 4. Part C: quote the theorem's hypothesis exactly.
 
 **Confidence.** Certain that the three checks accept the unsafe circuit and that the attack works on it (run). Depends on reading whether a builder would produce it.
+
+**Second run, same reviewer, after a full re-read.** Kept, with one sharpening. The precise condition is this: a public input `x` can be shifted exactly when some assignment of changes to the signals, with a non-zero change for `x`, is annihilated by all three constraint matrices at once. A public input that feeds a real multiplication (directly or through linear rows) is safe, because that row forces its change to zero. `gRef`, `root`, the nullifiers, the commitments, `publicAsset` and, when the range checks are bit decompositions, `publicAmount` and `relayFee` are safe for that reason under any export I could think of. `extHash` is the only public input whose single use is left to the builder, which is why it is the one at risk. If the key is built by snarkjs the extra rows it adds make every public input safe whatever the circuit says; but then the page's own warning about `publicAmount` and `relayFee` would be moot too, so the page is written for a key-building tool that adds no such rows, and under that assumption its criterion is insufficient. The page should name the tool and state the criterion for the system as that tool extends it.
 
 ## 2. Contradictions between sections
 
