@@ -52,6 +52,35 @@ Ids are in order of discovery. Line numbers are those of the text rendering.
 
 **Second run, same reviewer, after a full re-read.** Kept, with one sharpening. The precise condition is this: a public input `x` can be shifted exactly when some assignment of changes to the signals, with a non-zero change for `x`, is annihilated by all three constraint matrices at once. A public input that feeds a real multiplication (directly or through linear rows) is safe, because that row forces its change to zero. `gRef`, `root`, the nullifiers, the commitments, `publicAsset` and, when the range checks are bit decompositions, `publicAmount` and `relayFee` are safe for that reason under any export I could think of. `extHash` is the only public input whose single use is left to the builder, which is why it is the one at risk. If the key is built by snarkjs the extra rows it adds make every public input safe whatever the circuit says; but then the page's own warning about `publicAmount` and `relayFee` would be moot too, so the page is written for a key-building tool that adds no such rows, and under that assumption its criterion is insufficient. The page should name the tool and state the criterion for the system as that tool extends it.
 
+### X-2. Medium (high under the most literal of three readings). The rule that matches a proof to a checkpoint is not defined when both checkpoints carry the same index, which is every hour once emissions end
+
+**Where.**
+
+- Public-input table, row `root` (line 661): "`rootCur` when `gRef` is `gCur`, and `rootPrev` when `gRef` is `gPrev`. No other root is accepted".
+- Same table, row `gRef` (line 667): "`gCur` or `gPrev`, with the root saved at the same checkpoint".
+- The index stops moving: "rate = USERS × 2^step / D while t < 730 days, and 0 afterwards" (line 772), and "If `g` would still pass 2^90 − 1 the pool holds it there" (line 605).
+- The promise the rule has to keep (line 988): "Built against the current one, it stays valid until two more rolls have happened".
+
+**What is wrong.** The first row selects the root by the value of `gRef`. That works while `g` moves between two rolls, which it does during the 730 days of emission (about 1.3 × 10^8 to 5.4 × 10^8 units a second, so never zero in an hour). From day 730 after `START` the rate is zero for good, so after the second roll past that day `gCur = gPrev` for ever, while `rootCur` and `rootPrev` still differ whenever a leaf was inserted between the two rolls. Withdrawals have no end date, so this is the pool's permanent state, not a corner. Three builds follow from the same two rows:
+
+| Reading | Code | After day 730 |
+|---|---|---|
+| A, a pair | accept if `(gRef, root)` is `(gCur, rootCur)` or `(gPrev, rootPrev)` | Works as the page intends |
+| B, select by `gRef` | `if gRef == gCur: require root == rootCur; else if gRef == gPrev: require root == rootPrev; else revert` | A proof against the previous checkpoint is never accepted again. A proof dies at the first transaction of the next hour instead of the hour after. A spend that is the first transaction of an hour and was proved in the hour before reverts, and its own roll is undone with it |
+| C, two rules | `if gRef == gCur: require root == rootCur` and `if gRef == gPrev: require root == rootPrev` | A spend is accepted only while `rootCur == rootPrev`, that is, only in an hour that follows an hour with no insert at all |
+
+**Steps under reading C, with numbers.** Day 731. Hour 10 has one spend, so a leaf is inserted. First transaction of hour 11 rolls: `rootPrev` is the root before that leaf, `rootCur` the root after, `gCur = gPrev`. Every spend in hour 11 has `gRef` equal to both, must equal both roots, and reverts. Activations still insert leaves, because they need no proof. Whoever holds a stock of approved minimum deposits (1,000 of the pool's token is about $0.13 at the starting valuation, plus about $0.35 of gas for the deposit and the activation at 0.2 gwei) activates one in each hour and no spend is accepted in the next. That is about $12 a day to stop every exit until deposits close at year four, and after that the pool still alternates: one hour open, one hour shut, as soon as anyone uses the open hour.
+
+**Why the tests on the page would not catch it.** The canary line is "Spends and refunds after deposits have closed and emissions have ended" (line 1057) and, separately, "against the previous checkpoint" (line 1051). A quiet canary with one user has `rootCur == rootPrev` at most rolls, so a single spend after day 81 passes under all three readings. The fault then shows two years after `START` in a contract nobody can change.
+
+**Who and cost.** Under B nobody attacks; every user loses the second hour of validity and relayers lose the gas of spends that straddle the hour (the check is before verification, so tens of thousands of gas each). Under C anyone, for about $12 a day.
+
+**Consequence.** B: a promise on the page is false for ever after day 730, fails safe. C: a cheap lasting denial of spends. I rate the finding medium because I expect most builders to write B or A; a builder or a test writer who turns each table row into its own `require` writes C.
+
+**Smallest fix.** Replace the `root` row by "the pair (`gRef`, `root`) equals (`gCur`, `rootCur`) or (`gPrev`, `rootPrev`)", say that both pairs are tried when the two indexes are equal, and add a line to the canary and to the fuzzing job: after emissions end, insert a leaf, roll, and land a spend proved against the checkpoint before that roll.
+
+**Confidence.** Certain that the rows are ambiguous and that `gCur = gPrev` holds for ever after day 730. Depends on reading which build results.
+
 ## 2. Contradictions between sections
 
 | Passage A | Passage B | Which one a builder would follow |
