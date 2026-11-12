@@ -190,15 +190,59 @@ The same sentence also disagrees with itself on the count: "the current epoch or
 |---|---|---|
 | Line 584: "Clearing can no longer be starved." | Lines 848 to 850: clear-only words get what is left of 96 after up to 64 set-words, and wait otherwise | B, which is the rule. See Y-1 |
 | Line 196: a retired oracle "stops batches until two thirds of the seats signal a file without it" | Line 858: seven epochs without a reveal end the record and bar the seat | B. After a week there is no registry to resume. See Y-3 |
+| Line 210: "Only a majority can refuse." | Lines 199 and 848 to 850 with the refund rule of line 752 | The contract and the batch rule. A fifth can refuse. See Y-1 |
+| Line 199: "a day without a batch does not stretch it" | Same line: the bit is "cleared by the first batch after it ends" | The second. See Y-6 |
+| Line 864, 139, 1633: a minority blocks "at most about one day in three" | Lines 853 and 862: a removed seat stays in that day's snapshot and returns after 90 + 31 days; other seats of the same holder take its place | The mechanism. See Y-5 |
+| Line 833: batch applied "in the current epoch or one of the seven before it" (eight epochs) | Line 902: "within the last seven epochs"; line 248: "within the last seven days" | Unclear. One number is needed |
+| Line 1433, a current row: "The cost is a wait of one and a half to three days" | Lines 974 and 1403: "between 44 hours and three days" | 44 hours. The row kept the figure from before apply moved to the last four hours |
+| Line 1039: "The first batch can be applied about 33 days after launch" (also lines 974, 1086, 1139) | Line 820: active "no sooner than 31 epochs after registering", and apply opens at hour 20 | A seat registered on launch day can see the first batch 31 days and 20 hours after launch. The page's 33 is safe for the tables and wrong as a bound |
+| Line 269 and the tables: a valuation of 48,000 IMD and 12,000 × f / (1 − f) | Line 925: "The starting tick is the starting price rounded down to the pool's tick spacing of 200" | The tick. It is −99,600, a valuation of 47,276 IMD, 1.5% under every figure on the page |
+| Line 853: "A record cannot be ended in an epoch in which it has revealed" | Line 824: `settle` is open to anyone and has no such guard | No conflict in fact: after the day's commit has settled, a second settlement cannot find new strikes. Worth one sentence on the page |
 
 ## 3. Points a builder would have to guess
 
 1. What settlement does with a record whose `activeFrom` is zero or in the future (Y-4).
+2. The first value of `accounted` for the token. Line 816 counts "the unpaid part of the 15%" in it, and the 15% arrives by a plain transfer at launch, with no call. If `accounted` starts at zero, the first `fund` for the token takes the whole 15% for "what arrived", puts it in the pot, and the next applied batch pays it out to that day's revealers. The stakes then cover the daily shares. The page should say that it starts at 15% of supply.
+3. The first value of `settledThrough` at registration, and of `rolledEpoch` before the first roll. Epoch 0 is a real epoch, and the pool's `window` has a stated "none" value where the registry's fields have not.
+4. Whether "Before `GENESIS` every function reverts" (line 800) includes the views. If `fundable()`, `isApproved` and the getter of `START` revert, the pool's `roll`, which "can never revert", reverts before `GENESIS`. Harmless, and still a sentence that is not true as written.
+5. Whether a node commits and reveals when no batch can be accepted, for example while the snapshot is under seven. Under the silence rule the answer decides whether early registrants are barred (Y-3).
+6. Whether a flag can name a deposit id that does not exist yet. `flag` stores nothing and checks nothing, and line 197 counts flags "in the last 14 epochs". If it can, a fifth of the seats holds every future deposit with one sweep of flags a fortnight.
+7. What a listed word writes for the bits of deposits above `upTo`, and whether a word that straddles `upTo` can be listed at all.
+8. How a node obtains the content of a criteria file from its hash, and what it does when it cannot (Y-2, Y-3).
+9. The `from` address, gas limit and block context of the `eth_call` that reads a list. A list contract can answer differently for different callers or gas, which splits honest nodes and earns the smaller side strikes.
+10. Whether the pool is initialised at the price of the starting tick or at the starting price. Only the first lets a position that holds no IMD be placed.
+11. How `withdrawPay` and `withdrawStake` send ETH and tokens, and what a failed transfer does. The pool has a written rule for every payment; the registry has none.
+12. Whether `activate` may be called by a third party for a seat ("The holder or operator") and whether `register` checks that the operator is not zero.
+13. What "commits are still open" means in `fundable()` (Y-7).
 
 ## 4. What held
 
-(being filled in)
+Each item says how it was attacked.
+
+1. **The two counters.** `activeCount` and `joining` were checked against their definitions after every call in 400 random runs of 300 days (`fuzz2.py` on `registry_model.py`): 30 seats moving between 10 wallets, register, activate, commit, reveal, exit, evict, settle, sale and registration by the buyer, the first call of a day being any of them, and stretches of up to ten days with no call. 30,579 applied epochs, no mismatch. `activate` cannot be used twice, a record that leaves while joining lowers `joining`, and the roll after any gap folds `joining` correctly because every ending is preceded by a roll in the same call.
+2. **The snapshot is the set the criteria file names.** Nothing changes registry storage between the base block and the first call of the epoch, because `flag` and `signalCriteria` store nothing and every other function rolls first. So `epochs[e].snap` equals the number of records with `activeFrom` between 1 and `e` at the base block. It can be larger than the number of screeners able to reveal (sold seats, silent seats nobody has evicted, records ended earlier the same day), never smaller.
+3. **Pay.** In the same runs: the registry's balance equals pot + reserved + owed + stakes + unbonding + the unpaid 15% after every call; no record is credited twice for one epoch; and after settling every live record `reserved` is zero, so no revealer's pay is lost. A record cannot be ended between its reveal and `apply`: `evict` and `requestExit` revert, and a second settlement on that day cannot reach 21 strikes. The remainder of each division stays in the pot. The number of revealers is at least five, so nothing divides by zero.
+4. **"No settlement visits more than seven epochs."** True, under the reading that a waiting record is skipped. The largest count in the runs was seven. A commit settles through yesterday, a reveal needs a commit, and the silence test runs before the loop.
+5. **The strike figures for a fixed group.** `strikes.py`: 25% for a bare third at every registry size from 7 to 101, 30% for 14 of 30, 33% for 50 of 101 and 499 of 1,000, first stretches of 7 to 10 days. A group under half cannot make a majority hash, so it cannot give strikes to anyone else. Selling the seat, exiting and registering again do not shed strikes. A commit followed by no reveal, a wrong reveal and plain silence all cost the same three.
+6. **Coverage cannot be held back for ever with holds.** More than 64 words that set a bit lower `upTo`, but a hold can set a bit only on a deposit younger than its limit. Words older than eight days stop needing a set and coverage passes them. The lag is bounded by the length of the hold, which is the delay the page already gives a fifth. (Clearing is another matter: Y-1.)
+7. **The first batch can refuse.** A seat that is waiting can flag, and the flag counts once the seat is in the snapshot, if it was posted in the last 14 epochs. For a deposit of the first weeks that means posting it again shortly before the first batch, and it takes a majority, because the hold by a fifth reaches only deposits under eight days old. That is the same as in steady state, so the claim stands.
+8. **Timing.** 44 hours to three days from deposit to activation, and one to two days for a flag or a list to count, both follow from the windows.
+9. **One accepted hash per epoch**, since two hashes cannot both have two thirds of one snapshot. Commitments cannot be copied: they include the seat id and a salt.
+10. **The launch loop.** A candidate depends on the block's randomness and the caller, so pools created in earlier blocks are for other candidates, and at most about 13 can be created ahead of the launch in its own block against some 211 usable candidates. 82.5% of addresses sort below `0xd34a…`. The launch transaction's sender can buy first and register first; it cannot do worse to the token or the position.
+11. **Launch and `apply` gas, as arithmetic.** 22,142 bytes of pool code, about 3,000 of token code, two accounts and two dozen slots come to 41.2M of state gas under the draft rules. 96 new words cost 2.12M today and 10.56M under the draft rules, 1.16M of it execution gas. Not measured, as the page says.
+12. **The range and the tables.** 12,000 × f / (1 − f), the stake prices (14.4, 18.6, 29.3, 89.7, 558), 220 IMD for fifteen stakes and 1,222 for 77, every row of the unlock table, the fee tables, $26 and $5 a day for screeners, and 510 tokens per ETH per day were all reproduced.
+13. **`swarmPaid`, `claimFounder`, `collect`.** A list that adds up to more than 10% stops at 10%. `collect` burns only what the pool returned in the call. No path lowers the position's liquidity.
+14. **The staker stream.** With the scales given, the largest products stay far under 2^256 even for the token as the fee asset and one base unit staked, and each update loses under one base unit. Daily sweeps turn the seven-day line into a decay of one seventh a day, which the page states.
+15. **The distributor's 40%.** With the seven-day test, a blocked day no longer moves that day's fees to stakers. Fees swept during a stop of more than a week do go to stakers, as line 248 says.
+16. **Capture cannot move funds.** Nothing in the registry reaches the pool, and no batch can decide a deposit younger than a day at the start of its epoch, whatever `upTo` and the words say.
 
 ## 5. Suspicions not made concrete, and what was not checked
 
-(being filled in)
+- **A listed depositor can stall coverage where a hold cannot.** `deny: listed(depositor)` has no age limit, so a sanctioned address that keeps one open dust deposit in each of more than 64 new words a day would hold `upTo` back for ever. It needs the cooperation of a key on the list, so it is not written up as a finding.
+- **Software versions.** Two versions of the screening program that differ on one corner case split the registry, and the smaller side gains three strikes a day. Nobody will want to upgrade first. The page versions the criteria file and says nothing about the program.
+- **Flash-borrowed seats.** `register`, `activate`, `commit` and `reveal` each test ownership at one instant. A seat lent for one transaction at a time could back a record its holder does not keep. Anyone can evict such a record between loans, which is why this is a suspicion only.
+- **`evict` and "a seat call that reverts counts as not held".** If the same rule applies in `evict`, a seat contract whose `ownerOf` fails ends every record. The seat contract is said to have no key; I did not read it.
+- **The gas that reaches Uniswap's factory under the draft rules**, the "1.6M to spare", and whether state gas is refunded when a deposit record is created and cleared in one transaction (it changes the cost of Y-1 under Glamsterdam by a factor of two or three). Not checked: it needs the text of EIP-8037.
+- **The buyback and the auction** were read against their invariants and not simulated again. The fourth review's result is taken as it stands.
+- **The Chainalysis oracle's interface** and whether its owner can in fact make it unreadable were not checked. Line 338 of the page says the owner "can change or retire it".
+- **The canary's lines** were read for reachability within 90 days at the stated caps (they are reachable) and not for completeness against every function.
