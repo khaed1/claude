@@ -10,7 +10,7 @@ Scripts: `/tmp/claude-0/-home-user-claude/29945ecd-c0f3-5435-9820-8daff0f0ffe0/s
 PROVISIONAL (the note is committed finding by finding; this block is updated as it grows).
 
 - Pass (no high and no high-if-misread finding): **No.** Revision 4.5 does not pass in this area.
-- Counts so far: critical 0, high 3, high if misread 1, medium 0, low 0.
+- Counts so far: critical 0, high 3, high if misread 1, medium 1, low 4.
 - The three high findings are all in what revision 4.5 added: the 64/32 split of batch words, the "file in force" rule, and the silence rule inside settlement.
 
 ## 1. Findings, most severe first
@@ -116,6 +116,73 @@ A word is 256 deposit ids. Ids are cheap: a deposit that is refunded in the same
 **Smallest fix.** One sentence in Settling: a record that is not yet active is settled by step 1 and by setting `settledThrough`, and by nothing else. And write the comparison as `current epoch ≥ reference + 8` so that no subtraction can underflow.
 
 **Confidence.** Depends on reading.
+
+### Y-5. Medium. "One day in three" holds for a fixed group only; a holder with spare seats blocks more than half of all days, or all of them
+
+**Where.** Line 864: "After that the group has been removed or has to let batches through, and over time it can block at most about one day in three". Line 139 and the risk row at line 1633 repeat it. Line 853: "The current epoch's snapshot is not touched".
+
+**What holds.** For a group that cannot replace its members the figures on the page are right. `strikes.py` gives 25.2% of days for 11 of 30, 30.0% for 14 of 30, 33.1% for 50 of 101, and first stretches of 7 to 10 days when members are sacrificed. The closed form is `B / (B + 3W)` for a group of `B` in which `W` must withhold.
+
+**What does not.** The bound is per active seat, and seats that are waiting or barred are not in the snapshot. A holder runs them in shifts.
+
+1. Fifteen honest screeners. Eight hostile seats make the snapshot 23, and two thirds of 23 rounded up is 16, so eight silent seats block every batch.
+2. A shift blocks for seven days and reaches 21 strikes. Its removal is at the settlement on day eight, after that day's snapshot was taken, so day eight is blocked as well: eight days a shift.
+3. The seats are barred for 90 epochs, register again, wait 30 and are active on the next day: back after about 129 days.
+4. The next shift registered a week later. Seventeen shifts, 136 seats, block every day for ever. The 77 seats of the largest holder (line 1691) are nine shifts: 72 blocked days in every 129, or 56%. The top five holders have 243 seats.
+
+A smaller version of the same thing: a member that does not commit on a day its group blocks can call `requestExit` that same day. Settlement "looks at past epochs only" (line 855), the snapshot still counts the seat, and the day's miss is never charged.
+
+**Who and cost.** Seats are resalable, about 0.70 ETH each, and stakes come back. The honest side can answer only by adding seats, 31 days later, and each one raises the size of a shift.
+
+**Consequence.** Lost days beyond what the page tells the owner to expect, for as long as the holder likes. Nothing shielded is touched.
+
+**Smallest fix.** State the bound as what it is, a bound on a fixed set of seats. If more is wanted: take a removed seat out of the current snapshot when it is removed for strikes, and make the bar grow with each removal of the same seat.
+
+**Confidence.** Certain.
+
+### Y-6. Low. A hold bit outlives its hold whenever no batch is applied, and after a 13-day stop every held deposit can be bounced
+
+**Where.** Line 199: "A hold ends with the deposit's age and with nothing else: a day without a batch does not stretch it". Same line: "In the registry a hold is an ordinary refusal bit, cleared by the first batch after it ends". Line 752: others may refund when the deposit "is at least 21 days old" and is refused now. Line 1443: the 21 days "must stay longer than the longest hold and the life of a flag".
+
+**How.** The first sentence is true of the criteria and false of the contract. A deposit held at age 7 keeps its bit until some batch is applied. If none is applied for 13 days it is 21 days old and still refused, and anyone can send it back. Thirteen days without a batch is reachable without Y-1: an even split (line 864, "a deadlock"), a registry of seven that loses one member (30 days, line 214), or the removal of a blocking third from a registry of seven to ten (line 580). With a file that holds to the 14 days line 204 allows, seven days are enough, which is inside the "seven to ten days" one blockade lasts.
+
+**Consequence.** Forced refunds of deposits whose hold ended days earlier. The depositor loses the place and the gas and nothing else, so this fails safe. It is the fourth review's Q-9 again in a narrower form, and the page says it is fixed.
+
+**Smallest fix.** The same as Y-1: let a hold lapse in the contract by the deposit's age.
+
+**Confidence.** Certain.
+
+### Y-7. Low. `fundable()` says "commits are still open", which has two meanings on the page
+
+**Where.** Line 833: "True when a batch was applied in the current epoch or one of the seven before it, and commits are still open". Line 821, `commit`: "in the commit window | Requires commits to be open". Line 868: "Commits are open until 30 epochs param after the deposit window closes". Line 802: "Commit runs from hour 0 up to hour 12".
+
+**How.** Line 868 is clearly what is meant. A builder who writes one helper for "can a commit be made now" and uses it in both places makes `fundable()` false every day from hour 12. `sweepFees` is open to anyone once a day, so a staker sweeps each afternoon and the screeners' 40% goes to stakers every day. The canary's line "the pay each screener receives" would show it only if its sweeps happened to fall in the afternoon.
+
+The same sentence also disagrees with itself on the count: "the current epoch or one of the seven before it" is eight epochs, line 902 says "within the last seven epochs", line 248 "within the last seven days".
+
+**Smallest fix.** Give the lifetime test its own name, for example "screening has not ended", and one number.
+
+**Confidence.** Depends on reading.
+
+### Y-8. Low. A seat sold while active collects strikes, and after a week a 90-day bar, for days on which nobody could commit for it
+
+**Where.** Line 821: a commit needs "a seat still held by the registered holder". Line 826: `evict` "Settles, which ends and bars a record that is silent or has 21 strikes. If the record is still there and its holder no longer owns the seat, ends it without a bar". Line 810: strikes and the bar belong to the seat.
+
+**How.** After a transfer the old record stays in the snapshot and cannot commit. When the buyer calls `evict`, as line 819 tells them to, settlement runs first: three strikes for each day since the sale that had a majority hash, and if the last reveal is seven epochs back, the record is ended as silent and the buyer's seat is barred for 90 epochs. The order of the two sentences in `evict` decides it, and it is the wrong way round for a seat that was sold. A seller who calls `requestExit` before selling avoids all of it; nothing tells them to.
+
+**Smallest fix.** In `evict`, test ownership before settling strikes and silence, or do not count epochs after the holder stopped owning the seat (the contract cannot know when that was, so the first is the practical one).
+
+**Confidence.** Certain.
+
+### Y-9. Low. The operator key cannot be changed, and an operator can keep a holder from leaving
+
+**Where.** Line 819: `register(seatId, operator)`. No function changes the operator. Line 825: `requestExit` "Reverts if the record has committed or revealed in the current epoch".
+
+**How.** A holder whose operator key is lost has to exit, wait out nothing for the seat but 14 days for the stake, register again and wait 30 days. A holder whose operator is hostile or compromised cannot exit on any day the operator commits in the first block of the epoch, while the operator collects strikes on the seat by never revealing: seven days later the seat is barred. The holder's way out is to move the seat to another address and call `evict`, which nothing on the page mentions.
+
+**Smallest fix.** `setOperator(seatId, operator)` for the holder.
+
+**Confidence.** Certain.
 
 ## 2. Contradictions between sections
 
