@@ -81,6 +81,30 @@ Ids are in order of discovery. Line numbers are those of the text rendering.
 
 **Confidence.** Certain that the rows are ambiguous and that `gCur = gPrev` holds for ever after day 730. Depends on reading which build results.
 
+### X-3. Medium. A deposit's hidden owner commitment is the same in the canary, in the pool and in any look-alike, so one seed links its depositing addresses across deployments; the other reading of "per-wallet counter" breaks restore instead
+
+**Where.**
+
+- Line 631 to 632: "Deposit number n, a per-wallet counter from 0: `rho = first 31 bytes of HKDF(viewRoot, "deposit-rho" ‖ n)`", with `ownerCommit = H3(TAG_OC, ownerPk, rho)` (line 622) and `ownerPk` "one per wallet" (line 619).
+- Line 642: the wallet "finds its deposits by trying counters against `Deposited` events and stops after 20 counters in a row with no match", and of two devices: "the two deposits carry one `ownerCommit` and can be seen to belong together".
+- Line 647: only ciphertext 0 is bound to a deployment ("the info string `"murmuration/v1/ct0"` followed by the chain id and the pool's address").
+- Launch gate 7 (line 1561): "A wallet with real users has shipped the canary and has said it will ship the pool". Line 1040: "anyone can assemble a build that is identical apart from that time, deploy it early and launch it".
+
+**What is wrong.** `ownerCommit` of deposit `n` is a function of the seed and of `n` and of nothing else. It is published in `Deposited(id, depositor, asset, value, ownerCommit)`. The same wallet module, with the same seed, is meant to be used on the canary first and on the pool afterwards. The page gives the wallet two ways to count, and both fail.
+
+1. **The counter starts at 0 in each pool** (what "trying counters against `Deposited` events" does when a wallet is restored on a pool). Alice tries the canary from address A: deposit 0, `ownerCommit = X`. Months later she uses the pool from a fresh address B: deposit 0, `ownerCommit = X` again. Anyone who compares the two public logs links A and B, at no cost. The page already treats an equal `ownerCommit` as a visible link. If the two activations also land at the same leaf index, the two notes publish the same nullifier when spent, which links the spends as well; that is chance, since nobody chooses the index.
+2. **One counter for the wallet across pools** (what "a per-wallet counter" says). The commitments differ, but Alice's first deposit in the pool then has counter 37 if she made 37 in the canary. A wallet restored from the seed alone scans the pool from 0, finds nothing in 20 tries, and shows an empty balance. The notes are not lost, but nothing on the page tells the wallet to look further, and gate 7 tests a restore in the canary only.
+
+The same holds for a look-alike deployment a user was led to, and for the outputs and the key of ciphertext 1, whose derivations (line 634 and 636) also name no deployment, though there the first nullifier makes a collision a matter of chance.
+
+**Who and cost.** Any observer, nothing. It affects users who deposit with one seed in more than one deployment, which the launch gate makes the normal path for the first users.
+
+**Consequence.** Weaker privacy at the edge for those users (their depositing addresses are tied together), or a restored wallet that does not find its deposits. No funds can be taken.
+
+**Smallest fix.** Put the chain id and the pool's address into the info string of every derivation from `viewRoot` (deposit `rho`, output `rho`, `k1`), as ciphertext 0 already does, and say that the deposit counter is kept per pool.
+
+**Confidence.** Certain for the derivation as written. Which of the two failures a wallet shows depends on the reading of "per-wallet counter".
+
 ## 2. Contradictions between sections
 
 | Passage A | Passage B | Which one a builder would follow |
